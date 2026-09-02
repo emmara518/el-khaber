@@ -1,0 +1,14 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@expo/cli"
+  - esbuild
+  - sharp
+allowBuilds:
+  "@nestjs/core": true
+  "@expo/cli": true
+  esbuild: true
+  sharp: true

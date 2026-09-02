@@ -1,0 +1,58 @@
+{
+  "name": "@khabir/api",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Al-Khabir NestJS backend. Authoritative source for identity, roles, permissions, subscriptions, and order state.",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "db:seed": "ts-node --transpile-only prisma/seed.ts",
+    "clean": "rm -rf dist .turbo"
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+  },
+  "dependencies": {
+    "@khabir/shared-types": "workspace:*",
+    "@khabir/shared-validation": "workspace:*",
+    "@nestjs/common": "10.4.6",
+    "@nestjs/core": "10.4.6",
+    "@nestjs/jwt": "10.2.0",
+    "@nestjs/platform-express": "10.4.6",
+    "@nestjs/throttler": "6.2.1",
+    "@prisma/client": "5.22.0",
+    "argon2": "0.41.1",
+    "cookie-parser": "1.4.7",
+    "dotenv": "16.4.5",
+    "prisma": "5.22.0",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.1",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@khabir/config": "workspace:*",
+    "@nestjs/cli": "10.4.7",
+    "@nestjs/schematics": "10.2.3",
+    "@nestjs/testing": "10.4.6",
+    "@types/cookie-parser": "1.4.7",
+    "@types/express": "4.17.21",
+    "@types/node": "20.14.10",
+    "@types/supertest": "6.0.2",
+    "eslint": "9.15.0",
+    "supertest": "7.0.0",
+    "ts-node": "10.9.2",
+    "tsconfig-paths": "4.2.0",
+    "typescript": "5.6.3",
+    "vitest": "2.1.5"
+  }
+}

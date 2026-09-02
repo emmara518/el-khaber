@@ -1,0 +1,25 @@
+{
+  "name": "@khabir/shared-types",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared DTOs and enums for the Al-Khabir monorepo. Generated from the OpenAPI export; hand-written only for the bootstrap.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "clean": "rm -rf dist .turbo"
+  },
+  "devDependencies": {
+    "@khabir/config": "workspace:*",
+    "eslint": "9.15.0",
+    "typescript": "5.6.3"
+  }
+}

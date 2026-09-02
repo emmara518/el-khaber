@@ -1,0 +1,165 @@
+// Al-Khabir Prisma schema.
+// Source of truth for entities: docs/06_DATABASE.md and docs/07_API.md.
+// This file is the logical schema definition; physical migrations are
+// generated and applied via `prisma migrate dev` / `prisma migrate deploy`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// End-user identity
+// -----------------------------------------------------------------------------
+// One primary application role per account (customer | technician | merchant).
+// Admin lives in a separate table (see `admin_users`) and is never
+// selectable via the public registration flow. Source: docs/01_PROJECT.md §2,
+// docs/06_DATABASE.md §2, docs/10_ENGINEERING_RULES.md §14.
+
+enum UserRole {
+  customer
+  technician
+  merchant
+}
+
+enum UserStatus {
+  active
+  suspended
+  pending
+  deleted
+}
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  // The constitution allows phone and/or email as the identifier.
+  // We support both; at least one must be present. Uniqueness is
+  // enforced per-field so the same value cannot be used twice.
+  phone          String?    @unique @db.VarChar(32)
+  email          String?    @unique @db.VarChar(254)
+  passwordHash   String     @map("password_hash") @db.VarChar(255)
+  role           UserRole
+  status         UserStatus @default(active)
+  // Whether the user has verified the contact channel they registered with.
+  // Foundation field only; verification flow belongs to a later task.
+  phoneVerified  Boolean    @default(false) @map("phone_verified")
+  emailVerified  Boolean    @default(false) @map("email_verified")
+  lastLoginAt    DateTime?  @map("last_login_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  refreshTokens        RefreshToken[]
+  passwordResetTokens  PasswordResetToken[]
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+// -----------------------------------------------------------------------------
+// Refresh tokens (hashed, rotated, revocable)
+// -----------------------------------------------------------------------------
+// Raw refresh tokens are never persisted. The server stores only the SHA-256
+// hash of the opaque token, its family id (for rotation/revocation), the
+// expiry, and the revocation state. Source: docs/07_API.md §4, §6, §10, §15
+// and docs/05_TECH_ARCHITECTURE.md §6, §11.
+
+model RefreshToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  // SHA-256 hash of the raw token. Unique by definition.
+  tokenHash   String    @unique @map("token_hash") @db.Char(64)
+  // A family groups a single login's rotation chain. When a token in a
+  // family is used to refresh, all other tokens in the family are
+  // revoked and a new token is issued in the same family. If a previously
+  // rotated token is presented (replay), the entire family is revoked.
+  familyId    String    @map("family_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  // Why a token was revoked (rotation | logout | admin | family_replay).
+  revokedReason String? @map("revoked_reason") @db.VarChar(32)
+  // Optional device/user-agent metadata. Not trusted for authorization.
+  userAgent   String?   @map("user_agent") @db.VarChar(512)
+  ipAddress   String?   @map("ip_address") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// -----------------------------------------------------------------------------
+// Password reset tokens (one-time, short-lived)
+// -----------------------------------------------------------------------------
+
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+// -----------------------------------------------------------------------------
+// Admin identity (separate authority boundary)
+// -----------------------------------------------------------------------------
+// Admin is NOT one of the three end-user roles. Admin accounts are created
+// out-of-band (seed / direct DB) and have no public registration flow.
+// Source: docs/09_ADMIN.md §2, §3, §19 and docs/10_ENGINEERING_RULES.md §14.
+
+enum AdminRole {
+  super_admin
+  operations_admin
+  content_admin
+  support_admin
+}
+
+model AdminUser {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique @db.VarChar(254)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  role         AdminRole
+  status       UserStatus @default(active)
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  refreshTokens AdminRefreshToken[]
+
+  @@index([role])
+  @@index([status])
+  @@map("admin_users")
+}
+
+model AdminRefreshToken {
+  id          String    @id @default(uuid()) @db.Uuid
+  adminId     String    @map("admin_id") @db.Uuid
+  tokenHash   String    @unique @map("token_hash") @db.Char(64)
+  familyId    String    @map("family_id") @db.Uuid
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  revokedReason String? @map("revoked_reason") @db.VarChar(32)
+  userAgent   String?   @map("user_agent") @db.VarChar(512)
+  ipAddress   String?   @map("ip_address") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("admin_refresh_tokens")
+}

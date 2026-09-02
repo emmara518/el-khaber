@@ -1,0 +1,31 @@
+{
+  "name": "@khabir/admin",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Internal admin dashboard for الخبير.",
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "echo \"no tests yet\" && exit 0",
+    "clean": "rm -rf .next .turbo"
+  },
+  "dependencies": {
+    "@khabir/shared-types": "workspace:*",
+    "@khabir/shared-validation": "workspace:*",
+    "@khabir/ui-tokens": "workspace:*",
+    "next": "15.0.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@khabir/config": "workspace:*",
+    "@types/node": "20.14.10",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "eslint": "9.15.0",
+    "typescript": "5.6.3"
+  }
+}

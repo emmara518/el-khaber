@@ -1,0 +1,68 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+.turbo/
+.expo/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+.nyc_output/
+
+# Prisma
+**/prisma/migrations/dev.db*
+**/prisma/dev.db*
+
+# Expo / React Native
+.expo-shared/
+ios/Pods/
+ios/build/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+ios/Podfile.lock
+*.jks
+*.p12
+*.key
+*.mobileprovision
+
+# Temporary scratch
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Generated Prisma client (re-generated on install)
+packages/*/node_modules/.prisma/
+apps/*/node_modules/.prisma/
