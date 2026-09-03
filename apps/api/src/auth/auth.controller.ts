@@ -33,7 +33,8 @@ import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
-import { type AuthService } from './auth.service';
+import { AuthService } from './auth.service';
+import { PasswordResetService } from './password-reset.service';
 
 import type { ApiSuccess, AuthSessionDto } from '@khabir/shared-types';
 import type { Request } from 'express';
@@ -43,7 +44,10 @@ const authThrottle = (): MethodDecorator => Throttle({ auth: {} });
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
 
   @Public()
   @Post('register')
@@ -104,10 +108,13 @@ export class AuthController {
   async forgotPassword(
     @Body() _body: ForgotPasswordInput,
   ): Promise<ApiSuccess<{ accepted: true }>> {
-    // The reset-token issuance/email/SMS channel belongs to a later task
-    // (notification provider is not in MVP per CTO amendment). The endpoint
-    // exists, validates input, and always returns 202 to avoid leaking
-    // whether a contact channel is registered.
+    // Issue a reset token (or no-op if the contact channel is unknown).
+    // The HTTP response intentionally reveals NOTHING about whether a
+    // user matched, whether a token was issued, or anything about the
+    // token itself. Notification delivery is a separate concern handled
+    // by the future notification adapter which will receive the raw
+    // token from the service layer (see PasswordResetService).
+    await this.passwordReset.requestReset(_body);
     return { data: { accepted: true } };
   }
 
@@ -116,9 +123,10 @@ export class AuthController {
   @HttpCode(204)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(resetPasswordSchema))
-  async resetPassword(@Body() _body: ResetPasswordInput): Promise<void> {
-    // Reset-token consumption and password rotation also belong to a later
-    // task (notification channel required). The endpoint is reserved here
-    // so the API surface matches docs/07_API.md §4.
+  async resetPassword(@Body() body: ResetPasswordInput): Promise<void> {
+    await this.passwordReset.consumeReset({
+      token: body.token,
+      newPassword: body.password,
+    });
   }
 }

@@ -9,7 +9,7 @@
     "start": "next start --port 3002",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "echo \"no tests yet\" && exit 0",
+    "test": "echo \"no tests yet (landing page lands in a later task)\" && exit 0",
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {

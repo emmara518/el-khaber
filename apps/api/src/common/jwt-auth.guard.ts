@@ -15,9 +15,9 @@
  * inside the controller for fine-grained per-resource authorization.
  */
 
-import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
-import { type Reflector } from '@nestjs/core';
-import { type JwtService } from '@nestjs/jwt';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { JwtService } from '@nestjs/jwt';
 
 import { getConfig } from '../config/app.config';
 

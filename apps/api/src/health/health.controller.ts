@@ -2,7 +2,7 @@ import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
 
 
 import { Public } from '../common/decorators';
-import { type PrismaService } from '../database/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 
 import type { ApiSuccess } from '@khabir/shared-types';
 

@@ -10,7 +10,7 @@
     "build": "expo prebuild --no-install",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "echo \"no tests yet\" && exit 0",
+    "test": "echo \"no tests yet (mobile test runner config lands in a later task)\" && exit 0",
     "clean": "rm -rf dist .turbo .expo android ios"
   },
   "dependencies": {

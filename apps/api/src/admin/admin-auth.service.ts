@@ -16,14 +16,14 @@ import {
   type UserStatus,
 } from '@khabir/shared-types';
 import { Injectable } from '@nestjs/common';
-import { type JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 
 
 import { verifyPassword } from '../auth/password';
 import { generateOpaqueToken, hashToken } from '../auth/token.util';
 import { AuthInvalidException, NotFoundException } from '../common/errors';
 import { getConfig } from '../config/app.config';
-import { type PrismaService } from '../database/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 
 export interface AdminLoginInput {
   email: string;

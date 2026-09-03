@@ -9,7 +9,7 @@
 
 import { Controller, Get, UseGuards } from '@nestjs/common';
 
-import { type AuthService } from '../auth/auth.service';
+import { AuthService } from '../auth/auth.service';
 import { CurrentUser, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 

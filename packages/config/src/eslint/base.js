@@ -33,10 +33,12 @@ const base = tseslint.config(
           alphabetize: { order: 'asc', caseInsensitive: true },
         },
       ],
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { prefer: 'type-imports', fixStyle: 'inline-type-imports' },
-      ],
+      // Disabled because NestJS relies on value imports of injected
+      // classes (e.g. `Reflector`, `JwtService`, `PrismaService`) for
+      // decorator metadata (`emitDecoratorMetadata`). Marking these as
+      // `import type` erases the value at runtime and breaks DI. The
+      // `noUnusedLocals` rule still catches genuinely unused imports.
+      '@typescript-eslint/consistent-type-imports': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },

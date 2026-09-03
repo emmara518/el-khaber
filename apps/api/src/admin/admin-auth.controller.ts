@@ -27,7 +27,7 @@ import { AuthKind, CurrentUser, Public, type RequestUser } from '../common/decor
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
-import { type AdminAuthService } from './admin-auth.service';
+import { AdminAuthService } from './admin-auth.service';
 
 import type { ApiSuccess, AuthSessionDto, MeDto } from '@khabir/shared-types';
 import type { Request } from 'express';

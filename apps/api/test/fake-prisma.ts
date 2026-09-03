@@ -62,10 +62,19 @@ interface AdminRefreshRow {
   createdAt: Date;
 }
 
+interface PasswordResetRow {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  createdAt: Date;
+}
+
 class FakePrismaClient {
   users: UserRow[] = [];
   refreshTokens: RefreshRow[] = [];
-  passwordResetTokens: { id: string; userId: string; tokenHash: string; expiresAt: Date; usedAt: Date | null; createdAt: Date }[] = [];
+  passwordResetTokens: PasswordResetRow[] = [];
   adminUsers: AdminRow[] = [];
   adminRefreshTokens: AdminRefreshRow[] = [];
 
@@ -79,6 +88,26 @@ class FakePrismaClient {
 
   $queryRaw(): Promise<unknown> {
     return Promise.resolve([{ '?column?': 1 }]);
+  }
+
+  /**
+   * Mirrors the real `PrismaService.isConnected()` so the readiness
+   * probe does not throw on the fake.
+   */
+  isConnected(): boolean {
+    return true;
+  }
+
+  /**
+   * Transaction support. The fake executes the callback synchronously
+   * against `this`, so all model methods see the same in-memory state.
+   * This is sufficient for the auth e2e suite which only tests single
+   * transactions. A production transaction client would rollback on
+   * exception; the fake propagates the error and the caller can choose
+   * to swallow it.
+   */
+  $transaction<T>(fn: (tx: this) => Promise<T>): Promise<T> {
+    return fn(this);
   }
 
   user = {
@@ -160,10 +189,10 @@ class FakePrismaClient {
         tokenHash: args.data.tokenHash,
         familyId: args.data.familyId,
         expiresAt: args.data.expiresAt,
-        revokedAt: args.data.revokedAt,
-        revokedReason: args.data.revokedReason,
-        userAgent: args.data.userAgent,
-        ipAddress: args.data.ipAddress,
+        revokedAt: args.data.revokedAt ?? null,
+        revokedReason: args.data.revokedReason ?? null,
+        userAgent: args.data.userAgent ?? null,
+        ipAddress: args.data.ipAddress ?? null,
         createdAt: new Date(),
       };
       this.refreshTokens.push(row);
@@ -191,9 +220,64 @@ class FakePrismaClient {
   };
 
   passwordResetToken = {
-    findUnique: async (): Promise<null> => null,
-    create: async (): Promise<null> => null,
-    update: async (): Promise<null> => null,
+    findUnique: async (
+      args: { where: { tokenHash: string }; include?: { user: boolean } },
+    ): Promise<(PasswordResetRow & { user?: UserRow }) | null> => {
+      const r = this.passwordResetTokens.find((x) => x.tokenHash === args.where.tokenHash);
+      if (!r) {
+        return null;
+      }
+      if (args.include?.user) {
+        const u = this.users.find((x) => x.id === r.userId);
+        if (!u) {
+          return null;
+        }
+        return { ...r, user: u };
+      }
+      return r;
+    },
+    create: async (
+      args: { data: Omit<PasswordResetRow, 'id' | 'createdAt' | 'usedAt'> & { usedAt?: Date | null } },
+    ): Promise<PasswordResetRow> => {
+      const row: PasswordResetRow = {
+        id: randomUUID(),
+        userId: args.data.userId,
+        tokenHash: args.data.tokenHash,
+        expiresAt: args.data.expiresAt,
+        usedAt: args.data.usedAt ?? null,
+        createdAt: new Date(),
+      };
+      this.passwordResetTokens.push(row);
+      return row;
+    },
+    update: async (args: { where: { id: string }; data: Partial<PasswordResetRow> }): Promise<PasswordResetRow> => {
+      const idx = this.passwordResetTokens.findIndex((r) => r.id === args.where.id);
+      if (idx < 0) {
+        throw new Error('Password reset token not found');
+      }
+      this.passwordResetTokens[idx] = { ...this.passwordResetTokens[idx], ...args.data };
+      return this.passwordResetTokens[idx];
+    },
+    updateMany: async (
+      args: { where: { userId?: string; usedAt: null | Date }; data: Partial<PasswordResetRow> },
+    ): Promise<{ count: number }> => {
+      let count = 0;
+      this.passwordResetTokens = this.passwordResetTokens.map((r) => {
+        const matchesUserId = args.where.userId === undefined || r.userId === args.where.userId;
+        const matchesUsedAt =
+          args.where.usedAt === null
+            ? r.usedAt === null
+            : args.where.usedAt instanceof Date
+              ? r.usedAt !== null && r.usedAt.getTime() === args.where.usedAt.getTime()
+              : true;
+        if (matchesUserId && matchesUsedAt) {
+          count += 1;
+          return { ...r, ...args.data };
+        }
+        return r;
+      });
+      return { count };
+    },
   };
 
   adminUser = {
@@ -257,10 +341,10 @@ class FakePrismaClient {
         tokenHash: args.data.tokenHash,
         familyId: args.data.familyId,
         expiresAt: args.data.expiresAt,
-        revokedAt: args.data.revokedAt,
-        revokedReason: args.data.revokedReason,
-        userAgent: args.data.userAgent,
-        ipAddress: args.data.ipAddress,
+        revokedAt: args.data.revokedAt ?? null,
+        revokedReason: args.data.revokedReason ?? null,
+        userAgent: args.data.userAgent ?? null,
+        ipAddress: args.data.ipAddress ?? null,
         createdAt: new Date(),
       };
       this.adminRefreshTokens.push(row);

@@ -22,13 +22,13 @@ import {
   type Role,
 } from '@khabir/shared-types';
 import { Injectable } from '@nestjs/common';
-import { type JwtService } from '@nestjs/jwt';
+import { JwtService } from '@nestjs/jwt';
 import { type Prisma, type UserRole, UserStatus } from '@prisma/client';
 
 
 import { ConflictException, AuthInvalidException, NotFoundException } from '../common/errors';
 import { getConfig } from '../config/app.config';
-import { type PrismaService } from '../database/prisma.service';
+import { PrismaService } from '../database/prisma.service';
 
 import { hashPassword, verifyPassword } from './password';
 import { generateOpaqueToken, hashToken } from './token.util';
