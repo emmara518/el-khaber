@@ -64,11 +64,25 @@ describe('auth e2e', () => {
   let prisma: FakePrismaClient;
 
   beforeAll(async () => {
+    // Safety: refuse to run if a real Supabase URL is configured. The
+    // e2e suite uses an in-memory `FakePrismaClient` and is NOT
+    // safe against an uncontrolled real database. Per the CTO
+    // amendment §9, the e2e must run against an isolated Supabase
+    // test database, which is a separate task. Until that is
+    // available, this guard prevents accidental production mutation.
+    const dbUrl = process.env['DATABASE_URL'] ?? '';
+    if (/supabase\.com|supabase\.co/i.test(dbUrl)) {
+      throw new Error(
+        'E2E database safety: a real Supabase URL is configured. The e2e suite uses the in-memory FakePrismaClient and must NOT run against a real database. Unset DATABASE_URL or set it to a clearly-test-only value (e.g. postgresql://test/test).',
+      );
+    }
+
     process.env['NODE_ENV'] = 'test';
     process.env['PORT'] = '0';
     process.env['API_GLOBAL_PREFIX'] = 'api/v1';
     process.env['CORS_ORIGINS'] = '';
     process.env['DATABASE_URL'] = 'postgresql://test/test';
+    process.env['DIRECT_URL'] = 'postgresql://test/test';
     process.env['JWT_ACCESS_SECRET'] = 'test-access-secret-test-access-secret-32';
     process.env['JWT_ACCESS_TTL'] = '900';
     process.env['JWT_REFRESH_TTL'] = '2592000';

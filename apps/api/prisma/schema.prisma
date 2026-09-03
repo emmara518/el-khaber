@@ -8,8 +8,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider         = "postgresql"
+  url              = env("DATABASE_URL")
+  // Supabase connection strategy: migrations run against the direct
+  // (non-pooled) connection because the Supabase pooler does not support
+  // DDL or advisory locks used by `prisma migrate`. The application
+  // runtime uses the pooled `DATABASE_URL`. Both values are managed via
+  // environment variables; nothing is hard-coded. See
+  // docs/adr/0004-supabase-postgres.md and docs/local-dev.md.
+  directUrl        = env("DIRECT_URL")
 }
 
 // -----------------------------------------------------------------------------
