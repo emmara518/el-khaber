@@ -4,3 +4,6 @@ dist
 .turbo
 coverage
 *.log
+android
+ios
+*.tsbuildinfo

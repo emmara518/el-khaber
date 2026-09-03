@@ -10,7 +10,7 @@
     "build": "expo prebuild --no-install",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "echo \"no tests yet (mobile test runner config lands in a later task)\" && exit 0",
+    "test": "vitest run",
     "clean": "rm -rf dist .turbo .expo android ios"
   },
   "dependencies": {
@@ -37,6 +37,7 @@
     "@khabir/config": "workspace:*",
     "@types/react": "~18.3.12",
     "eslint": "9.15.0",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "vitest": "2.1.5"
   }
 }
