@@ -55,7 +55,14 @@ function formatScheduleAr(iso: string): string {
         Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) /
         86_400_000,
     );
-    const dayLabel = dayDiff === 0 ? 'اليوم' : dayDiff === 1 ? 'غداً' : `${dayDiff} يوم`;
+    const dayLabel =
+      dayDiff === 0
+        ? 'اليوم'
+        : dayDiff === 1
+          ? 'غداً'
+          : dayDiff > 1
+            ? `${dayDiff} يوم`
+            : d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short' });
     const hours = d.getHours();
     const minutes = d.getMinutes().toString().padStart(2, '0');
     const period = hours >= 12 ? 'م' : 'ص';

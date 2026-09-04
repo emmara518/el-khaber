@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { I18nManager, Platform, StyleSheet } from 'react-native';
+import { I18nManager, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -17,9 +17,9 @@ import { useI18n } from '../src/i18n/use-i18n';
  * because the Customer Home hero is a dark navy bar.
  */
 export default function RootLayout() {
-  // Force RTL once on mount. The product's primary language is
+  // Force RTL on every platform. The product's primary language is
   // Arabic (docs/02_PRODUCT.md §3.3). Re-applying is a no-op.
-  if (Platform.OS !== 'web' && I18nManager.isRTL === false) {
+  if (I18nManager.isRTL === false) {
     I18nManager.allowRTL(true);
     I18nManager.forceRTL(true);
   }

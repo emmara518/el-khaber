@@ -14,10 +14,13 @@
     "clean": "rm -rf dist .turbo .expo android ios"
   },
   "dependencies": {
+    "@babel/runtime": "7.26.10",
+    "@expo/metro-runtime": "~4.0.1",
     "@khabir/shared-types": "workspace:*",
     "@khabir/shared-validation": "workspace:*",
     "@khabir/ui-tokens": "workspace:*",
     "expo": "~52.0.7",
+    "expo-asset": "~11.0.1",
     "expo-constants": "~17.0.3",
     "expo-crypto": "14.0.1",
     "expo-linking": "~7.0.3",
@@ -37,6 +40,8 @@
     "@khabir/config": "workspace:*",
     "@types/react": "~18.3.12",
     "eslint": "9.15.0",
+    "playwright": "1.55.0",
+    "react-native-web": "~0.19.13",
     "typescript": "5.6.3",
     "vitest": "2.1.5"
   }
