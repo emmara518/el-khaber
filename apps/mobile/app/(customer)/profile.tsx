@@ -1,10 +1,11 @@
-import { PlaceholderScreen } from '../../src/features/customer/placeholder-screen';
+import CustomerProfileScreen from '../../src/features/customer/profile/customer-profile-screen';
 
+/**
+ * Route entry: Customer Profile. Presentation lives in the feature
+ * folder behind the `useCustomerProfileViewModel` hook. Logout uses
+ * the existing auth store; subscription rows are entry-only in this
+ * phase (full logic ships later).
+ */
 export default function ProfileRoute() {
-  return (
-    <PlaceholderScreen
-      titleAr="الملف الشخصي"
-      bodyAr="سيتم تفعيل شاشة الملف الشخصي في مهمة لاحقة."
-    />
-  );
+  return <CustomerProfileScreen />;
 }

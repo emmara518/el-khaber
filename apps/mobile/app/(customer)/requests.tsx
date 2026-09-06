@@ -1,10 +1,10 @@
-import { PlaceholderScreen } from '../../src/features/customer/placeholder-screen';
+import CustomerRequestsScreen from '../../src/features/customer/requests/customer-requests-screen';
 
+/**
+ * Route entry: Customer Requests. Presentation lives in the feature
+ * folder behind the `useCustomerRequestsViewModel` hook (mock data
+ * source today, real API adapter later without touching this file).
+ */
 export default function RequestsRoute() {
-  return (
-    <PlaceholderScreen
-      titleAr="طلبات"
-      bodyAr="سيتم تفعيل شاشة متابعة الطلبات في مهمة لاحقة."
-    />
-  );
+  return <CustomerRequestsScreen />;
 }

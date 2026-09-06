@@ -74,6 +74,40 @@ const ARABIC: Record<string, string> = {
   'auth.retry': 'إعادة المحاولة',
   'auth.shell.soonTitle': 'هذه المساحة قيد التجهيز',
   'auth.shell.soonBody': 'هيكل التطبيق جاهز، وسيتم تفعيل شاشات هذه المرحلة في مهمة لاحقة.',
+  // Customer — requests
+  'requests.title': 'طلباتي',
+  'requests.subtitle': 'تابع حالة طلبات الصيانة الخاصة بك',
+  'requests.filter.all': 'الكل',
+  'requests.empty.title': 'لا توجد طلبات بعد',
+  'requests.empty.body': 'عند إنشاء أول طلب صيانة سيظهر هنا مع حالته.',
+  'requests.empty.cta': 'اطلب صيانة',
+  'requests.error.title': 'تعذر تحميل الطلبات',
+  // Customer — maintenance entry
+  'maintenance.title': 'الصيانة',
+  'maintenance.subtitle': 'شخّص مشكلة جهازك بخطوات بسيطة',
+  'maintenance.appliances': 'اختر الجهاز',
+  'maintenance.steps': 'كيف يعمل الدليل؟',
+  'maintenance.popular': 'أعطال شائعة',
+  'maintenance.empty.title': 'لا توجد أعطال معروضة',
+  'maintenance.empty.body': 'اختر جهازًا لعرض أشهر الأعطال المرتبطة به.',
+  // Customer — messages
+  'messages.title': 'المحادثات',
+  'messages.subtitle': 'تواصل مع الفنيين المرتبطين بطلباتك',
+  'messages.empty.title': 'لا توجد محادثات بعد',
+  'messages.empty.body': 'عند بدء طلب صيانة ستظهر محادثتك مع الفني هنا.',
+  'messages.error.title': 'تعذر تحميل المحادثات',
+  // Customer — profile
+  'profile.title': 'الملف الشخصي',
+  'profile.menu.orders': 'طلباتي',
+  'profile.menu.notifications': 'الإشعارات',
+  'profile.menu.subscription': 'الاشتراك',
+  'profile.menu.support': 'الدعم والمساعدة',
+  'profile.menu.logout': 'تسجيل الخروج',
+  'profile.comingSoon': 'قريباً',
+  'profile.support.body': 'فريق الدعم متاح يوميًا من ٩ صباحًا حتى ١٠ مساءً.',
+  // Shared list states
+  'state.loading': 'جارٍ التحميل…',
+  'state.retry': 'إعادة المحاولة',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
