@@ -13,6 +13,12 @@ import { CustomerTabBar, type CustomerTabId } from '@/features/customer/customer
  * (الرئيسية, طلبات, صيانة, المحادثات, الملف الشخصي). Expo Router owns
  * navigation state through `Slot`; this layout only renders the active
  * route and the shared tab bar.
+ *
+ * Navigation uses group-qualified paths (`/(customer)/…`) so the
+ * role-aware root shell never resolves a Customer tab into another
+ * role's group: Technician/Merchant shells intentionally expose the
+ * same URL segments (e.g. `/messages`, `/profile`) per Expo Router
+ * group semantics, and the active group disambiguates them.
  */
 export default function CustomerTabsLayout() {
   const pathname = usePathname();
@@ -28,7 +34,7 @@ export default function CustomerTabsLayout() {
         <CustomerTabBar
           active={active}
           onChange={(id) => {
-            router.replace(id === 'home' ? '/' : `/${id}`);
+            router.replace(id === 'home' ? '/(customer)' : `/(customer)/${id}`);
           }}
         />
       </SafeAreaView>

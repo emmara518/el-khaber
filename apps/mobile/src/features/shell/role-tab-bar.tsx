@@ -1,40 +1,36 @@
+/**
+ * Generic role tab bar.
+ *
+ * Same visual system as `CustomerTabBar` (white bar, gray icons,
+ * gold active) so Customer / Technician / Merchant read as ONE
+ * product. Customer keeps its own existing component untouched;
+ * Technician and Merchant shells consume this generic bar with
+ * their own tab descriptors.
+ */
+
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
-import { useI18n, type TranslationKey } from '@/i18n/use-i18n';
-
-export type CustomerTabId = 'home' | 'requests' | 'maintenance' | 'messages' | 'profile';
-
-interface CustomerTabBarProps {
-  active: CustomerTabId;
-  onChange: (id: CustomerTabId) => void;
-  style?: ViewStyle;
-}
-
-interface TabDescriptor {
-  id: CustomerTabId;
-  labelKey: TranslationKey;
+export interface ShellTab {
+  id: string;
+  labelAr: string;
   icon: string;
 }
 
-const TABS: ReadonlyArray<TabDescriptor> = [
-  { id: 'home', labelKey: 'tab.home', icon: '🏠' },
-  { id: 'requests', labelKey: 'tab.requests', icon: '📋' },
-  { id: 'maintenance', labelKey: 'tab.maintenance', icon: '🛠️' },
-  { id: 'messages', labelKey: 'tab.messages', icon: '💬' },
-  { id: 'profile', labelKey: 'tab.profile', icon: '👤' },
-];
-
-/**
- * Customer bottom tab bar. Five destinations. The active tab uses
- * the brand gold. Matches the reference design (الرئيسية highlighted
- * in gold; the others in surface.base on the subtle background).
- */
-export function CustomerTabBar({ active, onChange, style }: CustomerTabBarProps) {
-  const { t } = useI18n();
+export function RoleTabBar({
+  tabs,
+  active,
+  onChange,
+  style,
+}: {
+  tabs: ReadonlyArray<ShellTab>;
+  active: string;
+  onChange: (id: string) => void;
+  style?: ViewStyle;
+}) {
   return (
     <View style={[styles.bar, style]}>
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const isActive = tab.id === active;
         return (
           <Pressable
@@ -42,14 +38,11 @@ export function CustomerTabBar({ active, onChange, style }: CustomerTabBarProps)
             onPress={() => onChange(tab.id)}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}
-            accessibilityLabel={isActive ? `${t(tab.labelKey)}، الصفحة الحالية` : t(tab.labelKey)}
+            accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
             style={({ pressed }) => [styles.item, pressed && styles.pressed]}
           >
             <Text
-              style={[
-                styles.icon,
-                { color: isActive ? color.brand.gold : color.text.secondary },
-              ]}
+              style={[styles.icon, { color: isActive ? color.brand.gold : color.text.secondary }]}
             >
               {tab.icon}
             </Text>
@@ -62,7 +55,7 @@ export function CustomerTabBar({ active, onChange, style }: CustomerTabBarProps)
                 },
               ]}
             >
-              {t(tab.labelKey)}
+              {tab.labelAr}
             </Text>
           </Pressable>
         );
@@ -86,6 +79,8 @@ const styles = StyleSheet.create({
   item: {
     flex: 1,
     alignItems: 'center',
+    minHeight: 48,
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.7,
