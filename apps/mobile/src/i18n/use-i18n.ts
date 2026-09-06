@@ -183,11 +183,27 @@ const ARABIC: Record<string, string> = {
   'request.success.title': 'تم إرسال طلبك بنجاح',
   'request.success.body': 'سيتواصل معك الفني لتأكيد التفاصيل. يمكنك متابعة حالة الطلب من صفحة طلباتي.',
   'request.success.orders': 'الانتقال إلى طلباتي',
+  'request.success.track': 'تتبع الطلب',
   'request.success.home': 'رجوع إلى الرئيسية',
   'request.error.submitTitle': 'تعذر إرسال الطلب',
   'request.error.formTitle': 'تعذر تحميل نموذج الطلب',
   'request.error.technicianTitle': 'تعذر تحديد الفني',
   'request.error.technicianBody': 'الفني المطلوب غير متوفر. ارجع واختر فنيًا آخر.',
+  // Customer — order tracking
+  'tracking.title': 'تتبع الطلب',
+  'tracking.ref': 'رقم الطلب',
+  'tracking.technician': 'الفني المسؤول',
+  'tracking.unassigned': 'لم يتم تعيين فني بعد — سنعلمك فور قبول طلبك.',
+  'tracking.timeline': 'مراحل الطلب',
+  'tracking.chat': 'مراسلة الفني',
+  'tracking.backToRequests': 'رجوع إلى طلباتي',
+  'tracking.cancelled': 'تم إلغاء هذا الطلب. لن يتم تنفيذ أي عمل عليه.',
+  'tracking.completed.title': 'اكتملت الخدمة',
+  'tracking.completed.body': 'نأمل أن تكون راضيًا عن الخدمة. قيّم تجربتك أدناه لمساعدة عملاء آخرين.',
+  'tracking.error.title': 'تعذر تحميل تفاصيل الطلب',
+  'tracking.missing.title': 'الطلب غير موجود',
+  'tracking.missing.body': 'ربما تغيّر الرابط أو حُذف الطلب. ارجع إلى قائمة طلباتك.',
+  'tracking.missing.action': 'رجوع إلى طلباتي',
 };
 
 export type TranslationKey = keyof typeof ARABIC;

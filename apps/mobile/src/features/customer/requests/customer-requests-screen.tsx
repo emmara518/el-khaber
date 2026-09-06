@@ -7,6 +7,7 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -25,6 +26,7 @@ import { Avatar, Card, IconText, StatusBadge } from '@/ui';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
+  const router = useRouter();
   const { status, data, error, retry } = useCustomerRequestsViewModel();
   const [filter, setFilter] = useState<RequestsFilter>('all');
 
@@ -97,15 +99,25 @@ export default function CustomerRequestsScreen() {
     return (
       <View style={styles.list}>
         {requests.map((item) => (
-          <RequestCard key={item.id} item={item} />
+          <RequestCard
+            key={item.id}
+            item={item}
+            onPress={() => router.push({ pathname: '/(customer)/requests/[id]', params: { id: item.id } })}
+          />
         ))}
       </View>
     );
   }
 }
 
-function RequestCard({ item }: { item: CustomerRequestItem }) {
+function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: () => void }) {
   return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`تتبع طلب: ${item.taskAr}، الحالة: ${item.statusLabelAr}`}
+      onPress={onPress}
+      style={({ pressed }) => [pressed && styles.pressed]}
+    >
     <Card background={color.surface.base} padded style={styles.card}>
       <View style={styles.row}>
         <Avatar
@@ -128,6 +140,7 @@ function RequestCard({ item }: { item: CustomerRequestItem }) {
         <IconText glyph="📅" label={item.scheduledLabelAr} size="sm" />
       </View>
     </Card>
+    </Pressable>
   );
 }
 

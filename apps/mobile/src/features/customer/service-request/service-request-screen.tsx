@@ -166,6 +166,7 @@ export default function ServiceRequestScreen({
   }
 
   if (vm.submitStatus === 'success' && vm.submission !== null) {
+    const submission = vm.submission;
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
@@ -175,24 +176,26 @@ export default function ServiceRequestScreen({
           </Text>
           <Text style={styles.successBody}>{t('request.success.body')}</Text>
           <Text style={styles.successMeta}>
-            رقم الطلب: {vm.submission.requestId} · {technician.nameAr}
+            رقم الطلب: {submission.requestId} · {technician.nameAr}
           </Text>
         </Card>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('request.success.orders')}
-          onPress={() => router.replace('/(customer)/requests')}
+          accessibilityLabel={t('request.success.track')}
+          onPress={() =>
+            router.push({ pathname: '/(customer)/requests/[id]', params: { id: submission.requestId } })
+          }
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryText}>{t('request.success.orders')}</Text>
+          <Text style={styles.primaryText}>{t('request.success.track')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('request.success.home')}
-          onPress={() => router.replace('/(customer)')}
+          accessibilityLabel={t('request.success.orders')}
+          onPress={() => router.replace('/(customer)/requests')}
           style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
         >
-          <Text style={styles.secondaryText}>{t('request.success.home')}</Text>
+          <Text style={styles.secondaryText}>{t('request.success.orders')}</Text>
         </Pressable>
       </ScrollView>
     );
