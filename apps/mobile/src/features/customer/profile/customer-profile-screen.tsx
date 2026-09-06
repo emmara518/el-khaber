@@ -81,6 +81,12 @@ export default function CustomerProfileScreen() {
               onPress={() => router.push('/(customer)/requests')}
             />
             <MenuDivider />
+            <MenuRow
+              icon="🔍"
+              label={t('discovery.title')}
+              onPress={() => router.push('/(customer)/find-technician')}
+            />
+            <MenuDivider />
             <MenuRow icon="🔔" label={t('profile.menu.notifications')} soonLabel={t('profile.comingSoon')} />
             <MenuDivider />
             <MenuRow icon="⭐" label={t('profile.menu.subscription')} soonLabel={t('profile.comingSoon')} />
