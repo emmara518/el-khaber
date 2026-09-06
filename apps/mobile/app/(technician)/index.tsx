@@ -1,6 +1,12 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import TechnicianHomeScreen from '../../src/features/technician/home/technician-home-screen';
 
-/** Technician home — shell placeholder (Phase 1, no product logic). */
+/**
+ * Route entry: Technician Home (T-A). Presentation lives in the
+ * feature folder behind `useTechnicianHomeViewModel` (mock data
+ * source today, real API adapter later without touching this file).
+ * Other technician tabs remain explicit placeholders until their
+ * assigned batches.
+ */
 export default function TechnicianHomeRoute() {
-  return <ShellPlaceholder roleAr="فني" titleAr="الرئيسية" />;
+  return <TechnicianHomeScreen />;
 }

@@ -204,6 +204,25 @@ const ARABIC: Record<string, string> = {
   'tracking.missing.title': 'الطلب غير موجود',
   'tracking.missing.body': 'ربما تغيّر الرابط أو حُذف الطلب. ارجع إلى قائمة طلباتك.',
   'tracking.missing.action': 'رجوع إلى طلباتي',
+  // Technician — home
+  'tech.home.greeting': 'يوم موفق في العمل',
+  'tech.home.verification': 'حالة التوثيق',
+  'tech.home.today': 'نظرة اليوم',
+  'tech.home.newRequests': 'طلبات جديدة',
+  'tech.home.inProgress': 'قيد التنفيذ',
+  'tech.home.completedToday': 'أنجزت اليوم',
+  'tech.home.incoming': 'طلبات واردة',
+  'tech.home.incomingHint': 'الاطلاع فقط — القبول والرفض في شاشة الطلبات',
+  'tech.home.showAll': 'عرض الكل',
+  'tech.home.incomingEmpty': 'لا توجد طلبات واردة حاليًا. ستظهر الطلبات الجديدة هنا فور وصولها.',
+  'tech.home.active': 'الطلب النشط',
+  'tech.home.noActive': 'لا يوجد طلب نشط حاليًا.',
+  'tech.home.rating': 'تقييمك',
+  'tech.home.reviews': 'تقييم',
+  'tech.home.actions': 'إجراءات سريعة',
+  'tech.home.orders': 'الطلبات',
+  'tech.home.messages': 'الرسائل',
+  'tech.home.error': 'تعذر تحميل الرئيسية',
 };
 
 export type TranslationKey = keyof typeof ARABIC;

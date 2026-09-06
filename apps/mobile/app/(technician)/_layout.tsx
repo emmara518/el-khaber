@@ -1,11 +1,11 @@
 /**
- * Technician route group layout — SHELL ONLY (Phase 1).
+ * Technician route group layout.
  *
- * Exposes the structural destinations for the future Technician
- * workspace (الرئيسية, الطلبات, الخدمات, الرسائل, الملف الشخصي)
- * through the shared `RoleTabBar` visual system. No product
- * functionality lives behind these tabs yet; every destination
- * renders an explicit `ShellPlaceholder`.
+ * Exposes the structural destinations for the Technician workspace
+ * (الرئيسية, الطلبات, الخدمات, الرسائل, الملف الشخصي) through the
+ * shared `RoleTabBar` visual system. Home (الرئيسية) is implemented
+ * (T-A); the remaining destinations stay explicit placeholders
+ * until their assigned batches.
  */
 
 import { color } from '@khabir/ui-tokens';
