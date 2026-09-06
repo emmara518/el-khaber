@@ -108,6 +108,22 @@ const ARABIC: Record<string, string> = {
   // Shared list states
   'state.loading': 'جارٍ التحميل…',
   'state.retry': 'إعادة المحاولة',
+  // Customer — fault guide
+  'fault.chooseAppliance': 'اختر الجهاز',
+  'fault.chooseSymptom': 'اختر العرض الذي تلاحظه',
+  'fault.resolving': 'جارٍ تجهيز الإرشاد…',
+  'fault.back': 'رجوع',
+  'fault.restart': 'ابدأ من جديد',
+  'fault.findTechnician': 'ابحث عن فني',
+  'fault.noMatch.title': 'لا توجد إرشادات مطابقة',
+  'fault.noMatch.body': 'هذا العرض يحتاج وصفًا مباشرًا من فني متخصص. يمكنك متابعة البحث عن فني أو البدء من جديد.',
+  'fault.error.title': 'تعذر تجهيز الإرشاد',
+  'fault.error.body': 'حدث خطأ أثناء تجهيز النتيجة. حاول مجددًا أو ارجع خطوة.',
+  'fault.deferred.title': 'البحث عن فني',
+  'fault.deferred.body': 'البحث عن فنيين متخصصين سيتوفر في الخطوة القادمة. تم حفظ العرض الذي اخترته وسيُستخدم تلقائيًا عند توفر البحث.',
+  'fault.deferred.context': 'العرض المختار',
+  'fault.deferred.backToGuide': 'رجوع إلى دليل الأعطال',
+  'fault.deferred.backToHome': 'رجوع إلى الرئيسية',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
