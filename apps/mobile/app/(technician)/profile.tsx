@@ -1,6 +1,11 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import TechnicianProfileScreen from '../../src/features/technician/profile/technician-profile-screen';
 
-/** Technician profile — shell placeholder (Phase 1, no product logic). */
+/**
+ * Route entry: Technician Profile (T-B).
+ * Approved → view + edit; pending → status + read-only summary;
+ * rejected/action_required → status + update-data entry into the
+ * prefilled onboarding flow. Other tabs stay placeholders.
+ */
 export default function TechnicianProfileRoute() {
-  return <ShellPlaceholder roleAr="فني" titleAr="الملف الشخصي" />;
+  return <TechnicianProfileScreen />;
 }
