@@ -1,6 +1,10 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import TechnicianRequestsScreen from '../../src/features/technician/requests/technician-requests-screen';
 
-/** Technician orders — shell placeholder (Phase 1, no product logic). */
+/**
+ * Route entry: Technician Requests list (T-C). Presentation lives
+ * in the feature folder behind `useTechnicianRequestsViewModel`
+ * (mock session state today, real API adapter later).
+ */
 export default function TechnicianOrdersRoute() {
-  return <ShellPlaceholder roleAr="فني" titleAr="الطلبات" />;
+  return <TechnicianRequestsScreen />;
 }
