@@ -9,7 +9,7 @@
  * mutation for the generic error path. No persistence claimed.
  */
 
-import { decideRequestAction, type TechnicianRequestAction } from './request-policy';
+import { decideRequestAction, nextServiceStatus, type TechnicianRequestAction } from './request-policy';
 import {
   TECHNICIAN_STATUS_LABELS,
   type CustomerRequestStatus,
@@ -34,6 +34,8 @@ export interface TechnicianRequestsDataSource {
   getRequests(input: { role: 'technician' }): Promise<ReadonlyArray<TechnicianRequest>>;
   acceptRequest(input: { role: 'technician'; requestId: string }): Promise<TechnicianRequest>;
   rejectRequest(input: { role: 'technician'; requestId: string }): Promise<TechnicianRequest>;
+  /** Forward progression: accepted → on_the_way → in_progress → completed (T-D). */
+  advanceStatus(input: { role: 'technician'; requestId: string }): Promise<TechnicianRequest>;
 }
 
 interface SeedRow extends Omit<TechnicianRequest, 'statusLabelAr'> {
@@ -161,13 +163,21 @@ export class MockTechnicianRequestsDataSource implements TechnicianRequestsDataS
     return this.mutate(input.requestId, 'reject');
   }
 
-  private async mutate(requestId: string, action: TechnicianRequestAction): Promise<TechnicianRequest> {
+  async advanceStatus(input: { role: 'technician'; requestId: string }): Promise<TechnicianRequest> {
+    return this.mutate(input.requestId, 'advance');
+  }
+
+  private async mutate(
+    requestId: string,
+    action: TechnicianRequestAction | 'advance',
+  ): Promise<TechnicianRequest> {
     await new Promise((resolve) => setTimeout(resolve, 500));
     if (this.failing) throw new RequestActionError('FAILED');
     const current = this.rows.get(requestId);
     if (!current) throw new RequestActionError('NOT_FOUND', 'الطلب غير موجود');
     if (this.taken.has(requestId)) throw new RequestActionError('STALE');
-    const decision = decideRequestAction(current.status, action);
+    const decision =
+      action === 'advance' ? nextServiceStatus(current.status) : decideRequestAction(current.status, action);
     if (!decision.ok) {
       throw new RequestActionError(
         'INVALID',
@@ -183,3 +193,11 @@ export class MockTechnicianRequestsDataSource implements TechnicianRequestsDataS
     return JSON.parse(JSON.stringify(updated)) as TechnicianRequest;
   }
 }
+
+/**
+ * Shared session instance: list / detail / active-service screens
+ * must observe the SAME in-memory session state so transitions stay
+ * consistent across navigation (T-D §19). Deterministic; replaced
+ * wholesale by the future API adapter.
+ */
+export const sharedTechnicianRequestsSource = new MockTechnicianRequestsDataSource();

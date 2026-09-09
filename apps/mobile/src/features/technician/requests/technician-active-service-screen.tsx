@@ -1,12 +1,14 @@
 /**
- * Technician Request Details screen (T-C).
+ * Technician Active Service screen (T-D).
  *
- * Reference + customer + appliance/problem/description + location +
- * appointment + status. Accept (primary) and Reject (separated
- * destructive → confirmation dialog) render ONLY when the documented
- * policy allows them; otherwise the state speaks for itself.
- * Outcomes: idle → submitting → success | stale/error, all with
- * back-to-list exits and context-preserving retry.
+ * "ماذا أفعل الآن؟": current status + hint, request context
+ * (customer/appliance/problem/location/appointment), and exactly ONE
+ * documented next action per state (accepted → أنا في الطريق →
+ * on_the_way; on_the_way → بدء العمل → in_progress; in_progress →
+ * إنهاء الخدمة with confirmation → completed). Terminal states show
+ * no actions. Stale/error keep the current state visible with safe
+ * Arabic copy and retry. Shares the shared request session source so
+ * list/detail/active remain consistent.
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
@@ -24,19 +26,23 @@ import {
 
 import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
-import { canAccept, canReject } from './request-policy';
-import { findTechnicianRequest } from './technician-request-types';
-import { useTechnicianRequestsViewModel } from './use-technician-requests-view-model';
+import { useTechnicianActiveServiceViewModel } from './use-technician-active-service-view-model';
 
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card, StatusBadge } from '@/ui';
 
-const ACTIVE_STATES = ['accepted', 'on_the_way', 'in_progress'] as const;
 
+const STATUS_HINTS: Record<string, string> = {
+  accepted: 'تم قبول الطلب. عند توجّهك إلى العميل، أكّد الانطلاق.',
+  on_the_way: 'أنت في الطريق إلى العميل. عند بدء العمل على الجهاز، حدّث الحالة.',
+  in_progress: 'العمل جارٍ على الطلب. عند إتمامه بالكامل، أكّد إنهاء الخدمة.',
+  completed: 'اكتملت الخدمة على هذا الطلب.',
+  cancelled: 'تم إلغاء هذا الطلب.',
+};
 
-export default function TechnicianRequestDetailScreen({
+export default function TechnicianActiveServiceScreen({
   requestId,
   source,
 }: {
@@ -45,29 +51,29 @@ export default function TechnicianRequestDetailScreen({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const vm = useTechnicianRequestsViewModel(source);
-  const [confirmingReject, setConfirmingReject] = useState(false);
+  const vm = useTechnicianActiveServiceViewModel(requestId, source);
+  const [confirmingComplete, setConfirmingComplete] = useState(false);
 
-  if (vm.listStatus === 'loading') {
+  if (vm.loadStatus === 'loading') {
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.request.title')}
+          {t('tech.active.title')}
         </Text>
         <ListLoading label={t('state.loading')} />
       </ScrollView>
     );
   }
 
-  if (vm.listStatus === 'error') {
+  if (vm.loadStatus === 'error') {
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.request.title')}
+          {t('tech.active.title')}
         </Text>
         <ListError
-          title={t('tech.request.loadError')}
-          message={vm.listError?.message ?? ''}
+          title={t('tech.active.loadError')}
+          message={vm.loadError?.message ?? ''}
           retryLabel={t('state.retry')}
           onRetry={vm.reload}
         />
@@ -75,24 +81,25 @@ export default function TechnicianRequestDetailScreen({
     );
   }
 
-  const request = findTechnicianRequest(vm.requests, requestId);
+  const request = vm.request;
   if (!request) {
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <ListEmpty
-          icon="📋"
+          icon="🛠️"
           iconLabel="طلب غير موجود"
           title={t('tech.request.missing')}
           body={t('tech.request.missingBody')}
-          actionLabel={t('tech.request.backToList')}
+          actionLabel={t('tech.active.backToList')}
           onAction={() => router.replace('/(technician)/orders')}
         />
       </ScrollView>
     );
   }
 
-  const showAccept = canAccept(request.status) && vm.actionStatus !== 'success';
-  const showReject = canReject(request.status) && vm.actionStatus !== 'success';
+  const hint = STATUS_HINTS[request.status] ?? '';
+  const isTerminal = request.status === 'completed' || request.status === 'cancelled';
+  const showCompleteConfirm = request.status === 'in_progress' && confirmingComplete;
   const submitting = vm.actionStatus === 'submitting';
 
   return (
@@ -100,7 +107,7 @@ export default function TechnicianRequestDetailScreen({
       <View style={styles.heading}>
         <View>
           <Text accessibilityRole="header" style={styles.title}>
-            {t('tech.request.title')}
+            {t('tech.active.title')}
           </Text>
           <Text style={styles.ref}>
             {t('tech.request.ref')}: {request.id}
@@ -108,6 +115,18 @@ export default function TechnicianRequestDetailScreen({
         </View>
         <StatusBadge status={request.status} label={request.statusLabelAr} />
       </View>
+
+      <Card
+        background={isTerminal ? color.surface.base : color.brand.navy}
+        borderColor={isTerminal ? color.border.default : color.brand.navy}
+        padded
+        style={styles.now}
+      >
+        <Text style={[styles.nowLabel, isTerminal && styles.nowLabelMuted]}>
+          {t('tech.active.now')}
+        </Text>
+        <Text style={[styles.nowHint, isTerminal && styles.nowHintMuted]}>{hint}</Text>
+      </Card>
 
       <Card background={color.surface.base} padded style={styles.card}>
         <Text style={styles.sectionLabel}>{t('tech.request.customer')}</Text>
@@ -125,60 +144,39 @@ export default function TechnicianRequestDetailScreen({
       <Card background={color.surface.base} padded style={styles.card}>
         <Text style={styles.sectionLabel}>{t('tech.request.logistics')}</Text>
         <Text style={styles.value}>📍 {request.locationAr}</Text>
-        <Text style={styles.value}>🕐 {request.timeAr}</Text>
-        <Text style={styles.meta}>
-          {t('tech.request.created')}: {request.createdAr}
-        </Text>
         {request.appointmentAr !== null ? (
-          <Text style={styles.meta}>
-            {t('tech.request.appointment')}: {request.appointmentAr}
-          </Text>
+          <Text style={styles.value}>🕐 {request.appointmentAr}</Text>
         ) : null}
       </Card>
 
       {vm.actionStatus === 'success' && vm.actionResult !== null ? (
-        <Card
-          background={color.success.soft}
-          borderColor={color.success.DEFAULT}
-          padded
-          style={styles.card}
-        >
-          <Text accessibilityRole="alert" style={styles.successTitle}>
-            {vm.actionResult.status === 'accepted'
-              ? t('tech.request.accepted')
-              : t('tech.request.rejected')}
-          </Text>
-          <Text style={styles.body}>
-            {vm.actionResult.status === 'accepted'
-              ? t('tech.request.acceptedBody')
-              : t('tech.request.rejectedBody')}
-          </Text>
-          {vm.actionResult.status === 'accepted' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('tech.active.goAfterAccept')}
-              onPress={() =>
-                router.push({ pathname: '/(technician)/active-service', params: { id: request.id } })
-              }
-              style={({ pressed }) => [styles.accept, pressed && styles.pressed, styles.entryGap]}
-            >
-              <Text style={styles.acceptText}>{t('tech.active.goAfterAccept')}</Text>
-            </Pressable>
-          ) : null}
-        </Card>
-      ) : null}
-
-      {!showAccept && ACTIVE_STATES.includes(request.status as (typeof ACTIVE_STATES)[number]) ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.active.openFromDetail')}
-          onPress={() =>
-            router.push({ pathname: '/(technician)/active-service', params: { id: request.id } })
-          }
-          style={({ pressed }) => [styles.accept, pressed && styles.pressed]}
-        >
-          <Text style={styles.acceptText}>{t('tech.active.openFromDetail')}</Text>
-        </Pressable>
+        vm.actionResult.status === 'completed' ? (
+          <Card
+            background={color.success.soft}
+            borderColor={color.success.DEFAULT}
+            padded
+            style={styles.card}
+          >
+            <Text accessibilityRole="alert" style={styles.successTitle}>
+              {t('tech.active.completedTitle')}
+            </Text>
+            <Text style={styles.body}>{t('tech.active.completedBody')}</Text>
+          </Card>
+        ) : (
+          <Card
+            background={color.success.soft}
+            borderColor={color.success.DEFAULT}
+            padded
+            style={styles.card}
+          >
+            <Text accessibilityRole="alert" style={styles.successTitle}>
+              {t('tech.active.advanced')}
+            </Text>
+            <Text style={styles.body}>
+              {t('tech.active.nowState')} {request.statusLabelAr}
+            </Text>
+          </Card>
+        )
       ) : null}
 
       {vm.actionStatus === 'error' ? (
@@ -187,91 +185,90 @@ export default function TechnicianRequestDetailScreen({
         </View>
       ) : null}
 
-      {showAccept ? (
+      {vm.nextActionAr !== null ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('tech.request.accept')}
+          accessibilityLabel={vm.nextActionAr}
           accessibilityState={{ disabled: submitting, busy: submitting }}
-          onPress={() => vm.accept(request.id)}
+          onPress={() => {
+            if (request.status === 'in_progress') {
+              setConfirmingComplete(true);
+            } else {
+              vm.advance();
+            }
+          }}
           disabled={submitting}
-          style={({ pressed }) => [styles.accept, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
+          style={({ pressed }) => [
+            styles.primary,
+            submitting && styles.disabled,
+            pressed && !submitting && styles.pressed,
+          ]}
         >
           {submitting ? (
-            <ActivityIndicator accessibilityLabel="جارٍ قبول الطلب" color={color.surface.base} />
+            <ActivityIndicator
+              accessibilityLabel="جارٍ تحديث حالة الطلب"
+              color={color.surface.base}
+            />
           ) : (
-            <Text style={styles.acceptText}>✓ {t('tech.request.accept')}</Text>
+            <Text style={styles.primaryText}>{vm.nextActionAr}</Text>
           )}
-        </Pressable>
-      ) : null}
-
-      {showReject ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.request.reject')}
-          onPress={() => setConfirmingReject(true)}
-          disabled={submitting}
-          style={({ pressed }) => [styles.reject, pressed && styles.pressed]}
-        >
-          <Text style={styles.rejectText}>{t('tech.request.reject')}</Text>
         </Pressable>
       ) : null}
 
       {vm.actionStatus === 'error' ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('tech.request.retryAction')}
-          onPress={() => {
-            vm.resetAction();
-          }}
+          accessibilityLabel={t('state.retry')}
+          onPress={vm.resetAction}
           style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
         >
-          <Text style={styles.secondaryText}>{t('tech.request.retryAction')}</Text>
+          <Text style={styles.secondaryText}>{t('state.retry')}</Text>
         </Pressable>
       ) : null}
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={t('tech.request.backToList')}
+        accessibilityLabel={t('tech.active.backToList')}
         onPress={() => router.replace('/(technician)/orders')}
         style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
       >
-        <Text style={styles.secondaryText}>{t('tech.request.backToList')}</Text>
+        <Text style={styles.secondaryText}>{t('tech.active.backToList')}</Text>
       </Pressable>
 
       <Modal
-        visible={confirmingReject}
+        visible={showCompleteConfirm}
         transparent
         animationType="fade"
-        accessibilityLabel="تأكيد رفض الطلب"
-        onRequestClose={() => setConfirmingReject(false)}
+        accessibilityLabel="تأكيد إنهاء الخدمة"
+        onRequestClose={() => setConfirmingComplete(false)}
       >
         <View style={styles.scrim}>
           <Card background={color.surface.base} padded style={styles.dialog}>
             <Text accessibilityRole="header" style={styles.dialogTitle}>
-              {t('tech.request.confirmReject')}
+              {t('tech.active.confirmComplete')}
             </Text>
-            <Text style={styles.body}>{t('tech.request.confirmRejectBody')}</Text>
+            <Text style={styles.body}>{t('tech.active.confirmCompleteBody')}</Text>
             <View style={styles.dialogActions}>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t('tech.request.confirmRejectYes')}
+                accessibilityLabel={t('tech.active.confirmYes')}
                 accessibilityState={{ disabled: submitting, busy: submitting }}
                 onPress={() => {
-                  setConfirmingReject(false);
-                  vm.reject(request.id);
+                  setConfirmingComplete(false);
+                  vm.advance();
                 }}
                 disabled={submitting}
-                style={({ pressed }) => [styles.rejectSolid, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.primaryInline, pressed && styles.pressed]}
               >
-                <Text style={styles.acceptText}>{t('tech.request.confirmRejectYes')}</Text>
+                <Text style={styles.primaryText}>{t('tech.active.confirmYes')}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t('tech.request.confirmRejectNo')}
-                onPress={() => setConfirmingReject(false)}
+                accessibilityLabel={t('tech.active.confirmNo')}
+                onPress={() => setConfirmingComplete(false)}
                 style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
               >
-                <Text style={styles.secondaryText}>{t('tech.request.confirmRejectNo')}</Text>
+                <Text style={styles.secondaryText}>{t('tech.active.confirmNo')}</Text>
               </Pressable>
             </View>
           </Card>
@@ -307,6 +304,30 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
     textAlign: 'right',
   },
+  now: {
+    marginTop: spacing[3],
+    gap: spacing[1],
+    paddingVertical: spacing[4],
+  },
+  nowLabel: {
+    color: color.brand.gold,
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.bold,
+    textAlign: 'right',
+  },
+  nowLabelMuted: {
+    color: color.text.secondary,
+  },
+  nowHint: {
+    color: color.surface.base,
+    fontSize: typography.size.body,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    lineHeight: 26,
+  },
+  nowHintMuted: {
+    color: color.text.secondary,
+  },
   card: {
     marginTop: spacing[3],
     gap: spacing[1],
@@ -331,12 +352,6 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
     lineHeight: 26,
   },
-  meta: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
   successTitle: {
     color: color.text.primary,
     fontSize: typography.size.h3,
@@ -357,7 +372,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  accept: {
+  primary: {
     backgroundColor: color.brand.navy,
     borderRadius: radius.md,
     minHeight: 54,
@@ -365,32 +380,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing[4],
   },
-  entryGap: {
-    marginTop: spacing[2],
-  },
-  acceptText: {
+  primaryText: {
     color: color.surface.base,
     fontSize: typography.size.button,
     fontWeight: typography.weight.semibold,
   },
-  reject: {
-    borderWidth: 1,
-    borderColor: color.error.DEFAULT,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[5],
-  },
-  rejectText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  rejectSolid: {
+  primaryInline: {
     flex: 1,
-    backgroundColor: color.error.DEFAULT,
+    backgroundColor: color.brand.navy,
     borderRadius: radius.md,
     minHeight: 50,
     alignItems: 'center',

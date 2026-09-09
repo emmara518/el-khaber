@@ -57,3 +57,42 @@ export function requestActionErrorAr(code: 'stale' | 'invalid_transition' | 'ter
       return 'تعذر تحديث الطلب. حاول مرة أخرى.';
   }
 }
+
+/**
+ * Service progression (T-D): the documented forward chain
+ * accepted → on_the_way → in_progress → completed (docs/07_API.md
+ * §22). One deliberate "advance" action per state; terminal states
+ * and pending cannot advance.
+ */
+export function nextServiceStatus(status: CustomerRequestStatus): {
+  ok: true;
+  next: Exclude<CustomerRequestStatus, 'pending' | 'cancelled'>;
+} | { ok: false; reason: 'terminal' | 'invalid_transition' } {
+  switch (status) {
+    case 'accepted':
+      return { ok: true, next: 'on_the_way' };
+    case 'on_the_way':
+      return { ok: true, next: 'in_progress' };
+    case 'in_progress':
+      return { ok: true, next: 'completed' };
+    case 'completed':
+    case 'cancelled':
+      return { ok: false, reason: 'terminal' };
+    case 'pending':
+      return { ok: false, reason: 'invalid_transition' };
+  }
+}
+
+/** Action copy per progression step (docs/04_UI_UX.md §20 language). */
+export function advanceActionLabelAr(status: CustomerRequestStatus): string | null {
+  switch (status) {
+    case 'accepted':
+      return 'أنا في الطريق';
+    case 'on_the_way':
+      return 'بدء العمل على الطلب';
+    case 'in_progress':
+      return 'إنهاء الخدمة';
+    default:
+      return null;
+  }
+}

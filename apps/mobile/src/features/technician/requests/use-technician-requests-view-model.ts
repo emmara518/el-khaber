@@ -32,6 +32,8 @@ export interface TechnicianRequestsViewModel {
   actionResult: TechnicianRequest | null;
   accept: (requestId: string) => void;
   reject: (requestId: string) => void;
+  /** Forward progression (T-D): accepted → on_the_way → in_progress → completed. */
+  advance: (requestId: string) => void;
   resetAction: () => void;
 }
 
@@ -69,7 +71,7 @@ export function useTechnicianRequestsViewModel(
   }, [load, attempt]);
 
   const runAction = useCallback(
-    (requestId: string, kind: 'accept' | 'reject') => {
+    (requestId: string, kind: 'accept' | 'reject' | 'advance') => {
       if (actionStatus === 'submitting') return;
       setActionStatus('submitting');
       setActionError(null);
@@ -79,7 +81,9 @@ export function useTechnicianRequestsViewModel(
           const updated =
             kind === 'accept'
               ? await stableSource.acceptRequest({ role: 'technician', requestId })
-              : await stableSource.rejectRequest({ role: 'technician', requestId });
+              : kind === 'reject'
+                ? await stableSource.rejectRequest({ role: 'technician', requestId })
+                : await stableSource.advanceStatus({ role: 'technician', requestId });
           setRequests((current) => current.map((r) => (r.id === updated.id ? updated : r)));
           setActionResult(updated);
           setActionStatus('success');
@@ -99,6 +103,7 @@ export function useTechnicianRequestsViewModel(
   const reload = useCallback(() => setAttempt((n) => n + 1), []);
   const accept = useCallback((requestId: string) => runAction(requestId, 'accept'), [runAction]);
   const reject = useCallback((requestId: string) => runAction(requestId, 'reject'), [runAction]);
+  const advance = useCallback((requestId: string) => runAction(requestId, 'advance'), [runAction]);
   const resetAction = useCallback(() => {
     setActionStatus('idle');
     setActionError(null);
@@ -115,6 +120,7 @@ export function useTechnicianRequestsViewModel(
     actionResult,
     accept,
     reject,
+    advance,
     resetAction,
   };
 }

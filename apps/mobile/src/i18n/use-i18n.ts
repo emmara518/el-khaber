@@ -275,6 +275,21 @@ const ARABIC: Record<string, string> = {
   'tech.request.loadError': 'تعذر تحميل تفاصيل الطلب',
   'tech.request.missing': 'الطلب غير موجود',
   'tech.request.missingBody': 'ربما تغيّر الرابط. ارجع إلى قائمة الطلبات.',
+  // Technician — active service (T-D)
+  'tech.active.title': 'الخدمة النشطة',
+  'tech.active.now': 'ماذا أفعل الآن؟',
+  'tech.active.loadError': 'تعذر تحميل الخدمة النشطة',
+  'tech.active.backToList': 'رجوع إلى الطلبات',
+  'tech.active.goAfterAccept': 'الذهاب إلى الخدمة النشطة',
+  'tech.active.openFromDetail': 'إدارة الخدمة النشطة',
+  'tech.active.advanced': 'تم تحديث حالة الطلب',
+  'tech.active.nowState': 'الحالة الحالية:',
+  'tech.active.completedTitle': 'تم إنهاء الخدمة بنجاح',
+  'tech.active.completedBody': 'أصبح الطلب مكتملًا. لا توجد إجراءات أخرى على هذا الطلب.',
+  'tech.active.confirmComplete': 'تأكيد إنهاء الخدمة',
+  'tech.active.confirmCompleteBody': 'سيتم تعليم الطلب كمكتمل ولا يمكن تعديل حالته بعد ذلك. هل أنهيت العمل بالكامل؟',
+  'tech.active.confirmYes': 'نعم، إنهاء الخدمة',
+  'tech.active.confirmNo': 'تراجع',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
