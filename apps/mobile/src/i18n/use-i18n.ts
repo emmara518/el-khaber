@@ -307,6 +307,19 @@ const ARABIC: Record<string, string> = {
   'tech.settings.reviewsHint': 'آراء العملاء في خدماتك',
   'tech.settings.verification': 'حالة التوثيق',
   'tech.settings.verificationHint': 'متابعة حالة توثيق حسابك',
+  // Merchant — home
+  'merchant.home.greeting': 'أهلًا بك في متجرك',
+  'merchant.home.verification': 'حالة الحساب',
+  'merchant.home.catalog': 'نظرة على المتجر',
+  'merchant.home.total': 'إجمالي المنتجات',
+  'merchant.home.active': 'منتجات نشطة',
+  'merchant.home.inactive': 'منتجات موقوفة',
+  'merchant.home.actions': 'إجراءات المتجر',
+  'merchant.home.products': 'إدارة المنتجات',
+  'merchant.home.addProduct': 'إضافة منتج',
+  'merchant.home.profile': 'إعدادات المتجر',
+  'merchant.home.subscription': 'الاشتراك',
+  'merchant.home.error': 'تعذر تحميل الرئيسية',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
