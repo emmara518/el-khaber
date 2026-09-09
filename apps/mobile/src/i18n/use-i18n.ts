@@ -290,6 +290,23 @@ const ARABIC: Record<string, string> = {
   'tech.active.confirmCompleteBody': 'سيتم تعليم الطلب كمكتمل ولا يمكن تعديل حالته بعد ذلك. هل أنهيت العمل بالكامل؟',
   'tech.active.confirmYes': 'نعم، إنهاء الخدمة',
   'tech.active.confirmNo': 'تراجع',
+  // Technician — chat / reviews / settings (T-E)
+  'tech.active.chat': 'مراسلة العميل',
+  'tech.reviews.title': 'تقييماتي',
+  'tech.reviews.subtitle': 'آراء العملاء بعد إتمام الخدمات',
+  'tech.reviews.count': 'تقييم',
+  'tech.reviews.list': 'التقييمات',
+  'tech.reviews.empty': 'لا توجد تقييمات بعد',
+  'tech.reviews.emptyBody': 'ستظهر تقييمات العملاء هنا بعد إتمام الخدمات.',
+  'tech.reviews.error': 'تعذر تحميل التقييمات',
+  'tech.settings.title': 'إعدادات الحساب',
+  'tech.settings.subtitle': 'إدارة حسابك وتفضيلاتك',
+  'tech.settings.profile': 'الملف الشخصي',
+  'tech.settings.profileHint': 'عرض وتعديل بياناتك المهنية',
+  'tech.settings.notifications': 'الإشعارات',
+  'tech.settings.reviewsHint': 'آراء العملاء في خدماتك',
+  'tech.settings.verification': 'حالة التوثيق',
+  'tech.settings.verificationHint': 'متابعة حالة توثيق حسابك',
 };
 
 export type TranslationKey = keyof typeof ARABIC;

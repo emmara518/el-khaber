@@ -69,7 +69,7 @@ export function ChatBody({
   onClose: () => void;
   source?: ChatDataSource;
 }) {
-  const vm = useChatViewModel(conversationId, source);
+  const vm = useChatViewModel(conversationId, 'customer', source);
   const scrollRef = useRef<ScrollView>(null);
 
   return (

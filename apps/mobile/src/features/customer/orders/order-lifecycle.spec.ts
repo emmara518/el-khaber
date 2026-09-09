@@ -121,7 +121,7 @@ describe('chat message flow', () => {
   });
 
   it('marks failures for retry without losing the text', async () => {
-    const source = new MockChatDataSource('failing');
+    const source = new MockChatDataSource({ mode: 'failing' });
     await expect(
       source.sendMessage({ role: 'customer', conversationId: 'c1', textAr: 'x' }),
     ).rejects.toBeInstanceOf(ChatSendError);

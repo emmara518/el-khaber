@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   verificationCopy,
+  type TechnicianActiveService,
   type TechnicianIncomingPreview,
 } from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
@@ -153,13 +154,10 @@ export default function TechnicianHomeScreen() {
             <Text style={styles.muted}>{t('tech.home.noActive')}</Text>
           </Card>
         ) : (
-          <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.active}>
-            <Text style={styles.activeTask}>{data.active.taskAr}</Text>
-            <Text style={styles.activeMeta}>
-              {data.active.customerNameAr} · {data.active.applianceAr}
-            </Text>
-            <Text style={styles.activeMeta}>{data.active.startedAr} · {data.active.statusLabelAr}</Text>
-          </Card>
+          <HomeActiveCard
+            active={data.active}
+            openLabel={t('tech.active.openFromDetail')}
+          />
         )}
 
         <SectionHeader titleKey="tech.home.rating" />
@@ -203,6 +201,35 @@ function StatCard({ value, label }: { value: number; label: string }) {
       <Text style={styles.statNumber}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </Card>
+  );
+}
+
+function HomeActiveCard({
+  active,
+  openLabel,
+}: {
+  active: TechnicianActiveService;
+  openLabel: string;
+}) {
+  const router = useRouter();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`إدارة الخدمة النشطة: ${active.taskAr}، ${active.statusLabelAr}`}
+      onPress={() =>
+        router.push({ pathname: '/(technician)/active-service', params: { id: active.id } })
+      }
+      style={({ pressed }) => [pressed && styles.pressed]}
+    >
+      <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.active}>
+        <Text style={styles.activeTask}>{active.taskAr}</Text>
+        <Text style={styles.activeMeta}>
+          {active.customerNameAr} · {active.applianceAr}
+        </Text>
+        <Text style={styles.activeMeta}>{active.startedAr} · {active.statusLabelAr}</Text>
+        <Text style={styles.activeCta}>{openLabel} ‹</Text>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -393,6 +420,13 @@ const styles = StyleSheet.create({
     color: color.brand.goldSoft,
     fontSize: typography.size.body,
     textAlign: 'right',
+  },
+  activeCta: {
+    color: color.brand.gold,
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.bold,
+    marginTop: spacing[2],
+    textAlign: 'left',
   },
   ratingCard: {
     flexDirection: 'row',

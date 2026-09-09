@@ -7,6 +7,7 @@
  */
 
 export type ChatSender = 'customer' | 'technician';
+export type ChatRole = 'customer' | 'technician';
 export type ChatMessageStatus = 'sending' | 'sent' | 'error';
 
 export interface ChatMessage {
@@ -19,8 +20,8 @@ export interface ChatMessage {
 }
 
 export interface ChatDataSource {
-  getMessages(input: { role: 'customer'; conversationId: string }): Promise<ReadonlyArray<ChatMessage>>;
-  sendMessage(input: { role: 'customer'; conversationId: string; textAr: string }): Promise<ChatMessage>;
+  getMessages(input: { role: ChatRole; conversationId: string }): Promise<ReadonlyArray<ChatMessage>>;
+  sendMessage(input: { role: ChatRole; conversationId: string; textAr: string }): Promise<ChatMessage>;
 }
 
 /** Append-local echo for the sending state (unit-tested). */

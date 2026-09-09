@@ -7,7 +7,7 @@
  * error/retry path is verifiable. No persistence is claimed.
  */
 
-import type { ChatDataSource, ChatMessage } from './chat-types';
+import type { ChatDataSource, ChatMessage, ChatRole, ChatSender } from './chat-types';
 
 export class ChatSendError extends Error {
   constructor(message = 'فشل إرسال الرسالة. تحقق من الاتصال وحاول مجددًا') {
@@ -34,6 +34,8 @@ const SEEDS: Record<string, ReadonlyArray<ChatMessage>> = {
 };
 
 function seedFor(conversationId: string): ReadonlyArray<ChatMessage> {
+  // Deterministic empty conversation (empty-state QA, both roles).
+  if (conversationId.endsWith('-empty')) return [];
   const seed = SEEDS[conversationId];
   if (seed) return seed;
   return [
@@ -44,28 +46,30 @@ function seedFor(conversationId: string): ReadonlyArray<ChatMessage> {
   ];
 }
 
+export interface MockChatOptions {
+  mode?: 'success' | 'failing';
+  /** Who echoes in `sendMessage` (customer side → customer, technician side → technician). */
+  sender?: ChatSender;
+}
+
 export class MockChatDataSource implements ChatDataSource {
   private sentCount = 0;
 
-  constructor(private readonly mode: 'success' | 'failing' = 'success') {}
+  constructor(private readonly options: MockChatOptions = {}) {}
 
-  async getMessages(input: { role: 'customer'; conversationId: string }): Promise<ReadonlyArray<ChatMessage>> {
+  async getMessages(input: { role: ChatRole; conversationId: string }): Promise<ReadonlyArray<ChatMessage>> {
     void input.role;
     return JSON.parse(JSON.stringify(seedFor(input.conversationId))) as ReadonlyArray<ChatMessage>;
   }
 
-  async sendMessage(input: {
-    role: 'customer';
-    conversationId: string;
-    textAr: string;
-  }): Promise<ChatMessage> {
+  async sendMessage(input: { role: ChatRole; conversationId: string; textAr: string }): Promise<ChatMessage> {
     await new Promise((resolve) => setTimeout(resolve, 500));
-    if (this.mode === 'failing') throw new ChatSendError();
+    if (this.options.mode === 'failing') throw new ChatSendError();
     this.sentCount += 1;
     return {
       id: `sent-${this.sentCount}`,
       conversationId: input.conversationId,
-      sender: 'customer',
+      sender: this.options.sender ?? 'customer',
       textAr: input.textAr,
       timeAr: 'الآن',
       status: 'sent',

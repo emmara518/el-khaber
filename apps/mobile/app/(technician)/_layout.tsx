@@ -1,10 +1,10 @@
 /**
  * Technician route group layout.
  *
- * Exposes the structural destinations for the Technician workspace
- * (الرئيسية, الطلبات, الخدمات, الرسائل, الملف الشخصي) through the
- * shared `RoleTabBar` visual system. Home (الرئيسية) is implemented
- * (T-A); the remaining destinations stay explicit placeholders
+ * Destinations (الرئيسية, الطلبات, الخدمات, الرسائل, الملف الشخصي)
+ * via the shared `RoleTabBar`. Implemented: Home (T-A), Requests +
+ * details (T-C), Active service (T-D), Profile/Onboarding (T-B),
+ * Reviews/Settings (T-E). Remaining placeholders stay explicit
  * until their assigned batches.
  */
 

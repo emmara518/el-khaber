@@ -24,6 +24,8 @@ import {
   View,
 } from 'react-native';
 
+import { ChatDialog } from '../../customer/chat/chat-dialog';
+import { MockChatDataSource } from '../../customer/chat/mock-chat-data-source';
 import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
 import { useTechnicianActiveServiceViewModel } from './use-technician-active-service-view-model';
@@ -53,6 +55,7 @@ export default function TechnicianActiveServiceScreen({
   const router = useRouter();
   const vm = useTechnicianActiveServiceViewModel(requestId, source);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   if (vm.loadStatus === 'loading') {
     return (
@@ -226,6 +229,17 @@ export default function TechnicianActiveServiceScreen({
         </Pressable>
       ) : null}
 
+      {request.status === 'on_the_way' || request.status === 'in_progress' ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`مراسلة العميل ${request.customerNameAr}`}
+          onPress={() => setChatOpen(true)}
+          style={({ pressed }) => [styles.chat, pressed && styles.pressed]}
+        >
+          <Text style={styles.chatText}>💬 {t('tech.active.chat')}</Text>
+        </Pressable>
+      ) : null}
+
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('tech.active.backToList')}
@@ -234,6 +248,14 @@ export default function TechnicianActiveServiceScreen({
       >
         <Text style={styles.secondaryText}>{t('tech.active.backToList')}</Text>
       </Pressable>
+
+      <ChatDialog
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        conversationId={`req-chat-${request.id}`}
+        technicianNameAr={request.customerNameAr}
+        source={new MockChatDataSource({ sender: 'technician' })}
+      />
 
       <Modal
         visible={showCompleteConfirm}
@@ -392,6 +414,20 @@ const styles = StyleSheet.create({
     minHeight: 50,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  chat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.brand.navy,
+    borderRadius: radius.md,
+    minHeight: 52,
+    marginTop: spacing[4],
+  },
+  chatText: {
+    color: color.surface.base,
+    fontSize: typography.size.button,
+    fontWeight: typography.weight.semibold,
   },
   secondary: {
     borderWidth: 1,

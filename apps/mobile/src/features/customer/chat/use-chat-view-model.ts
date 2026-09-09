@@ -13,6 +13,7 @@ import {
   withPendingMessage,
   type ChatDataSource,
   type ChatMessage,
+  type ChatRole,
 } from './chat-types';
 import { MockChatDataSource } from './mock-chat-data-source';
 
@@ -33,8 +34,12 @@ export interface ChatViewModel {
 
 export function useChatViewModel(
   conversationId: string,
-  source: ChatDataSource = new MockChatDataSource(),
+  role: ChatRole = 'customer',
+  source: ChatDataSource = new MockChatDataSource({ sender: role }),
 ): ChatViewModel {
+  // Stabilize the source across renders so the loader never
+  // re-triggers from an inline default.
+  const [stableSource] = useState(() => source);
   const [attempt, setAttempt] = useState(0);
   const [loadStatus, setLoadStatus] = useState<ChatLoadStatus>('loading');
   const [loadError, setLoadError] = useState<Error | null>(null);
@@ -47,8 +52,8 @@ export function useChatViewModel(
     let cancelled = false;
     setLoadStatus('loading');
     setLoadError(null);
-    source
-      .getMessages({ role: 'customer', conversationId })
+    stableSource
+      .getMessages({ role, conversationId })
       .then((history) => {
         if (cancelled) return;
         setMessages(history);
@@ -62,8 +67,7 @@ export function useChatViewModel(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, attempt]);
+  }, [stableSource, role, conversationId, attempt]);
 
   const deliver = useCallback(
     (pendingId: string, textAr: string) => {
@@ -71,7 +75,7 @@ export function useChatViewModel(
       setSendError(null);
       void (async () => {
         try {
-          const sent = await source.sendMessage({ role: 'customer', conversationId, textAr });
+          const sent = await stableSource.sendMessage({ role, conversationId, textAr });
           setMessages((current) =>
             markMessage(current, pendingId, { id: sent.id, status: 'sent', timeAr: sent.timeAr }),
           );
@@ -83,7 +87,7 @@ export function useChatViewModel(
         }
       })();
     },
-    [source, conversationId],
+    [stableSource, role, conversationId],
   );
 
   const send = useCallback(() => {

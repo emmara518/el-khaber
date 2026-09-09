@@ -184,6 +184,14 @@ export default function TechnicianProfileScreen({
           <Text style={styles.secondaryText}>{t('tech.profile.edit')}</Text>
         </Pressable>
       )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('tech.settings.title')}
+        onPress={() => router.push('/(technician)/settings')}
+        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+      >
+        <Text style={styles.secondaryText}>⚙️ {t('tech.settings.title')}</Text>
+      </Pressable>
       <View style={styles.bottomSpacer} />
     </ScrollView>
   );
