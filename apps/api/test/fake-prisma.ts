@@ -79,6 +79,13 @@ interface PasswordResetRow {
 export type PublishStatus = 'draft' | 'review' | 'published' | 'archived';
 export type VerificationStatusValue = 'pending' | 'verified' | 'rejected' | 'suspended';
 export type AvailabilityStatusValue = 'available' | 'busy' | 'unavailable';
+export type ServiceRequestStatusValue =
+  | 'pending'
+  | 'accepted'
+  | 'on_the_way'
+  | 'in_progress'
+  | 'completed'
+  | 'cancelled';
 
 interface ApplianceCategoryRow {
   id: string;
@@ -115,6 +122,48 @@ interface ServiceRow {
   sortOrder: number;
 }
 
+interface LocationRow {
+  id: string;
+  userId: string | null;
+  label: string | null;
+  addressText: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  latitude: number;
+  longitude: number;
+}
+
+interface ServiceRequestRow {
+  id: string;
+  customerId: string;
+  technicianId: string | null;
+  applianceCategoryId: string;
+  serviceId: string | null;
+  faultId: string | null;
+  status: ServiceRequestStatusValue;
+  problemTitle: string | null;
+  problemDescription: string;
+  locationId: string;
+  scheduledAt: Date | null;
+  createdAt: Date;
+  acceptedAt: Date | null;
+  startedAt: Date | null;
+  completedAt: Date | null;
+  cancelledAt: Date | null;
+  updatedAt: Date;
+}
+
+interface ServiceRequestStatusHistoryRow {
+  id: string;
+  serviceRequestId: string;
+  fromStatus: ServiceRequestStatusValue | null;
+  toStatus: ServiceRequestStatusValue;
+  changedByUserId: string | null;
+  note: string | null;
+  createdAt: Date;
+}
+
 interface TechnicianServiceRow {
   technicianId: string;
   serviceId: string;
@@ -143,7 +192,9 @@ function applySelect<T extends Record<string, unknown>>(row: T, select: Record<s
   }
   const picked: Record<string, unknown> = {};
   for (const key of Object.keys(select)) {
-    if (select[key] === true && key in row) {
+    // Nested select objects (relation includes) are honored as "include
+    // the relation" — the fake returns the full nested row.
+    if (select[key] && key in row) {
       picked[key] = row[key];
     }
   }
@@ -183,6 +234,9 @@ class FakePrismaClient {
   faultServiceLinks: FaultServiceLinkRow[] = [];
   technicianServices: TechnicianServiceRow[] = [];
   technicianProfiles: TechnicianProfileRow[] = [];
+  locations: LocationRow[] = [];
+  serviceRequests: ServiceRequestRow[] = [];
+  serviceRequestStatusHistoryStore: ServiceRequestStatusHistoryRow[] = [];
 
   $connect(): Promise<void> {
     return Promise.resolve();
@@ -486,6 +540,9 @@ class FakePrismaClient {
   // -------------------------------------------------------------------------
 
   applianceCategory = {
+    findFirst: async (args: { where: { id: string } }): Promise<ApplianceCategoryRow | null> => {
+      return this.applianceCategories.find((cat) => cat.id === args.where.id) ?? null;
+    },
     findMany: async (args: { where?: { isActive?: boolean }; orderBy?: Array<Record<string, string>>; take?: number }): Promise<ApplianceCategoryRow[]> => {
       let rows = this.applianceCategories.filter(
         (c) => args.where?.isActive === undefined || c.isActive === args.where.isActive,
@@ -521,6 +578,9 @@ class FakePrismaClient {
   };
 
   service = {
+    findFirst: async (args: { where: { id: string } }): Promise<ServiceRow | null> => {
+      return this.services.find((s) => s.id === args.where.id) ?? null;
+    },
     count: async (args: { where: ServiceWhere }): Promise<number> => this.matchServices(args.where).length,
     findMany: async (args: {
       where: ServiceWhere;
@@ -557,13 +617,148 @@ class FakePrismaClient {
       return rows.map((r) => this.attachTechnicianServices(r, args.include?.services?.where?.isActive));
     },
     findFirst: async (args: {
-      where: TechnicianWhere & { id: string };
+      where: TechnicianWhere & { id?: string };
       include?: { services?: { where?: { isActive?: boolean } } };
     }): Promise<TechnicianWithServices | null> => {
-      const row = this.matchTechnicians(args.where).find((r) => r.id === args.where.id);
+      const row = this.matchTechnicians(args.where).find(
+        (r) => args.where.id === undefined || r.id === args.where.id,
+      );
       return row === undefined ? null : this.attachTechnicianServices(row, args.include?.services?.where?.isActive);
     },
   };
+
+  location = {
+    findFirst: async (args: { where: { id: string; userId?: string } }): Promise<LocationRow | null> => {
+      return (
+        this.locations.find(
+          (l) => l.id === args.where.id && (args.where.userId === undefined || l.userId === args.where.userId),
+        ) ?? null
+      );
+    },
+    findUnique: async (args: { where: { id: string } }): Promise<LocationRow | null> => {
+      return this.locations.find((l) => l.id === args.where.id) ?? null;
+    },
+  };
+
+
+
+
+
+  serviceRequest = {
+    create: async (args: { data: Omit<ServiceRequestRow, 'createdAt' | 'updatedAt' | 'acceptedAt' | 'startedAt' | 'completedAt' | 'cancelledAt'> & Partial<Pick<ServiceRequestRow, 'acceptedAt' | 'startedAt' | 'completedAt' | 'cancelledAt'>>; select?: Record<string, unknown> }): Promise<ServiceRequestRow> => {
+      const now = new Date();
+      const row: ServiceRequestRow = {
+        id: randomUUID(),
+        acceptedAt: null,
+        startedAt: null,
+        completedAt: null,
+        cancelledAt: null,
+        ...args.data,
+        // Real Prisma round-trips nullable columns as null (never undefined).
+        problemTitle: args.data.problemTitle ?? null,
+        serviceId: args.data.serviceId ?? null,
+        faultId: args.data.faultId ?? null,
+        scheduledAt: args.data.scheduledAt ?? null,
+        createdAt: now,
+        updatedAt: now,
+      } as ServiceRequestRow;
+      this.serviceRequests.push(row);
+      return applySelect(row as unknown as Record<string, unknown>, args.select) as unknown as ServiceRequestRow;
+    },
+    count: async (args: { where: ServiceRequestWhere }): Promise<number> => this.matchServiceRequests(args.where).length,
+    findMany: async (args: {
+      where: ServiceRequestWhere;
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.matchServiceRequests(args.where);
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    findFirst: async (args: { where: ServiceRequestWhere; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.matchServiceRequests(args.where)[0];
+      if (row === undefined) {
+        return null;
+      }
+      const withLocation = { ...row, location: this.locations.find((l) => l.id === row.locationId) };
+      return applySelect(withLocation as unknown as Record<string, unknown>, args.select);
+    },
+    findUnique: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.serviceRequests.find((r) => r.id === args.where.id);
+      if (row === undefined) {
+        return null;
+      }
+      const withLocation = { ...row, location: this.locations.find((l) => l.id === row.locationId) };
+      return applySelect(withLocation as unknown as Record<string, unknown>, args.select);
+    },
+    updateMany: async (args: {
+      where: { id: string; status?: ServiceRequestStatusValue; technicianId?: string; customerId?: string };
+      data: Record<string, unknown>;
+    }): Promise<{ count: number }> => {
+      let count = 0;
+      this.serviceRequests = this.serviceRequests.map((r) => {
+        if (
+          r.id === args.where.id &&
+          (args.where.status === undefined || r.status === args.where.status) &&
+          (args.where.technicianId === undefined || r.technicianId === args.where.technicianId) &&
+          (args.where.customerId === undefined || r.customerId === args.where.customerId)
+        ) {
+          count += 1;
+          return { ...r, ...args.data, updatedAt: new Date() } as ServiceRequestRow;
+        }
+        return r;
+      });
+      return { count };
+    },
+  };
+
+  serviceRequestStatusHistory = {
+    create: async (args: { data: Omit<ServiceRequestStatusHistoryRow, 'id' | 'createdAt'> }): Promise<ServiceRequestStatusHistoryRow> => {
+      const row: ServiceRequestStatusHistoryRow = { id: randomUUID(), createdAt: new Date(), ...args.data };
+      this.serviceRequestStatusHistoryStore.push(row);
+      return row;
+    },
+    findMany: async (args: {
+      where: { serviceRequestId: string };
+      orderBy?: Record<string, string>;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.serviceRequestStatusHistoryStore.filter((h) => h.serviceRequestId === args.where.serviceRequestId);
+      rows = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      if (args.take !== undefined) {
+        rows = rows.slice(0, args.take);
+      }
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+  };
+
+  private matchServiceRequests(where: ServiceRequestWhere): ServiceRequestRow[] {
+    return this.serviceRequests.filter((r) => this.serviceRequestMatches(r, where));
+  }
+
+  private serviceRequestMatches(
+    row: ServiceRequestRow,
+    where: ServiceRequestWhere,
+  ): boolean {
+    if (where.id !== undefined && row.id !== where.id) return false;
+    if (where.customerId !== undefined && row.customerId !== where.customerId) return false;
+    if (where.technicianId !== undefined && row.technicianId !== where.technicianId) return false;
+    if (where.status !== undefined) {
+      if (typeof where.status === 'string') {
+        if (row.status !== where.status) return false;
+      } else if (where.status.not !== undefined && row.status === where.status.not) {
+        return false;
+      }
+    }
+    if (where.OR !== undefined && !where.OR.some((branch) => this.serviceRequestMatches(row, branch))) {
+      return false;
+    }
+    return true;
+  }
 
   private matchFaults(where: FaultWhere): FaultRow[] {
     return this.faults.filter((f) => {
@@ -612,6 +807,8 @@ class FakePrismaClient {
 
   private matchTechnicians(where: TechnicianWhere): TechnicianProfileRow[] {
     return this.technicianProfiles.filter((t) => {
+      if (where.id !== undefined && t.id !== where.id) return false;
+      if (where.userId !== undefined && t.userId !== where.userId) return false;
       if (where.verificationStatus !== undefined && t.verificationStatus !== where.verificationStatus) {
         return false;
       }
@@ -679,6 +876,8 @@ interface ServiceWhere {
 }
 
 interface TechnicianWhere {
+  id?: string;
+  userId?: string;
   verificationStatus?: VerificationStatusValue;
   availabilityStatus?: AvailabilityStatusValue;
   ratingAverage?: { gte?: number };

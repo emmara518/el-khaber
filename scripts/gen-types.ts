@@ -51,7 +51,8 @@ function refName(ref: string | undefined): string | undefined {
 
 function propertyType(schema: SchemaObject): string {
   if (schema.$ref !== undefined) {
-    return refName(schema.$ref) ?? 'unknown';
+    const refType = refName(schema.$ref) ?? 'unknown';
+    return schema.nullable === true ? `${refType} | null` : refType;
   }
   if (schema.enum !== undefined) {
     return schema.enum.map((v) => `'${v}'`).join(' | ');

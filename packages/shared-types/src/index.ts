@@ -27,4 +27,10 @@ export type {
   ServiceDto,
   TechnicianServiceDto,
   TechnicianPublicDto,
+  // Service request lifecycle (Task 10F)
+  ServiceRequestStatus,
+  CreateServiceRequestDto,
+  ServiceRequestSummaryDto,
+  ServiceRequestStatusHistoryDto,
+  ServiceRequestDto,
 } from './generated/api-contract';

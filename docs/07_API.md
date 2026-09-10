@@ -210,6 +210,36 @@ Conceptual payload:
 
 `problem_title` is OPTIONAL (Task 10B CTO decision 2).
 
+Implementation notes (Task 10F):
+
+- All routes are authenticated; `customer_id` and the acting identity come
+  from the verified JWT — never from the payload. Cross-account reads and
+  mutations return the same `404 NOT_FOUND` as a missing request.
+- `technician_id` targets a VERIFIED technician and is required; the
+  request is created with status `pending` and an initial history record
+  (∅ → pending). `location_id` must reference a location OWNED by the
+  authenticated customer.
+- `GET /service-requests` is role-scoped: customers see their own
+  requests; technicians see pending requests targeted at them plus every
+  non-pending request assigned to them. `status` filters the documented
+  lifecycle values; pagination uses §19 (max 100).
+- `GET /service-requests/:id` returns role-appropriate details including
+  the request location (owner + targeted/assigned technician) and the
+  append-only status history (bounded to the last 50 records).
+- Transition routes map onto the §22 chain as follows: `accept`
+  (pending → accepted), `start` (accepted → on_the_way, then
+  on_the_way → in_progress — the two activation steps of the documented
+  chain), `complete` (in_progress → completed), `reject` (technician:
+  pending/accepted → cancelled), `cancel` (customer owner:
+  pending/accepted → cancelled). No rejection-reason taxonomy exists.
+- `POST /service-requests/:id/confirm` is not implemented: it is
+  conditional in this document ("when a confirmation state is required")
+  and the canonical state chain defines no confirmation state.
+- Every mutation is a single atomic write guarded by the expected current
+  status + actor scope (PostgreSQL row locking); the loser of a race
+  receives `409 INVALID_STATE_TRANSITION` with no second mutation. Status
+  writes and history records share one transaction.
+
 Server calculates/validates anything derived.
 
 ### GET `/service-requests`

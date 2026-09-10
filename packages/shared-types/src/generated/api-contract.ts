@@ -62,6 +62,20 @@ export interface AuthUserDto {
   status: UserStatus;
 }
 
+/**
+ * Customer request creation payload (docs/07_API.md §7). problem_title is OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case without inventing diagnostic conclusions. The request is created with status=pending, targeted at the chosen verified technician.
+ */
+export interface CreateServiceRequestDto {
+  appliance_category_id: string;
+  fault_id?: string;
+  location_id: string;
+  problem_description: string;
+  problem_title?: string;
+  scheduled_at?: string;
+  service_id?: string;
+  technician_id: string;
+}
+
 export type ErrorCode = 'AUTH_REQUIRED' | 'AUTH_INVALID' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'CONFLICT' | 'RATE_LIMITED' | 'SUBSCRIPTION_REQUIRED' | 'ENTITLEMENT_REQUIRED' | 'INVALID_STATE_TRANSITION' | 'UPLOAD_REJECTED' | 'INTERNAL_ERROR';
 
 /**
@@ -129,6 +143,59 @@ export interface ServiceDto {
   id: string;
   nameAr: string;
   slug: string;
+}
+
+/**
+ * Role-scoped request detail. The request location (job information) is included for the customer owner and the targeted/assigned technician. Status history is bounded and append-only.
+ */
+export interface ServiceRequestDto {
+  acceptedAt: string | null;
+  applianceCategoryId: string;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  faultId: string | null;
+  history: Array<ServiceRequestStatusHistoryDto>;
+  id: string;
+  location: { addressText: string | null; city: string | null; label: string | null; latitude: number; longitude: number; region: string | null };
+  problemDescription: string;
+  problemTitle: string | null;
+  scheduledAt: string | null;
+  serviceId: string | null;
+  startedAt: string | null;
+  status: ServiceRequestStatus;
+  technicianId: string | null;
+  updatedAt: string;
+}
+
+export type ServiceRequestStatus = 'pending' | 'accepted' | 'on_the_way' | 'in_progress' | 'completed' | 'cancelled';
+
+/**
+ * Append-only status transition record (docs/07_API.md §13).
+ */
+export interface ServiceRequestStatusHistoryDto {
+  changedByUserId: string | null;
+  createdAt: string;
+  fromStatus: ServiceRequestStatus | null;
+  id: string;
+  toStatus: ServiceRequestStatus;
+}
+
+/**
+ * Role-scoped service-request list item.
+ */
+export interface ServiceRequestSummaryDto {
+  applianceCategoryId: string;
+  createdAt: string;
+  faultId: string | null;
+  id: string;
+  problemDescription: string;
+  problemTitle: string | null;
+  scheduledAt: string | null;
+  serviceId: string | null;
+  status: ServiceRequestStatus;
+  technicianId: string | null;
+  updatedAt: string;
 }
 
 export type TechnicianAvailabilityStatus = 'available' | 'busy' | 'unavailable';

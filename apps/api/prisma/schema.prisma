@@ -548,7 +548,7 @@ model ServiceRequestStatusHistory {
   serviceRequestId String                @map("service_request_id") @db.Uuid
   // Null for the initial creation event.
   fromStatus       ServiceRequestStatus? @map("from_status")
-  toStatus         ServiceRequestStatus
+  toStatus         ServiceRequestStatus  @map("to_status")
   changedByUserId  String?               @map("changed_by_user_id") @db.Uuid
   note             String?
   createdAt        DateTime              @default(now()) @map("created_at")

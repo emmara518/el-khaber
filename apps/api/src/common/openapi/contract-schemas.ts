@@ -274,6 +274,137 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     type: 'string',
     enum: ['available', 'busy', 'unavailable'],
   },
+
+  // ---------------------------------------------------------------------------
+  // Service requests (Task 10F). Source: docs/07_API.md §7, §22.
+  // ---------------------------------------------------------------------------
+
+  ServiceRequestStatus: {
+    type: 'string',
+    enum: ['pending', 'accepted', 'on_the_way', 'in_progress', 'completed', 'cancelled'],
+  },
+  CreateServiceRequestDto: {
+    type: 'object',
+    description:
+      'Customer request creation payload (docs/07_API.md §7). problem_title is ' +
+      'OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case ' +
+      'without inventing diagnostic conclusions. The request is created with ' +
+      'status=pending, targeted at the chosen verified technician.',
+    properties: {
+      technician_id: { type: 'string', format: 'uuid' },
+      appliance_category_id: { type: 'string', format: 'uuid' },
+      service_id: { type: 'string', format: 'uuid' },
+      fault_id: { type: 'string', format: 'uuid' },
+      problem_title: { type: 'string', maxLength: 255 },
+      problem_description: { type: 'string', minLength: 1, maxLength: 5000 },
+      location_id: { type: 'string', format: 'uuid' },
+      scheduled_at: { type: 'string', format: 'date-time' },
+    },
+    required: ['technician_id', 'appliance_category_id', 'problem_description', 'location_id'],
+    additionalProperties: false,
+  },
+  ServiceRequestSummaryDto: {
+    type: 'object',
+    description: 'Role-scoped service-request list item.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: REF('ServiceRequestStatus'),
+      problemTitle: { type: 'string', nullable: true },
+      problemDescription: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      serviceId: { type: 'string', format: 'uuid', nullable: true },
+      faultId: { type: 'string', format: 'uuid', nullable: true },
+      technicianId: { type: 'string', format: 'uuid', nullable: true },
+      scheduledAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'status',
+      'problemTitle',
+      'problemDescription',
+      'applianceCategoryId',
+      'serviceId',
+      'faultId',
+      'technicianId',
+      'scheduledAt',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  ServiceRequestStatusHistoryDto: {
+    type: 'object',
+    description: 'Append-only status transition record (docs/07_API.md §13).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      fromStatus: { ...REF('ServiceRequestStatus'), nullable: true },
+      toStatus: REF('ServiceRequestStatus'),
+      changedByUserId: { type: 'string', format: 'uuid', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'fromStatus', 'toStatus', 'changedByUserId', 'createdAt'],
+    additionalProperties: false,
+  },
+  ServiceRequestDto: {
+    type: 'object',
+    description:
+      'Role-scoped request detail. The request location (job information) is ' +
+      'included for the customer owner and the targeted/assigned technician. ' +
+      'Status history is bounded and append-only.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: REF('ServiceRequestStatus'),
+      problemTitle: { type: 'string', nullable: true },
+      problemDescription: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      serviceId: { type: 'string', format: 'uuid', nullable: true },
+      faultId: { type: 'string', format: 'uuid', nullable: true },
+      technicianId: { type: 'string', format: 'uuid', nullable: true },
+      location: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', nullable: true },
+          addressText: { type: 'string', nullable: true },
+          city: { type: 'string', nullable: true },
+          region: { type: 'string', nullable: true },
+          latitude: { type: 'number' },
+          longitude: { type: 'number' },
+        },
+        required: ['label', 'addressText', 'city', 'region', 'latitude', 'longitude'],
+        additionalProperties: false,
+      },
+      scheduledAt: { type: 'string', format: 'date-time', nullable: true },
+      acceptedAt: { type: 'string', format: 'date-time', nullable: true },
+      startedAt: { type: 'string', format: 'date-time', nullable: true },
+      completedAt: { type: 'string', format: 'date-time', nullable: true },
+      cancelledAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+      history: { type: 'array', items: REF('ServiceRequestStatusHistoryDto') },
+    },
+    required: [
+      'id',
+      'status',
+      'problemTitle',
+      'problemDescription',
+      'applianceCategoryId',
+      'serviceId',
+      'faultId',
+      'technicianId',
+      'location',
+      'scheduledAt',
+      'acceptedAt',
+      'startedAt',
+      'completedAt',
+      'cancelledAt',
+      'createdAt',
+      'updatedAt',
+      'history',
+    ],
+    additionalProperties: false,
+  },
 };
 
 /** Inline success-envelope wrapper: `{ data: <ref>, meta? }`. */

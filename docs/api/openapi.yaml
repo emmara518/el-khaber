@@ -113,6 +113,44 @@ components:
         - emailVerified
         - createdAt
       type: object
+    CreateServiceRequestDto:
+      additionalProperties: false
+      description: >-
+        Customer request creation payload (docs/07_API.md §7). problem_title is OPTIONAL (Task 10B CTO decision 2) and
+        supports the "other problem" case without inventing diagnostic conclusions. The request is created with
+        status=pending, targeted at the chosen verified technician.
+      properties:
+        appliance_category_id:
+          format: uuid
+          type: string
+        fault_id:
+          format: uuid
+          type: string
+        location_id:
+          format: uuid
+          type: string
+        problem_description:
+          maxLength: 5000
+          minLength: 1
+          type: string
+        problem_title:
+          maxLength: 255
+          type: string
+        scheduled_at:
+          format: date-time
+          type: string
+        service_id:
+          format: uuid
+          type: string
+        technician_id:
+          format: uuid
+          type: string
+      required:
+        - technician_id
+        - appliance_category_id
+        - problem_description
+        - location_id
+      type: object
     ErrorCode:
       enum:
         - AUTH_REQUIRED
@@ -293,6 +331,200 @@ components:
         - nameAr
         - slug
         - descriptionAr
+      type: object
+    ServiceRequestDto:
+      additionalProperties: false
+      description: >-
+        Role-scoped request detail. The request location (job information) is included for the customer owner and the
+        targeted/assigned technician. Status history is bounded and append-only.
+      properties:
+        acceptedAt:
+          format: date-time
+          nullable: true
+          type: string
+        applianceCategoryId:
+          format: uuid
+          type: string
+        cancelledAt:
+          format: date-time
+          nullable: true
+          type: string
+        completedAt:
+          format: date-time
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        faultId:
+          format: uuid
+          nullable: true
+          type: string
+        history:
+          items:
+            $ref: '#/components/schemas/ServiceRequestStatusHistoryDto'
+          type: array
+        id:
+          format: uuid
+          type: string
+        location:
+          additionalProperties: false
+          properties:
+            addressText:
+              nullable: true
+              type: string
+            city:
+              nullable: true
+              type: string
+            label:
+              nullable: true
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            region:
+              nullable: true
+              type: string
+          required:
+            - label
+            - addressText
+            - city
+            - region
+            - latitude
+            - longitude
+          type: object
+        problemDescription:
+          type: string
+        problemTitle:
+          nullable: true
+          type: string
+        scheduledAt:
+          format: date-time
+          nullable: true
+          type: string
+        serviceId:
+          format: uuid
+          nullable: true
+          type: string
+        startedAt:
+          format: date-time
+          nullable: true
+          type: string
+        status:
+          $ref: '#/components/schemas/ServiceRequestStatus'
+        technicianId:
+          format: uuid
+          nullable: true
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - status
+        - problemTitle
+        - problemDescription
+        - applianceCategoryId
+        - serviceId
+        - faultId
+        - technicianId
+        - location
+        - scheduledAt
+        - acceptedAt
+        - startedAt
+        - completedAt
+        - cancelledAt
+        - createdAt
+        - updatedAt
+        - history
+      type: object
+    ServiceRequestStatus:
+      enum:
+        - pending
+        - accepted
+        - on_the_way
+        - in_progress
+        - completed
+        - cancelled
+      type: string
+    ServiceRequestStatusHistoryDto:
+      additionalProperties: false
+      description: Append-only status transition record (docs/07_API.md §13).
+      properties:
+        changedByUserId:
+          format: uuid
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        fromStatus:
+          $ref: '#/components/schemas/ServiceRequestStatus'
+          nullable: true
+        id:
+          format: uuid
+          type: string
+        toStatus:
+          $ref: '#/components/schemas/ServiceRequestStatus'
+      required:
+        - id
+        - fromStatus
+        - toStatus
+        - changedByUserId
+        - createdAt
+      type: object
+    ServiceRequestSummaryDto:
+      additionalProperties: false
+      description: Role-scoped service-request list item.
+      properties:
+        applianceCategoryId:
+          format: uuid
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        faultId:
+          format: uuid
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        problemDescription:
+          type: string
+        problemTitle:
+          nullable: true
+          type: string
+        scheduledAt:
+          format: date-time
+          nullable: true
+          type: string
+        serviceId:
+          format: uuid
+          nullable: true
+          type: string
+        status:
+          $ref: '#/components/schemas/ServiceRequestStatus'
+        technicianId:
+          format: uuid
+          nullable: true
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - status
+        - problemTitle
+        - problemDescription
+        - applianceCategoryId
+        - serviceId
+        - faultId
+        - technicianId
+        - scheduledAt
+        - createdAt
+        - updatedAt
       type: object
     TechnicianAvailabilityStatus:
       enum:
@@ -1027,6 +1259,436 @@ paths:
           description: A required dependency is unavailable (canonical error envelope).
       tags:
         - health
+  /api/v1/service-requests:
+    get:
+      operationId: ServiceRequestsController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - pending
+              - accepted
+              - on_the_way
+              - in_progress
+              - completed
+              - cancelled
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestSummaryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Role-scoped request list (paginated).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+    post:
+      operationId: ServiceRequestsController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                appliance_category_id:
+                  type: string
+                fault_id:
+                  type: string
+                location_id:
+                  type: string
+                problem_description:
+                  maxLength: 5000
+                  minLength: 1
+                  type: string
+                problem_title:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                scheduled_at: {}
+                service_id:
+                  type: string
+                technician_id:
+                  type: string
+              required:
+                - technician_id
+                - appliance_category_id
+                - problem_description
+                - location_id
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Request created with status=pending (history recorded).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Referenced technician/location/category/service/fault not found or not owned.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}:
+    get:
+      operationId: ServiceRequestsController_detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Role-scoped request detail with bounded history.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not visible to this account.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/accept:
+    post:
+      operationId: ServiceRequestsController_accept
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Request accepted (pending → accepted).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not targeted at this technician.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Stale state / already accepted (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/cancel:
+    post:
+      operationId: ServiceRequestsController_cancel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Request cancelled (pending/accepted → cancelled, owner only).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not owned by this customer.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid state transition (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/complete:
+    post:
+      operationId: ServiceRequestsController_complete
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Request completed (in_progress → completed).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not assigned to this technician.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid state transition (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/reject:
+    post:
+      operationId: ServiceRequestsController_reject
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Request rejected (→ cancelled per documented semantics).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not targeted at this technician.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Stale state (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/start:
+    post:
+      operationId: ServiceRequestsController_start
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active-service stage advanced (accepted → on_the_way → in_progress).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not assigned to this technician.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid state transition (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - service-requests
   /api/v1/services:
     get:
       operationId: ServiceCatalogController_list

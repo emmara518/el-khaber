@@ -158,3 +158,39 @@ export const technicianListQuerySchema = paginationSchema.extend({
   sort: z.literal('rating').optional(),
 });
 export type TechnicianListQuery = z.infer<typeof technicianListQuerySchema>;
+
+// -----------------------------------------------------------------------------
+// Service requests (Task 10F)
+// Source: docs/07_API.md §7 (create payload, list, transitions), §22 (state
+// chain). problem_title is OPTIONAL (Task 10B CTO decision 2).
+// -----------------------------------------------------------------------------
+
+/** Canonical service-request lifecycle (docs/07_API.md §22). */
+export const serviceRequestStatusSchema = z.enum([
+  'pending',
+  'accepted',
+  'on_the_way',
+  'in_progress',
+  'completed',
+  'cancelled',
+]);
+export type ServiceRequestStatusValue = z.infer<typeof serviceRequestStatusSchema>;
+
+/** POST /service-requests — customer creation payload. */
+export const createServiceRequestSchema = z.object({
+  technician_id: uuidParam,
+  appliance_category_id: uuidParam,
+  service_id: uuidParam.optional(),
+  fault_id: uuidParam.optional(),
+  problem_title: z.string().trim().min(1).max(255).optional(),
+  problem_description: z.string().trim().min(1).max(5000),
+  location_id: uuidParam,
+  scheduled_at: z.coerce.date().optional(),
+});
+export type CreateServiceRequestInput = z.infer<typeof createServiceRequestSchema>;
+
+/** GET /service-requests — role-scoped list with the documented status filter. */
+export const serviceRequestListQuerySchema = paginationSchema.extend({
+  status: serviceRequestStatusSchema.optional(),
+});
+export type ServiceRequestListQuery = z.infer<typeof serviceRequestListQuerySchema>;
