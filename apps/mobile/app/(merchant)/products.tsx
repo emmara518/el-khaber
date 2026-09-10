@@ -1,6 +1,10 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import MerchantCatalogScreen from '../../src/features/merchant/products/merchant-catalog-screen';
 
-/** Merchant products — shell placeholder (Phase 1, no catalog logic). */
+/**
+ * Route entry: Merchant Catalog (M-C) — display-only product list
+ * behind `useMerchantProductsViewModel` (mock today, real API
+ * adapter for GET /merchant/products later).
+ */
 export default function MerchantProductsRoute() {
-  return <ShellPlaceholder roleAr="تاجر" titleAr="المنتجات" />;
+  return <MerchantCatalogScreen />;
 }

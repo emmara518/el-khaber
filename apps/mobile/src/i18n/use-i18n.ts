@@ -347,6 +347,24 @@ const ARABIC: Record<string, string> = {
   'merchant.settings.onboarding': 'بيانات المتجر',
   'merchant.settings.onboardingHint': 'إكمال أو تحديث بيانات المتجر',
   'merchant.settings.notifications': 'الإشعارات',
+  // Merchant — catalog (M-C)
+  'merchant.catalog.title': 'إدارة المنتجات',
+  'merchant.catalog.subtitle': 'منتجات متجرك وحالاتها',
+  'merchant.catalog.empty': 'لا توجد منتجات بعد',
+  'merchant.catalog.emptyBody': 'ابدأ ببناء كتالوج متجرك بإضافة أول منتج.',
+  'merchant.catalog.add': 'إضافة منتج',
+  'merchant.catalog.error': 'تعذر تحميل المنتجات',
+  'merchant.catalog.noPrice': 'السعر غير محدد',
+  'merchant.product.title': 'تفاصيل المنتج',
+  'merchant.product.ref': 'رقم المنتج',
+  'merchant.product.description': 'وصف المنتج',
+  'merchant.product.backToCatalog': 'رجوع إلى المنتجات',
+  'merchant.product.missing': 'المنتج غير موجود',
+  'merchant.product.missingBody': 'ربما تغيّر الرابط. ارجع إلى كتالوج المتجر.',
+  // Merchant — new product handoff (M-C → M-D)
+  'merchant.newProduct.title': 'إضافة منتج',
+  'merchant.newProduct.body': 'نموذج إضافة المنتجات سيتوفر في الخطوة القادمة. يمكنك استعراض كتالوجك الحالي حتى ذلك الحين.',
+  'merchant.newProduct.backToCatalog': 'رجوع إلى المنتجات',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
