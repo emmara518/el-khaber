@@ -76,3 +76,60 @@ export const PRODUCT_STATUS_LABELS: Record<MerchantProductStatus, string> = {
   active: 'نشط',
   suspended: 'موقوف',
 };
+
+/** Editable subset — id/status/labels are system-owned. */
+export interface MerchantProductDraft {
+  readonly nameAr: string;
+  readonly descriptionAr: string;
+  readonly categoryAr: string;
+  readonly priceSar: number | null;
+  /** Typed image INTENT (M-C placeholder system) — no upload pipeline. */
+  readonly imageSelected: boolean;
+}
+
+export const EMPTY_PRODUCT_DRAFT: MerchantProductDraft = {
+  nameAr: '',
+  descriptionAr: '',
+  categoryAr: '',
+  priceSar: null,
+  imageSelected: false,
+};
+
+export function draftFromProduct(product: MerchantProduct): MerchantProductDraft {
+  return {
+    nameAr: product.nameAr,
+    descriptionAr: product.descriptionAr,
+    categoryAr: product.categoryAr,
+    priceSar: product.priceSar,
+    imageSelected: product.hasImage,
+  };
+}
+
+export function validateProductDraft(
+  draft: MerchantProductDraft,
+): Partial<Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar', string>> {
+  const errors: Partial<Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar', string>> = {};
+  if (draft.nameAr.trim().length < 3) errors.nameAr = 'أدخل اسم المنتج (٣ أحرف على الأقل)';
+  if (draft.descriptionAr.trim().length < 10) {
+    errors.descriptionAr = 'أدخل وصف المنتج (١٠ أحرف على الأقل)';
+  }
+  if (draft.categoryAr.trim().length === 0) errors.categoryAr = 'اختر قسم المنتج';
+  if (draft.priceSar !== null && (draft.priceSar < 0 || draft.priceSar > 1_000_000)) {
+    errors.priceSar = 'أدخل سعرًا صحيحًا بين ٠ و ١٠٠٠٠٠٠';
+  }
+  return errors;
+}
+
+export class ProductMutationError extends Error {
+  constructor(message = 'تعذر تحديث المنتج. حاول مجددًا') {
+    super(message);
+    this.name = 'ProductMutationError';
+  }
+}
+
+export interface MerchantProductDataSource {
+  getProducts(input: { role: 'merchant' }): Promise<ReadonlyArray<MerchantProduct>>;
+  createProduct(input: { role: 'merchant'; draft: MerchantProductDraft }): Promise<MerchantProduct>;
+  updateProduct(input: { role: 'merchant'; productId: string; draft: MerchantProductDraft }): Promise<MerchantProduct>;
+  setProductStatus(input: { role: 'merchant'; productId: string; status: MerchantProductStatus }): Promise<MerchantProduct>;
+}

@@ -6,17 +6,26 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockMerchantProductsDataSource, type MerchantProductsDataSource } from './mock-merchant-products-data-source';
+import {
+  MockMerchantProductsDataSource,
+  type MerchantProductsDataSource,
+} from './mock-merchant-products-data-source';
 
-import type { MerchantProduct } from './merchant-product-types';
+import type { MerchantProduct, MerchantProductStatus } from './merchant-product-types';
 
 export type MerchantProductsStatus = 'loading' | 'loaded' | 'error';
+export type ProductMutationStatus = 'idle' | 'submitting' | 'success' | 'error';
 
 export interface MerchantProductsState {
   status: MerchantProductsStatus;
   data: ReadonlyArray<MerchantProduct> | null;
   error: Error | null;
   retry: () => void;
+  mutationStatus: ProductMutationStatus;
+  mutationError: string | null;
+  mutationResult: MerchantProduct | null;
+  setProductStatus: (productId: string, status: MerchantProductStatus) => void;
+  resetMutation: () => void;
 }
 
 export function useMerchantProductsViewModel(
@@ -24,28 +33,32 @@ export function useMerchantProductsViewModel(
 ): MerchantProductsState {
   const [stableSource] = useState(() => source);
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<Omit<MerchantProductsState, 'retry'>>({
+  const [state, setState] = useState<Omit<MerchantProductsState, 'retry' | 'setProductStatus' | 'resetMutation'>>({
     status: 'loading',
     data: null,
     error: null,
+    mutationStatus: 'idle',
+    mutationError: null,
+    mutationResult: null,
   });
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading', data: null, error: null });
+    setState((s) => ({ ...s, status: 'loading', data: null, error: null }));
     stableSource
       .getProducts({ role: 'merchant' })
       .then((data) => {
         if (cancelled) return;
-        setState({ status: 'loaded', data, error: null });
+        setState((s) => ({ ...s, status: 'loaded', data, error: null }));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setState({
+        setState((s) => ({
+          ...s,
           status: 'error',
           data: null,
           error: err instanceof Error ? err : new Error(String(err)),
-        });
+        }));
       });
     return () => {
       cancelled = true;
@@ -54,5 +67,43 @@ export function useMerchantProductsViewModel(
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { ...state, retry };
+  const setProductStatus = useCallback(
+    (productId: string, nextStatus: MerchantProductStatus) => {
+      setState((s) => {
+        if (s.mutationStatus === 'submitting') return s;
+        return { ...s, mutationStatus: 'submitting', mutationError: null, mutationResult: null };
+      });
+      void (async () => {
+        try {
+          const updated = await stableSource.setProductStatus({
+            role: 'merchant',
+            productId,
+            status: nextStatus,
+          });
+          setState((s) => ({
+            ...s,
+            data: (s.data ?? []).map((p) => (p.id === updated.id ? updated : p)),
+            mutationStatus: 'success',
+            mutationResult: updated,
+          }));
+        } catch (err: unknown) {
+          setState((s) => ({
+            ...s,
+            mutationStatus: 'error',
+            mutationError:
+              err instanceof Error
+                ? err.message
+                : 'تعذر تحديث المنتج. حاول مجددًا',
+          }));
+        }
+      })();
+    },
+    [stableSource],
+  );
+
+  const resetMutation = useCallback(() => {
+    setState((s) => ({ ...s, mutationStatus: 'idle', mutationError: null, mutationResult: null }));
+  }, []);
+
+  return { ...state, retry, setProductStatus, resetMutation };
 }

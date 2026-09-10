@@ -10,7 +10,11 @@
 
 import {
   PRODUCT_STATUS_LABELS,
+  ProductMutationError,
+  validateProductDraft,
   type MerchantProduct,
+  type MerchantProductDraft,
+  type MerchantProductStatus,
 } from './merchant-product-types';
 
 interface SeedRow extends Omit<MerchantProduct, 'statusLabelAr'> {
@@ -80,16 +84,104 @@ function withLabels(row: SeedRow): MerchantProduct {
 
 export interface MerchantProductsDataSource {
   getProducts(input: { role: 'merchant' }): Promise<ReadonlyArray<MerchantProduct>>;
+  createProduct(input: { role: 'merchant'; draft: MerchantProductDraft }): Promise<MerchantProduct>;
+  updateProduct(input: { role: 'merchant'; productId: string; draft: MerchantProductDraft }): Promise<MerchantProduct>;
+  setProductStatus(input: { role: 'merchant'; productId: string; status: MerchantProductStatus }): Promise<MerchantProduct>;
 }
 
 export class MockMerchantProductsDataSource implements MerchantProductsDataSource {
-  constructor(private readonly mode: 'success' | 'failing' | 'empty' = 'success') {}
+  private readonly rows = new Map<string, MerchantProduct>();
+  private createCount = 0;
+
+  constructor(private readonly mode: 'success' | 'failing' | 'empty' = 'success') {
+    if (mode !== 'empty') {
+      for (const row of SEED) this.rows.set(row.id, withLabels({ ...row }));
+    }
+  }
 
   async getProducts(_input: { role: 'merchant' }): Promise<ReadonlyArray<MerchantProduct>> {
     if (this.mode === 'failing') {
       throw new Error('تعذر تحميل المنتجات');
     }
-    if (this.mode === 'empty') return [];
-    return JSON.parse(JSON.stringify(SEED.map(withLabels))) as ReadonlyArray<MerchantProduct>;
+    return JSON.parse(JSON.stringify([...this.rows.values()])) as ReadonlyArray<MerchantProduct>;
+  }
+
+  async createProduct(input: {
+    role: 'merchant';
+    draft: MerchantProductDraft;
+  }): Promise<MerchantProduct> {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    if (this.mode === 'failing') throw new ProductMutationError();
+    const errors = validateProductDraft(input.draft);
+    if (Object.keys(errors).length > 0) {
+      throw new ProductMutationError('بيانات المنتج غير مكتملة');
+    }
+    this.createCount += 1;
+    const created: MerchantProduct = {
+      id: `mp-new-${this.createCount}`,
+      nameAr: input.draft.nameAr,
+      descriptionAr: input.draft.descriptionAr,
+      categoryAr: input.draft.categoryAr,
+      priceSar: input.draft.priceSar,
+      hasImage: input.draft.imageSelected,
+      status: 'active',
+      statusLabelAr: PRODUCT_STATUS_LABELS.active,
+    };
+    this.rows.set(created.id, created);
+    return JSON.parse(JSON.stringify(created)) as MerchantProduct;
+  }
+
+  async updateProduct(input: {
+    role: 'merchant';
+    productId: string;
+    draft: MerchantProductDraft;
+  }): Promise<MerchantProduct> {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    if (this.mode === 'failing') throw new ProductMutationError();
+    const current = this.rows.get(input.productId);
+    if (!current) throw new ProductMutationError('المنتج غير موجود');
+    const errors = validateProductDraft(input.draft);
+    if (Object.keys(errors).length > 0) {
+      throw new ProductMutationError('بيانات المنتج غير مكتملة');
+    }
+    const updated: MerchantProduct = {
+      ...current,
+      nameAr: input.draft.nameAr,
+      descriptionAr: input.draft.descriptionAr,
+      categoryAr: input.draft.categoryAr,
+      priceSar: input.draft.priceSar,
+      hasImage: input.draft.imageSelected,
+    };
+    this.rows.set(input.productId, updated);
+    return JSON.parse(JSON.stringify(updated)) as MerchantProduct;
+  }
+
+  async setProductStatus(input: {
+    role: 'merchant';
+    productId: string;
+    status: MerchantProductStatus;
+  }): Promise<MerchantProduct> {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    if (this.mode === 'failing') throw new ProductMutationError();
+    const current = this.rows.get(input.productId);
+    if (!current) throw new ProductMutationError('المنتج غير موجود');
+    if (current.status === input.status) {
+      throw new ProductMutationError('حالة المنتج الحالية مطابقة للإجراء المطلوب');
+    }
+    const updated: MerchantProduct = {
+      ...current,
+      status: input.status,
+      statusLabelAr: PRODUCT_STATUS_LABELS[input.status],
+    };
+    this.rows.set(input.productId, updated);
+    return JSON.parse(JSON.stringify(updated)) as MerchantProduct;
   }
 }
+
+/**
+ * Session-scoped shared instance: catalog/detail/form screens must
+ * observe the SAME in-memory session so mutations stay consistent
+ * across navigation (M-D §17). Replaced wholesale by the future API
+ * adapter (POST/PATCH /merchant/products).
+ */
+export const sharedMerchantProductsSource = new MockMerchantProductsDataSource();
