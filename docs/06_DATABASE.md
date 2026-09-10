@@ -174,13 +174,24 @@ slug
 severity_level nullable
 summary_ar
 guidance_ar
-safety_note_ar
-when_to_call_technician_ar
-is_active
+safety_note_ar nullable
+when_to_call_technician_ar nullable
+publish_status ENUM(draft, review, published, archived)
 sort_order
 created_at
 updated_at
 ```
+
+Publishing workflow (Task 10B CTO decision 1, aligned with 09_ADMIN.md §8):
+
+- `publish_status` is the authoritative publication state:
+  `draft → review → published → archived`.
+- There is NO independent `is_active` column on this table.
+  "Active/published" is derived from `publish_status = 'published'`.
+- The mobile Fault Guide consumes `published` content only.
+
+Where the original spec listed `is_active`, it is superseded by
+`publish_status` per the Task 10B CTO decision.
 
 ### fault_service_links
 

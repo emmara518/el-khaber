@@ -161,11 +161,14 @@ Conceptual payload:
   "appliance_category_id": "...",
   "service_id": "...",
   "fault_id": "...",
+  "problem_title": "...",
   "problem_description": "...",
   "location_id": "...",
   "scheduled_at": "..."
 }
 ```
+
+`problem_title` is OPTIONAL (Task 10B CTO decision 2).
 
 Server calculates/validates anything derived.
 

@@ -8,15 +8,15 @@ generator client {
 }
 
 datasource db {
-  provider         = "postgresql"
-  url              = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   // Supabase connection strategy: migrations run against the direct
   // (non-pooled) connection because the Supabase pooler does not support
   // DDL or advisory locks used by `prisma migrate`. The application
   // runtime uses the pooled `DATABASE_URL`. Both values are managed via
   // environment variables; nothing is hard-coded. See
   // docs/adr/0004-supabase-postgres.md and docs/local-dev.md.
-  directUrl        = env("DIRECT_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // -----------------------------------------------------------------------------
@@ -41,25 +41,41 @@ enum UserStatus {
 }
 
 model User {
-  id             String     @id @default(uuid()) @db.Uuid
+  id            String     @id @default(uuid()) @db.Uuid
   // The constitution allows phone and/or email as the identifier.
   // We support both; at least one must be present. Uniqueness is
   // enforced per-field so the same value cannot be used twice.
-  phone          String?    @unique @db.VarChar(32)
-  email          String?    @unique @db.VarChar(254)
-  passwordHash   String     @map("password_hash") @db.VarChar(255)
-  role           UserRole
-  status         UserStatus @default(active)
+  phone         String?    @unique @db.VarChar(32)
+  email         String?    @unique @db.VarChar(254)
+  passwordHash  String     @map("password_hash") @db.VarChar(255)
+  role          UserRole
+  status        UserStatus @default(active)
   // Whether the user has verified the contact channel they registered with.
   // Foundation field only; verification flow belongs to a later task.
-  phoneVerified  Boolean    @default(false) @map("phone_verified")
-  emailVerified  Boolean    @default(false) @map("email_verified")
-  lastLoginAt    DateTime?  @map("last_login_at")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
+  phoneVerified Boolean    @default(false) @map("phone_verified")
+  emailVerified Boolean    @default(false) @map("email_verified")
+  lastLoginAt   DateTime?  @map("last_login_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
 
-  refreshTokens        RefreshToken[]
-  passwordResetTokens  PasswordResetToken[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  // Domain back-relations (Task 10B). One role-specific profile per user.
+  customerProfile            CustomerProfile?
+  technicianProfile          TechnicianProfile?
+  merchantProfile            MerchantProfile?
+  locations                  Location[]
+  serviceRequests            ServiceRequest[]
+  requestStatusChanges       ServiceRequestStatusHistory[]
+  requestMediaUploads        ServiceRequestMedia[]
+  customerReviews            Review[]
+  conversationParticipations ConversationParticipant[]
+  sentMessages               Message[]
+  favorites                  Favorite[]
+  subscriptions              Subscription[]
+  notifications              Notification[]
+  auditLogEntries            AuditLog[]
 
   @@index([role])
   @@index([status])
@@ -75,23 +91,23 @@ model User {
 // and docs/05_TECH_ARCHITECTURE.md §6, §11.
 
 model RefreshToken {
-  id          String    @id @default(uuid()) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
   // SHA-256 hash of the raw token. Unique by definition.
-  tokenHash   String    @unique @map("token_hash") @db.Char(64)
+  tokenHash     String    @unique @map("token_hash") @db.Char(64)
   // A family groups a single login's rotation chain. When a token in a
   // family is used to refresh, all other tokens in the family are
   // revoked and a new token is issued in the same family. If a previously
   // rotated token is presented (replay), the entire family is revoked.
-  familyId    String    @map("family_id") @db.Uuid
-  expiresAt   DateTime  @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
+  familyId      String    @map("family_id") @db.Uuid
+  expiresAt     DateTime  @map("expires_at")
+  revokedAt     DateTime? @map("revoked_at")
   // Why a token was revoked (rotation | logout | admin | family_replay).
-  revokedReason String? @map("revoked_reason") @db.VarChar(32)
+  revokedReason String?   @map("revoked_reason") @db.VarChar(32)
   // Optional device/user-agent metadata. Not trusted for authorization.
-  userAgent   String?   @map("user_agent") @db.VarChar(512)
-  ipAddress   String?   @map("ip_address") @db.VarChar(64)
-  createdAt   DateTime  @default(now()) @map("created_at")
+  userAgent     String?   @map("user_agent") @db.VarChar(512)
+  ipAddress     String?   @map("ip_address") @db.VarChar(64)
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -106,12 +122,12 @@ model RefreshToken {
 // -----------------------------------------------------------------------------
 
 model PasswordResetToken {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  tokenHash String   @unique @map("token_hash") @db.Char(64)
-  expiresAt DateTime @map("expires_at")
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -132,17 +148,21 @@ enum AdminRole {
   operations_admin
   content_admin
   support_admin
+  // docs/09_ADMIN.md permission matrix assigns plan/pricing management to
+  // Super/Finance. Required by the subscription administration scope
+  // (docs/08_SUBSCRIPTIONS.md §17) even though billing itself is deferred.
+  finance_admin
 }
 
 model AdminUser {
-  id           String    @id @default(uuid()) @db.Uuid
-  email        String    @unique @db.VarChar(254)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
+  id           String     @id @default(uuid()) @db.Uuid
+  email        String     @unique @db.VarChar(254)
+  passwordHash String     @map("password_hash") @db.VarChar(255)
   role         AdminRole
   status       UserStatus @default(active)
-  lastLoginAt  DateTime? @map("last_login_at")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLoginAt  DateTime?  @map("last_login_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
 
   refreshTokens AdminRefreshToken[]
 
@@ -152,16 +172,16 @@ model AdminUser {
 }
 
 model AdminRefreshToken {
-  id          String    @id @default(uuid()) @db.Uuid
-  adminId     String    @map("admin_id") @db.Uuid
-  tokenHash   String    @unique @map("token_hash") @db.Char(64)
-  familyId    String    @map("family_id") @db.Uuid
-  expiresAt   DateTime  @map("expires_at")
-  revokedAt   DateTime? @map("revoked_at")
-  revokedReason String? @map("revoked_reason") @db.VarChar(32)
-  userAgent   String?   @map("user_agent") @db.VarChar(512)
-  ipAddress   String?   @map("ip_address") @db.VarChar(64)
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(uuid()) @db.Uuid
+  adminId       String    @map("admin_id") @db.Uuid
+  tokenHash     String    @unique @map("token_hash") @db.Char(64)
+  familyId      String    @map("family_id") @db.Uuid
+  expiresAt     DateTime  @map("expires_at")
+  revokedAt     DateTime? @map("revoked_at")
+  revokedReason String?   @map("revoked_reason") @db.VarChar(32)
+  userAgent     String?   @map("user_agent") @db.VarChar(512)
+  ipAddress     String?   @map("ip_address") @db.VarChar(64)
+  createdAt     DateTime  @default(now()) @map("created_at")
 
   admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
@@ -169,4 +189,622 @@ model AdminRefreshToken {
   @@index([familyId])
   @@index([expiresAt])
   @@map("admin_refresh_tokens")
+}
+
+// =============================================================================
+// DOMAIN FOUNDATION (Task 10B)
+// Source of truth: docs/06_DATABASE.md, docs/07_API.md, docs/08_SUBSCRIPTIONS.md,
+// docs/09_ADMIN.md and the Task 10B CTO decisions:
+//   1. Fault publishing is a multi-state workflow (draft/review/published/
+//      archived). `is_active` is NOT stored as an independent authority.
+//   2. service_requests.problem_title stays in the domain and is OPTIONAL.
+//   3. Supabase is managed PostgreSQL/PostGIS only (ADR-0004).
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// Shared enums
+// -----------------------------------------------------------------------------
+
+// Verification state machine from docs/09_ADMIN.md §6.
+enum VerificationStatus {
+  pending
+  verified
+  rejected
+  suspended
+}
+
+// Technician serving state. docs/06_DATABASE.md names `availability_status`
+// but does not define values; the minimal set matching the mobile UI
+// (متاح اليوم / مشغول حاليًا) is used. Amendable by CTO decision.
+enum TechnicianAvailabilityStatus {
+  available
+  busy
+  unavailable
+}
+
+// Canonical service-request lifecycle from docs/07_API.md §22.
+// Rejection terminates as `cancelled` (Task 10B CTO rule 12).
+enum ServiceRequestStatus {
+  pending
+  accepted
+  on_the_way
+  in_progress
+  completed
+  cancelled
+}
+
+// Fault Guide publishing workflow (Task 10B CTO decision 1, docs/09_ADMIN.md §8).
+enum FaultPublishStatus {
+  draft
+  review
+  published
+  archived
+}
+
+// Merchant product status. Preserves the current UI semantics
+// (active / suspended). No draft/deleted/archived states (Task 10B rule 17).
+enum ProductStatus {
+  active
+  suspended
+}
+
+// Canonical subscription states from docs/06_DATABASE.md §19
+// and docs/08_SUBSCRIPTIONS.md §8.
+enum SubscriptionStatus {
+  active
+  trialing
+  past_due
+  cancelled
+  expired
+  pending
+}
+
+enum MessageType {
+  text
+  image
+  file
+  system
+}
+
+// -----------------------------------------------------------------------------
+// Role profiles (users → one role-specific profile; identity is NOT duplicated)
+// -----------------------------------------------------------------------------
+
+model CustomerProfile {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @unique @map("user_id") @db.Uuid
+  // Names are optional: registration collects only contact + password;
+  // profiles are completed later from the app.
+  firstName           String?  @map("first_name") @db.VarChar(128)
+  lastName            String?  @map("last_name") @db.VarChar(128)
+  avatarUrl           String?  @map("avatar_url") @db.VarChar(512)
+  preferredLocationId String?  @map("preferred_location_id") @db.Uuid
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  preferredLocation Location? @relation(fields: [preferredLocationId], references: [id], onDelete: SetNull)
+
+  @@map("customer_profiles")
+}
+
+model TechnicianProfile {
+  id                     String                       @id @default(uuid()) @db.Uuid
+  userId                 String                       @unique @map("user_id") @db.Uuid
+  displayName            String?                      @map("display_name") @db.VarChar(255)
+  bio                    String?
+  avatarUrl              String?                      @map("avatar_url") @db.VarChar(512)
+  verificationStatus     VerificationStatus           @default(pending) @map("verification_status")
+  experienceYears        Int                          @default(0) @map("experience_years")
+  completedServicesCount Int                          @default(0) @map("completed_services_count")
+  // Derived metrics. Server-authoritative only; never client-writable
+  // (docs/06_DATABASE.md §27).
+  ratingAverage          Decimal?                     @map("rating_average") @db.Decimal(3, 2)
+  ratingCount            Int                          @default(0) @map("rating_count")
+  availabilityStatus     TechnicianAvailabilityStatus @default(unavailable) @map("availability_status")
+  createdAt              DateTime                     @default(now()) @map("created_at")
+  updatedAt              DateTime                     @updatedAt @map("updated_at")
+
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services        TechnicianService[]
+  serviceRequests ServiceRequest[]
+  reviews         Review[]
+  favorites       Favorite[]
+
+  @@index([verificationStatus])
+  @@index([ratingAverage])
+  @@index([availabilityStatus])
+  @@map("technician_profiles")
+}
+
+model MerchantProfile {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @unique @map("user_id") @db.Uuid
+  businessName       String?            @map("business_name") @db.VarChar(255)
+  bio                String?
+  logoUrl            String?            @map("logo_url") @db.VarChar(512)
+  verificationStatus VerificationStatus @default(pending) @map("verification_status")
+  contactPhone       String?            @map("contact_phone") @db.VarChar(32)
+  locationId         String?            @map("location_id") @db.Uuid
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location  Location?  @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  products  Product[]
+  favorites Favorite[]
+
+  @@map("merchant_profiles")
+}
+
+// -----------------------------------------------------------------------------
+// Locations / geo
+// -----------------------------------------------------------------------------
+
+model Location {
+  id          String                    @id @default(uuid()) @db.Uuid
+  // Owner of a user-saved location (docs/07_API.md §8 user-owned records).
+  userId      String?                   @map("user_id") @db.Uuid
+  label       String?                   @db.VarChar(128)
+  addressText String?                   @map("address_text")
+  city        String?                   @db.VarChar(128)
+  region      String?                   @db.VarChar(128)
+  country     String?                   @db.VarChar(128)
+  // Documented logical coordinates (docs/06_DATABASE.md §6).
+  latitude    Decimal                   @map("latitude") @db.Decimal(9, 6)
+  longitude   Decimal                   @map("longitude") @db.Decimal(9, 6)
+  // PostGIS geography(Point, 4326). Derived from latitude/longitude by a
+  // database trigger (see migration) so there is exactly one business truth.
+  // Managed outside Prisma; excluded from the generated client.
+  coordinates Unsupported("geography")?
+  createdAt   DateTime                  @default(now()) @map("created_at")
+  updatedAt   DateTime                  @updatedAt @map("updated_at")
+
+  owner            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customerProfiles CustomerProfile[]
+  merchantProfiles MerchantProfile[]
+  serviceRequests  ServiceRequest[]
+
+  @@index([userId])
+  @@map("locations")
+}
+
+// -----------------------------------------------------------------------------
+// Appliance / content catalog
+// -----------------------------------------------------------------------------
+
+model ApplianceCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  nameAr    String   @map("name_ar") @db.VarChar(255)
+  slug      String   @unique @db.VarChar(128)
+  iconUrl   String?  @map("icon_url") @db.VarChar(512)
+  imageUrl  String?  @map("image_url") @db.VarChar(512)
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  faults          Fault[]
+  services        Service[]
+  serviceRequests ServiceRequest[]
+
+  @@map("appliance_categories")
+}
+
+model Fault {
+  id                     String             @id @default(uuid()) @db.Uuid
+  applianceCategoryId    String             @map("appliance_category_id") @db.Uuid
+  nameAr                 String             @map("name_ar") @db.VarChar(255)
+  slug                   String             @db.VarChar(128)
+  severityLevel          String?            @map("severity_level") @db.VarChar(32)
+  summaryAr              String             @map("summary_ar")
+  guidanceAr             String             @map("guidance_ar")
+  // Nullable so DRAFT articles may be incomplete (approved multi-state
+  // publishing workflow — Task 10B CTO decision 1).
+  safetyNoteAr           String?            @map("safety_note_ar")
+  whenToCallTechnicianAr String?            @map("when_to_call_technician_ar")
+  publishStatus          FaultPublishStatus @default(draft) @map("publish_status")
+  sortOrder              Int                @default(0) @map("sort_order")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  applianceCategory ApplianceCategory  @relation(fields: [applianceCategoryId], references: [id], onDelete: Restrict)
+  serviceLinks      FaultServiceLink[]
+  serviceRequests   ServiceRequest[]
+
+  @@unique([applianceCategoryId, slug])
+  @@map("faults")
+}
+
+model Service {
+  id                  String   @id @default(uuid()) @db.Uuid
+  applianceCategoryId String   @map("appliance_category_id") @db.Uuid
+  nameAr              String   @map("name_ar") @db.VarChar(255)
+  slug                String   @db.VarChar(128)
+  descriptionAr       String?  @map("description_ar")
+  isActive            Boolean  @default(true) @map("is_active")
+  sortOrder           Int      @default(0) @map("sort_order")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  applianceCategory ApplianceCategory   @relation(fields: [applianceCategoryId], references: [id], onDelete: Restrict)
+  faultLinks        FaultServiceLink[]
+  technicians       TechnicianService[]
+  serviceRequests   ServiceRequest[]
+
+  @@unique([applianceCategoryId, slug])
+  @@map("services")
+}
+
+model FaultServiceLink {
+  faultId   String @map("fault_id") @db.Uuid
+  serviceId String @map("service_id") @db.Uuid
+
+  fault   Fault   @relation(fields: [faultId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([faultId, serviceId])
+  @@index([serviceId])
+  @@map("fault_service_links")
+}
+
+model TechnicianService {
+  technicianId String   @map("technician_id") @db.Uuid
+  serviceId    String   @map("service_id") @db.Uuid
+  priceFrom    Decimal? @map("price_from") @db.Decimal(10, 2)
+  isActive     Boolean  @default(true) @map("is_active")
+
+  technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  service    Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([technicianId, serviceId])
+  @@map("technician_services")
+}
+
+// -----------------------------------------------------------------------------
+// Service requests / orders
+// -----------------------------------------------------------------------------
+
+model ServiceRequest {
+  id                  String               @id @default(uuid()) @db.Uuid
+  customerId          String               @map("customer_id") @db.Uuid
+  technicianId        String?              @map("technician_id") @db.Uuid
+  applianceCategoryId String               @map("appliance_category_id") @db.Uuid
+  serviceId           String?              @map("service_id") @db.Uuid
+  faultId             String?              @map("fault_id") @db.Uuid
+  status              ServiceRequestStatus @default(pending)
+  // Optional per Task 10B CTO decision 2.
+  problemTitle        String?              @map("problem_title") @db.VarChar(255)
+  problemDescription  String               @map("problem_description")
+  locationId          String               @map("location_id") @db.Uuid
+  scheduledAt         DateTime?            @map("scheduled_at")
+  // Server-authoritative financial fields. Never client-trusted
+  // (docs/06_DATABASE.md §27).
+  estimatedPriceFrom  Decimal?             @map("estimated_price_from") @db.Decimal(10, 2)
+  estimatedPriceTo    Decimal?             @map("estimated_price_to") @db.Decimal(10, 2)
+  finalPrice          Decimal?             @map("final_price") @db.Decimal(10, 2)
+  createdAt           DateTime             @default(now()) @map("created_at")
+  acceptedAt          DateTime?            @map("accepted_at")
+  startedAt           DateTime?            @map("started_at")
+  completedAt         DateTime?            @map("completed_at")
+  cancelledAt         DateTime?            @map("cancelled_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+
+  customer          User                          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  technician        TechnicianProfile?            @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  applianceCategory ApplianceCategory             @relation(fields: [applianceCategoryId], references: [id], onDelete: Restrict)
+  service           Service?                      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  fault             Fault?                        @relation(fields: [faultId], references: [id], onDelete: Restrict)
+  location          Location                      @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  statusHistory     ServiceRequestStatusHistory[]
+  media             ServiceRequestMedia[]
+  review            Review?
+  conversation      Conversation?
+
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([locationId])
+  @@map("service_requests")
+}
+
+model ServiceRequestStatusHistory {
+  id               String                @id @default(uuid()) @db.Uuid
+  serviceRequestId String                @map("service_request_id") @db.Uuid
+  // Null for the initial creation event.
+  fromStatus       ServiceRequestStatus? @map("from_status")
+  toStatus         ServiceRequestStatus
+  changedByUserId  String?               @map("changed_by_user_id") @db.Uuid
+  note             String?
+  createdAt        DateTime              @default(now()) @map("created_at")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  changedByUser  User?          @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([serviceRequestId])
+  @@map("service_request_status_history")
+}
+
+model ServiceRequestMedia {
+  id               String   @id @default(uuid()) @db.Uuid
+  serviceRequestId String   @map("service_request_id") @db.Uuid
+  // Nullable so media references survive user deletion (audit-trail pattern,
+  // same as service_request_status_history.changed_by_user_id).
+  uploadedByUserId String?  @map("uploaded_by_user_id") @db.Uuid
+  // Reference only — binaries live in object storage, never in the DB.
+  storageKey       String   @map("storage_key") @db.VarChar(512)
+  mimeType         String   @map("mime_type") @db.VarChar(128)
+  fileSize         Int      @map("file_size")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  uploadedByUser User?          @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([serviceRequestId])
+  @@map("service_request_media")
+}
+
+// -----------------------------------------------------------------------------
+// Reviews
+// -----------------------------------------------------------------------------
+
+model Review {
+  id               String   @id @default(uuid()) @db.Uuid
+  // One review per completed service request (docs/06_DATABASE.md §14).
+  serviceRequestId String   @unique @map("service_request_id") @db.Uuid
+  customerId       String   @map("customer_id") @db.Uuid
+  technicianId     String   @map("technician_id") @db.Uuid
+  // 1..5 enforced by a database CHECK constraint (see migration).
+  rating           Int
+  comment          String?
+  problemResolved  Boolean? @map("problem_resolved")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  serviceRequest ServiceRequest        @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  customer       User                  @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  technician     TechnicianProfile     @relation(fields: [technicianId], references: [id], onDelete: Restrict)
+  tagAssignments ReviewTagAssignment[]
+
+  @@index([technicianId])
+  @@map("reviews")
+}
+
+// Configured structured feedback tags (docs/06_DATABASE.md §14).
+// `code` is the stable API identifier; `label_ar` is the display value.
+model ReviewTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique @db.VarChar(64)
+  labelAr   String   @map("label_ar") @db.VarChar(255)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  assignments ReviewTagAssignment[]
+
+  @@map("review_tags")
+}
+
+model ReviewTagAssignment {
+  reviewId String @map("review_id") @db.Uuid
+  tagId    String @map("tag_id") @db.Uuid
+
+  review Review    @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  tag    ReviewTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([reviewId, tagId])
+  @@map("review_tag_assignments")
+}
+
+// -----------------------------------------------------------------------------
+// Chat persistence foundation (no realtime — ADR-0004)
+// -----------------------------------------------------------------------------
+
+model Conversation {
+  id               String    @id @default(uuid()) @db.Uuid
+  // One conversation per service request.
+  serviceRequestId String    @unique @map("service_request_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  closedAt         DateTime? @map("closed_at")
+
+  serviceRequest ServiceRequest            @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  participants   ConversationParticipant[]
+  messages       Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid()) @db.Uuid
+  conversationId String   @map("conversation_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  roleSnapshot   String?  @map("role_snapshot") @db.VarChar(32)
+  joinedAt       DateTime @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String      @id @default(uuid()) @db.Uuid
+  conversationId String      @map("conversation_id") @db.Uuid
+  senderUserId   String      @map("sender_user_id") @db.Uuid
+  messageType    MessageType @map("message_type")
+  body           String?
+  createdAt      DateTime    @default(now()) @map("created_at")
+  readAt         DateTime?   @map("read_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderUserId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// -----------------------------------------------------------------------------
+// Favorites (technician XOR merchant, enforced by a CHECK constraint)
+// -----------------------------------------------------------------------------
+
+model Favorite {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  technicianId String?  @map("technician_id") @db.Uuid
+  merchantId   String?  @map("merchant_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  technician TechnicianProfile? @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  merchant   MerchantProfile?   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, technicianId])
+  @@unique([userId, merchantId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+// -----------------------------------------------------------------------------
+// Merchant products
+// -----------------------------------------------------------------------------
+
+model Product {
+  id            String        @id @default(uuid()) @db.Uuid
+  merchantId    String        @map("merchant_id") @db.Uuid
+  nameAr        String        @map("name_ar") @db.VarChar(255)
+  slug          String        @db.VarChar(128)
+  descriptionAr String?       @map("description_ar")
+  price         Decimal?      @db.Decimal(10, 2)
+  stockQuantity Int?          @map("stock_quantity")
+  imageUrl      String?       @map("image_url") @db.VarChar(512)
+  status        ProductStatus @default(active)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  merchant MerchantProfile @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, slug])
+  @@index([merchantId, status])
+  @@map("products")
+}
+
+// -----------------------------------------------------------------------------
+// Subscriptions / plans / entitlements (foundation only — docs/08_SUBSCRIPTIONS.md)
+// -----------------------------------------------------------------------------
+
+model SubscriptionPlan {
+  id              String   @id @default(uuid()) @db.Uuid
+  role            UserRole
+  code            String   @db.VarChar(64)
+  nameAr          String   @map("name_ar") @db.VarChar(255)
+  nameEn          String?  @map("name_en") @db.VarChar(255)
+  // Interval values are not defined by the docs; kept as bounded text
+  // until the commercial model is approved (reported drift).
+  billingInterval String   @map("billing_interval") @db.VarChar(32)
+  price           Decimal  @db.Decimal(10, 2)
+  currency        String   @db.VarChar(8)
+  // Default false: no commercial pricing is approved yet (docs/08).
+  isActive        Boolean  @default(false) @map("is_active")
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+  entitlements  PlanEntitlement[]
+
+  @@unique([role, code])
+  @@map("subscription_plans")
+}
+
+model Entitlement {
+  id            String  @id @default(uuid()) @db.Uuid
+  code          String  @unique @db.VarChar(64)
+  nameAr        String  @map("name_ar") @db.VarChar(255)
+  descriptionAr String? @map("description_ar")
+  featureGroup  String  @map("feature_group") @db.VarChar(64)
+  isActive      Boolean @default(true) @map("is_active")
+
+  plans PlanEntitlement[]
+
+  @@map("entitlements")
+}
+
+model PlanEntitlement {
+  planId        String @map("plan_id") @db.Uuid
+  entitlementId String @map("entitlement_id") @db.Uuid
+  limitValue    Int?   @map("limit_value")
+  metadataJson  Json?  @map("metadata_json")
+
+  plan        SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  entitlement Entitlement      @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+
+  @@id([planId, entitlementId])
+  @@map("plan_entitlements")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Uuid
+  userId             String             @map("user_id") @db.Uuid
+  planId             String             @map("plan_id") @db.Uuid
+  status             SubscriptionStatus @default(pending)
+  startedAt          DateTime           @map("started_at")
+  currentPeriodStart DateTime           @map("current_period_start")
+  currentPeriodEnd   DateTime           @map("current_period_end")
+  cancelledAt        DateTime?          @map("cancelled_at")
+  renewalEnabled     Boolean            @default(true) @map("renewal_enabled")
+  // Opaque provider reference. No provider is chosen yet (ADR-0001).
+  providerReference  String?            @map("provider_reference") @db.VarChar(255)
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@map("subscriptions")
+}
+
+// -----------------------------------------------------------------------------
+// Notifications (persistence only — no delivery infrastructure)
+// -----------------------------------------------------------------------------
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String    @db.VarChar(64)
+  titleAr   String    @map("title_ar") @db.VarChar(255)
+  bodyAr    String    @map("body_ar")
+  dataJson  Json?     @map("data_json")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+// -----------------------------------------------------------------------------
+// Admin audit log (foundation for audited admin mutations — docs/09_ADMIN.md §14)
+// -----------------------------------------------------------------------------
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  // Nullable: system actions have no human actor. Admin actors are
+  // referenced through their linked user record when one exists.
+  actorUserId String?  @map("actor_user_id") @db.Uuid
+  entityType  String   @map("entity_type") @db.VarChar(64)
+  entityId    String   @map("entity_id") @db.VarChar(64)
+  action      String   @db.VarChar(64)
+  beforeJson  Json?    @map("before_json")
+  afterJson   Json?    @map("after_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
