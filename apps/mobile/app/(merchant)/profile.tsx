@@ -1,6 +1,11 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import MerchantProfileScreen from '../../src/features/merchant/profile/merchant-profile-screen';
 
-/** Merchant profile — shell placeholder (Phase 1, no product logic). */
+/**
+ * Route entry: Merchant Profile (M-B) — PUBLIC store-facing profile.
+ * Verification state shows as a badge + status card with guidance;
+ * rejected/action_required get an update-data entry into onboarding.
+ * Account settings remain a separate route.
+ */
 export default function MerchantProfileRoute() {
-  return <ShellPlaceholder roleAr="تاجر" titleAr="الملف الشخصي" />;
+  return <MerchantProfileScreen />;
 }

@@ -137,14 +137,14 @@ export default function MerchantHomeScreen() {
           <ActionCard
             icon="⚙️"
             label={t('merchant.home.profile')}
-            onPress={() => router.push('/(merchant)/profile')}
+            onPress={() => router.push('/(merchant)/settings')}
           />
           {data.subscription !== null ? (
             <ActionCard
               icon="⭐"
               label={`${t('merchant.home.subscription')}: ${data.subscription.planNameAr}`}
               hint={data.subscription.statusAr}
-              onPress={() => router.push('/(merchant)/profile')}
+              onPress={() => router.push('/(merchant)/settings')}
             />
           ) : null}
         </View>
