@@ -27,16 +27,19 @@
  * Source: Task #002A spec, docs/10_ENGINEERING_RULES.md §22–§24.
  */
 
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
-import { createRequire } from 'node:module';
-import request from 'supertest';
 import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../dist/app.module';
 import { getConfig } from '../dist/config/app.config';
+
 import { createFakePrisma, type FakePrismaClient } from './fake-prisma';
+
+import type { INestApplication } from '@nestjs/common';
 
 // The compiled API is CommonJS. The vitest test is processed by esbuild
 // as ESM. Importing classes across the ESM/CJS boundary gives two

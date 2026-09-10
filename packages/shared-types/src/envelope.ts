@@ -1,9 +1,10 @@
 /**
- * Envelope and error codes are defined here as zero-runtime constants
- * because they are referenced by both the API and every client at the
- * type level. Domain DTOs will be added in later tasks via codegen.
+ * Zero-runtime-logic constants for the canonical API contract.
+ * The companion TYPES live in `./generated/api-contract.ts` and are
+ * generated from `docs/api/openapi.yaml` via `scripts/gen-types.ts`
+ * (ADR-0003) — never hand-edited.
  *
- * Source of truth: docs/07_API.md §3, §21.
+ * Source of truth: docs/07_API.md §3, §19, §21.
  */
 
 /** Roles as defined in docs/01_PROJECT.md §2 and docs/10_ENGINEERING_RULES.md §14. */
@@ -13,8 +14,6 @@ export const ROLE = {
   merchant: 'merchant',
 } as const;
 
-export type Role = (typeof ROLE)[keyof typeof ROLE];
-
 /** Account status enum. Source: docs/06_DATABASE.md §2. */
 export const USER_STATUS = {
   active: 'active',
@@ -22,8 +21,6 @@ export const USER_STATUS = {
   pending: 'pending',
   deleted: 'deleted',
 } as const;
-
-export type UserStatus = (typeof USER_STATUS)[keyof typeof USER_STATUS];
 
 /** Canonical error codes from docs/07_API.md §21. */
 export const ERROR_CODE = {
@@ -41,59 +38,25 @@ export const ERROR_CODE = {
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
 
-export type ErrorCode = (typeof ERROR_CODE)[keyof typeof ERROR_CODE];
-
-/** Standard success envelope. */
-export interface ApiSuccess<T> {
-  data: T;
-  meta?: ApiMeta;
-}
-
-export interface ApiMeta {
-  page?: number;
-  limit?: number;
-  total?: number;
-  hasNext?: boolean;
-  [key: string]: unknown;
-}
-
-/** Standard error envelope. */
-export interface ApiError {
-  error: {
-    code: ErrorCode;
-    message: string;
-    fields?: Record<string, string>;
+/**
+ * Standard list metadata builder (docs/07_API.md §19).
+ * `page`/`limit` are the server-normalized values (after the max-limit
+ * clamp), `total` is the server-authoritative count, `totalPages` is
+ * `ceil(total / limit)`, and `hasNext` reports whether another page
+ * exists. Clients must never compute totals themselves.
+ */
+export function buildPageMeta(
+  page: number,
+  limit: number,
+  total: number,
+): { page: number; limit: number; total: number; totalPages: number; hasNext: boolean } {
+  const safeLimit = Math.max(1, Math.floor(limit));
+  const totalPages = Math.max(0, Math.ceil(total / safeLimit));
+  return {
+    page,
+    limit: safeLimit,
+    total,
+    totalPages,
+    hasNext: page < totalPages,
   };
 }
-
-export type ApiResponse<T> = ApiSuccess<T> | ApiError;
-
-// -----------------------------------------------------------------------------
-// Auth DTOs (Task #002). Source: docs/07_API.md §4, §5.
-// -----------------------------------------------------------------------------
-
-/** Public user record. Never includes credentials. */
-export interface AuthUserDto {
-  id: string;
-  role: Role;
-  status: UserStatus;
-  phone: string | null;
-  email: string | null;
-  phoneVerified: boolean;
-  emailVerified: boolean;
-  createdAt: string;
-}
-
-/** Authentication session returned to the client. */
-export interface AuthSessionDto {
-  accessToken: string;
-  /** Opaque refresh token. The client stores it in SecureStore / httpOnly cookie.
-   *  The server never returns a refresh token after the raw value is set; on
-   *  rotation the client receives a new pair. */
-  refreshToken: string;
-  expiresIn: number;
-  user: AuthUserDto;
-}
-
-export type MeDto = AuthUserDto;
-

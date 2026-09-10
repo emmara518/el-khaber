@@ -1,15 +1,23 @@
-export {
-  ROLE,
-  USER_STATUS,
-  ERROR_CODE,
-  type Role,
-  type UserStatus,
-  type ErrorCode,
-  type ApiSuccess,
-  type ApiError,
-  type ApiMeta,
-  type ApiResponse,
-  type AuthUserDto,
-  type AuthSessionDto,
-  type MeDto,
-} from './envelope';
+/**
+ * Shared API contract package.
+ *
+ * Runtime constants live in `./envelope`; all contract TYPES are
+ * generated from `docs/api/openapi.yaml` (ADR-0003) via
+ * `scripts/gen-types.ts` and re-exported from `./generated/api-contract`.
+ * Never hand-edit the generated file.
+ */
+
+export { ROLE, USER_STATUS, ERROR_CODE, buildPageMeta } from './envelope';
+
+export type {
+  Role,
+  UserStatus,
+  ErrorCode,
+  ApiMeta,
+  ApiSuccess,
+  ApiError,
+  ApiResponse,
+  AuthUserDto,
+  AuthSessionDto,
+  MeDto,
+} from './generated/api-contract';

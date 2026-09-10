@@ -28,9 +28,15 @@ import {
   Req,
   UsePipes,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 
 import { Public } from '../common/decorators';
+import {
+  ApiEnvelopeError,
+  ApiEnvelopeOk,
+  ApiZodBody,
+} from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { AuthService } from './auth.service';
@@ -42,6 +48,7 @@ import type { Request } from 'express';
 // Tighter rate limit on auth-sensitive endpoints per docs/05_TECH_ARCHITECTURE.md §6.
 const authThrottle = (): MethodDecorator => Throttle({ auth: {} });
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -54,6 +61,10 @@ export class AuthController {
   @HttpCode(201)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(registerSchema))
+  @ApiZodBody(registerSchema)
+  @ApiEnvelopeOk('AuthSessionDto', 201, 'Account created; session issued.')
+  @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
+  @ApiEnvelopeError(409, 'Phone or email already in use (canonical error envelope).')
   register(
     @Body() body: RegisterInput,
     @Req() req: Request,
@@ -68,6 +79,10 @@ export class AuthController {
   @HttpCode(200)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(loginSchema))
+  @ApiZodBody(loginSchema)
+  @ApiEnvelopeOk('AuthSessionDto', 200, 'Session issued.')
+  @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
+  @ApiEnvelopeError(401, 'Invalid credentials (canonical error envelope).')
   login(
     @Body() body: LoginInput,
     @Req() req: Request,
@@ -82,6 +97,9 @@ export class AuthController {
   @HttpCode(200)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(refreshSchema))
+  @ApiZodBody(refreshSchema)
+  @ApiEnvelopeOk('AuthSessionDto', 200, 'Rotated session issued.')
+  @ApiEnvelopeError(401, 'Invalid, expired, or replayed refresh token.')
   refresh(
     @Body() body: RefreshInput,
     @Req() req: Request,
@@ -96,6 +114,8 @@ export class AuthController {
   @HttpCode(204)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(logoutSchema))
+  @ApiZodBody(logoutSchema)
+  @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
   async logout(@Body() body: LogoutInput): Promise<void> {
     await this.auth.logout(body.refreshToken);
   }
@@ -105,6 +125,9 @@ export class AuthController {
   @HttpCode(202)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(forgotPasswordSchema))
+  @ApiZodBody(forgotPasswordSchema)
+  @ApiEnvelopeOk('AcceptedDto', 202, 'Always 202; never reveals whether the account exists.')
+  @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
   async forgotPassword(
     @Body() _body: ForgotPasswordInput,
   ): Promise<ApiSuccess<{ accepted: true }>> {
@@ -123,6 +146,9 @@ export class AuthController {
   @HttpCode(204)
   @authThrottle()
   @UsePipes(new ZodValidationPipe(resetPasswordSchema))
+  @ApiZodBody(resetPasswordSchema)
+  @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
+  @ApiEnvelopeError(401, 'Invalid, expired, or already-used reset token.')
   async resetPassword(@Body() body: ResetPasswordInput): Promise<void> {
     await this.passwordReset.consumeReset({
       token: body.token,

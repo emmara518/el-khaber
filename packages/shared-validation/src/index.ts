@@ -96,3 +96,24 @@ export const resetPasswordSchema = z.object({
 });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+// -----------------------------------------------------------------------------
+// Current user (docs/07_API.md §5)
+// -----------------------------------------------------------------------------
+
+/**
+ * PATCH /me — updates allowed shared account fields (contact channels only).
+ * Role, status, verification flags, and credentials are NOT writable here;
+ * zod strips any unknown keys, so they can never reach the service layer.
+ * Source: docs/07_API.md §5, Task 10C.
+ */
+export const updateMeSchema = z
+  .object({
+    phone: phoneSchema.optional(),
+    email: emailSchema.optional(),
+  })
+  .refine((v) => v.phone !== undefined || v.email !== undefined, {
+    message: 'at least one of phone or email is required',
+  });
+
+export type UpdateMeInput = z.infer<typeof updateMeSchema>;

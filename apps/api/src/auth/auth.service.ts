@@ -191,6 +191,70 @@ export class AuthService {
     return toAuthUserDto(user);
   }
 
+  /**
+   * PATCH /me (docs/07_API.md §5). Updates the shared account contact
+   * fields only. Security properties:
+   *   - Role, status, and verification flags are NOT writable (zod
+   *     strips unknown keys; only phone/email reach this method).
+   *   - Uniqueness is checked server-side (409 on clash), and the
+   *     database unique constraint is the final authority (P2002 → 409).
+   *   - Changing a contact channel resets that channel's verification
+   *     flag — a new phone/email is unverified by definition.
+   */
+  async updateContactInfo(
+    userId: string,
+    input: { phone?: string; email?: string },
+  ): Promise<AuthUserDto> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const data: {
+      phone?: string;
+      email?: string;
+      phoneVerified?: boolean;
+      emailVerified?: boolean;
+    } = {};
+
+    if (input.phone !== undefined && input.phone !== user.phone) {
+      const clash = await this.prisma.user.findUnique({ where: { phone: input.phone } });
+      if (clash !== null && clash.id !== userId) {
+        throw new ConflictException('phone already in use');
+      }
+      data.phone = input.phone;
+      data.phoneVerified = false;
+    }
+
+    if (input.email !== undefined && input.email !== user.email) {
+      const clash = await this.prisma.user.findUnique({ where: { email: input.email } });
+      if (clash !== null && clash.id !== userId) {
+        throw new ConflictException('email already in use');
+      }
+      data.email = input.email;
+      data.emailVerified = false;
+    }
+
+    let updated: Prisma.UserGetPayload<Record<string, never>>;
+    try {
+      updated = await this.prisma.user.update({ where: { id: userId }, data });
+    } catch (error) {
+      // Concurrent registration claimed the same contact channel between
+      // the check above and this write (P2002 unique violation).
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code?: string }).code === 'P2002'
+      ) {
+        throw new ConflictException('phone or email already in use');
+      }
+      throw error;
+    }
+
+    return toAuthUserDto(updated);
+  }
+
   private async issueSession(
     userRef: { id: string; role: Role; status: UserStatus },
     meta: AuthMetadata,

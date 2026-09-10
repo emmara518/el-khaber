@@ -99,7 +99,24 @@ Completes password reset.
 Returns current authenticated user + role + key profile metadata.
 
 ### PATCH `/me`
-Updates allowed shared account fields.
+Updates allowed shared account fields. Authenticated user only; the user
+ID is taken from the verified access token, never from the payload.
+
+Allowed fields (Task 10C contract detail):
+
+```json
+{
+  "phone": "+966501234567",
+  "email": "user@example.com"
+}
+```
+
+- At least one of `phone` / `email` is required; absent fields are unchanged.
+- `role`, `status`, verification flags, and credentials are NOT writable.
+- Changing a contact channel resets that channel's verification flag.
+- A contact channel already used by another account returns `409 CONFLICT`.
+
+Response: `{ "data": MeDto }`.
 
 ### GET `/me/subscription`
 Returns current plan and active entitlements.
@@ -474,3 +491,63 @@ Any API contract change requires updates to:
 - client integration.
 
 Do not change backend response shapes casually just to make one screen easier.
+
+---
+
+## 26. Operational endpoints
+
+Implemented and documented as of Task 10C. Both are public (no auth).
+
+### GET `/health`
+Liveness probe. Process-level only — it must NOT depend on the database.
+
+Response `200`:
+```json
+{ "data": { "status": "ok", "service": "api" } }
+```
+
+### GET `/ready`
+Readiness probe. Verifies required dependencies (currently: database
+connectivity).
+
+Response `200`:
+```json
+{ "data": { "status": "ready", "checks": { "database": "ok" } } }
+```
+
+If a dependency is unavailable: `503` with the canonical error envelope
+(`INTERNAL_ERROR`, message `Service not ready`, `fields` carrying the
+dependency detail).
+
+---
+
+## 27. Admin authentication
+
+Admin is a separate authority boundary (docs/09_ADMIN.md). Admin accounts
+are seeded/created out-of-band; there is no public admin registration.
+All routes are rate-limited like the user auth endpoints.
+
+### POST `/admin/auth/login`
+Email + password. Returns `{ "data": AuthSessionDto }` (200). Invalid
+credentials → `401 AUTH_INVALID`.
+
+### POST `/admin/auth/refresh`
+Rotates the admin refresh token (opaque token in body). Reuse/replay of a
+rotated token revokes the whole family and returns `401`.
+
+### POST `/admin/auth/logout`
+Revokes the admin refresh-token family. Returns `204`.
+
+### GET `/admin/me`
+Bearer admin access token. Returns the admin identity (safe DTO; admin
+roles are separate from the three end-user roles).
+
+---
+
+## 28. Request correlation
+
+Every response carries an `X-Request-Id` header. Clients may send their own
+`X-Request-Id` (8–64 chars of `[A-Za-z0-9._-]`); unsafe or missing values
+are replaced server-side with a generated UUID. The request ID is included
+in structured server logs. It is intentionally NOT part of the canonical
+error envelope.

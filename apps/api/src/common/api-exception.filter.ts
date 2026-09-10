@@ -18,11 +18,19 @@ import {
 import { getConfig } from '../config/app.config';
 
 import { ApiException } from './errors';
+import { getRequestId } from './request-context';
 
 import type { Request, Response } from 'express';
 
-
-
+interface ErrorLogEntry {
+  ts: string;
+  level: 'warn' | 'error';
+  requestId: string | undefined;
+  method: string;
+  path: string;
+  status: number;
+  code: ErrorCode;
+}
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
@@ -38,6 +46,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
     let code: ErrorCode = ERROR_CODE.INTERNAL_ERROR;
     let message = 'Internal server error';
     let fields: Record<string, string> | undefined;
+    let stack: string | undefined;
 
     if (exception instanceof ApiException) {
       status = exception.status;
@@ -61,15 +70,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
         code = status === 400 ? ERROR_CODE.VALIDATION_ERROR : mapStatusToCode(status);
       }
     } else if (exception instanceof Error) {
-      this.logger.error(`Unhandled error on ${req.method} ${req.url}: ${exception.message}`, exception.stack);
-    } else {
-      this.logger.error(`Unhandled non-error on ${req.method} ${req.url}: ${String(exception)}`);
+      stack = exception.stack;
     }
 
     // Never leak internal error details in production.
     if (config.env === 'production' && status >= 500) {
       message = 'Internal server error';
     }
+
+    this.log(req, status, code, stack);
 
     const body: ApiError = {
       error: {
@@ -80,6 +89,32 @@ export class ApiExceptionFilter implements ExceptionFilter {
     };
 
     res.status(status).json(body);
+  }
+
+  /**
+   * Structured error log (Task 10C §10). Error responses are logged here
+   * (the interceptor owns success logs) so every response has exactly one
+   * correlated log line. Path excludes the query string; bodies, headers,
+   * and tokens are never logged. Unhandled 5xx additionally log the stack.
+   */
+  private log(req: Request, status: number, code: ErrorCode, stack?: string): void {
+    const entry: ErrorLogEntry = {
+      ts: new Date().toISOString(),
+      level: status >= 500 ? 'error' : 'warn',
+      requestId: getRequestId() ?? req.requestId,
+      method: req.method,
+      path: req.path,
+      status,
+      code,
+    };
+    const line = JSON.stringify(entry);
+    if (status >= 500 && stack !== undefined) {
+      this.logger.error(`${line} — ${stack}`);
+    } else if (status >= 500) {
+      this.logger.error(line);
+    } else {
+      this.logger.warn(line);
+    }
   }
 }
 

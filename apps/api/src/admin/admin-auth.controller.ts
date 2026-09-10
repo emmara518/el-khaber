@@ -19,12 +19,18 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 
 
 import { AuthKind, CurrentUser, Public, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import {
+  ApiEnvelopeError,
+  ApiEnvelopeOk,
+  ApiZodBody,
+} from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { AdminAuthService } from './admin-auth.service';
@@ -49,6 +55,7 @@ type AdminLoginInput = z.infer<typeof adminLoginSchema>;
 type AdminRefreshInput = z.infer<typeof adminRefreshSchema>;
 type AdminLogoutInput = z.infer<typeof adminLogoutSchema>;
 
+@ApiTags('admin-auth')
 @Controller('admin/auth')
 export class AdminAuthController {
   constructor(private readonly auth: AdminAuthService) {}
@@ -58,6 +65,10 @@ export class AdminAuthController {
   @HttpCode(200)
   @Throttle({ auth: {} })
   @UsePipes(new ZodValidationPipe(adminLoginSchema))
+  @ApiZodBody(adminLoginSchema)
+  @ApiEnvelopeOk('AuthSessionDto', 200, 'Admin session issued (separate authority).')
+  @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
+  @ApiEnvelopeError(401, 'Invalid credentials.')
   login(
     @Body() body: AdminLoginInput,
     @Req() req: Request,
@@ -72,6 +83,9 @@ export class AdminAuthController {
   @HttpCode(200)
   @Throttle({ auth: {} })
   @UsePipes(new ZodValidationPipe(adminRefreshSchema))
+  @ApiZodBody(adminRefreshSchema)
+  @ApiEnvelopeOk('AuthSessionDto', 200, 'Rotated admin session issued.')
+  @ApiEnvelopeError(401, 'Invalid, expired, or replayed refresh token.')
   refresh(
     @Body() body: AdminRefreshInput,
     @Req() req: Request,
@@ -86,14 +100,18 @@ export class AdminAuthController {
   @HttpCode(204)
   @Throttle({ auth: {} })
   @UsePipes(new ZodValidationPipe(adminLogoutSchema))
+  @ApiZodBody(adminLogoutSchema)
   async logout(@Body() body: AdminLogoutInput): Promise<void> {
     await this.auth.logout(body.refreshToken);
   }
 }
 
-@Controller('admin/me')
+@ApiTags('admin-auth')
+@ApiBearerAuth('bearer')
+@ApiEnvelopeError(401, 'Missing, malformed, or expired admin access token.')
 @UseGuards(JwtAuthGuard)
 @AuthKind('admin')
+@Controller('admin/me')
 export class AdminMeController {
   constructor(private readonly auth: AdminAuthService) {}
 

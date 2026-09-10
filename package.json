@@ -19,10 +19,14 @@
     "db:migrate:deploy": "pnpm --filter @khabir/api prisma:migrate:deploy",
     "db:studio": "pnpm --filter @khabir/api prisma:studio",
     "db:seed": "pnpm --filter @khabir/api db:seed",
+    "gen:openapi": "pnpm --filter @khabir/api gen:openapi",
+    "gen:types": "pnpm --filter @khabir/api exec ts-node --transpile-only --project ../../scripts/tsconfig.json ../../scripts/gen-types.ts",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@types/js-yaml": "4.0.9",
     "@types/node": "20.14.10",
+    "js-yaml": "4.1.0",
     "prettier": "3.3.3",
     "turbo": "2.3.3",
     "typescript": "5.6.3"

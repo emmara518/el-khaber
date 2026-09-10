@@ -22,8 +22,9 @@
 
 import { Injectable } from '@nestjs/common';
 
-import { PrismaService } from '../database/prisma.service';
 import { AuthInvalidException, ValidationException } from '../common/errors';
+import { PrismaService } from '../database/prisma.service';
+
 import { hashPassword } from './password';
 import { generateOpaqueToken, hashToken } from './token.util';
 

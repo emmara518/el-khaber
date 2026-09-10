@@ -15,6 +15,7 @@ import {
   registerSchema,
   resetPasswordSchema,
   roleSchema,
+  updateMeSchema,
 } from '../../packages/shared-validation/src';
 
 describe('shared validation', () => {
@@ -79,5 +80,31 @@ describe('shared validation', () => {
     expect(() =>
       resetPasswordSchema.parse({ token: 'a'.repeat(40), password: 'weak' }),
     ).toThrow();
+  });
+
+  it('updateMeSchema accepts either contact field', () => {
+    expect(updateMeSchema.parse({ phone: '+966501234567' })).toBeTruthy();
+    expect(updateMeSchema.parse({ email: 'a@b.com' })).toBeTruthy();
+    expect(updateMeSchema.parse({ phone: '+966501234567', email: 'a@b.com' })).toBeTruthy();
+  });
+
+  it('updateMeSchema requires at least one field', () => {
+    expect(() => updateMeSchema.parse({})).toThrow();
+  });
+
+  it('updateMeSchema strips forbidden fields (role/status/verification)', () => {
+    const parsed = updateMeSchema.parse({
+      email: 'a@b.com',
+      role: 'merchant',
+      status: 'suspended',
+      phoneVerified: true,
+      password: 'newpassword1',
+    });
+    expect(parsed).toEqual({ email: 'a@b.com' });
+  });
+
+  it('updateMeSchema rejects malformed values', () => {
+    expect(() => updateMeSchema.parse({ phone: '12345' })).toThrow();
+    expect(() => updateMeSchema.parse({ email: 'not-an-email' })).toThrow();
   });
 });
