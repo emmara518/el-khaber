@@ -7,16 +7,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  MockMerchantProductsDataSource,
-  sharedMerchantProductsSource,
-} from './mock-merchant-products-data-source';
-import {
   draftFromProduct,
   validateProductDraft,
   EMPTY_PRODUCT_DRAFT,
   ProductMutationError,
 } from './merchant-product-types';
 import { findMerchantProduct } from './merchant-product-types';
+import {
+  MockMerchantProductsDataSource,
+  sharedMerchantProductsSource,
+} from './mock-merchant-products-data-source';
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 function validDraft() {

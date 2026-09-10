@@ -130,7 +130,7 @@ export default function MerchantHomeScreen() {
           <ActionCard
             icon="➕"
             label={t('merchant.home.addProduct')}
-            onPress={() => router.push('/(merchant)/products')}
+            onPress={() => router.push('/(merchant)/products/new')}
           />
         </View>
         <View style={styles.actions}>
