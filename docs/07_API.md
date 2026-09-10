@@ -180,8 +180,11 @@ Implementation notes (Task 10E):
   orders by rating (nulls last, stable id tiebreak). Pricing and private
   data (user ids, contact channels) are not exposed.
 - Geo parameters (`lat`, `lng`, `radius`) are documented but NOT
-  implemented: the schema has no technician location/service-area model
-  (DATABASE MODEL GAP — CTO decision required).
+  implemented: the service-area SCHEMA foundation exists as of Task
+  10E-R1 (`technician_service_areas`, geography(Point,4326), GiST), but
+  exact radius/area query semantics (units, ordering, area-text matching,
+  public exposure of area labels) are not yet defined — GEO QUERY
+  SEMANTICS REQUIRE CTO DECISION. No geo behavior has been invented.
 
 ---
 

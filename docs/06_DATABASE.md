@@ -231,6 +231,32 @@ is_active
 
 Price data must follow the business’s approved pricing semantics.
 
+### technician_service_areas (Task 10E-R1, CTO-approved)
+
+A technician covers one or more geographic service areas. Each area is a
+technician-owned coverage point.
+
+```text
+id
+technician_id FK technician_profiles.id
+label_ar (unique per technician)
+latitude
+longitude
+coordinates geography(Point, 4326) — derived from latitude/longitude
+created_at
+updated_at
+```
+
+- `label_ar` is the technician-entered area name (the documented
+  "منطقة الخدمة" display/search metadata). Unique per technician —
+  duplicate service areas are prevented at the database level.
+- `coordinates` is DERIVED from `latitude`/`longitude` by the shared
+  database trigger; latitude/longitude remain the single geographic
+  business truth (same pattern as `locations`).
+- Indexed for the ratified discovery access paths: FK index
+  (`technician_id`), GiST on `coordinates`, and the approved
+  `technician_services(service_id)` index for specialty lookups.
+
 ---
 
 ## 10. Technician visibility and verification
@@ -588,6 +614,9 @@ Index at minimum:
 - messages.conversation_id + created_at
 - subscriptions.user_id + status
 - products.merchant_id + status
+- technician_service_areas.technician_id
+- technician_service_areas.coordinates (GiST)
+- technician_services.service_id
 
 Location search may require geospatial indexes depending on database.
 

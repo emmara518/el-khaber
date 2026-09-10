@@ -305,16 +305,50 @@ model TechnicianProfile {
   createdAt              DateTime                     @default(now()) @map("created_at")
   updatedAt              DateTime                     @updatedAt @map("updated_at")
 
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  services        TechnicianService[]
-  serviceRequests ServiceRequest[]
-  reviews         Review[]
-  favorites       Favorite[]
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services           TechnicianService[]
+  serviceRequests    ServiceRequest[]
+  reviews            Review[]
+  favorites          Favorite[]
+  serviceAreas       TechnicianServiceArea[]
 
   @@index([verificationStatus])
   @@index([ratingAverage])
   @@index([availabilityStatus])
   @@map("technician_profiles")
+}
+
+// -----------------------------------------------------------------------------
+// Technician service areas (Task 10E-R1, CTO-approved)
+// -----------------------------------------------------------------------------
+// A technician covers one or more geographic service areas. Each area is a
+// technician-owned coverage point: a human-readable area label (search/display
+// metadata — the documented "منطقة الخدمة") plus the authoritative logical
+// coordinates and a PostGIS geography point DERIVED from them by the shared
+// database trigger (single geographic source of truth, same pattern as the
+// `locations` table). This enables the documented radius/area discovery
+// filters (docs/07_API.md §6) once their exact query semantics are ratified.
+
+model TechnicianServiceArea {
+  id           String   @id @default(uuid()) @db.Uuid
+  technicianId String   @map("technician_id") @db.Uuid
+  // Technician-entered area label. Unique per technician (duplicate
+  // service-area prevention).
+  labelAr      String   @map("label_ar") @db.VarChar(128)
+  // Documented logical coordinates (docs/06_DATABASE.md §6).
+  latitude     Decimal  @map("latitude") @db.Decimal(9, 6)
+  longitude    Decimal  @map("longitude") @db.Decimal(9, 6)
+  // PostGIS geography(Point, 4326), derived from latitude/longitude by the
+  // shared trigger. Managed outside Prisma; excluded from the client.
+  coordinates  Unsupported("geography")?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@unique([technicianId, labelAr])
+  @@index([technicianId])
+  @@map("technician_service_areas")
 }
 
 model MerchantProfile {
