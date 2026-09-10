@@ -67,6 +67,12 @@ export interface AppConfig {
     readonly max: number;
     readonly authMax: number;
   };
+  readonly identity: {
+    /** Failed logins per (identifier, ip) before a temporary lock. */
+    readonly maxFailedLogins: number;
+    /** Temporary lock duration in seconds; locks always auto-expire. */
+    readonly failureLockSeconds: number;
+  };
 }
 
 let cached: AppConfig | undefined;
@@ -107,6 +113,12 @@ export function getConfig(): AppConfig {
       ttlSeconds: readNumber('RATE_LIMIT_TTL', 60),
       max: readNumber('RATE_LIMIT_MAX', 20),
       authMax: readNumber('AUTH_RATE_LIMIT_MAX', 10),
+    },
+    identity: {
+      // Provisional defaults pending CTO ratification (Task 10D §6):
+      // no thresholds were documented anywhere.
+      maxFailedLogins: readNumber('AUTH_MAX_FAILED_LOGINS', 5),
+      failureLockSeconds: readNumber('AUTH_FAILURE_LOCK_SECONDS', 900),
     },
   };
 

@@ -551,3 +551,39 @@ Every response carries an `X-Request-Id` header. Clients may send their own
 are replaced server-side with a generated UUID. The request ID is included
 in structured server logs. It is intentionally NOT part of the canonical
 error envelope.
+
+---
+
+## 29. Failed-login protection
+
+Implemented as of Task 10D for `POST /auth/login` and
+`POST /admin/auth/login`.
+
+- Bounded failures → temporary lock → automatic expiry. There is NO
+  permanent lockout and no manual unlock flow.
+- The counter is scoped to the (identifier, ip) pair, so a third party
+  cannot lock a victim out of their own account.
+- A locked attempt is rejected with the SAME `401 AUTH_INVALID` response
+  as a wrong password — the lock state must never reveal which accounts
+  exist. Legitimate users simply retry after the lock expires.
+- Thresholds are environment-configurable (`AUTH_MAX_FAILED_LOGINS`,
+  `AUTH_FAILURE_LOCK_SECONDS`) and are PROVISIONAL pending CTO
+  ratification; no thresholds were previously documented.
+- Enforcement is in-memory per API instance (same scaling limitation as
+  the request throttler). Distributed enforcement is a production
+  hardening item.
+
+---
+
+## 30. Password reset delivery boundary
+
+`POST /auth/forgot-password` issues a one-time, hashed, expiring reset
+token exactly as specified in §4. The raw token is handed only to an
+internal, provider-agnostic delivery port (Task 10D §4).
+
+- No email/SMS/push provider is approved yet; the default delivery
+  implementation is a deferred no-op that never logs or stores the token
+  and never claims a message was delivered.
+- The raw token is never included in any HTTP response, log line, or
+  persistence record (only its SHA-256 hash is stored).
+- Selecting and approving a real delivery provider is a CTO decision.

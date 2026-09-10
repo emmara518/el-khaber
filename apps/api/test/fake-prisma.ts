@@ -206,10 +206,12 @@ class FakePrismaClient {
       this.refreshTokens[idx] = { ...this.refreshTokens[idx], ...args.data };
       return this.refreshTokens[idx];
     },
-    updateMany: async (args: { where: { familyId: string; revokedAt: null }; data: Partial<RefreshRow> }): Promise<{ count: number }> => {
+    updateMany: async (args: { where: { familyId?: string; userId?: string; revokedAt: null }; data: Partial<RefreshRow> }): Promise<{ count: number }> => {
       let count = 0;
       this.refreshTokens = this.refreshTokens.map((r) => {
-        if (r.familyId === args.where.familyId && r.revokedAt === null) {
+        const familyMatch = args.where.familyId === undefined || r.familyId === args.where.familyId;
+        const userMatch = args.where.userId === undefined || r.userId === args.where.userId;
+        if (familyMatch && userMatch && r.revokedAt === null) {
           count += 1;
           return { ...r, ...args.data };
         }
@@ -358,10 +360,12 @@ class FakePrismaClient {
       this.adminRefreshTokens[idx] = { ...this.adminRefreshTokens[idx], ...args.data };
       return this.adminRefreshTokens[idx];
     },
-    updateMany: async (args: { where: { familyId: string; revokedAt: null }; data: Partial<AdminRefreshRow> }): Promise<{ count: number }> => {
+    updateMany: async (args: { where: { familyId?: string; adminId?: string; revokedAt: null }; data: Partial<AdminRefreshRow> }): Promise<{ count: number }> => {
       let count = 0;
       this.adminRefreshTokens = this.adminRefreshTokens.map((r) => {
-        if (r.familyId === args.where.familyId && r.revokedAt === null) {
+        const familyMatch = args.where.familyId === undefined || r.familyId === args.where.familyId;
+        const adminMatch = args.where.adminId === undefined || r.adminId === args.where.adminId;
+        if (familyMatch && adminMatch && r.revokedAt === null) {
           count += 1;
           return { ...r, ...args.data };
         }

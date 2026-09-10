@@ -20,12 +20,16 @@
  * Source: docs/05_TECH_ARCHITECTURE.md §6; docs/07_API.md §4.
  */
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
 import { AuthInvalidException, ValidationException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
 import { hashPassword } from './password';
+import {
+  PASSWORD_RESET_DELIVERY,
+  type PasswordResetDeliveryPort,
+} from './password-reset-delivery.port';
 import { generateOpaqueToken, hashToken } from './token.util';
 
 export interface PasswordResetRequestInput {
@@ -55,7 +59,11 @@ const DEFAULT_RESET_TTL_SECONDS = 30 * 60;
 
 @Injectable()
 export class PasswordResetService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(PASSWORD_RESET_DELIVERY)
+    private readonly delivery: PasswordResetDeliveryPort,
+  ) {}
 
   /**
    * Always returns `accepted: true` regardless of whether a user matched.
@@ -95,6 +103,17 @@ export class PasswordResetService {
         tokenHash,
         expiresAt,
       },
+    });
+
+    // Delivery boundary (Task 10D §4): hand the raw token to the
+    // provider-agnostic delivery port. The token never reaches an HTTP
+    // response or a log line — only the delivery adapter sees it.
+    await this.delivery.sendPasswordReset({
+      contact: {
+        phone: user.phone ?? undefined,
+        email: user.email ?? undefined,
+      },
+      rawToken,
     });
 
     return { accepted: true, issued: true, rawToken };

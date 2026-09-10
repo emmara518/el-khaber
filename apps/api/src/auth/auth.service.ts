@@ -30,6 +30,7 @@ import { ConflictException, AuthInvalidException, NotFoundException } from '../c
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
+import { LoginAttemptGuard } from './login-attempt.guard';
 import { hashPassword, verifyPassword } from './password';
 import { generateOpaqueToken, hashToken } from './token.util';
 
@@ -56,6 +57,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly loginAttempts: LoginAttemptGuard,
   ) {}
 
   async register(input: RegisterInput, meta: AuthMetadata): Promise<AuthSessionDto> {
@@ -97,6 +99,16 @@ export class AuthService {
     if (!input.phone && !input.email) {
       throw new AuthInvalidException();
     }
+    const identifier = (input.phone ?? input.email ?? '').toLowerCase();
+    const ip = meta.ipAddress ?? 'unknown';
+
+    // Failed-attempt protection (Task 10D): a locked (identifier, ip) pair
+    // is rejected with the SAME canonical error as a wrong password so the
+    // lock state can never be used to enumerate accounts.
+    if (this.loginAttempts.isLocked(identifier, ip)) {
+      throw new AuthInvalidException();
+    }
+
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -106,6 +118,9 @@ export class AuthService {
       },
     });
     if (!user) {
+      // Enumeration safety: unknown identifiers accumulate failures the
+      // same way known ones do, keeping lock behavior constant.
+      this.loginAttempts.recordFailure(identifier, ip);
       // Constant-time-ish: still verify a dummy hash to reduce timing leak.
       await verifyPassword(
         '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -115,11 +130,14 @@ export class AuthService {
     }
     const ok = await verifyPassword(user.passwordHash, input.password);
     if (!ok) {
+      this.loginAttempts.recordFailure(identifier, ip);
       throw new AuthInvalidException();
     }
     if (user.status !== UserStatus.active) {
       throw new AuthInvalidException('Account is not active');
     }
+
+    this.loginAttempts.recordSuccess(identifier, ip);
 
     await this.prisma.user.update({
       where: { id: user.id },

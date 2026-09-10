@@ -19,6 +19,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 
+import { LoginAttemptGuard } from '../auth/login-attempt.guard';
 import { verifyPassword } from '../auth/password';
 import { generateOpaqueToken, hashToken } from '../auth/token.util';
 import { AuthInvalidException, NotFoundException } from '../common/errors';
@@ -40,11 +41,22 @@ export class AdminAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly loginAttempts: LoginAttemptGuard,
   ) {}
 
   async login(input: AdminLoginInput, meta: AdminMetadata): Promise<AuthSessionDto> {
+    const identifier = input.email.toLowerCase();
+    const ip = meta.ipAddress ?? 'unknown';
+
+    // Same failed-attempt protection and enumeration-safe rejection as
+    // the user login (Task 10D §6, §10).
+    if (this.loginAttempts.isLocked(identifier, ip)) {
+      throw new AuthInvalidException();
+    }
+
     const admin = await this.prisma.adminUser.findUnique({ where: { email: input.email } });
     if (!admin) {
+      this.loginAttempts.recordFailure(identifier, ip);
       // Constant-time-ish: still verify a dummy hash.
       await verifyPassword(
         '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -54,11 +66,14 @@ export class AdminAuthService {
     }
     const ok = await verifyPassword(admin.passwordHash, input.password);
     if (!ok) {
+      this.loginAttempts.recordFailure(identifier, ip);
       throw new AuthInvalidException();
     }
     if (admin.status !== USER_STATUS.active) {
       throw new AuthInvalidException('Account is not active');
     }
+
+    this.loginAttempts.recordSuccess(identifier, ip);
 
     await this.prisma.adminUser.update({
       where: { id: admin.id },
