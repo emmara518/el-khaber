@@ -71,12 +71,118 @@ interface PasswordResetRow {
   createdAt: Date;
 }
 
+// -----------------------------------------------------------------------------
+// Catalog / content models (Task 10E). Only the surface actually used by
+// the catalog services is implemented.
+// -----------------------------------------------------------------------------
+
+export type PublishStatus = 'draft' | 'review' | 'published' | 'archived';
+export type VerificationStatusValue = 'pending' | 'verified' | 'rejected' | 'suspended';
+export type AvailabilityStatusValue = 'available' | 'busy' | 'unavailable';
+
+interface ApplianceCategoryRow {
+  id: string;
+  nameAr: string;
+  slug: string;
+  iconUrl: string | null;
+  imageUrl: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+interface FaultRow {
+  id: string;
+  applianceCategoryId: string;
+  nameAr: string;
+  slug: string;
+  severityLevel: string | null;
+  summaryAr: string;
+  guidanceAr: string;
+  safetyNoteAr: string | null;
+  whenToCallTechnicianAr: string | null;
+  publishStatus: PublishStatus;
+  sortOrder: number;
+  updatedAt: Date;
+}
+
+interface ServiceRow {
+  id: string;
+  applianceCategoryId: string;
+  nameAr: string;
+  slug: string;
+  descriptionAr: string | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+interface TechnicianServiceRow {
+  technicianId: string;
+  serviceId: string;
+  priceFrom: number | null;
+  isActive: boolean;
+}
+
+interface TechnicianProfileRow {
+  id: string;
+  userId: string;
+  displayName: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  verificationStatus: VerificationStatusValue;
+  availabilityStatus: AvailabilityStatusValue;
+  experienceYears: number;
+  completedServicesCount: number;
+  ratingAverage: number | null;
+  ratingCount: number;
+}
+
+/** Apply a Prisma-style `select` map to a row (top-level keys only). */
+function applySelect<T extends Record<string, unknown>>(row: T, select: Record<string, unknown> | undefined): T {
+  if (select === undefined) {
+    return row;
+  }
+  const picked: Record<string, unknown> = {};
+  for (const key of Object.keys(select)) {
+    if (select[key] === true && key in row) {
+      picked[key] = row[key];
+    }
+  }
+  return picked as T;
+}
+
+function textContains(value: string | null, needle: string): boolean {
+  return value !== null && value.includes(needle);
+}
+
+function includesTextFilter(
+  row: Record<string, unknown>,
+  or: Array<Record<string, { contains?: string; mode?: string }>> | undefined,
+): boolean {
+  if (or === undefined) {
+    return true;
+  }
+  return or.some((branch) => {
+    for (const [field, filter] of Object.entries(branch)) {
+      if (!textContains((row[field] as string | null) ?? null, filter.contains ?? '')) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
 class FakePrismaClient {
   users: UserRow[] = [];
   refreshTokens: RefreshRow[] = [];
   passwordResetTokens: PasswordResetRow[] = [];
   adminUsers: AdminRow[] = [];
   adminRefreshTokens: AdminRefreshRow[] = [];
+  applianceCategories: ApplianceCategoryRow[] = [];
+  faults: FaultRow[] = [];
+  services: ServiceRow[] = [];
+  faultServiceLinks: FaultServiceLinkRow[] = [];
+  technicianServices: TechnicianServiceRow[] = [];
+  technicianProfiles: TechnicianProfileRow[] = [];
 
   $connect(): Promise<void> {
     return Promise.resolve();
@@ -374,6 +480,222 @@ class FakePrismaClient {
       return { count };
     },
   };
+
+  // -------------------------------------------------------------------------
+  // Catalog / content models (Task 10E)
+  // -------------------------------------------------------------------------
+
+  applianceCategory = {
+    findMany: async (args: { where?: { isActive?: boolean }; orderBy?: Array<Record<string, string>>; take?: number }): Promise<ApplianceCategoryRow[]> => {
+      let rows = this.applianceCategories.filter(
+        (c) => args.where?.isActive === undefined || c.isActive === args.where.isActive,
+      );
+      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr));
+      if (args.take !== undefined) {
+        rows = rows.slice(0, args.take);
+      }
+      return rows;
+    },
+  };
+
+  fault = {
+    count: async (args: { where: FaultWhere }): Promise<number> => {
+      return this.matchFaults(args.where).length;
+    },
+    findMany: async (args: {
+      where: FaultWhere;
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.matchFaults(args.where);
+      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    findFirst: async (args: { where: FaultWhere & { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.matchFaults(args.where).find((r) => r.id === args.where.id);
+      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+  };
+
+  service = {
+    count: async (args: { where: ServiceWhere }): Promise<number> => this.matchServices(args.where).length,
+    findMany: async (args: {
+      where: ServiceWhere;
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.matchServices(args.where);
+      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+  };
+
+  technicianProfile = {
+    count: async (args: { where: TechnicianWhere }): Promise<number> => this.matchTechnicians(args.where).length,
+    findMany: async (args: {
+      where: TechnicianWhere;
+      orderBy?: Array<Record<string, unknown>>;
+      skip?: number;
+      take?: number;
+      include?: { services?: { where?: { isActive?: boolean } } };
+    }): Promise<TechnicianWithServices[]> => {
+      let rows = this.matchTechnicians(args.where);
+      rows = [...rows].sort((a, b) => {
+        const ra = a.ratingAverage ?? -1;
+        const rb = b.ratingAverage ?? -1;
+        if (rb !== ra) return rb - ra;
+        if (b.ratingCount !== a.ratingCount) return b.ratingCount - a.ratingCount;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => this.attachTechnicianServices(r, args.include?.services?.where?.isActive));
+    },
+    findFirst: async (args: {
+      where: TechnicianWhere & { id: string };
+      include?: { services?: { where?: { isActive?: boolean } } };
+    }): Promise<TechnicianWithServices | null> => {
+      const row = this.matchTechnicians(args.where).find((r) => r.id === args.where.id);
+      return row === undefined ? null : this.attachTechnicianServices(row, args.include?.services?.where?.isActive);
+    },
+  };
+
+  private matchFaults(where: FaultWhere): FaultRow[] {
+    return this.faults.filter((f) => {
+      if (where.publishStatus !== undefined && f.publishStatus !== where.publishStatus) return false;
+      if (where.applianceCategoryId !== undefined && f.applianceCategoryId !== where.applianceCategoryId) return false;
+      return includesTextFilter(f as unknown as Record<string, unknown>, where.OR);
+    });
+  }
+
+  private matchServices(where: ServiceWhere): ServiceRow[] {
+    return this.services.filter((s) => {
+      if (where.isActive !== undefined && s.isActive !== where.isActive) return false;
+      if (where.applianceCategoryId !== undefined && s.applianceCategoryId !== where.applianceCategoryId) return false;
+      return includesTextFilter(s as unknown as Record<string, unknown>, where.OR);
+    });
+  }
+
+  private technicianServiceMatches(
+    ts: TechnicianServiceRow,
+    filters: Array<Record<string, unknown>>,
+  ): boolean {
+    return filters.every((filter) => {
+      if ('isActive' in filter && ts.isActive !== filter['isActive']) return false;
+      if ('serviceId' in filter && ts.serviceId !== filter['serviceId']) return false;
+      const service = filter['service'] as
+        | { applianceCategoryId?: string; faultLinks?: { some: { faultId: string } } }
+        | undefined;
+      if (service !== undefined) {
+        const row = this.services.find((s) => s.id === ts.serviceId);
+        if (row === undefined) return false;
+        if (service.applianceCategoryId !== undefined && row.applianceCategoryId !== service.applianceCategoryId) {
+          return false;
+        }
+        if (service.faultLinks !== undefined) {
+          // fault -> fault_service_links -> service: a link exists between
+          // the fault and the service this technician offers.
+          const linked = this.faultServiceLinks.some(
+            (l) => l.serviceId === ts.serviceId && l.faultId === service.faultLinks.some.faultId,
+          );
+          if (!linked) return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  private matchTechnicians(where: TechnicianWhere): TechnicianProfileRow[] {
+    return this.technicianProfiles.filter((t) => {
+      if (where.verificationStatus !== undefined && t.verificationStatus !== where.verificationStatus) {
+        return false;
+      }
+      if (where.availabilityStatus !== undefined && t.availabilityStatus !== where.availabilityStatus) {
+        return false;
+      }
+      if (where.ratingAverage?.gte !== undefined) {
+        const gte = where.ratingAverage.gte;
+        if (t.ratingAverage === null || t.ratingAverage < gte) return false;
+      }
+      if (!includesTextFilter(t as unknown as Record<string, unknown>, where.OR)) return false;
+      if (where.services !== undefined) {
+        const own = this.technicianServices.filter((ts) => ts.technicianId === t.id);
+        if (!own.some((ts) => this.technicianServiceMatches(ts, where.services.some.AND))) return false;
+      }
+      return true;
+    });
+  }
+
+  private attachTechnicianServices(
+    row: TechnicianProfileRow,
+    activeOnly: boolean | undefined,
+  ): TechnicianWithServices {
+    const links = this.technicianServices.filter(
+      (ts) => ts.technicianId === row.id && (activeOnly === undefined || ts.isActive === activeOnly),
+    );
+    return {
+      ...row,
+      services: links.flatMap((ts) => {
+        const service = this.services.find((s) => s.id === ts.serviceId);
+        return service === undefined
+          ? []
+          : [
+              {
+                service: {
+                  id: service.id,
+                  applianceCategoryId: service.applianceCategoryId,
+                  nameAr: service.nameAr,
+                  slug: service.slug,
+                  descriptionAr: service.descriptionAr,
+                },
+              },
+            ];
+      }),
+    };
+  }
+}
+
+interface FaultServiceLinkRow {
+  faultId: string;
+  serviceId: string;
+}
+
+interface FaultWhere {
+  publishStatus?: PublishStatus;
+  applianceCategoryId?: string;
+  id?: string;
+  OR?: Array<Record<string, { contains?: string; mode?: string }>>;
+}
+
+interface ServiceWhere {
+  isActive?: boolean;
+  applianceCategoryId?: string;
+  OR?: Array<Record<string, { contains?: string; mode?: string }>>;
+}
+
+interface TechnicianWhere {
+  verificationStatus?: VerificationStatusValue;
+  availabilityStatus?: AvailabilityStatusValue;
+  ratingAverage?: { gte?: number };
+  OR?: Array<Record<string, { contains?: string; mode?: string }>>;
+  services?: { some: { AND: Array<Record<string, unknown>> } };
+}
+
+interface ServiceShape {
+  id: string;
+  applianceCategoryId: string;
+  nameAr: string;
+  slug: string;
+  descriptionAr: string | null;
+}
+
+export interface TechnicianWithServices extends TechnicianProfileRow {
+  services: Array<{ service: ServiceShape }>;
 }
 
 export function createFakePrisma(): FakePrismaClient {

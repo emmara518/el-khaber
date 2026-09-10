@@ -117,3 +117,44 @@ export const updateMeSchema = z
   });
 
 export type UpdateMeInput = z.infer<typeof updateMeSchema>;
+
+// -----------------------------------------------------------------------------
+// Catalog / content list queries (Task 10E)
+// Source: docs/07_API.md §6. Query parameter names follow the documented
+// snake_case contract. All list queries compose with paginationSchema
+// (server max limit: 100).
+// -----------------------------------------------------------------------------
+
+const uuidParam = z.string().uuid();
+
+/** GET /faults — appliance_category_id, q, pagination. */
+export const faultListQuerySchema = paginationSchema.extend({
+  appliance_category_id: uuidParam.optional(),
+  q: z.string().trim().min(1).max(100).optional(),
+});
+export type FaultListQuery = z.infer<typeof faultListQuerySchema>;
+
+/** GET /services — appliance_category_id, q, pagination. */
+export const serviceListQuerySchema = paginationSchema.extend({
+  appliance_category_id: uuidParam.optional(),
+  q: z.string().trim().min(1).max(100).optional(),
+});
+export type ServiceListQuery = z.infer<typeof serviceListQuerySchema>;
+
+/**
+ * GET /technicians — documented discovery filters (docs/07_API.md §6).
+ * `sort` accepts only `rating` — a ranking signal explicitly documented
+ * in docs/06_DATABASE.md §10. Geo params (lat/lng/radius) are documented
+ * but NOT implemented: the schema has no technician location/service-area
+ * model (reported DATABASE MODEL GAP — CTO decision required).
+ */
+export const technicianListQuerySchema = paginationSchema.extend({
+  q: z.string().trim().min(1).max(100).optional(),
+  appliance_category_id: uuidParam.optional(),
+  service_id: uuidParam.optional(),
+  fault_id: uuidParam.optional(),
+  rating_min: z.coerce.number().int().min(1).max(5).optional(),
+  availability: z.enum(['available', 'busy', 'unavailable']).optional(),
+  sort: z.literal('rating').optional(),
+});
+export type TechnicianListQuery = z.infer<typeof technicianListQuerySchema>;

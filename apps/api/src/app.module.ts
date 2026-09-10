@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core'
 
 import { AdminAuthModule } from './admin/admin-auth.module';
 import { AuthModule } from './auth/auth.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
 import { AuthGuardModule } from './common/auth-guard.module';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
@@ -23,6 +24,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     HealthModule,
     MeModule,
     AdminAuthModule,
+    CatalogModule,
   ],
   providers: [
     Reflector,

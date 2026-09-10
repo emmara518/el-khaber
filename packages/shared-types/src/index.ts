@@ -20,4 +20,11 @@ export type {
   AuthUserDto,
   AuthSessionDto,
   MeDto,
+  // Catalog / content domain (Task 10E)
+  ApplianceCategoryDto,
+  FaultSummaryDto,
+  FaultDto,
+  ServiceDto,
+  TechnicianServiceDto,
+  TechnicianPublicDto,
 } from './generated/api-contract';

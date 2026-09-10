@@ -33,6 +33,33 @@ components:
           minimum: 0
           type: integer
       type: object
+    ApplianceCategoryDto:
+      additionalProperties: false
+      description: Active appliance category (customer-facing reference data).
+      properties:
+        iconUrl:
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        imageUrl:
+          nullable: true
+          type: string
+        nameAr:
+          type: string
+        slug:
+          type: string
+        sortOrder:
+          type: integer
+      required:
+        - id
+        - nameAr
+        - slug
+        - iconUrl
+        - imageUrl
+        - sortOrder
+      type: object
     AuthSessionDto:
       additionalProperties: false
       description: Authentication session. The refresh token is returned exactly once per issuance/rotation.
@@ -122,6 +149,80 @@ components:
       required:
         - error
       type: object
+    FaultDto:
+      additionalProperties: false
+      description: >-
+        Published fault-guide content. Guidance is advisory ("قد يكون...") — never diagnostic certainty; safety notes
+        and technician escalation are part of the content contract.
+      properties:
+        applianceCategoryId:
+          format: uuid
+          type: string
+        guidanceAr:
+          type: string
+        id:
+          format: uuid
+          type: string
+        nameAr:
+          type: string
+        safetyNoteAr:
+          nullable: true
+          type: string
+        severityLevel:
+          nullable: true
+          type: string
+        slug:
+          type: string
+        summaryAr:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        whenToCallTechnicianAr:
+          nullable: true
+          type: string
+      required:
+        - id
+        - applianceCategoryId
+        - nameAr
+        - slug
+        - severityLevel
+        - summaryAr
+        - guidanceAr
+        - safetyNoteAr
+        - whenToCallTechnicianAr
+        - updatedAt
+      type: object
+    FaultSummaryDto:
+      additionalProperties: false
+      description: Published fault-guide list item (summary fields only).
+      properties:
+        applianceCategoryId:
+          format: uuid
+          type: string
+        id:
+          format: uuid
+          type: string
+        nameAr:
+          type: string
+        severityLevel:
+          nullable: true
+          type: string
+        slug:
+          type: string
+        sortOrder:
+          type: integer
+        summaryAr:
+          type: string
+      required:
+        - id
+        - applianceCategoryId
+        - nameAr
+        - slug
+        - severityLevel
+        - summaryAr
+        - sortOrder
+      type: object
     HealthDto:
       additionalProperties: false
       description: Liveness payload (process-level only, no dependency checks).
@@ -169,6 +270,93 @@ components:
         - technician
         - merchant
       type: string
+    ServiceDto:
+      additionalProperties: false
+      description: Active service/specialty catalog entry.
+      properties:
+        applianceCategoryId:
+          format: uuid
+          type: string
+        descriptionAr:
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        nameAr:
+          type: string
+        slug:
+          type: string
+      required:
+        - id
+        - applianceCategoryId
+        - nameAr
+        - slug
+        - descriptionAr
+      type: object
+    TechnicianAvailabilityStatus:
+      enum:
+        - available
+        - busy
+        - unavailable
+      type: string
+    TechnicianPublicDto:
+      additionalProperties: false
+      description: >-
+        Public technician profile for discovery/detail. Only verified technicians are publicly visible. Excludes
+        authentication data, private contact data, and internal moderation state.
+      properties:
+        availabilityStatus:
+          $ref: '#/components/schemas/TechnicianAvailabilityStatus'
+        avatarUrl:
+          nullable: true
+          type: string
+        bio:
+          nullable: true
+          type: string
+        completedServicesCount:
+          type: integer
+        displayName:
+          nullable: true
+          type: string
+        experienceYears:
+          type: integer
+        id:
+          format: uuid
+          type: string
+        ratingAverage:
+          nullable: true
+          type: number
+        ratingCount:
+          type: integer
+        services:
+          items:
+            $ref: '#/components/schemas/TechnicianServiceDto'
+          type: array
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+      required:
+        - id
+        - displayName
+        - bio
+        - avatarUrl
+        - verificationStatus
+        - availabilityStatus
+        - experienceYears
+        - completedServicesCount
+        - ratingAverage
+        - ratingCount
+        - services
+      type: object
+    TechnicianServiceDto:
+      additionalProperties: false
+      description: A service/specialty offered by a technician (active only).
+      properties:
+        service:
+          $ref: '#/components/schemas/ServiceDto'
+      required:
+        - service
+      type: object
     UpdateMeDto:
       additionalProperties: false
       description: >-
@@ -188,6 +376,13 @@ components:
         - suspended
         - pending
         - deleted
+      type: string
+    VerificationStatus:
+      enum:
+        - pending
+        - verified
+        - rejected
+        - suspended
       type: string
   securitySchemes:
     bearer:
@@ -331,6 +526,32 @@ paths:
         - bearer: []
       tags:
         - admin-auth
+  /api/v1/appliance-categories:
+    get:
+      operationId: ApplianceCategoriesController_list
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ApplianceCategoryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active appliance categories.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+      tags:
+        - catalog
   /api/v1/auth/forgot-password:
     post:
       operationId: AuthController_forgotPassword
@@ -586,6 +807,94 @@ paths:
           description: Invalid, expired, or already-used reset token.
       tags:
         - auth
+  /api/v1/faults:
+    get:
+      operationId: FaultsController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: appliance_category_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: q
+          required: false
+          schema:
+            maxLength: 100
+            minLength: 1
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FaultSummaryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Published fault-guide summaries (paginated).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+      tags:
+        - catalog
+  /api/v1/faults/{id}:
+    get:
+      operationId: FaultsController_detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/FaultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Published fault-guide content.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Fault not found or not published (canonical error envelope).
+      tags:
+        - catalog
   /api/v1/health:
     get:
       operationId: HealthController_health
@@ -718,3 +1027,172 @@ paths:
           description: A required dependency is unavailable (canonical error envelope).
       tags:
         - health
+  /api/v1/services:
+    get:
+      operationId: ServiceCatalogController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: appliance_category_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: q
+          required: false
+          schema:
+            maxLength: 100
+            minLength: 1
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active service/specialty catalog entries (paginated).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+      tags:
+        - catalog
+  /api/v1/technicians:
+    get:
+      operationId: TechniciansController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: q
+          required: false
+          schema:
+            maxLength: 100
+            minLength: 1
+            type: string
+        - in: query
+          name: appliance_category_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: service_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: fault_id
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: rating_min
+          required: false
+          schema:
+            maximum: 5
+            minimum: 1
+            type: integer
+        - in: query
+          name: availability
+          required: false
+          schema:
+            enum:
+              - available
+              - busy
+              - unavailable
+            type: string
+        - in: query
+          name: sort
+          required: false
+          schema: {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianPublicDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Verified technicians (paginated discovery list).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+      tags:
+        - catalog
+  /api/v1/technicians/{id}:
+    get:
+      operationId: TechniciansController_detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianPublicDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Public technician profile.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Technician not found or not publicly visible (canonical error envelope).
+      tags:
+        - catalog

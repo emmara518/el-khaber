@@ -146,6 +146,134 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     required: ['status', 'checks'],
     additionalProperties: false,
   },
+
+  // ---------------------------------------------------------------------------
+  // Catalog / content domain (Task 10E). Source: docs/07_API.md §6, §8.
+  // ---------------------------------------------------------------------------
+
+  ApplianceCategoryDto: {
+    type: 'object',
+    description: 'Active appliance category (customer-facing reference data).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      iconUrl: { type: 'string', nullable: true },
+      imageUrl: { type: 'string', nullable: true },
+      sortOrder: { type: 'integer' },
+    },
+    required: ['id', 'nameAr', 'slug', 'iconUrl', 'imageUrl', 'sortOrder'],
+    additionalProperties: false,
+  },
+  FaultSummaryDto: {
+    type: 'object',
+    description: 'Published fault-guide list item (summary fields only).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      severityLevel: { type: 'string', nullable: true },
+      summaryAr: { type: 'string' },
+      sortOrder: { type: 'integer' },
+    },
+    required: ['id', 'applianceCategoryId', 'nameAr', 'slug', 'severityLevel', 'summaryAr', 'sortOrder'],
+    additionalProperties: false,
+  },
+  FaultDto: {
+    type: 'object',
+    description:
+      'Published fault-guide content. Guidance is advisory ("قد يكون...") — ' +
+      'never diagnostic certainty; safety notes and technician escalation ' +
+      'are part of the content contract.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      severityLevel: { type: 'string', nullable: true },
+      summaryAr: { type: 'string' },
+      guidanceAr: { type: 'string' },
+      safetyNoteAr: { type: 'string', nullable: true },
+      whenToCallTechnicianAr: { type: 'string', nullable: true },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'applianceCategoryId',
+      'nameAr',
+      'slug',
+      'severityLevel',
+      'summaryAr',
+      'guidanceAr',
+      'safetyNoteAr',
+      'whenToCallTechnicianAr',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  ServiceDto: {
+    type: 'object',
+    description: 'Active service/specialty catalog entry.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      descriptionAr: { type: 'string', nullable: true },
+    },
+    required: ['id', 'applianceCategoryId', 'nameAr', 'slug', 'descriptionAr'],
+    additionalProperties: false,
+  },
+  TechnicianServiceDto: {
+    type: 'object',
+    description: 'A service/specialty offered by a technician (active only).',
+    properties: { service: REF('ServiceDto') },
+    required: ['service'],
+    additionalProperties: false,
+  },
+  TechnicianPublicDto: {
+    type: 'object',
+    description:
+      'Public technician profile for discovery/detail. Only verified ' +
+      'technicians are publicly visible. Excludes authentication data, ' +
+      'private contact data, and internal moderation state.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      avatarUrl: { type: 'string', nullable: true },
+      verificationStatus: REF('VerificationStatus'),
+      availabilityStatus: REF('TechnicianAvailabilityStatus'),
+      experienceYears: { type: 'integer' },
+      completedServicesCount: { type: 'integer' },
+      ratingAverage: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer' },
+      services: { type: 'array', items: REF('TechnicianServiceDto') },
+    },
+    required: [
+      'id',
+      'displayName',
+      'bio',
+      'avatarUrl',
+      'verificationStatus',
+      'availabilityStatus',
+      'experienceYears',
+      'completedServicesCount',
+      'ratingAverage',
+      'ratingCount',
+      'services',
+    ],
+    additionalProperties: false,
+  },
+  VerificationStatus: {
+    type: 'string',
+    enum: ['pending', 'verified', 'rejected', 'suspended'],
+  },
+  TechnicianAvailabilityStatus: {
+    type: 'string',
+    enum: ['available', 'busy', 'unavailable'],
+  },
 };
 
 /** Inline success-envelope wrapper: `{ data: <ref>, meta? }`. */

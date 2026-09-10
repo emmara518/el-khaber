@@ -27,6 +27,18 @@ export interface ApiMeta {
 }
 
 /**
+ * Active appliance category (customer-facing reference data).
+ */
+export interface ApplianceCategoryDto {
+  iconUrl: string | null;
+  id: string;
+  imageUrl: string | null;
+  nameAr: string;
+  slug: string;
+  sortOrder: number;
+}
+
+/**
  * Authentication session. The refresh token is returned exactly once per issuance/rotation.
  */
 export interface AuthSessionDto {
@@ -60,6 +72,35 @@ export interface ErrorResponse {
 }
 
 /**
+ * Published fault-guide content. Guidance is advisory ("قد يكون...") — never diagnostic certainty; safety notes and technician escalation are part of the content contract.
+ */
+export interface FaultDto {
+  applianceCategoryId: string;
+  guidanceAr: string;
+  id: string;
+  nameAr: string;
+  safetyNoteAr: string | null;
+  severityLevel: string | null;
+  slug: string;
+  summaryAr: string;
+  updatedAt: string;
+  whenToCallTechnicianAr: string | null;
+}
+
+/**
+ * Published fault-guide list item (summary fields only).
+ */
+export interface FaultSummaryDto {
+  applianceCategoryId: string;
+  id: string;
+  nameAr: string;
+  severityLevel: string | null;
+  slug: string;
+  sortOrder: number;
+  summaryAr: string;
+}
+
+/**
  * Liveness payload (process-level only, no dependency checks).
  */
 export interface HealthDto {
@@ -80,6 +121,43 @@ export interface ReadyDto {
 export type Role = 'customer' | 'technician' | 'merchant';
 
 /**
+ * Active service/specialty catalog entry.
+ */
+export interface ServiceDto {
+  applianceCategoryId: string;
+  descriptionAr: string | null;
+  id: string;
+  nameAr: string;
+  slug: string;
+}
+
+export type TechnicianAvailabilityStatus = 'available' | 'busy' | 'unavailable';
+
+/**
+ * Public technician profile for discovery/detail. Only verified technicians are publicly visible. Excludes authentication data, private contact data, and internal moderation state.
+ */
+export interface TechnicianPublicDto {
+  availabilityStatus: TechnicianAvailabilityStatus;
+  avatarUrl: string | null;
+  bio: string | null;
+  completedServicesCount: number;
+  displayName: string | null;
+  experienceYears: number;
+  id: string;
+  ratingAverage: number | null;
+  ratingCount: number;
+  services: Array<TechnicianServiceDto>;
+  verificationStatus: VerificationStatus;
+}
+
+/**
+ * A service/specialty offered by a technician (active only).
+ */
+export interface TechnicianServiceDto {
+  service: ServiceDto;
+}
+
+/**
  * PATCH /me payload (docs/07_API.md §5). Only shared contact fields are writable. Changing a contact channel resets that channel's verification flag.
  */
 export interface UpdateMeDto {
@@ -88,6 +166,8 @@ export interface UpdateMeDto {
 }
 
 export type UserStatus = 'active' | 'suspended' | 'pending' | 'deleted';
+
+export type VerificationStatus = 'pending' | 'verified' | 'rejected' | 'suspended';
 
 // -----------------------------------------------------------------------------
 // Structural envelopes. These are language-level generics and cannot be

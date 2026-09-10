@@ -163,6 +163,26 @@ Returns public profile data allowed for discovery.
 ### GET `/technicians/:id/reviews`
 Paginated reviews.
 
+Implementation notes (Task 10E):
+
+- All §6 catalog/content reads are PUBLIC. List endpoints are paginated
+  (page/limit, server max 100) with the §19 meta (`total`, `totalPages`,
+  `hasNext`).
+- Fault Guide: only `published` faults are customer-visible; draft/review/
+  archived content returns the same `404 NOT_FOUND` as a missing resource
+  (moderation state is never exposed). Guidance content is served verbatim
+  and is advisory by contract — the system does not generate diagnoses.
+- Technician discovery: only `verified` technicians are publicly listed or
+  detailed (missing ≡ unverified ≡ suspended → identical `404`). A listed
+  technician must offer at least one active service. `availability` accepts
+  the database enum values (`available`, `busy`, `unavailable`). `sort`
+  accepts only `rating` (a ranking signal documented in 06 §10); the list
+  orders by rating (nulls last, stable id tiebreak). Pricing and private
+  data (user ids, contact channels) are not exposed.
+- Geo parameters (`lat`, `lng`, `radius`) are documented but NOT
+  implemented: the schema has no technician location/service-area model
+  (DATABASE MODEL GAP — CTO decision required).
+
 ---
 
 ## 7. Service request endpoints
