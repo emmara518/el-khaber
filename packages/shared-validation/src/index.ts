@@ -248,3 +248,23 @@ export const merchantProductUpdateSchema = z
     message: 'at least one field is required',
   });
 export type MerchantProductUpdateInput = z.infer<typeof merchantProductUpdateSchema>;
+
+// -----------------------------------------------------------------------------
+// Chat / Reviews / Notifications (Task 10H)
+// Source: docs/07_API.md §10–§12. No realtime, no delivery providers, no
+// invented message features (reactions/edits/typing) — HTTP persistence only.
+// -----------------------------------------------------------------------------
+
+/** POST /conversations/:id/messages — text-only until storage exists. */
+export const sendMessageSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
+});
+export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+/** POST /service-requests/:id/review — rating 1..5, optional comment + seeded tags. */
+export const createReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().max(2000).optional(),
+  tag_ids: z.array(uuidParam).max(10).optional(),
+});
+export type CreateReviewInput = z.infer<typeof createReviewSchema>;

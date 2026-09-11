@@ -60,10 +60,11 @@ function propertyType(schema: SchemaObject): string {
   if (schema.type === 'object') {
     if (schema.properties === undefined) {
       // Free-form object: honor a typed additionalProperties when present.
-      if (typeof schema.additionalProperties === 'object' && schema.additionalProperties !== null) {
-        return `Record<string, ${propertyType(schema.additionalProperties as SchemaObject)}>`;
-      }
-      return 'Record<string, unknown>';
+      const base =
+        typeof schema.additionalProperties === 'object' && schema.additionalProperties !== null
+          ? `Record<string, ${propertyType(schema.additionalProperties as SchemaObject)}>`
+          : 'Record<string, unknown>';
+      return schema.nullable === true ? `${base} | null` : base;
     }
     const required = new Set(schema.required ?? []);
     const members = Object.entries(schema.properties).map(([key, prop]) => {

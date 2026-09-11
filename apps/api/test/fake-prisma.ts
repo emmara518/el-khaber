@@ -193,6 +193,55 @@ interface ProductRow {
   updatedAt: Date;
 }
 
+interface ConversationRow {
+  id: string;
+  serviceRequestId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  closedAt: Date | null;
+}
+
+interface ConversationParticipantRow {
+  id: string;
+  conversationId: string;
+  userId: string;
+  roleSnapshot: string | null;
+  joinedAt: Date;
+}
+
+interface MessageRow {
+  id: string;
+  conversationId: string;
+  senderUserId: string;
+  messageType: 'text';
+  body: string | null;
+  createdAt: Date;
+  readAt: Date | null;
+}
+
+interface ReviewRow {
+  id: string;
+  serviceRequestId: string;
+  customerId: string;
+  technicianId: string;
+  rating: number;
+  comment: string | null;
+  problemResolved: boolean | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface NotificationRow {
+  id: string;
+  userId: string;
+  type: string;
+  titleAr: string;
+  bodyAr: string;
+  dataJson: Record<string, unknown> | null;
+  readAt: Date | null;
+  createdAt: Date;
+}
+
 interface TechnicianServiceRow {
   technicianId: string;
   serviceId: string;
@@ -268,6 +317,13 @@ class FakePrismaClient {
   serviceRequestStatusHistoryStore: ServiceRequestStatusHistoryRow[] = [];
   merchantProfiles: MerchantProfileRow[] = [];
   products: ProductRow[] = [];
+  conversations: ConversationRow[] = [];
+  conversationParticipants: ConversationParticipantRow[] = [];
+  messageRows: MessageRow[] = [];
+  reviewRows: ReviewRow[] = [];
+  reviewTagRows: Array<{ id: string; code: string; labelAr: string; isActive: boolean }> = [];
+  reviewTagAssignmentRows: Array<{ reviewId: string; tagId: string }> = [];
+  notificationRows: NotificationRow[] = [];
 
   $connect(): Promise<void> {
     return Promise.resolve();
@@ -656,6 +712,14 @@ class FakePrismaClient {
       );
       return row === undefined ? null : this.attachTechnicianServices(row, args.include?.services?.where?.isActive);
     },
+    update: async (args: { where: { id: string }; data: Partial<TechnicianProfileRow> }): Promise<TechnicianProfileRow> => {
+      const idx = this.technicianProfiles.findIndex((t) => t.id === args.where.id);
+      if (idx < 0) {
+        throw new Error('Technician profile not found');
+      }
+      this.technicianProfiles[idx] = { ...this.technicianProfiles[idx], ...args.data };
+      return this.technicianProfiles[idx];
+    },
   };
 
   location = {
@@ -866,6 +930,181 @@ class FakePrismaClient {
           ),
       );
       return { count: before - this.products.length };
+    },
+  };
+
+  conversation = {
+    findFirst: async (args: { where: { id?: string; serviceRequestId?: string } }): Promise<ConversationRow | null> => {
+      return (
+        this.conversations.find(
+          (c) =>
+            (args.where.id === undefined || c.id === args.where.id) &&
+            (args.where.serviceRequestId === undefined || c.serviceRequestId === args.where.serviceRequestId),
+        ) ?? null
+      );
+    },
+    findUniqueOrThrow: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+      const row = this.conversations.find((c) => c.id === args.where.id);
+      if (row === undefined) {
+        throw new Error('Conversation not found');
+      }
+      return applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    create: async (args: { data: { serviceRequestId: string } }): Promise<ConversationRow> => {
+      const now = new Date();
+      const row: ConversationRow = { id: randomUUID(), closedAt: null, ...args.data, createdAt: now, updatedAt: now };
+      this.conversations.push(row);
+      return row;
+    },
+  };
+
+  conversationParticipant = {
+    create: async (args: { data: Omit<ConversationParticipantRow, 'id' | 'joinedAt'> }): Promise<ConversationParticipantRow> => {
+      const row: ConversationParticipantRow = { id: randomUUID(), joinedAt: new Date(), ...args.data };
+      this.conversationParticipants.push(row);
+      return row;
+    },
+  };
+
+  message = {
+    count: async (args: { where: { conversationId: string } }): Promise<number> =>
+      this.messageRows.filter((m) => m.conversationId === args.where.conversationId).length,
+    findMany: async (args: {
+      where: { conversationId: string };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.messageRows.filter((m) => m.conversationId === args.where.conversationId);
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    create: async (args: { data: Omit<MessageRow, 'id' | 'createdAt' | 'readAt'> & { readAt?: Date | null }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+      const row: MessageRow = { id: randomUUID(), readAt: null, createdAt: new Date(), ...args.data };
+      this.messageRows.push(row);
+      return applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+  };
+
+  review = {
+    findFirst: async (args: { where: { serviceRequestId?: string; id?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.reviewRows.find(
+        (r) =>
+          (args.where.serviceRequestId === undefined || r.serviceRequestId === args.where.serviceRequestId) &&
+          (args.where.id === undefined || r.id === args.where.id),
+      );
+      return row === undefined ? null : applySelect(this.attachReviewTags(row), args.select);
+    },
+    findFirstOrThrow: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+      const row = this.reviewRows.find((r) => r.id === args.where.id);
+      if (row === undefined) {
+        throw new Error('Review not found');
+      }
+      return applySelect(this.attachReviewTags(row), args.select);
+    },
+    findMany: async (args: {
+      where: { technicianId?: string };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.reviewRows.filter(
+        (r) => args.where.technicianId === undefined || r.technicianId === args.where.technicianId,
+      );
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(this.attachReviewTags(r), args.select));
+    },
+    count: async (args: { where: { technicianId?: string } }): Promise<number> =>
+      this.reviewRows.filter(
+        (r) => args.where.technicianId === undefined || r.technicianId === args.where.technicianId,
+      ).length,
+    create: async (args: { data: Omit<ReviewRow, 'id' | 'createdAt' | 'updatedAt' | 'problemResolved'> }): Promise<{ id: string }> => {
+      const now = new Date();
+      const row: ReviewRow = { id: randomUUID(), problemResolved: null, createdAt: now, updatedAt: now, ...args.data };
+      this.reviewRows.push(row);
+      return { id: row.id };
+    },
+    aggregate: async (args: {
+      where: { technicianId?: string };
+      _avg?: { rating?: boolean };
+      _count?: boolean | { _all?: boolean };
+    }): Promise<{ _avg: { rating: number | null }; _count: number }> => {
+      const rows = this.reviewRows.filter(
+        (r) => args.where.technicianId === undefined || r.technicianId === args.where.technicianId,
+      );
+      const avg = rows.length === 0 ? null : rows.reduce((s, r) => s + r.rating, 0) / rows.length;
+      return { _avg: { rating: args._avg?.rating === true ? avg : null }, _count: rows.length };
+    },
+  };
+
+  private attachReviewTags(row: ReviewRow): Record<string, unknown> {
+    const tagIds = this.reviewTagAssignmentRows.filter((a) => a.reviewId === row.id).map((a) => a.tagId);
+    return {
+      ...row,
+      tagAssignments: tagIds.flatMap((tagId) => {
+        const tag = this.reviewTagRows.find((t) => t.id === tagId);
+        return tag === undefined ? [] : [{ tag: { labelAr: tag.labelAr } }];
+      }),
+    };
+  }
+
+  reviewTag = {
+    findMany: async (args: { where: { id: { in: string[] } }; select?: Record<string, unknown> }): Promise<Array<Record<string, unknown>>> => {
+      const ids = args.where.id.in;
+      return this.reviewTagRows.filter((t) => ids.includes(t.id)).map((t) => applySelect(t as unknown as Record<string, unknown>, args.select));
+    },
+  };
+
+  reviewTagAssignment = {
+    create: async (args: { data: { reviewId: string; tagId: string } }): Promise<{ reviewId: string; tagId: string }> => {
+      this.reviewTagAssignmentRows.push(args.data);
+      return args.data;
+    },
+  };
+
+  notification = {
+    count: async (args: { where: { userId?: string } }): Promise<number> =>
+      this.notificationRows.filter((n) => args.where.userId === undefined || n.userId === args.where.userId).length,
+    findMany: async (args: {
+      where: { userId?: string };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.notificationRows.filter(
+        (n) => args.where.userId === undefined || n.userId === args.where.userId,
+      );
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    findFirst: async (args: { where: { id?: string; userId?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.notificationRows.find(
+        (n) =>
+          (args.where.id === undefined || n.id === args.where.id) &&
+          (args.where.userId === undefined || n.userId === args.where.userId),
+      );
+      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    updateMany: async (args: { where: { id?: string; userId?: string; readAt?: null }; data: { readAt?: Date | null } }): Promise<{ count: number }> => {
+      let count = 0;
+      this.notificationRows = this.notificationRows.map((n) => {
+        if (
+          (args.where.id === undefined || n.id === args.where.id) &&
+          (args.where.userId === undefined || n.userId === args.where.userId) &&
+          (args.where.readAt === undefined || n.readAt === null)
+        ) {
+          count += 1;
+          return { ...n, ...args.data };
+        }
+        return n;
+      });
+      return { count };
     },
   };
 

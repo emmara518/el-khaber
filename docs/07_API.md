@@ -306,7 +306,7 @@ Server checks:
 - no duplicate review unless edit policy allows
 
 ### PATCH `/reviews/:id`
-Optional, only if editing is approved.
+Optional, only if editing is approved. NOT IMPLEMENTED (Task 10H): no edit policy has been approved.
 
 ---
 
@@ -339,6 +339,28 @@ Marks notification read.
 
 ### POST `/notifications/read-all`
 Marks appropriate notifications read.
+
+Implementation notes (Task 10H):
+
+- Reviews: eligibility is the documented policy (request owner + completed
+  status + one review per request). Tags must reference seeded review tags.
+  The technician's ratingAverage/ratingCount are recomputed server-side on
+  creation. GET `/technicians/:id/reviews` is public and exposes only
+  rating, comment, tag labels, and createdAt — no customer identifiers.
+
+- Chat: the conversation is 1:1 with the service request and is created
+  lazily on first access (Tracking/Active Service ? Chat flow). Participants
+  are the request's customer and targeted/assigned technician; membership is
+  derived server-side from the request — conversation ids alone grant
+  nothing. Messages are text-only (attachment types require storage) with
+  content limits (1–2000 chars); sender identity is always the verified JWT
+  subject; history is bounded and ordered newest-first. NO realtime: HTTP
+  persistence/read/send only.
+
+- Notifications: persistence + read APIs only — NO delivery provider
+  (Expo/FCM/APNs/email/SMS are later platform decisions). `type` is an
+  open string until product trigger types are ratified; read-state
+  mutations are recipient-scoped and idempotent.
 
 ---
 

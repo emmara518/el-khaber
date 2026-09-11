@@ -113,6 +113,29 @@ components:
         - emailVerified
         - createdAt
       type: object
+    ConversationDto:
+      additionalProperties: false
+      description: >-
+        The service-request conversation (1:1 with the request). Participants are the request customer and the
+        targeted/assigned technician.
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        requestStatus:
+          $ref: '#/components/schemas/ServiceRequestStatus'
+        serviceRequestId:
+          format: uuid
+          type: string
+      required:
+        - id
+        - serviceRequestId
+        - requestStatus
+        - createdAt
+      type: object
     CreateMerchantProductDto:
       additionalProperties: false
       description: >-
@@ -146,6 +169,28 @@ components:
           type: integer
       required:
         - nameAr
+      type: object
+    CreateReviewDto:
+      additionalProperties: false
+      description: >-
+        POST /service-requests/:id/review payload. Eligibility is documented: the request owner, after completion, one
+        review per request. Tags must reference seeded/documented review tags.
+      properties:
+        comment:
+          maxLength: 2000
+          type: string
+        rating:
+          maximum: 5
+          minimum: 1
+          type: integer
+        tag_ids:
+          items:
+            format: uuid
+            type: string
+          maxItems: 10
+          type: array
+      required:
+        - rating
       type: object
     CreateServiceRequestDto:
       additionalProperties: false
@@ -408,6 +453,71 @@ components:
         - createdAt
         - updatedAt
       type: object
+    MessageDto:
+      additionalProperties: false
+      description: >-
+        Chat message. Ordered newest-first for pagination; the client adapter may reverse for display. readAt exists in
+        the model but no mark-read route is documented (deferred).
+      properties:
+        body:
+          type: string
+        conversationId:
+          format: uuid
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        messageType:
+          enum:
+            - text
+          type: string
+        senderUserId:
+          format: uuid
+          type: string
+      required:
+        - id
+        - conversationId
+        - senderUserId
+        - messageType
+        - body
+        - createdAt
+      type: object
+    NotificationDto:
+      additionalProperties: false
+      description: "A persisted notification for the authenticated recipient. \type is an open string until product trigger types are ratified; no delivery provider exists (persistence + read APIs only)."
+      properties:
+        bodyAr:
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        dataJson:
+          additionalProperties: true
+          nullable: true
+          type: object
+        id:
+          format: uuid
+          type: string
+        readAt:
+          format: date-time
+          nullable: true
+          type: string
+        titleAr:
+          type: string
+        type:
+          type: string
+      required:
+        - id
+        - type
+        - titleAr
+        - bodyAr
+        - dataJson
+        - readAt
+        - createdAt
+      type: object
     ReadyDto:
       additionalProperties: false
       description: Readiness payload with per-dependency check results.
@@ -430,12 +540,55 @@ components:
         - status
         - checks
       type: object
+    ReviewSummaryDto:
+      additionalProperties: false
+      description: >-
+        Public review for technician discovery. Only documented public fields: no customer identifiers, no moderation
+        state.
+      properties:
+        comment:
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        rating:
+          maximum: 5
+          minimum: 1
+          type: integer
+        tags:
+          items:
+            type: string
+          type: array
+      required:
+        - id
+        - rating
+        - comment
+        - tags
+        - createdAt
+      type: object
     Role:
       enum:
         - customer
         - technician
         - merchant
       type: string
+    SendMessageDto:
+      additionalProperties: false
+      description: >-
+        POST /conversations/:id/messages payload. Text content only � attachment types require storage infrastructure
+        (later task). The sender is derived from the verified JWT, never from the payload.
+      properties:
+        body:
+          maxLength: 2000
+          minLength: 1
+          type: string
+      required:
+        - body
+      type: object
     ServiceDto:
       additionalProperties: false
       description: Active service/specialty catalog entry.
@@ -1222,6 +1375,122 @@ paths:
           description: Invalid, expired, or already-used reset token.
       tags:
         - auth
+  /api/v1/conversations/{id}/messages:
+    get:
+      operationId: ChatController_listMessages
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MessageDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Bounded message history (newest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conversation not found or not a participant (identical response).
+      security:
+        - bearer: []
+      tags:
+        - chat
+    post:
+      operationId: ChatController_sendMessage
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                body:
+                  maxLength: 2000
+                  minLength: 1
+                  type: string
+              required:
+                - body
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MessageDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Message created; sender = verified JWT subject.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conversation not found or not a participant (identical response).
+      security:
+        - bearer: []
+      tags:
+        - chat
   /api/v1/faults:
     get:
       operationId: FaultsController_list
@@ -1811,6 +2080,132 @@ paths:
         - bearer: []
       tags:
         - merchant
+  /api/v1/notifications:
+    get:
+      operationId: NotificationsController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/NotificationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own notifications (paginated, newest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+      security:
+        - bearer: []
+      tags:
+        - notifications
+  /api/v1/notifications/read-all:
+    post:
+      operationId: NotificationsController_markAllRead
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReadAllResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: All own unread notifications marked read.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+      security:
+        - bearer: []
+      tags:
+        - notifications
+  /api/v1/notifications/{id}/read:
+    post:
+      operationId: NotificationsController_markRead
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/NotificationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Notification marked read.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Notification not found or not owned by this recipient.
+      security:
+        - bearer: []
+      tags:
+        - notifications
   /api/v1/ready:
     get:
       operationId: HealthController_ready
@@ -2165,6 +2560,51 @@ paths:
         - bearer: []
       tags:
         - service-requests
+  /api/v1/service-requests/{id}/conversation:
+    get:
+      operationId: ChatController_getForRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConversationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Authorized conversation (lazily created on first access).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conversation not found or not a participant (identical response).
+      security:
+        - bearer: []
+      tags:
+        - chat
   /api/v1/service-requests/{id}/reject:
     post:
       operationId: ServiceRequestsController_reject
@@ -2216,6 +2656,78 @@ paths:
         - bearer: []
       tags:
         - service-requests
+  /api/v1/service-requests/{id}/review:
+    post:
+      operationId: ServiceRequestReviewsController_create
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                comment:
+                  maxLength: 2000
+                  type: string
+                rating:
+                  maximum: 5
+                  minimum: 1
+                  type: integer
+                tag_ids:
+                  items:
+                    type: string
+                  type: array
+              required:
+                - rating
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReviewSummaryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Review created (owner, completed request, one per request).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-customer role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not owned by this customer.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Review already exists / request not completed (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - reviews
   /api/v1/service-requests/{id}/start:
     post:
       operationId: ServiceRequestsController_start
@@ -2436,3 +2948,47 @@ paths:
           description: Technician not found or not publicly visible (canonical error envelope).
       tags:
         - catalog
+  /api/v1/technicians/{id}/reviews:
+    get:
+      operationId: TechnicianReviewsController_listForTechnician
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReviewSummaryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Public reviews for a verified technician (paginated).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Technician not found or not publicly visible.
+      tags:
+        - reviews

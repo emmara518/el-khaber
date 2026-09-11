@@ -406,6 +406,96 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     additionalProperties: false,
   },
 
+  SendMessageDto: {
+    type: 'object',
+    description:
+      'POST /conversations/:id/messages payload. Text content only � ' +
+      'attachment types require storage infrastructure (later task). The ' +
+      'sender is derived from the verified JWT, never from the payload.',
+    properties: {
+      body: { type: 'string', minLength: 1, maxLength: 2000 },
+    },
+    required: ['body'],
+    additionalProperties: false,
+  },
+  ConversationDto: {
+    type: 'object',
+    description:
+      'The service-request conversation (1:1 with the request). Participants ' +
+      'are the request customer and the targeted/assigned technician.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      serviceRequestId: { type: 'string', format: 'uuid' },
+      requestStatus: REF('ServiceRequestStatus'),
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'serviceRequestId', 'requestStatus', 'createdAt'],
+    additionalProperties: false,
+  },
+  MessageDto: {
+    type: 'object',
+    description:
+      'Chat message. Ordered newest-first for pagination; the client adapter ' +
+      'may reverse for display. readAt exists in the model but no mark-read ' +
+      'route is documented (deferred).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      conversationId: { type: 'string', format: 'uuid' },
+      senderUserId: { type: 'string', format: 'uuid' },
+      messageType: { type: 'string', enum: ['text'] },
+      body: { type: 'string' },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'conversationId', 'senderUserId', 'messageType', 'body', 'createdAt'],
+    additionalProperties: false,
+  },
+  CreateReviewDto: {
+    type: 'object',
+    description:
+      'POST /service-requests/:id/review payload. Eligibility is documented: ' +
+      'the request owner, after completion, one review per request. Tags must ' +
+      'reference seeded/documented review tags.',
+    properties: {
+      rating: { type: 'integer', minimum: 1, maximum: 5 },
+      comment: { type: 'string', maxLength: 2000 },
+      tag_ids: { type: 'array', items: { type: 'string', format: 'uuid' }, maxItems: 10 },
+    },
+    required: ['rating'],
+    additionalProperties: false,
+  },
+  ReviewSummaryDto: {
+    type: 'object',
+    description:
+      'Public review for technician discovery. Only documented public fields: ' +
+      'no customer identifiers, no moderation state.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      rating: { type: 'integer', minimum: 1, maximum: 5 },
+      comment: { type: 'string', nullable: true },
+      tags: { type: 'array', items: { type: 'string' } },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'rating', 'comment', 'tags', 'createdAt'],
+    additionalProperties: false,
+  },
+  NotificationDto: {
+    type: 'object',
+    description:
+      'A persisted notification for the authenticated recipient. 	ype is an ' +
+      'open string until product trigger types are ratified; no delivery ' +
+      'provider exists (persistence + read APIs only).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      type: { type: 'string' },
+      titleAr: { type: 'string' },
+      bodyAr: { type: 'string' },
+      dataJson: { type: 'object', nullable: true, additionalProperties: true },
+      readAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'type', 'titleAr', 'bodyAr', 'dataJson', 'readAt', 'createdAt'],
+    additionalProperties: false,
+  },
   // ---------------------------------------------------------------------------
   // Merchant domain (Task 10G). Source: docs/07_API.md §17, docs/06 §21.
   // Verification status is read-only for merchants (admin is the authority).

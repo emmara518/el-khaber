@@ -63,6 +63,16 @@ export interface AuthUserDto {
 }
 
 /**
+ * The service-request conversation (1:1 with the request). Participants are the request customer and the targeted/assigned technician.
+ */
+export interface ConversationDto {
+  createdAt: string;
+  id: string;
+  requestStatus: ServiceRequestStatus;
+  serviceRequestId: string;
+}
+
+/**
  * POST /merchant/products payload. Ownership is derived from the JWT. `slug` is optional — server-derived from nameAr (unique per merchant). price may be null; no currency/discount/tax semantics exist.
  */
 export interface CreateMerchantProductDto {
@@ -73,6 +83,15 @@ export interface CreateMerchantProductDto {
   slug?: string;
   status?: 'active' | 'suspended';
   stockQuantity?: number;
+}
+
+/**
+ * POST /service-requests/:id/review payload. Eligibility is documented: the request owner, after completion, one review per request. Tags must reference seeded/documented review tags.
+ */
+export interface CreateReviewDto {
+  comment?: string;
+  rating: number;
+  tag_ids?: Array<string>;
 }
 
 /**
@@ -170,6 +189,31 @@ export interface MerchantProfileDto {
 }
 
 /**
+ * Chat message. Ordered newest-first for pagination; the client adapter may reverse for display. readAt exists in the model but no mark-read route is documented (deferred).
+ */
+export interface MessageDto {
+  body: string;
+  conversationId: string;
+  createdAt: string;
+  id: string;
+  messageType: 'text';
+  senderUserId: string;
+}
+
+/**
+ * A persisted notification for the authenticated recipient. 	ype is an open string until product trigger types are ratified; no delivery provider exists (persistence + read APIs only).
+ */
+export interface NotificationDto {
+  bodyAr: string;
+  createdAt: string;
+  dataJson: Record<string, unknown> | null;
+  id: string;
+  readAt: string | null;
+  titleAr: string;
+  type: string;
+}
+
+/**
  * Readiness payload with per-dependency check results.
  */
 export interface ReadyDto {
@@ -177,7 +221,25 @@ export interface ReadyDto {
   status: 'ready';
 }
 
+/**
+ * Public review for technician discovery. Only documented public fields: no customer identifiers, no moderation state.
+ */
+export interface ReviewSummaryDto {
+  comment: string | null;
+  createdAt: string;
+  id: string;
+  rating: number;
+  tags: Array<string>;
+}
+
 export type Role = 'customer' | 'technician' | 'merchant';
+
+/**
+ * POST /conversations/:id/messages payload. Text content only � attachment types require storage infrastructure (later task). The sender is derived from the verified JWT, never from the payload.
+ */
+export interface SendMessageDto {
+  body: string;
+}
 
 /**
  * Active service/specialty catalog entry.

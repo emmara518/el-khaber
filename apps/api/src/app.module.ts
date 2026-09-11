@@ -5,6 +5,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core'
 import { AdminAuthModule } from './admin/admin-auth.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { ChatModule } from './chat/chat.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
 import { AuthGuardModule } from './common/auth-guard.module';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
@@ -14,6 +15,8 @@ import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
 import { MeModule } from './me/me.module';
 import { MerchantModule } from './merchant/merchant.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
 
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
@@ -29,6 +32,9 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     CatalogModule,
     ServiceRequestsModule,
     MerchantModule,
+    ChatModule,
+    ReviewsModule,
+    NotificationsModule,
   ],
   providers: [
     Reflector,

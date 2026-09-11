@@ -39,4 +39,9 @@ export type {
   MerchantProductDto,
   CreateMerchantProductDto,
   UpdateMerchantProductDto,
+  // Chat / reviews / notifications (Task 10H)
+  ConversationDto,
+  MessageDto,
+  ReviewSummaryDto,
+  NotificationDto,
 } from './generated/api-contract';
