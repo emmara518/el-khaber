@@ -389,9 +389,31 @@ Returns active/current subscription.
 Cancels renewal according to billing policy.
 
 ### POST `/subscriptions/:id/change-plan`
-Upgrade/downgrade behavior.
+Upgrade/downgrade behavior. NOT IMPLEMENTED (Task 10I): upgrade/downgrade semantics are undefined (docs/08) — CTO decision required.
 
-Payment confirmation must be verified server-side.
+Implementation notes (Task 10I):
+
+- MVP manual payment ONLY: instapay | vodafone_cash. Payment verification is
+  ADMIN-authoritative; user submissions are never trusted. No gateway, no
+  webhooks, no automatic verification.
+- `GET /subscription-plans` returns ACTIVE plans for the JWT role (role-aware,
+  paginated). Inactive plans never appear and can never be purchased or granted.
+- `POST /subscriptions` creates a PENDING manual payment submission
+  (plan_id + method + transfer_reference; optional typed proof_storage_key).
+  The submission stays pending until an Admin approves/rejects it via
+  `/admin/payments/submissions/:id/approve|reject`. Resubmission = a new
+  submission (history immutable).
+- Approval is one transaction: submission ? approved, ACTIVE subscription
+  created (PROVISIONAL 30-day period — docs/08 defines no durations), audit
+  record, and the user notification. Rejection never activates anything.
+- `GET /subscriptions/current` / `GET /me/subscription` / `GET /me/entitlements`:
+  identity from JWT. Effective entitlements = active plan entitlements ?
+  ADMIN manual grants. Inactive plans and expired periods yield nothing.
+- Admin payment-destination config (`/admin/payments/config/:method`) is
+  backend-managed and audited; disabled methods cannot be selected by users.
+- Admin manual grants (`/admin/subscriptions/grant`, `/admin/entitlements/grant`)
+  are audited and NEVER create payment records. An existing ACTIVE
+  subscription blocks a new grant (409) — semantics pending CTO decision.
 
 ---
 

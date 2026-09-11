@@ -268,3 +268,65 @@ export const createReviewSchema = z.object({
   tag_ids: z.array(uuidParam).max(10).optional(),
 });
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+
+// -----------------------------------------------------------------------------
+// Subscriptions + manual payments + admin grants (Task 10I)
+// Source: docs/07_API.md §14–§15, docs/08_SUBSCRIPTIONS.md, CTO contract.
+// MVP manual payment methods ONLY: instapay | vodafone_cash. Payment
+// verification is ADMIN-authoritative; user input is never trusted.
+// -----------------------------------------------------------------------------
+
+export const paymentMethodSchema = z.enum(['instapay', 'vodafone_cash']);
+export type PaymentMethodValue = z.infer<typeof paymentMethodSchema>;
+
+/** POST /subscriptions — initiates activation via a manual payment submission. */
+export const createPaymentSubmissionSchema = z.object({
+  plan_id: uuidParam,
+  method: paymentMethodSchema,
+  transfer_reference: z.string().trim().min(4).max(100),
+  // Typed reference reserved for the future proof-media task (optional until
+  // approved storage exists). A generic pasted URL is NOT accepted here.
+  proof_storage_key: z.string().trim().min(4).max(512).optional(),
+});
+export type CreatePaymentSubmissionInput = z.infer<typeof createPaymentSubmissionSchema>;
+
+/** POST /subscriptions/:id/cancel — cancels RENEWAL (access until period end). */
+export const cancelSubscriptionSchema = z.object({}).strict();
+
+/** Admin: upsert the payment destination for one method. */
+export const adminPaymentConfigUpsertSchema = z.object({
+  account_identifier: z.string().trim().min(1).max(255),
+  display_name: z.string().trim().min(1).max(255),
+  is_enabled: z.boolean(),
+});
+export type AdminPaymentConfigUpsertInput = z.infer<typeof adminPaymentConfigUpsertSchema>;
+
+/** Admin: manual subscription grant. */
+export const adminGrantSubscriptionSchema = z.object({
+  user_id: uuidParam,
+  plan_id: uuidParam,
+});
+export type AdminGrantSubscriptionInput = z.infer<typeof adminGrantSubscriptionSchema>;
+
+/** Admin: manual entitlement grant (documented codes only). */
+export const adminGrantEntitlementSchema = z.object({
+  user_id: uuidParam,
+  entitlement_id: uuidParam,
+});
+export type AdminGrantEntitlementInput = z.infer<typeof adminGrantEntitlementSchema>;
+
+/** Admin: operational notification to a user (recipient server-resolved). */
+export const adminNotificationSchema = z.object({
+  user_id: uuidParam,
+  type: z.string().trim().min(1).max(64),
+  title_ar: z.string().trim().min(1).max(255),
+  body_ar: z.string().trim().min(1).max(2000),
+  data_json: z.record(z.unknown()).optional(),
+});
+export type AdminNotificationInput = z.infer<typeof adminNotificationSchema>;
+
+/** Admin: payment submission review list (?status=&page=&limit=). */
+export const adminSubmissionListQuerySchema = paginationSchema.extend({
+  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+});
+export type AdminSubmissionListQuery = z.infer<typeof adminSubmissionListQuerySchema>;

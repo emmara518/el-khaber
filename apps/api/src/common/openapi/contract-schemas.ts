@@ -409,7 +409,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   SendMessageDto: {
     type: 'object',
     description:
-      'POST /conversations/:id/messages payload. Text content only � ' +
+      'POST /conversations/:id/messages payload. Text content only � ' +
       'attachment types require storage infrastructure (later task). The ' +
       'sender is derived from the verified JWT, never from the payload.',
     properties: {
@@ -494,6 +494,162 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       createdAt: { type: 'string', format: 'date-time' },
     },
     required: ['id', 'type', 'titleAr', 'bodyAr', 'dataJson', 'readAt', 'createdAt'],
+    additionalProperties: false,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Subscriptions + manual payments + admin grants (Task 10I).
+  // Sources: docs/07 §14–§15, docs/08, CTO contract §1.
+  // ---------------------------------------------------------------------------
+
+  SubscriptionPlanDto: {
+    type: 'object',
+    description: 'Active subscription plan (role-aware, docs/08 §3).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      role: { type: 'string', enum: ['customer', 'technician', 'merchant'] },
+      code: { type: 'string' },
+      nameAr: { type: 'string' },
+      nameEn: { type: 'string', nullable: true },
+      billingInterval: { type: 'string' },
+      price: { type: 'number' },
+      currency: { type: 'string' },
+      isActive: { type: 'boolean' },
+      sortOrder: { type: 'integer' },
+    },
+    required: ['id', 'role', 'code', 'nameAr', 'nameEn', 'billingInterval', 'price', 'currency', 'isActive', 'sortOrder'],
+    additionalProperties: false,
+  },
+  CreatePaymentSubmissionDto: {
+    type: 'object',
+    description:
+      'POST /subscriptions payload: manual payment submission (Task 10I). ' +
+      'MVP methods: instapay | vodafone_cash. The submission stays PENDING ' +
+      'until ADMIN approval; user input is never authoritative. ' +
+      'proof_storage_key is a typed reference reserved for the future media task.',
+    properties: {
+      plan_id: { type: 'string', format: 'uuid' },
+      method: { type: 'string', enum: ['instapay', 'vodafone_cash'] },
+      transfer_reference: { type: 'string', minLength: 4, maxLength: 100 },
+      proof_storage_key: { type: 'string', minLength: 4, maxLength: 512 },
+    },
+    required: ['plan_id', 'method', 'transfer_reference'],
+    additionalProperties: false,
+  },
+  PaymentSubmissionDto: {
+    type: 'object',
+    description: 'Manual payment submission (pending → approved | rejected by ADMIN only).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      userId: { type: 'string', format: 'uuid' },
+      planId: { type: 'string', format: 'uuid' },
+      subscriptionId: { type: 'string', format: 'uuid', nullable: true },
+      method: { type: 'string', enum: ['instapay', 'vodafone_cash'] },
+      transferReference: { type: 'string' },
+      proofStorageKey: { type: 'string', nullable: true },
+      status: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
+      reviewedAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'userId', 'planId', 'subscriptionId', 'method', 'transferReference', 'proofStorageKey', 'status', 'reviewedAt', 'createdAt', 'updatedAt'],
+    additionalProperties: false,
+  },
+  PaymentMethodConfigDto: {
+    type: 'object',
+    description: 'Admin-managed manual payment destination (method + account + display name).',
+    properties: {
+      method: { type: 'string', enum: ['instapay', 'vodafone_cash'] },
+      accountIdentifier: { type: 'string' },
+      displayName: { type: 'string' },
+      isEnabled: { type: 'boolean' },
+    },
+    required: ['method', 'accountIdentifier', 'displayName', 'isEnabled'],
+    additionalProperties: false,
+  },
+  CurrentSubscriptionDto: {
+    type: 'object',
+    description: 'The principal current subscription with its plan (null when none).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: { type: 'string', enum: ['active', 'pending', 'trialing', 'past_due', 'cancelled', 'expired'] },
+      startedAt: { type: 'string', format: 'date-time' },
+      currentPeriodStart: { type: 'string', format: 'date-time' },
+      currentPeriodEnd: { type: 'string', format: 'date-time' },
+      renewalEnabled: { type: 'boolean' },
+      cancelledAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      plan: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          code: { type: 'string' },
+          nameAr: { type: 'string' },
+          nameEn: { type: 'string', nullable: true },
+          role: { type: 'string', enum: ['customer', 'technician', 'merchant'] },
+          price: { type: 'number' },
+          currency: { type: 'string' },
+          billingInterval: { type: 'string' },
+          isActive: { type: 'boolean' },
+        },
+        required: ['id', 'code', 'nameAr', 'nameEn', 'role', 'price', 'currency', 'billingInterval', 'isActive'],
+        additionalProperties: false,
+      },
+    },
+    required: ['id', 'status', 'startedAt', 'currentPeriodStart', 'currentPeriodEnd', 'renewalEnabled', 'cancelledAt', 'createdAt', 'plan'],
+    additionalProperties: false,
+  },
+  MeSubscriptionDto: {
+    type: 'object',
+    description: 'GET /me/subscription: current subscription + effective entitlement codes.',
+    properties: {
+      subscription: { ...REF('CurrentSubscriptionDto'), nullable: true },
+      entitlements: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['subscription', 'entitlements'],
+    additionalProperties: false,
+  },
+  MeEntitlementsDto: {
+    type: 'object',
+    description: 'GET /me/entitlements (docs/07 §15): effective entitlement codes.',
+    properties: { entitlements: { type: 'array', items: { type: 'string' } } },
+    required: ['entitlements'],
+    additionalProperties: false,
+  },
+  PaymentReviewResultDto: {
+    type: 'object',
+    description: 'Admin approval/rejection result payload.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: { type: 'string', enum: ['approved', 'rejected'] },
+      subscriptionId: { type: 'string', format: 'uuid', nullable: true },
+    },
+    required: ['id', 'status'],
+    additionalProperties: false,
+  },
+  AdminGrantResultDto: {
+    type: 'object',
+    description: 'Admin manual grant result (subscription or entitlement grant).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      userId: { type: 'string', format: 'uuid' },
+      planId: { type: 'string', format: 'uuid', nullable: true },
+      entitlementId: { type: 'string', format: 'uuid', nullable: true },
+      code: { type: 'string', nullable: true },
+      status: { type: 'string', nullable: true },
+    },
+    required: ['id', 'userId'],
+    additionalProperties: false,
+  },
+  AdminNotificationResultDto: {
+    type: 'object',
+    description: 'Admin operational notification creation result.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      userId: { type: 'string', format: 'uuid' },
+      type: { type: 'string' },
+    },
+    required: ['id', 'userId', 'type'],
     additionalProperties: false,
   },
   // ---------------------------------------------------------------------------

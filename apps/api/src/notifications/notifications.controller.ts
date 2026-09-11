@@ -3,15 +3,16 @@
  * Persistence + read-state APIs only — no delivery provider.
  */
 
+import { paginationSchema } from '@khabir/shared-validation';
 import { Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { paginationSchema } from '@khabir/shared-validation';
 
 import { CurrentUser, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+
 import { NotificationsService } from './notifications.service';
 
 import type { ApiMeta, ApiSuccess, NotificationDto } from '@khabir/shared-types';

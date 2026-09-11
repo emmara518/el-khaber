@@ -5,15 +5,18 @@
  * NO realtime — HTTP persistence only.
  */
 
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { Test } from '@nestjs/testing';
-import type { INestApplication } from '@nestjs/common';
 import { createRequire } from 'node:module';
+
+import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 import { AppModule } from '../dist/app.module';
 import { getConfig } from '../dist/config/app.config';
+
 import { createFakePrisma, type FakePrismaClient } from './fake-prisma';
+
+import type { INestApplication } from '@nestjs/common';
 
 const requireCjs = createRequire(import.meta.url);
 const { PrismaService } = requireCjs('../dist/database/prisma.service') as {

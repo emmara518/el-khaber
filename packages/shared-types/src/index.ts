@@ -44,4 +44,14 @@ export type {
   MessageDto,
   ReviewSummaryDto,
   NotificationDto,
+  // Subscriptions + manual payments (Task 10I)
+  SubscriptionPlanDto,
+  PaymentSubmissionDto,
+  PaymentMethodConfigDto,
+  CurrentSubscriptionDto,
+  MeSubscriptionDto,
+  MeEntitlementsDto,
+  PaymentReviewResultDto,
+  AdminGrantResultDto,
+  AdminNotificationResultDto,
 } from './generated/api-contract';

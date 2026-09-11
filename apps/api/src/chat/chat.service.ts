@@ -15,14 +15,15 @@
  * NO realtime: HTTP persistence/read/send only (Task 10H §10).
  */
 
-import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { buildPageMeta } from '@khabir/shared-types';
-import type { SendMessageInput } from '@khabir/shared-validation';
+import { Injectable, NotFoundException } from '@nestjs/common';
+
 
 import { PrismaService } from '../database/prisma.service';
 
 import type { ConversationDto, MessageDto } from './types';
+import type { SendMessageInput } from '@khabir/shared-validation';
 import type { Prisma, ServiceRequestStatus } from '@prisma/client';
 
 

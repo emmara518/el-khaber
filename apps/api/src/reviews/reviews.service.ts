@@ -12,15 +12,16 @@
  * public fields — no customer identifiers, no moderation state.
  */
 
-import { Injectable } from '@nestjs/common';
 
 import { buildPageMeta } from '@khabir/shared-types';
-import type { CreateReviewInput } from '@khabir/shared-validation';
+import { Injectable } from '@nestjs/common';
 
-import { PrismaService } from '../database/prisma.service';
+
 import { ConflictException, InvalidStateTransitionException, NotFoundException } from '../common/errors';
+import { PrismaService } from '../database/prisma.service';
 
 import type { ReviewSummaryDto } from '@khabir/shared-types';
+import type { CreateReviewInput } from '@khabir/shared-validation';
 import type { Prisma } from '@prisma/client';
 
 

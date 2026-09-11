@@ -5,9 +5,9 @@
  * product trigger types are ratified (nothing invented here).
  */
 
+import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { buildPageMeta } from '@khabir/shared-types';
 
 import { PrismaService } from '../database/prisma.service';
 

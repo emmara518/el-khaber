@@ -242,6 +242,91 @@ interface NotificationRow {
   createdAt: Date;
 }
 
+export type PaymentMethodValue = 'instapay' | 'vodafone_cash';
+export type PaymentSubmissionStatusValue = 'pending' | 'approved' | 'rejected';
+
+interface PaymentMethodConfigRow {
+  id: string;
+  method: PaymentMethodValue;
+  accountIdentifier: string;
+  displayName: string;
+  isEnabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface SubscriptionPlanRow {
+  id: string;
+  role: 'customer' | 'technician' | 'merchant';
+  code: string;
+  nameAr: string;
+  nameEn: string | null;
+  billingInterval: string;
+  price: number;
+  currency: string;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+interface SubscriptionRow {
+  id: string;
+  userId: string;
+  planId: string;
+  status: 'pending' | 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
+  startedAt: Date;
+  currentPeriodStart: Date;
+  currentPeriodEnd: Date;
+  cancelledAt: Date | null;
+  renewalEnabled: boolean;
+  providerReference: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface PaymentSubmissionRow {
+  id: string;
+  userId: string;
+  planId: string;
+  subscriptionId: string | null;
+  method: PaymentMethodValue;
+  transferReference: string;
+  proofStorageKey: string | null;
+  status: PaymentSubmissionStatusValue;
+  reviewedByAdminId: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface EntitlementGrantRow {
+  id: string;
+  userId: string;
+  entitlementId: string;
+  grantedByAdminId: string | null;
+  createdAt: Date;
+}
+
+interface EntitlementRow {
+  id: string;
+  code: string;
+  nameAr: string;
+  descriptionAr: string | null;
+  featureGroup: string;
+  isActive: boolean;
+}
+
+interface AuditLogRow {
+  id: string;
+  actorUserId: string | null;
+  actorAdminId: string | null;
+  entityType: string;
+  entityId: string;
+  action: string;
+  beforeJson: unknown;
+  afterJson: unknown;
+  createdAt: Date;
+}
+
 interface TechnicianServiceRow {
   technicianId: string;
   serviceId: string;
@@ -317,6 +402,13 @@ class FakePrismaClient {
   serviceRequestStatusHistoryStore: ServiceRequestStatusHistoryRow[] = [];
   merchantProfiles: MerchantProfileRow[] = [];
   products: ProductRow[] = [];
+  subscriptionPlans: SubscriptionPlanRow[] = [];
+  subscriptions: SubscriptionRow[] = [];
+  entitlements: EntitlementRow[] = [];
+  entitlementGrantRows: EntitlementGrantRow[] = [];
+  paymentMethodConfigs: PaymentMethodConfigRow[] = [];
+  paymentSubmissionRows: PaymentSubmissionRow[] = [];
+  auditLogRows: AuditLogRow[] = [];
   conversations: ConversationRow[] = [];
   conversationParticipants: ConversationParticipantRow[] = [];
   messageRows: MessageRow[] = [];
@@ -358,9 +450,12 @@ class FakePrismaClient {
   }
 
   user = {
-    findFirst: async (args: { where: { OR: Array<{ phone?: string } | { email?: string } | { id: string }> } }): Promise<UserRow | null> => {
+    findFirst: async (args: { where: { OR?: Array<{ phone?: string } | { email?: string } | { id: string }>; id?: string } }): Promise<UserRow | null> => {
+      if (args.where.id !== undefined) {
+        return this.users.find((u) => u.id === args.where.id) ?? null;
+      }
       for (const u of this.users) {
-        for (const cond of args.where.OR) {
+        for (const cond of args.where.OR ?? []) {
           if ('phone' in cond && cond.phone !== undefined && u.phone === cond.phone) {
             return u;
           }
@@ -1105,6 +1200,328 @@ class FakePrismaClient {
         return n;
       });
       return { count };
+    },
+    create: async (args: { data: { userId: string; type: string; titleAr: string; bodyAr: string; dataJson?: unknown } }): Promise<{ id: string }> => {
+      const row: NotificationRow = {
+        id: randomUUID(),
+        userId: args.data.userId,
+        type: args.data.type,
+        titleAr: args.data.titleAr,
+        bodyAr: args.data.bodyAr,
+        dataJson: (args.data.dataJson as Record<string, unknown> | undefined) ?? null,
+        readAt: null,
+        createdAt: new Date(),
+      };
+      this.notificationRows.push(row);
+      return { id: row.id };
+    },
+  };
+
+  subscriptionPlan = {
+    count: async (args: { where: { role?: string; isActive?: boolean } }): Promise<number> =>
+      this.subscriptionPlans.filter(
+        (p) =>
+          (args.where.role === undefined || p.role === args.where.role) &&
+          (args.where.isActive === undefined || p.isActive === args.where.isActive),
+      ).length,
+    findMany: async (args: {
+      where: { role?: string; isActive?: boolean };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.subscriptionPlans.filter(
+        (p) =>
+          (args.where.role === undefined || p.role === args.where.role) &&
+          (args.where.isActive === undefined || p.isActive === args.where.isActive),
+      );
+      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.code.localeCompare(b.code));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    findFirst: async (args: { where: { id?: string } }): Promise<Record<string, unknown> | null> => {
+      return this.subscriptionPlans.find((p) => p.id === args.where.id) ?? null;
+    },
+  };
+
+  subscription = {
+    findFirst: async (args: {
+      where: {
+        id?: string;
+        userId?: string;
+        status?: string | { in: string[]; not?: string };
+        currentPeriodEnd?: { gt?: Date };
+        plan?: { isActive?: boolean; role?: string };
+      };
+      orderBy?: Array<Record<string, string>>;
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
+      const planFilter = args.where.plan;
+      const sorted = [...this.matchSubscriptions(args.where)].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      );
+      const row = sorted[0];
+      if (row === undefined) {
+        return null;
+      }
+      // Attach the plan relation (getCurrent selects plan fields).
+      const planRow = this.subscriptionPlans.find((p) => p.id === row.planId);
+      if (planRow === undefined) {
+        return null;
+      }
+      const planSelect = (planFilter as { select?: Record<string, unknown> } | undefined)?.select;
+      const withPlan = {
+        ...row,
+        plan: applySelect(planRow as unknown as Record<string, unknown>, planSelect),
+      };
+      return applySelect(withPlan as unknown as Record<string, unknown>, args.select);
+    },
+    create: async (args: {
+      data: Omit<
+        SubscriptionRow,
+        'id' | 'createdAt' | 'updatedAt' | 'cancelledAt' | 'providerReference'
+      > & { providerReference?: string | null };
+      select?: Record<string, unknown>;
+    }): Promise<{ id: string }> => {
+      const now = new Date();
+      const row: SubscriptionRow = {
+        id: randomUUID(),
+        cancelledAt: null,
+        providerReference: null,
+        ...args.data,
+        createdAt: now,
+        updatedAt: now,
+      } as SubscriptionRow;
+      this.subscriptions.push(row);
+      return { id: row.id };
+    },
+    updateMany: async (args: {
+      where: { id?: string; userId?: string; status?: string };
+      data: Record<string, unknown>;
+    }): Promise<{ count: number }> => {
+      let count = 0;
+      this.subscriptions = this.subscriptions.map((s) => {
+        if (
+          (args.where.id === undefined || s.id === args.where.id) &&
+          (args.where.userId === undefined || s.userId === args.where.userId) &&
+          (args.where.status === undefined || s.status === args.where.status)
+        ) {
+          count += 1;
+          return { ...s, ...args.data, updatedAt: new Date() } as SubscriptionRow;
+        }
+        return s;
+      });
+      return { count };
+    },
+  };
+
+  private matchSubscriptions(
+    where: {
+      id?: string;
+      userId?: string;
+      status?: string | { in: string[]; not?: string };
+      currentPeriodEnd?: { gt?: Date };
+      plan?: { isActive?: boolean; role?: string };
+    },
+  ): SubscriptionRow[] {
+    return this.subscriptions.filter((s) => {
+      if (where.id !== undefined && s.id !== where.id) return false;
+      if (where.userId !== undefined && s.userId !== where.userId) return false;
+      if (where.status !== undefined) {
+        if (typeof where.status === 'string') {
+          if (s.status !== where.status) return false;
+        } else {
+          if (where.status.in !== undefined && !where.status.in.includes(s.status)) return false;
+          if (where.status.not !== undefined && s.status === where.status.not) return false;
+        }
+      }
+      if (where.currentPeriodEnd?.gt !== undefined && s.currentPeriodEnd <= where.currentPeriodEnd.gt) {
+        return false;
+      }
+      if (where.plan !== undefined) {
+        const plan = this.subscriptionPlans.find((p) => p.id === s.planId);
+        if (plan === undefined) return false;
+        if (where.plan.isActive !== undefined && plan.isActive !== where.plan.isActive) return false;
+        if (where.plan.role !== undefined && plan.role !== where.plan.role) return false;
+      }
+      return true;
+    });
+  }
+
+  paymentMethodConfig = {
+    findFirst: async (args: { where: { method?: PaymentMethodValue; isEnabled?: boolean } }): Promise<PaymentMethodConfigRow | null> => {
+      return (
+        this.paymentMethodConfigs.find(
+          (c) =>
+            (args.where.method === undefined || c.method === args.where.method) &&
+            (args.where.isEnabled === undefined || c.isEnabled === args.where.isEnabled),
+        ) ?? null
+      );
+    },
+    findMany: async (args: { where?: { isEnabled?: boolean }; orderBy?: Array<Record<string, string>> }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.paymentMethodConfigs.filter(
+        (c) => args.where?.isEnabled === undefined || c.isEnabled === args.where.isEnabled,
+      );
+      rows = [...rows].sort((a, b) => a.method.localeCompare(b.method));
+      return rows.map((r) => r as unknown as Record<string, unknown>);
+    },
+    create: async (args: { data: Omit<PaymentMethodConfigRow, 'id' | 'createdAt' | 'updatedAt'> }): Promise<PaymentMethodConfigRow> => {
+      const now = new Date();
+      const row: PaymentMethodConfigRow = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
+      this.paymentMethodConfigs.push(row);
+      return row;
+    },
+    update: async (args: { where: { id: string }; data: Partial<PaymentMethodConfigRow> }): Promise<PaymentMethodConfigRow> => {
+      const idx = this.paymentMethodConfigs.findIndex((c) => c.id === args.where.id);
+      this.paymentMethodConfigs[idx] = { ...this.paymentMethodConfigs[idx], ...args.data, updatedAt: new Date() };
+      return this.paymentMethodConfigs[idx];
+    },
+  };
+
+  paymentSubmission = {
+    count: async (args: { where: { userId?: string; status?: PaymentSubmissionStatusValue } }): Promise<number> =>
+      this.paymentSubmissionRows.filter(
+        (s) =>
+          (args.where.userId === undefined || s.userId === args.where.userId) &&
+          (args.where.status === undefined || s.status === args.where.status),
+      ).length,
+    findMany: async (args: {
+      where: { userId?: string; status?: PaymentSubmissionStatusValue };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.paymentSubmissionRows.filter(
+        (s) =>
+          (args.where.userId === undefined || s.userId === args.where.userId) &&
+          (args.where.status === undefined || s.status === args.where.status),
+      );
+      rows = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    findFirst: async (args: {
+      where: { id?: string; userId?: string; status?: PaymentSubmissionStatusValue; planId?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
+      const row = this.paymentSubmissionRows.find(
+        (s) =>
+          (args.where.id === undefined || s.id === args.where.id) &&
+          (args.where.userId === undefined || s.userId === args.where.userId) &&
+          (args.where.planId === undefined || s.planId === args.where.planId) &&
+          (args.where.status === undefined || s.status === args.where.status),
+      );
+      if (row === undefined) {
+        return null;
+      }
+      // Attach plan/user relations (services read submission.plan.isActive).
+      const plan = this.subscriptionPlans.find((p) => p.id === row.planId);
+      const user = this.users.find((u) => u.id === row.userId);
+      const withRelations = {
+        ...row,
+        ...(plan !== undefined ? { plan: applySelect(plan as unknown as Record<string, unknown>, (args.select as { plan?: { select?: Record<string, unknown> } } | undefined)?.plan?.select) } : {}),
+        ...(user !== undefined ? { user: { role: user.role } } : {}),
+      };
+      return applySelect(withRelations as unknown as Record<string, unknown>, args.select);
+    },
+    create: async (args: {
+      data: Omit<
+        PaymentSubmissionRow,
+        'id' | 'createdAt' | 'updatedAt' | 'subscriptionId' | 'reviewedByAdminId' | 'reviewedAt'
+      >;
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
+      const now = new Date();
+      const row: PaymentSubmissionRow = {
+        id: randomUUID(),
+        subscriptionId: null,
+        reviewedByAdminId: null,
+        reviewedAt: null,
+        ...args.data,
+        // Real Prisma round-trips nullable columns as null (never undefined).
+        proofStorageKey: args.data.proofStorageKey ?? null,
+        createdAt: now,
+        updatedAt: now,
+      } as PaymentSubmissionRow;
+      this.paymentSubmissionRows.push(row);
+      return applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    updateMany: async (args: {
+      where: { id?: string; status?: PaymentSubmissionStatusValue };
+      data: Record<string, unknown>;
+    }): Promise<{ count: number }> => {
+      let count = 0;
+      this.paymentSubmissionRows = this.paymentSubmissionRows.map((s) => {
+        if (
+          (args.where.id === undefined || s.id === args.where.id) &&
+          (args.where.status === undefined || s.status === args.where.status)
+        ) {
+          count += 1;
+          return { ...s, ...args.data, updatedAt: new Date() } as PaymentSubmissionRow;
+        }
+        return s;
+      });
+      return { count };
+    },
+    update: async (args: { where: { id: string }; data: Record<string, unknown> }): Promise<PaymentSubmissionRow> => {
+      const idx = this.paymentSubmissionRows.findIndex((s) => s.id === args.where.id);
+      this.paymentSubmissionRows[idx] = {
+        ...this.paymentSubmissionRows[idx],
+        ...args.data,
+        updatedAt: new Date(),
+      } as PaymentSubmissionRow;
+      return this.paymentSubmissionRows[idx];
+    },
+  };
+
+  entitlement = {
+    findFirst: async (args: { where: { id?: string } }): Promise<{ id: string; code: string; isActive: boolean } | null> => {
+      return this.entitlements.find((e) => e.id === args.where.id) ?? null;
+    },
+  };
+
+  entitlementGrant = {
+    findMany: async (args: {
+      where: { userId?: string; entitlement?: { isActive?: boolean } };
+      select?: Record<string, unknown>;
+    }): Promise<Array<{ entitlement: { code: string } }>> => {
+      return this.entitlementGrantRows
+        .filter((g) => {
+          if (args.where.userId !== undefined && g.userId !== args.where.userId) return false;
+          if (args.where.entitlement?.isActive === true) {
+            const ent = this.entitlements.find((e) => e.id === g.entitlementId);
+            if (ent === undefined || !ent.isActive) return false;
+          }
+          return true;
+        })
+        .map((g) => {
+          const ent = this.entitlements.find((e) => e.id === g.entitlementId);
+          return { entitlement: { code: ent?.code ?? '' } };
+        });
+    },
+    findFirst: async (args: { where: { userId?: string; entitlementId?: string } }): Promise<{ id: string } | null> => {
+      return (
+        this.entitlementGrantRows.find(
+          (g) =>
+            (args.where.userId === undefined || g.userId === args.where.userId) &&
+            (args.where.entitlementId === undefined || g.entitlementId === args.where.entitlementId),
+        ) ?? null
+      );
+    },
+    create: async (args: { data: Omit<EntitlementGrantRow, 'id' | 'createdAt'> }): Promise<{ id: string }> => {
+      const row: EntitlementGrantRow = { id: randomUUID(), createdAt: new Date(), ...args.data };
+      this.entitlementGrantRows.push(row);
+      return { id: row.id };
+    },
+  };
+
+  auditLog = {
+    create: async (args: { data: Omit<AuditLogRow, 'id' | 'createdAt'> }): Promise<{ id: string }> => {
+      const row: AuditLogRow = { id: randomUUID(), createdAt: new Date(), ...args.data };
+      this.auditLogRows.push(row);
+      return { id: row.id };
     },
   };
 

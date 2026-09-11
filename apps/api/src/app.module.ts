@@ -18,6 +18,7 @@ import { MerchantModule } from './merchant/merchant.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
@@ -35,6 +36,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     ChatModule,
     ReviewsModule,
     NotificationsModule,
+    SubscriptionsModule,
   ],
   providers: [
     Reflector,

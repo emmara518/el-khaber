@@ -11,6 +11,51 @@ components:
       required:
         - accepted
       type: object
+    AdminGrantResultDto:
+      additionalProperties: false
+      description: Admin manual grant result (subscription or entitlement grant).
+      properties:
+        code:
+          nullable: true
+          type: string
+        entitlementId:
+          format: uuid
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        planId:
+          format: uuid
+          nullable: true
+          type: string
+        status:
+          nullable: true
+          type: string
+        userId:
+          format: uuid
+          type: string
+      required:
+        - id
+        - userId
+      type: object
+    AdminNotificationResultDto:
+      additionalProperties: false
+      description: Admin operational notification creation result.
+      properties:
+        id:
+          format: uuid
+          type: string
+        type:
+          type: string
+        userId:
+          format: uuid
+          type: string
+      required:
+        - id
+        - userId
+        - type
+      type: object
     ApiMeta:
       additionalProperties: true
       description: >-
@@ -170,6 +215,34 @@ components:
       required:
         - nameAr
       type: object
+    CreatePaymentSubmissionDto:
+      additionalProperties: false
+      description: >-
+        POST /subscriptions payload: manual payment submission (Task 10I). MVP methods: instapay | vodafone_cash. The
+        submission stays PENDING until ADMIN approval; user input is never authoritative. proof_storage_key is a typed
+        reference reserved for the future media task.
+      properties:
+        method:
+          enum:
+            - instapay
+            - vodafone_cash
+          type: string
+        plan_id:
+          format: uuid
+          type: string
+        proof_storage_key:
+          maxLength: 512
+          minLength: 4
+          type: string
+        transfer_reference:
+          maxLength: 100
+          minLength: 4
+          type: string
+      required:
+        - plan_id
+        - method
+        - transfer_reference
+      type: object
     CreateReviewDto:
       additionalProperties: false
       description: >-
@@ -229,6 +302,89 @@ components:
         - appliance_category_id
         - problem_description
         - location_id
+      type: object
+    CurrentSubscriptionDto:
+      additionalProperties: false
+      description: The principal current subscription with its plan (null when none).
+      properties:
+        cancelledAt:
+          format: date-time
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        currentPeriodEnd:
+          format: date-time
+          type: string
+        currentPeriodStart:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        plan:
+          additionalProperties: false
+          properties:
+            billingInterval:
+              type: string
+            code:
+              type: string
+            currency:
+              type: string
+            id:
+              format: uuid
+              type: string
+            isActive:
+              type: boolean
+            nameAr:
+              type: string
+            nameEn:
+              nullable: true
+              type: string
+            price:
+              type: number
+            role:
+              enum:
+                - customer
+                - technician
+                - merchant
+              type: string
+          required:
+            - id
+            - code
+            - nameAr
+            - nameEn
+            - role
+            - price
+            - currency
+            - billingInterval
+            - isActive
+          type: object
+        renewalEnabled:
+          type: boolean
+        startedAt:
+          format: date-time
+          type: string
+        status:
+          enum:
+            - active
+            - pending
+            - trialing
+            - past_due
+            - cancelled
+            - expired
+          type: string
+      required:
+        - id
+        - status
+        - startedAt
+        - currentPeriodStart
+        - currentPeriodEnd
+        - renewalEnabled
+        - cancelledAt
+        - createdAt
+        - plan
       type: object
     ErrorCode:
       enum:
@@ -359,6 +515,32 @@ components:
     MeDto:
       $ref: '#/components/schemas/AuthUserDto'
       description: Authenticated user profile (see AuthUserDto).
+    MeEntitlementsDto:
+      additionalProperties: false
+      description: 'GET /me/entitlements (docs/07 §15): effective entitlement codes.'
+      properties:
+        entitlements:
+          items:
+            type: string
+          type: array
+      required:
+        - entitlements
+      type: object
+    MeSubscriptionDto:
+      additionalProperties: false
+      description: 'GET /me/subscription: current subscription + effective entitlement codes.'
+      properties:
+        entitlements:
+          items:
+            type: string
+          type: array
+        subscription:
+          $ref: '#/components/schemas/CurrentSubscriptionDto'
+          nullable: true
+      required:
+        - subscription
+        - entitlements
+      type: object
     MerchantProductDto:
       additionalProperties: false
       description: 'A merchant-owned catalog product (status: active | suspended).'
@@ -517,6 +699,103 @@ components:
         - dataJson
         - readAt
         - createdAt
+      type: object
+    PaymentMethodConfigDto:
+      additionalProperties: false
+      description: Admin-managed manual payment destination (method + account + display name).
+      properties:
+        accountIdentifier:
+          type: string
+        displayName:
+          type: string
+        isEnabled:
+          type: boolean
+        method:
+          enum:
+            - instapay
+            - vodafone_cash
+          type: string
+      required:
+        - method
+        - accountIdentifier
+        - displayName
+        - isEnabled
+      type: object
+    PaymentReviewResultDto:
+      additionalProperties: false
+      description: Admin approval/rejection result payload.
+      properties:
+        id:
+          format: uuid
+          type: string
+        status:
+          enum:
+            - approved
+            - rejected
+          type: string
+        subscriptionId:
+          format: uuid
+          nullable: true
+          type: string
+      required:
+        - id
+        - status
+      type: object
+    PaymentSubmissionDto:
+      additionalProperties: false
+      description: Manual payment submission (pending → approved | rejected by ADMIN only).
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        method:
+          enum:
+            - instapay
+            - vodafone_cash
+          type: string
+        planId:
+          format: uuid
+          type: string
+        proofStorageKey:
+          nullable: true
+          type: string
+        reviewedAt:
+          format: date-time
+          nullable: true
+          type: string
+        status:
+          enum:
+            - pending
+            - approved
+            - rejected
+          type: string
+        subscriptionId:
+          format: uuid
+          nullable: true
+          type: string
+        transferReference:
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        userId:
+          format: uuid
+          type: string
+      required:
+        - id
+        - userId
+        - planId
+        - subscriptionId
+        - method
+        - transferReference
+        - proofStorageKey
+        - status
+        - reviewedAt
+        - createdAt
+        - updatedAt
       type: object
     ReadyDto:
       additionalProperties: false
@@ -807,6 +1086,48 @@ components:
         - createdAt
         - updatedAt
       type: object
+    SubscriptionPlanDto:
+      additionalProperties: false
+      description: Active subscription plan (role-aware, docs/08 §3).
+      properties:
+        billingInterval:
+          type: string
+        code:
+          type: string
+        currency:
+          type: string
+        id:
+          format: uuid
+          type: string
+        isActive:
+          type: boolean
+        nameAr:
+          type: string
+        nameEn:
+          nullable: true
+          type: string
+        price:
+          type: number
+        role:
+          enum:
+            - customer
+            - technician
+            - merchant
+          type: string
+        sortOrder:
+          type: integer
+      required:
+        - id
+        - role
+        - code
+        - nameAr
+        - nameEn
+        - billingInterval
+        - price
+        - currency
+        - isActive
+        - sortOrder
+      type: object
     TechnicianAvailabilityStatus:
       enum:
         - available
@@ -1077,6 +1398,61 @@ paths:
           description: Invalid, expired, or replayed refresh token.
       tags:
         - admin-auth
+  /api/v1/admin/entitlements/grant:
+    post:
+      operationId: AdminGrantsController_grantEntitlement
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                entitlement_id:
+                  type: string
+                user_id:
+                  type: string
+              required:
+                - user_id
+                - entitlement_id
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminGrantResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Entitlement granted manually (audited).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: User or entitlement not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Entitlement already granted / inactive.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/admin/me:
     get:
       operationId: AdminMeController_me
@@ -1094,6 +1470,421 @@ paths:
         - bearer: []
       tags:
         - admin-auth
+  /api/v1/admin/notifications:
+    post:
+      operationId: AdminNotificationsController_notify
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                body_ar:
+                  maxLength: 2000
+                  minLength: 1
+                  type: string
+                data_json: {}
+                title_ar:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                type:
+                  maxLength: 64
+                  minLength: 1
+                  type: string
+                user_id:
+                  type: string
+              required:
+                - user_id
+                - type
+                - title_ar
+                - body_ar
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminNotificationResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Operational notification created (audited).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Recipient user not found.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/payments/config:
+    get:
+      operationId: AdminPaymentsController_getConfig
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentMethodConfigDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: All configured manual payment destinations.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
+  /api/v1/admin/payments/config/{method}:
+    put:
+      operationId: AdminPaymentsController_upsertConfig
+      parameters:
+        - in: path
+          name: method
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                account_identifier:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                display_name:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                is_enabled:
+                  type: boolean
+              required:
+                - account_identifier
+                - display_name
+                - is_enabled
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentMethodConfigDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Payment destination upserted (audited).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
+  /api/v1/admin/payments/submissions:
+    get:
+      operationId: AdminPaymentsController_listSubmissions
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - pending
+              - approved
+              - rejected
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentSubmissionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Payment submissions (oldest first for the review queue).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
+  /api/v1/admin/payments/submissions/{id}:
+    get:
+      operationId: AdminPaymentsController_detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentSubmissionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Submission detail (incl. typed proof reference).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Payment submission not found.
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
+  /api/v1/admin/payments/submissions/{id}/approve:
+    post:
+      operationId: AdminPaymentsController_approve
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentApprovalResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: 'Approved: ACTIVE subscription + audit + notification (one transaction).'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Payment submission not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Already reviewed / plan unavailable (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
+  /api/v1/admin/payments/submissions/{id}/reject:
+    post:
+      operationId: AdminPaymentsController_reject
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentRejectResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: 'Rejected: no activation + audit + notification (one transaction).'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Payment submission not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Already reviewed (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
+  /api/v1/admin/subscriptions/grant:
+    post:
+      operationId: AdminGrantsController_grantSubscription
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                plan_id:
+                  type: string
+                user_id:
+                  type: string
+              required:
+                - user_id
+                - plan_id
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminGrantResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: ACTIVE subscription granted manually (audited).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: User or plan not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Active-subscription conflict / plan inactive / role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/appliance-categories:
     get:
       operationId: ApplianceCategoriesController_list
@@ -1685,6 +2476,74 @@ paths:
         - bearer: []
       tags:
         - me
+  /api/v1/me/entitlements:
+    get:
+      operationId: SubscriptionsController_meEntitlements
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MeEntitlementsDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Effective entitlement codes (plan ∪ manual grants).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/me/subscription:
+    get:
+      operationId: SubscriptionsController_meSubscription
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MeSubscriptionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Current subscription with effective entitlements.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
   /api/v1/merchant/products:
     get:
       operationId: MerchantProductsController_list
@@ -2080,6 +2939,77 @@ paths:
         - bearer: []
       tags:
         - merchant
+  /api/v1/merchant/subscription/current:
+    get:
+      operationId: MerchantSubscriptionController_current
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MeSubscriptionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Merchant current subscription + entitlements.
+      security:
+        - bearer: []
+      tags:
+        - merchant
+  /api/v1/merchant/subscription/payment:
+    post:
+      operationId: MerchantSubscriptionController_submitPayment
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                method:
+                  enum:
+                    - instapay
+                    - vodafone_cash
+                  type: string
+                plan_id:
+                  type: string
+                proof_storage_key:
+                  maxLength: 512
+                  minLength: 4
+                  type: string
+                transfer_reference:
+                  maxLength: 100
+                  minLength: 4
+                  type: string
+              required:
+                - plan_id
+                - method
+                - transfer_reference
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentSubmissionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Merchant payment submission (pending admin review).
+      security:
+        - bearer: []
+      tags:
+        - merchant
   /api/v1/notifications:
     get:
       operationId: NotificationsController_list
@@ -2206,6 +3136,87 @@ paths:
         - bearer: []
       tags:
         - notifications
+  /api/v1/payments/config:
+    get:
+      operationId: SubscriptionsController_paymentConfig
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentMethodConfigDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Currently enabled manual payment destinations.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/payments/submissions:
+    get:
+      operationId: SubscriptionsController_listOwnSubmissions
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentSubmissionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own payment submissions (paginated).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
   /api/v1/ready:
     get:
       operationId: HealthController_ready
@@ -2830,6 +3841,219 @@ paths:
           description: Validation failed (canonical error envelope).
       tags:
         - catalog
+  /api/v1/subscription-plans:
+    get:
+      operationId: SubscriptionsController_listPlans
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SubscriptionPlanDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active plans for the current user role (paginated).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/subscriptions:
+    post:
+      operationId: SubscriptionsController_createSubmission
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                method:
+                  enum:
+                    - instapay
+                    - vodafone_cash
+                  type: string
+                plan_id:
+                  type: string
+                proof_storage_key:
+                  maxLength: 512
+                  minLength: 4
+                  type: string
+                transfer_reference:
+                  maxLength: 100
+                  minLength: 4
+                  type: string
+              required:
+                - plan_id
+                - method
+                - transfer_reference
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentSubmissionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Payment submission created (pending admin review).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Plan not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Plan unavailable / method disabled / role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/subscriptions/current:
+    get:
+      operationId: SubscriptionsController_current
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CurrentSubscriptionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Current subscription or null.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/subscriptions/{id}/cancel:
+    post:
+      operationId: SubscriptionsController_cancel
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CurrentSubscriptionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Renewal cancelled; access remains until period end.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Subscription not found or not owned.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Subscription is not active.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
   /api/v1/technicians:
     get:
       operationId: TechniciansController_list

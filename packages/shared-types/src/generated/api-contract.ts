@@ -15,6 +15,27 @@ export interface AcceptedDto {
 }
 
 /**
+ * Admin manual grant result (subscription or entitlement grant).
+ */
+export interface AdminGrantResultDto {
+  code?: string | null;
+  entitlementId?: string | null;
+  id: string;
+  planId?: string | null;
+  status?: string | null;
+  userId: string;
+}
+
+/**
+ * Admin operational notification creation result.
+ */
+export interface AdminNotificationResultDto {
+  id: string;
+  type: string;
+  userId: string;
+}
+
+/**
  * List metadata (docs/07_API.md §19). The server normalizes page/limit (max server-enforced limit: 100) and computes total/totalPages/hasNext. Clients must never derive totals themselves.
  */
 export interface ApiMeta {
@@ -86,6 +107,16 @@ export interface CreateMerchantProductDto {
 }
 
 /**
+ * POST /subscriptions payload: manual payment submission (Task 10I). MVP methods: instapay | vodafone_cash. The submission stays PENDING until ADMIN approval; user input is never authoritative. proof_storage_key is a typed reference reserved for the future media task.
+ */
+export interface CreatePaymentSubmissionDto {
+  method: 'instapay' | 'vodafone_cash';
+  plan_id: string;
+  proof_storage_key?: string;
+  transfer_reference: string;
+}
+
+/**
  * POST /service-requests/:id/review payload. Eligibility is documented: the request owner, after completion, one review per request. Tags must reference seeded/documented review tags.
  */
 export interface CreateReviewDto {
@@ -106,6 +137,21 @@ export interface CreateServiceRequestDto {
   scheduled_at?: string;
   service_id?: string;
   technician_id: string;
+}
+
+/**
+ * The principal current subscription with its plan (null when none).
+ */
+export interface CurrentSubscriptionDto {
+  cancelledAt: string | null;
+  createdAt: string;
+  currentPeriodEnd: string;
+  currentPeriodStart: string;
+  id: string;
+  plan: { billingInterval: string; code: string; currency: string; id: string; isActive: boolean; nameAr: string; nameEn: string | null; price: number; role: 'customer' | 'technician' | 'merchant' };
+  renewalEnabled: boolean;
+  startedAt: string;
+  status: 'active' | 'pending' | 'trialing' | 'past_due' | 'cancelled' | 'expired';
 }
 
 export type ErrorCode = 'AUTH_REQUIRED' | 'AUTH_INVALID' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR' | 'CONFLICT' | 'RATE_LIMITED' | 'SUBSCRIPTION_REQUIRED' | 'ENTITLEMENT_REQUIRED' | 'INVALID_STATE_TRANSITION' | 'UPLOAD_REJECTED' | 'INTERNAL_ERROR';
@@ -155,6 +201,21 @@ export interface HealthDto {
 }
 
 export type MeDto = AuthUserDto;
+
+/**
+ * GET /me/entitlements (docs/07 §15): effective entitlement codes.
+ */
+export interface MeEntitlementsDto {
+  entitlements: Array<string>;
+}
+
+/**
+ * GET /me/subscription: current subscription + effective entitlement codes.
+ */
+export interface MeSubscriptionDto {
+  entitlements: Array<string>;
+  subscription: CurrentSubscriptionDto | null;
+}
 
 /**
  * A merchant-owned catalog product (status: active | suspended).
@@ -211,6 +272,42 @@ export interface NotificationDto {
   readAt: string | null;
   titleAr: string;
   type: string;
+}
+
+/**
+ * Admin-managed manual payment destination (method + account + display name).
+ */
+export interface PaymentMethodConfigDto {
+  accountIdentifier: string;
+  displayName: string;
+  isEnabled: boolean;
+  method: 'instapay' | 'vodafone_cash';
+}
+
+/**
+ * Admin approval/rejection result payload.
+ */
+export interface PaymentReviewResultDto {
+  id: string;
+  status: 'approved' | 'rejected';
+  subscriptionId?: string | null;
+}
+
+/**
+ * Manual payment submission (pending → approved | rejected by ADMIN only).
+ */
+export interface PaymentSubmissionDto {
+  createdAt: string;
+  id: string;
+  method: 'instapay' | 'vodafone_cash';
+  planId: string;
+  proofStorageKey: string | null;
+  reviewedAt: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  subscriptionId: string | null;
+  transferReference: string;
+  updatedAt: string;
+  userId: string;
 }
 
 /**
@@ -303,6 +400,22 @@ export interface ServiceRequestSummaryDto {
   status: ServiceRequestStatus;
   technicianId: string | null;
   updatedAt: string;
+}
+
+/**
+ * Active subscription plan (role-aware, docs/08 §3).
+ */
+export interface SubscriptionPlanDto {
+  billingInterval: string;
+  code: string;
+  currency: string;
+  id: string;
+  isActive: boolean;
+  nameAr: string;
+  nameEn: string | null;
+  price: number;
+  role: 'customer' | 'technician' | 'merchant';
+  sortOrder: number;
 }
 
 export type TechnicianAvailabilityStatus = 'available' | 'busy' | 'unavailable';

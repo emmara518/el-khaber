@@ -74,6 +74,8 @@ model User {
   sentMessages               Message[]
   favorites                  Favorite[]
   subscriptions              Subscription[]
+  paymentSubmissions         PaymentSubmission[]
+  entitlementGrants          EntitlementGrant[]
   notifications              Notification[]
   auditLogEntries            AuditLog[]
 
@@ -164,7 +166,10 @@ model AdminUser {
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  refreshTokens AdminRefreshToken[]
+  refreshTokens          AdminRefreshToken[]
+  paymentReviewDecisions PaymentSubmission[]
+  entitlementGrantsGiven EntitlementGrant[]
+  auditLogEntries        AuditLog[]
 
   @@index([role])
   @@index([status])
@@ -305,12 +310,12 @@ model TechnicianProfile {
   createdAt              DateTime                     @default(now()) @map("created_at")
   updatedAt              DateTime                     @updatedAt @map("updated_at")
 
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  services           TechnicianService[]
-  serviceRequests    ServiceRequest[]
-  reviews            Review[]
-  favorites          Favorite[]
-  serviceAreas       TechnicianServiceArea[]
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services        TechnicianService[]
+  serviceRequests ServiceRequest[]
+  reviews         Review[]
+  favorites       Favorite[]
+  serviceAreas    TechnicianServiceArea[]
 
   @@index([verificationStatus])
   @@index([ratingAverage])
@@ -330,19 +335,19 @@ model TechnicianProfile {
 // filters (docs/07_API.md §6) once their exact query semantics are ratified.
 
 model TechnicianServiceArea {
-  id           String   @id @default(uuid()) @db.Uuid
-  technicianId String   @map("technician_id") @db.Uuid
+  id           String                    @id @default(uuid()) @db.Uuid
+  technicianId String                    @map("technician_id") @db.Uuid
   // Technician-entered area label. Unique per technician (duplicate
   // service-area prevention).
-  labelAr      String   @map("label_ar") @db.VarChar(128)
+  labelAr      String                    @map("label_ar") @db.VarChar(128)
   // Documented logical coordinates (docs/06_DATABASE.md §6).
-  latitude     Decimal  @map("latitude") @db.Decimal(9, 6)
-  longitude    Decimal  @map("longitude") @db.Decimal(9, 6)
+  latitude     Decimal                   @map("latitude") @db.Decimal(9, 6)
+  longitude    Decimal                   @map("longitude") @db.Decimal(9, 6)
   // PostGIS geography(Point, 4326), derived from latitude/longitude by the
   // shared trigger. Managed outside Prisma; excluded from the client.
   coordinates  Unsupported("geography")?
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
 
   technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
 
@@ -746,8 +751,9 @@ model SubscriptionPlan {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  subscriptions Subscription[]
-  entitlements  PlanEntitlement[]
+  subscriptions      Subscription[]
+  entitlements       PlanEntitlement[]
+  paymentSubmissions PaymentSubmission[]
 
   @@unique([role, code])
   @@map("subscription_plans")
@@ -761,7 +767,8 @@ model Entitlement {
   featureGroup  String  @map("feature_group") @db.VarChar(64)
   isActive      Boolean @default(true) @map("is_active")
 
-  plans PlanEntitlement[]
+  plans  PlanEntitlement[]
+  grants EntitlementGrant[]
 
   @@map("entitlements")
 }
@@ -794,8 +801,9 @@ model Subscription {
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  paymentSubmissions PaymentSubmission[]
 
   @@index([userId, status])
   @@map("subscriptions")
@@ -826,19 +834,96 @@ model Notification {
 // -----------------------------------------------------------------------------
 
 model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
   // Nullable: system actions have no human actor. Admin actors are
   // referenced through their linked user record when one exists.
-  actorUserId String?  @map("actor_user_id") @db.Uuid
-  entityType  String   @map("entity_type") @db.VarChar(64)
-  entityId    String   @map("entity_id") @db.VarChar(64)
-  action      String   @db.VarChar(64)
-  beforeJson  Json?    @map("before_json")
-  afterJson   Json?    @map("after_json")
-  createdAt   DateTime @default(now()) @map("created_at")
+  actorUserId  String?  @map("actor_user_id") @db.Uuid
+  // Admin actor for audited ADMIN actions (admin accounts are separate from users).
+  actorAdminId String?  @map("actor_admin_id") @db.Uuid
+  entityType   String   @map("entity_type") @db.VarChar(64)
+  entityId     String   @map("entity_id") @db.VarChar(64)
+  action       String   @db.VarChar(64)
+  beforeJson   Json?    @map("before_json")
+  afterJson    Json?    @map("after_json")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorUser  User?      @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAdmin AdminUser? @relation(fields: [actorAdminId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+// -----------------------------------------------------------------------------
+// Manual payments + admin grants (Task 10I, CTO-approved)
+// MVP: manual transfer only (instapay | vodafone_cash). Payment verification
+// is ADMIN-authoritative; user submissions are never trusted. Proof IMAGE
+// storage does not exist yet (reported gap) � the typed reference field is
+// reserved for the future media task.
+// -----------------------------------------------------------------------------
+
+enum PaymentMethodType {
+  instapay
+  vodafone_cash
+}
+
+enum PaymentSubmissionStatus {
+  pending
+  approved
+  rejected
+}
+
+model PaymentMethodConfig {
+  id                String            @id @default(uuid()) @db.Uuid
+  method            PaymentMethodType @unique
+  accountIdentifier String            @map("account_identifier") @db.VarChar(255)
+  displayName       String            @map("display_name") @db.VarChar(255)
+  isEnabled         Boolean           @default(true) @map("is_enabled")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@map("payment_method_configs")
+}
+
+model PaymentSubmission {
+  id                String                  @id @default(uuid()) @db.Uuid
+  userId            String                  @map("user_id") @db.Uuid
+  planId            String                  @map("plan_id") @db.Uuid
+  // Linked subscription created by ADMIN approval (null while pending/rejected).
+  subscriptionId    String?                 @map("subscription_id") @db.Uuid
+  method            PaymentMethodType
+  transferReference String                  @map("transfer_reference") @db.VarChar(100)
+  // Typed reference reserved for the future proof-media task (no upload path exists).
+  proofStorageKey   String?                 @map("proof_storage_key") @db.VarChar(512)
+  status            PaymentSubmissionStatus @default(pending)
+  reviewedByAdminId String?                 @map("reviewed_by_admin_id") @db.Uuid
+  reviewedAt        DateTime?               @map("reviewed_at")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscription    Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  reviewedByAdmin AdminUser?       @relation(fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([planId])
+  @@map("payment_submissions")
+}
+
+model EntitlementGrant {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  entitlementId    String   @map("entitlement_id") @db.Uuid
+  grantedByAdminId String?  @map("granted_by_admin_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlement    Entitlement @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
+  grantedByAdmin AdminUser?  @relation(fields: [grantedByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, entitlementId])
+  @@index([userId])
+  @@map("entitlement_grants")
 }
