@@ -405,6 +405,122 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     ],
     additionalProperties: false,
   },
+
+  // ---------------------------------------------------------------------------
+  // Merchant domain (Task 10G). Source: docs/07_API.md §17, docs/06 §21.
+  // Verification status is read-only for merchants (admin is the authority).
+  // ---------------------------------------------------------------------------
+
+  MerchantProfileDto: {
+    type: 'object',
+    description:
+      'The authenticated merchant\'s own profile. verificationStatus is ' +
+      'READ-ONLY (docs/09_ADMIN.md — admin is the verification authority). ' +
+      'A missing profile returns 404 until the merchant PATCHes (onboarding).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      businessName: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      logoUrl: { type: 'string', nullable: true },
+      contactPhone: { type: 'string', nullable: true },
+      locationId: { type: 'string', format: 'uuid', nullable: true },
+      verificationStatus: REF('VerificationStatus'),
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'businessName',
+      'bio',
+      'logoUrl',
+      'contactPhone',
+      'locationId',
+      'verificationStatus',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  UpdateMerchantProfileDto: {
+    type: 'object',
+    description:
+      'PATCH /merchant/profile payload (onboarding persistence). Fields are ' +
+      'optional; absent fields unchanged. verificationStatus is never writable.',
+    properties: {
+      businessName: { type: 'string', minLength: 1, maxLength: 255 },
+      bio: { type: 'string', maxLength: 2000 },
+      logoUrl: { type: 'string', maxLength: 512 },
+      contactPhone: { type: 'string', pattern: '^\\+?[0-9]{7,15}$' },
+      locationId: { type: 'string', format: 'uuid' },
+    },
+    additionalProperties: false,
+  },
+  MerchantProductDto: {
+    type: 'object',
+    description: 'A merchant-owned catalog product (status: active | suspended).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      merchantId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      descriptionAr: { type: 'string', nullable: true },
+      price: { type: 'number', nullable: true },
+      stockQuantity: { type: 'integer', nullable: true },
+      imageUrl: { type: 'string', nullable: true },
+      status: { type: 'string', enum: ['active', 'suspended'] },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'merchantId',
+      'nameAr',
+      'slug',
+      'descriptionAr',
+      'price',
+      'stockQuantity',
+      'imageUrl',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  CreateMerchantProductDto: {
+    type: 'object',
+    description:
+      'POST /merchant/products payload. Ownership is derived from the JWT. ' +
+      '`slug` is optional — server-derived from nameAr (unique per merchant). ' +
+      'price may be null; no currency/discount/tax semantics exist.',
+    properties: {
+      nameAr: { type: 'string', minLength: 1, maxLength: 255 },
+      slug: { type: 'string', minLength: 1, maxLength: 128 },
+      descriptionAr: { type: 'string', maxLength: 5000 },
+      price: { type: 'number', minimum: 0 },
+      stockQuantity: { type: 'integer', minimum: 0 },
+      imageUrl: { type: 'string', maxLength: 512 },
+      status: { type: 'string', enum: ['active', 'suspended'] },
+    },
+    required: ['nameAr'],
+    additionalProperties: false,
+  },
+  UpdateMerchantProductDto: {
+    type: 'object',
+    description:
+      'PATCH /merchant/products/:id payload — writable whitelist only. ' +
+      'merchant ownership and product id are immutable; status is a validated ' +
+      'active/suspended field (transitions unconstrained by the contract).',
+    properties: {
+      nameAr: { type: 'string', minLength: 1, maxLength: 255 },
+      slug: { type: 'string', minLength: 1, maxLength: 128 },
+      descriptionAr: { type: 'string', maxLength: 5000 },
+      price: { type: 'number', minimum: 0 },
+      stockQuantity: { type: 'integer', minimum: 0 },
+      imageUrl: { type: 'string', maxLength: 512 },
+      status: { type: 'string', enum: ['active', 'suspended'] },
+    },
+    additionalProperties: false,
+  },
 };
 
 /** Inline success-envelope wrapper: `{ data: <ref>, meta? }`. */

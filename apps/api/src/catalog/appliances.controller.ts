@@ -9,6 +9,7 @@ import { ApiTags } from '@nestjs/swagger';
 
 import { Public } from '../common/decorators';
 import { ApiEnvelopeError, ApiEnvelopeOk } from '../common/openapi/decorators';
+
 import { ApplianceCategoriesService } from './appliances.service';
 
 import type { ApiSuccess, ApplianceCategoryDto } from '@khabir/shared-types';

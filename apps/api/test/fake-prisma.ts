@@ -164,6 +164,35 @@ interface ServiceRequestStatusHistoryRow {
   createdAt: Date;
 }
 
+export type ProductStatusValue = 'active' | 'suspended';
+
+interface MerchantProfileRow {
+  id: string;
+  userId: string;
+  businessName: string | null;
+  bio: string | null;
+  logoUrl: string | null;
+  contactPhone: string | null;
+  locationId: string | null;
+  verificationStatus: VerificationStatusValue;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface ProductRow {
+  id: string;
+  merchantId: string;
+  nameAr: string;
+  slug: string;
+  descriptionAr: string | null;
+  price: number | null;
+  stockQuantity: number | null;
+  imageUrl: string | null;
+  status: ProductStatusValue;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface TechnicianServiceRow {
   technicianId: string;
   serviceId: string;
@@ -237,6 +266,8 @@ class FakePrismaClient {
   locations: LocationRow[] = [];
   serviceRequests: ServiceRequestRow[] = [];
   serviceRequestStatusHistoryStore: ServiceRequestStatusHistoryRow[] = [];
+  merchantProfiles: MerchantProfileRow[] = [];
+  products: ProductRow[] = [];
 
   $connect(): Promise<void> {
     return Promise.resolve();
@@ -739,6 +770,105 @@ class FakePrismaClient {
   private matchServiceRequests(where: ServiceRequestWhere): ServiceRequestRow[] {
     return this.serviceRequests.filter((r) => this.serviceRequestMatches(r, where));
   }
+
+  merchantProfile = {
+    findFirst: async (args: { where: { id?: string; userId?: string } }): Promise<MerchantProfileRow | null> => {
+      return (
+        this.merchantProfiles.find(
+          (m) =>
+            (args.where.id === undefined || m.id === args.where.id) &&
+            (args.where.userId === undefined || m.userId === args.where.userId),
+        ) ?? null
+      );
+    },
+    create: async (args: { data: Omit<MerchantProfileRow, 'id' | 'createdAt' | 'updatedAt'> }): Promise<MerchantProfileRow> => {
+      const now = new Date();
+      const row: MerchantProfileRow = {
+        id: randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        // Real Prisma applies the schema default (docs/06: pending until admin verifies).
+        verificationStatus: args.data.verificationStatus ?? 'pending',
+        ...args.data,
+      };
+      this.merchantProfiles.push(row);
+      return row;
+    },
+    updateMany: async (args: { where: { id?: string; userId?: string }; data: Partial<MerchantProfileRow> }): Promise<{ count: number }> => {
+      let count = 0;
+      this.merchantProfiles = this.merchantProfiles.map((m) => {
+        if (
+          (args.where.id === undefined || m.id === args.where.id) &&
+          (args.where.userId === undefined || m.userId === args.where.userId)
+        ) {
+          count += 1;
+          return { ...m, ...args.data, updatedAt: new Date() };
+        }
+        return m;
+      });
+      return { count };
+    },
+  };
+
+  product = {
+    findFirst: async (args: { where: { id?: string; merchantId?: string; slug?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.products.find(
+        (p) =>
+          (args.where.id === undefined || p.id === args.where.id) &&
+          (args.where.merchantId === undefined || p.merchantId === args.where.merchantId) &&
+          (args.where.slug === undefined || p.slug === args.where.slug),
+      );
+      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    count: async (args: { where: { merchantId?: string } }): Promise<number> =>
+      this.products.filter((p) => args.where.merchantId === undefined || p.merchantId === args.where.merchantId).length,
+    findMany: async (args: {
+      where: { merchantId?: string };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.products.filter(
+        (p) => args.where.merchantId === undefined || p.merchantId === args.where.merchantId,
+      );
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    create: async (args: { data: Omit<ProductRow, 'id' | 'createdAt' | 'updatedAt'>; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+      const now = new Date();
+      const row: ProductRow = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
+      this.products.push(row);
+      return applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    updateMany: async (args: { where: { id?: string; merchantId?: string }; data: Partial<ProductRow> }): Promise<{ count: number }> => {
+      let count = 0;
+      this.products = this.products.map((p) => {
+        if (
+          (args.where.id === undefined || p.id === args.where.id) &&
+          (args.where.merchantId === undefined || p.merchantId === args.where.merchantId)
+        ) {
+          count += 1;
+          return { ...p, ...args.data, updatedAt: new Date() };
+        }
+        return p;
+      });
+      return { count };
+    },
+    deleteMany: async (args: { where: { id?: string; merchantId?: string } }): Promise<{ count: number }> => {
+      const before = this.products.length;
+      this.products = this.products.filter(
+        (p) =>
+          !(
+            (args.where.id === undefined || p.id === args.where.id) &&
+            (args.where.merchantId === undefined || p.merchantId === args.where.merchantId)
+          ),
+      );
+      return { count: before - this.products.length };
+    },
+  };
+
 
   private serviceRequestMatches(
     row: ServiceRequestRow,

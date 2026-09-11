@@ -6,14 +6,15 @@
  * MODEL GAP — reported to the CTO).
  */
 
+import { technicianListQuerySchema, type TechnicianListQuery } from '@khabir/shared-validation';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import { technicianListQuerySchema, type TechnicianListQuery } from '@khabir/shared-validation';
 
 import { Public } from '../common/decorators';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+
 import { TechniciansService } from './technicians.service';
 
 import type { ApiSuccess, ApiMeta, TechnicianPublicDto } from '@khabir/shared-types';

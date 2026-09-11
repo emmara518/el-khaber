@@ -63,6 +63,19 @@ export interface AuthUserDto {
 }
 
 /**
+ * POST /merchant/products payload. Ownership is derived from the JWT. `slug` is optional — server-derived from nameAr (unique per merchant). price may be null; no currency/discount/tax semantics exist.
+ */
+export interface CreateMerchantProductDto {
+  descriptionAr?: string;
+  imageUrl?: string;
+  nameAr: string;
+  price?: number;
+  slug?: string;
+  status?: 'active' | 'suspended';
+  stockQuantity?: number;
+}
+
+/**
  * Customer request creation payload (docs/07_API.md §7). problem_title is OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case without inventing diagnostic conclusions. The request is created with status=pending, targeted at the chosen verified technician.
  */
 export interface CreateServiceRequestDto {
@@ -123,6 +136,38 @@ export interface HealthDto {
 }
 
 export type MeDto = AuthUserDto;
+
+/**
+ * A merchant-owned catalog product (status: active | suspended).
+ */
+export interface MerchantProductDto {
+  createdAt: string;
+  descriptionAr: string | null;
+  id: string;
+  imageUrl: string | null;
+  merchantId: string;
+  nameAr: string;
+  price: number | null;
+  slug: string;
+  status: 'active' | 'suspended';
+  stockQuantity: number | null;
+  updatedAt: string;
+}
+
+/**
+ * The authenticated merchant's own profile. verificationStatus is READ-ONLY (docs/09_ADMIN.md — admin is the verification authority). A missing profile returns 404 until the merchant PATCHes (onboarding).
+ */
+export interface MerchantProfileDto {
+  bio: string | null;
+  businessName: string | null;
+  contactPhone: string | null;
+  createdAt: string;
+  id: string;
+  locationId: string | null;
+  logoUrl: string | null;
+  updatedAt: string;
+  verificationStatus: VerificationStatus;
+}
 
 /**
  * Readiness payload with per-dependency check results.
@@ -230,6 +275,30 @@ export interface TechnicianServiceDto {
 export interface UpdateMeDto {
   email?: string;
   phone?: string;
+}
+
+/**
+ * PATCH /merchant/products/:id payload — writable whitelist only. merchant ownership and product id are immutable; status is a validated active/suspended field (transitions unconstrained by the contract).
+ */
+export interface UpdateMerchantProductDto {
+  descriptionAr?: string;
+  imageUrl?: string;
+  nameAr?: string;
+  price?: number;
+  slug?: string;
+  status?: 'active' | 'suspended';
+  stockQuantity?: number;
+}
+
+/**
+ * PATCH /merchant/profile payload (onboarding persistence). Fields are optional; absent fields unchanged. verificationStatus is never writable.
+ */
+export interface UpdateMerchantProfileDto {
+  bio?: string;
+  businessName?: string;
+  contactPhone?: string;
+  locationId?: string;
+  logoUrl?: string;
 }
 
 export type UserStatus = 'active' | 'suspended' | 'pending' | 'deleted';

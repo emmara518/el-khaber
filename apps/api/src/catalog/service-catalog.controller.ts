@@ -3,14 +3,15 @@
  * Public per docs/07_API.md §6. Filters: appliance_category_id, q.
  */
 
+import { serviceListQuerySchema, type ServiceListQuery } from '@khabir/shared-validation';
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-import { serviceListQuerySchema, type ServiceListQuery } from '@khabir/shared-validation';
 
 import { Public } from '../common/decorators';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+
 import { ServiceCatalogService } from './service-catalog.service';
 
 import type { ApiSuccess, ApiMeta, ServiceDto } from '@khabir/shared-types';

@@ -194,3 +194,57 @@ export const serviceRequestListQuerySchema = paginationSchema.extend({
   status: serviceRequestStatusSchema.optional(),
 });
 export type ServiceRequestListQuery = z.infer<typeof serviceRequestListQuerySchema>;
+
+// -----------------------------------------------------------------------------
+// Merchant domain (Task 10G)
+// Source: docs/07_API.md §17, docs/06_DATABASE.md §21. Writable profile
+// fields are exactly the documented merchant_profile columns; verification
+// status is READ-ONLY for merchants (admin is the authority — docs/09).
+// -----------------------------------------------------------------------------
+
+/** PATCH /merchant/profile — all fields optional; absent fields unchanged. */
+export const merchantProfileUpdateSchema = z
+  .object({
+    businessName: z.string().trim().min(1).max(255).optional(),
+    bio: z.string().trim().max(2000).optional(),
+    logoUrl: z.string().trim().min(1).max(512).optional(),
+    contactPhone: phoneSchema.optional(),
+    locationId: uuidParam.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: 'at least one field is required',
+  });
+export type MerchantProfileUpdateInput = z.infer<typeof merchantProfileUpdateSchema>;
+
+/** POST /merchant/products. `slug` is optional (server-derived when absent). */
+export const merchantProductCreateSchema = z.object({
+  nameAr: z.string().trim().min(1).max(255),
+  slug: z.string().trim().min(1).max(128).regex(/^[^\s]+$/u, 'slug must not contain whitespace').optional(),
+  descriptionAr: z.string().trim().max(5000).optional(),
+  price: z.number().min(0).max(999999.99).optional(),
+  stockQuantity: z.number().int().min(0).optional(),
+  imageUrl: z.string().trim().min(1).max(512).optional(),
+  status: z.enum(['active', 'suspended']).optional(),
+});
+export type MerchantProductCreateInput = z.infer<typeof merchantProductCreateSchema>;
+
+/**
+ * PATCH /merchant/products/:id — writable whitelist. `status` is a
+ * documented product field; transitions active↔suspended are unconstrained
+ * by the contract (docs/06_DATABASE.md §21), so the server validates the
+ * value rather than a transition graph.
+ */
+export const merchantProductUpdateSchema = z
+  .object({
+    nameAr: z.string().trim().min(1).max(255).optional(),
+    slug: z.string().trim().min(1).max(128).regex(/^[^\s]+$/u).optional(),
+    descriptionAr: z.string().trim().max(5000).optional(),
+    price: z.number().min(0).max(999999.99).optional(),
+    stockQuantity: z.number().int().min(0).optional(),
+    imageUrl: z.string().trim().min(1).max(512).optional(),
+    status: z.enum(['active', 'suspended']).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: 'at least one field is required',
+  });
+export type MerchantProductUpdateInput = z.infer<typeof merchantProductUpdateSchema>;

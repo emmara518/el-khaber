@@ -418,6 +418,32 @@ Stats must be server-derived.
 ### PATCH `/merchant/products/:id`
 ### DELETE `/merchant/products/:id`
 
+Implementation notes (Task 10G):
+
+- All routes are merchant-only (`@Roles('merchant')`); the merchant profile
+  is resolved from the JWT user — client-supplied merchant ids are never
+  trusted. All resources are ownership-scoped: another merchant's products
+  behave as missing (identical `404 NOT_FOUND`).
+- `GET /merchant/profile` returns `404` until the merchant PATCHes —
+  PATCH is the onboarding persistence: it creates the profile when absent
+  (`verificationStatus: pending`) and updates otherwise. Writable fields:
+  `businessName`, `bio`, `logoUrl`, `contactPhone`, `locationId` (must be a
+  location OWNED by the merchant). `verificationStatus` is READ-ONLY —
+  docs/09_ADMIN.md makes admin the sole verification authority and no
+  merchant verification-mutation endpoint exists.
+- Products: `POST` derives `slug` from `nameAr` when absent (unique per
+  merchant); an explicitly provided duplicate slug → `409 CONFLICT`.
+  `PATCH` accepts a whitelist (`nameAr`, `slug`, `descriptionAr`, `price`,
+  `stockQuantity`, `imageUrl`, `status`) with an ownership-scoped atomic
+  write; `merchantId`/`id` are immutable; an invalid status value is a
+  `400 VALIDATION_ERROR` (transitions active↔suspended are unconstrained
+  by this contract). `DELETE` (documented above) permanently removes the
+  product. `price` stays nullable — no currency/discount/tax semantics.
+- Product list supports §19 pagination only — search/category/status
+  filters are not documented for this route and were not invented.
+- No checkout/orders/payments/settlement/inventory behavior exists beyond
+  the documented `price`/`stockQuantity` fields.
+
 Marketplace order endpoints should be added only if that transaction model is explicitly approved.
 
 ---

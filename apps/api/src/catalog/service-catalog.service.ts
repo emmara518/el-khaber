@@ -6,14 +6,15 @@
  * not approved — docs/06_DATABASE.md §9).
  */
 
-import { Injectable } from '@nestjs/common';
 
 import { buildPageMeta } from '@khabir/shared-types';
-import type { ServiceListQuery } from '@khabir/shared-validation';
+import { Injectable } from '@nestjs/common';
+
 
 import { PrismaService } from '../database/prisma.service';
 
 import type { ServiceDto } from '@khabir/shared-types';
+import type { ServiceListQuery } from '@khabir/shared-validation';
 import type { Prisma } from '@prisma/client';
 
 @Injectable()

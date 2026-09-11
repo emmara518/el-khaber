@@ -33,4 +33,10 @@ export type {
   ServiceRequestSummaryDto,
   ServiceRequestStatusHistoryDto,
   ServiceRequestDto,
+  // Merchant domain (Task 10G)
+  MerchantProfileDto,
+  UpdateMerchantProfileDto,
+  MerchantProductDto,
+  CreateMerchantProductDto,
+  UpdateMerchantProductDto,
 } from './generated/api-contract';

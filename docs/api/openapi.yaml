@@ -113,6 +113,40 @@ components:
         - emailVerified
         - createdAt
       type: object
+    CreateMerchantProductDto:
+      additionalProperties: false
+      description: >-
+        POST /merchant/products payload. Ownership is derived from the JWT. `slug` is optional — server-derived from
+        nameAr (unique per merchant). price may be null; no currency/discount/tax semantics exist.
+      properties:
+        descriptionAr:
+          maxLength: 5000
+          type: string
+        imageUrl:
+          maxLength: 512
+          type: string
+        nameAr:
+          maxLength: 255
+          minLength: 1
+          type: string
+        price:
+          minimum: 0
+          type: number
+        slug:
+          maxLength: 128
+          minLength: 1
+          type: string
+        status:
+          enum:
+            - active
+            - suspended
+          type: string
+        stockQuantity:
+          minimum: 0
+          type: integer
+      required:
+        - nameAr
+      type: object
     CreateServiceRequestDto:
       additionalProperties: false
       description: >-
@@ -280,6 +314,100 @@ components:
     MeDto:
       $ref: '#/components/schemas/AuthUserDto'
       description: Authenticated user profile (see AuthUserDto).
+    MerchantProductDto:
+      additionalProperties: false
+      description: 'A merchant-owned catalog product (status: active | suspended).'
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        descriptionAr:
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        imageUrl:
+          nullable: true
+          type: string
+        merchantId:
+          format: uuid
+          type: string
+        nameAr:
+          type: string
+        price:
+          nullable: true
+          type: number
+        slug:
+          type: string
+        status:
+          enum:
+            - active
+            - suspended
+          type: string
+        stockQuantity:
+          nullable: true
+          type: integer
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - merchantId
+        - nameAr
+        - slug
+        - descriptionAr
+        - price
+        - stockQuantity
+        - imageUrl
+        - status
+        - createdAt
+        - updatedAt
+      type: object
+    MerchantProfileDto:
+      additionalProperties: false
+      description: >-
+        The authenticated merchant's own profile. verificationStatus is READ-ONLY (docs/09_ADMIN.md — admin is the
+        verification authority). A missing profile returns 404 until the merchant PATCHes (onboarding).
+      properties:
+        bio:
+          nullable: true
+          type: string
+        businessName:
+          nullable: true
+          type: string
+        contactPhone:
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        locationId:
+          format: uuid
+          nullable: true
+          type: string
+        logoUrl:
+          nullable: true
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+      required:
+        - id
+        - businessName
+        - bio
+        - logoUrl
+        - contactPhone
+        - locationId
+        - verificationStatus
+        - createdAt
+        - updatedAt
+      type: object
     ReadyDto:
       additionalProperties: false
       description: Readiness payload with per-dependency check results.
@@ -600,6 +728,61 @@ components:
           type: string
         phone:
           pattern: ^\+?[0-9]{7,15}$
+          type: string
+      type: object
+    UpdateMerchantProductDto:
+      additionalProperties: false
+      description: >-
+        PATCH /merchant/products/:id payload — writable whitelist only. merchant ownership and product id are immutable;
+        status is a validated active/suspended field (transitions unconstrained by the contract).
+      properties:
+        descriptionAr:
+          maxLength: 5000
+          type: string
+        imageUrl:
+          maxLength: 512
+          type: string
+        nameAr:
+          maxLength: 255
+          minLength: 1
+          type: string
+        price:
+          minimum: 0
+          type: number
+        slug:
+          maxLength: 128
+          minLength: 1
+          type: string
+        status:
+          enum:
+            - active
+            - suspended
+          type: string
+        stockQuantity:
+          minimum: 0
+          type: integer
+      type: object
+    UpdateMerchantProfileDto:
+      additionalProperties: false
+      description: >-
+        PATCH /merchant/profile payload (onboarding persistence). Fields are optional; absent fields unchanged.
+        verificationStatus is never writable.
+      properties:
+        bio:
+          maxLength: 2000
+          type: string
+        businessName:
+          maxLength: 255
+          minLength: 1
+          type: string
+        contactPhone:
+          pattern: ^\+?[0-9]{7,15}$
+          type: string
+        locationId:
+          format: uuid
+          type: string
+        logoUrl:
+          maxLength: 512
           type: string
       type: object
     UserStatus:
@@ -1233,6 +1416,401 @@ paths:
         - bearer: []
       tags:
         - me
+  /api/v1/merchant/products:
+    get:
+      operationId: MerchantProductsController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantProductDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own products (paginated; newest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+      security:
+        - bearer: []
+      tags:
+        - merchant
+    post:
+      operationId: MerchantProductsController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                descriptionAr:
+                  maxLength: 5000
+                  type: string
+                imageUrl:
+                  maxLength: 512
+                  minLength: 1
+                  type: string
+                nameAr:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                price:
+                  maximum: 999999.99
+                  minimum: 0
+                  type: number
+                slug:
+                  maxLength: 128
+                  minLength: 1
+                  pattern: ^[^\s]+$
+                  type: string
+                status:
+                  enum:
+                    - active
+                    - suspended
+                  type: string
+                stockQuantity:
+                  minimum: 0
+                  type: integer
+              required:
+                - nameAr
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantProductDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Product created and owned by the authenticated merchant.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Merchant profile not found (onboarding required).
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Slug already in use (canonical error envelope).
+      security:
+        - bearer: []
+      tags:
+        - merchant
+  /api/v1/merchant/products/{id}:
+    delete:
+      operationId: MerchantProductsController_remove
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Product not found or owned by another merchant (canonical envelope).
+      security:
+        - bearer: []
+      tags:
+        - merchant
+    get:
+      operationId: MerchantProductsController_detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantProductDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own product detail.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Product not found or owned by another merchant (identical response).
+      security:
+        - bearer: []
+      tags:
+        - merchant
+    patch:
+      operationId: MerchantProductsController_update
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                descriptionAr:
+                  maxLength: 5000
+                  type: string
+                imageUrl:
+                  maxLength: 512
+                  minLength: 1
+                  type: string
+                nameAr:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                price:
+                  maximum: 999999.99
+                  minimum: 0
+                  type: number
+                slug:
+                  maxLength: 128
+                  minLength: 1
+                  pattern: ^[^\s]+$
+                  type: string
+                status:
+                  enum:
+                    - active
+                    - suspended
+                  type: string
+                stockQuantity:
+                  minimum: 0
+                  type: integer
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantProductDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Product updated (whitelist fields only).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Product not found or owned by another merchant.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Slug already in use (canonical error envelope).
+      security:
+        - bearer: []
+      tags:
+        - merchant
+  /api/v1/merchant/profile:
+    get:
+      operationId: MerchantProfileController_getProfile
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantProfileDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own merchant profile (verification status read-only).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Merchant profile not found (onboarding not completed).
+      security:
+        - bearer: []
+      tags:
+        - merchant
+    patch:
+      operationId: MerchantProfileController_updateProfile
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                bio:
+                  maxLength: 2000
+                  type: string
+                businessName:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                contactPhone:
+                  pattern: ^\+?[0-9]{7,15}$
+                  type: string
+                locationId:
+                  type: string
+                logoUrl:
+                  maxLength: 512
+                  minLength: 1
+                  type: string
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantProfileDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Profile updated; creates the profile when absent (onboarding).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Referenced location not found or not owned.
+      security:
+        - bearer: []
+      tags:
+        - merchant
   /api/v1/ready:
     get:
       operationId: HealthController_ready

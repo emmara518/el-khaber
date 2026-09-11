@@ -20,14 +20,15 @@
  *     selected.
  */
 
-import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { buildPageMeta } from '@khabir/shared-types';
-import type { TechnicianListQuery } from '@khabir/shared-validation';
+import { Injectable, NotFoundException } from '@nestjs/common';
+
 
 import { PrismaService } from '../database/prisma.service';
 
 import type { TechnicianPublicDto } from '@khabir/shared-types';
+import type { TechnicianListQuery } from '@khabir/shared-validation';
 import type { Prisma } from '@prisma/client';
 
 const SERVICES_INCLUDE = {

@@ -10,11 +10,12 @@
  * (deterministic markers `t10f-probe`).
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse } from 'dotenv';
+
 import { PrismaClient } from '@prisma/client';
+import { parse } from 'dotenv';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 const envPath = join(__dirname, '..', '.env');
 let realDbUrl = '';

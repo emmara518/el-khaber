@@ -14,20 +14,21 @@
  * access returns the same 404 as a missing request.
  */
 
-import { Injectable } from '@nestjs/common';
 
 import { buildPageMeta } from '@khabir/shared-types';
-import type {
-  CreateServiceRequestInput,
-  ServiceRequestListQuery,
-} from '@khabir/shared-validation';
+import { Injectable } from '@nestjs/common';
 
-import { PrismaService } from '../database/prisma.service';
+
 import { InvalidStateTransitionException, NotFoundException } from '../common/errors';
+import { PrismaService } from '../database/prisma.service';
 
 import { rulesFor, type TransitionAction } from './request-state';
 
 import type { ServiceRequestDto, ServiceRequestSummaryDto } from '@khabir/shared-types';
+import type {
+  CreateServiceRequestInput,
+  ServiceRequestListQuery,
+} from '@khabir/shared-validation';
 import type { Prisma } from '@prisma/client';
 
 const HISTORY_BOUND = 50;

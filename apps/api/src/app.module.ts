@@ -13,6 +13,7 @@ import { requestIdMiddleware } from './common/request-id.middleware';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
 import { MeModule } from './me/me.module';
+import { MerchantModule } from './merchant/merchant.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
 
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
@@ -27,6 +28,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     AdminAuthModule,
     CatalogModule,
     ServiceRequestsModule,
+    MerchantModule,
   ],
   providers: [
     Reflector,

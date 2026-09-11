@@ -16,11 +16,12 @@
  * the suite leaves ZERO persistent rows (deterministic + cleanable).
  */
 
-import { beforeAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse } from 'dotenv';
+
 import { PrismaClient } from '@prisma/client';
+import { parse } from 'dotenv';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 // Parse .env WITHOUT touching process.env (dotenv.parse only): the
 // FakePrisma e2e DB-safety guard pins process.env.DATABASE_URL at config
