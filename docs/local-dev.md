@@ -353,3 +353,29 @@ projects.
 - Supabase Auth, Supabase Storage, Supabase Realtime, and Supabase
   Edge Functions are explicitly **not** in use for the MVP. Each is
   a separate CTO decision per the ADR.
+
+---
+
+## 12. Isolated test environment + real-HTTP E2E (Task 10N)
+
+The real-HTTP E2E suite runs the compiled NestJS app against a dedicated,
+ephemeral `khabir_test` PostgreSQL/PostGIS instance — never `khabir-dev`
+and never production.
+
+```bash
+# 1. start the ephemeral test database + apply migrations + safety marker
+pnpm --filter @khabir/api provision:test-db
+
+# 2. run the real-HTTP E2E suite (repeatable)
+pnpm --filter @khabir/api test:http-e2e
+```
+
+- `docker-compose.test.yml` defines the local `khabir_test` container
+  (PostGIS, bind port `55432`, `tmpfs` data so it is fully disposable).
+- `apps/api/test/http-e2e/env.ts` fails closed: if `TEST_DATABASE_URL` is
+  missing, points at Supabase, names a dev/production database, or the
+  safety marker row is absent, the suite refuses to boot.
+- `apps/api/test/http-e2e/` boots the real `AppModule` with the real Prisma
+  client. Requests traverse HTTP → guards → validation → services → Prisma →
+  PostgreSQL → HTTP. The default `vitest` suite excludes this directory
+  (it uses the in-memory fake / `khabir-dev` integration suites instead).

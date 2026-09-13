@@ -28,6 +28,10 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['test/**/*.spec.ts', 'src/**/*.spec.ts'],
+    // The real-HTTP E2E suite (Task 10N) requires the isolated khabir_test
+    // database (Docker) and has its own config + fail-closed guard. It is
+    // excluded here so the default suite never depends on that environment.
+    exclude: ['**/node_modules/**', '**/dist/**', 'test/http-e2e/**'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
   },

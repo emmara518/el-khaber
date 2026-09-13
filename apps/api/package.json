@@ -12,6 +12,8 @@
     "lint": "eslint .",
     "test": "tsc -p tsconfig.json && vitest run --coverage",
     "test:watch": "vitest",
+    "provision:test-db": "node scripts/provision-test-db.mjs",
+    "test:http-e2e": "node scripts/run-http-e2e.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
