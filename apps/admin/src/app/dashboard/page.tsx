@@ -74,22 +74,21 @@ export default function AdminDashboard() {
         payments: `/admin/payments/submissions?page=${String(page)}&limit=${String(limit)}`,
         audit: `/admin/audit-logs?page=${String(page)}&limit=${String(limit)}`,
       };
-      void AdminApi.get(paths[targetTab])
-        .then((data: unknown) => {
-          if (targetTab === 'metrics') {
-            setMetrics(data as Record<string, unknown>);
-            setStatus('loaded');
-            return;
-          }
-          const list = data as AdminListResult<Row>;
-          setItems([...list.items]);
-          setMeta(list.meta);
-          setStatus('loaded');
-        })
-        .catch((err: unknown) => {
-          setError(err instanceof AdminApiError ? err.messageAr : 'تعذر التحميل');
-          setStatus('error');
-        });
+      const promise =
+        targetTab === 'metrics'
+          ? AdminApi.get(paths.metrics).then((data: unknown) => {
+              setMetrics(data as Record<string, unknown>);
+              setStatus('loaded');
+            })
+          : AdminApi.list<Row>(paths[targetTab]).then((list) => {
+              setItems([...list.items]);
+              setMeta(list.meta);
+              setStatus('loaded');
+            });
+      void promise.catch((err: unknown) => {
+        setError(err instanceof AdminApiError ? err.messageAr : 'تعذر التحميل');
+        setStatus('error');
+      });
     },
     [authed],
   );

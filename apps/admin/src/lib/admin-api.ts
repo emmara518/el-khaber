@@ -73,11 +73,29 @@ interface ApiEnvelope<T> {
   error?: { code: string; message: string; fields?: Record<string, string> };
 }
 
-async function request<T>(
+export interface AdminListMeta {
+  readonly page: number;
+  readonly limit: number;
+  readonly total: number;
+  readonly totalPages: number;
+  readonly hasNext: boolean;
+}
+
+export interface AdminListResult<T> {
+  readonly items: readonly T[];
+  readonly meta: AdminListMeta;
+}
+
+/**
+ * Performs the request and returns the FULL canonical envelope
+ * (`{ data, meta }`). The API returns list metadata at the top level
+ * alongside the data array, so list callers need both.
+ */
+async function requestEnvelope<T>(
   method: string,
   path: string,
   body?: unknown,
-): Promise<T> {
+): Promise<{ data: T; meta: AdminListMeta | undefined }> {
   const session = loadAdminSession();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (session !== null) {
@@ -104,12 +122,11 @@ async function request<T>(
     }
     throw new AdminApiError(res.status, err.code, messageAr);
   }
-  return parsed.data as T;
+  return { data: parsed.data as T, meta: parsed.meta as AdminListMeta | undefined };
 }
 
-export interface AdminListResult<T> {
-  readonly items: readonly T[];
-  readonly meta: { page: number; limit: number; total: number; totalPages: number; hasNext: boolean };
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  return (await requestEnvelope<T>(method, path, body)).data;
 }
 
 export const AdminApi = {
@@ -139,10 +156,11 @@ export const AdminApi = {
     clearAdminSession();
   },
   request,
-  list: async <T>(path: string): Promise<{ items: T[]; meta: AdminListResult<T>['meta'] }> => {
-    return (await request<{ items: T[]; meta: AdminListResult<T>['meta'] }>('GET', path)) as {
-      items: T[];
-      meta: AdminListResult<T>['meta'];
+  list: async <T>(path: string): Promise<AdminListResult<T>> => {
+    const { data, meta } = await requestEnvelope<T[]>('GET', path);
+    return {
+      items: data,
+      meta: meta ?? { page: 1, limit: data.length, total: data.length, totalPages: 1, hasNext: false },
     };
   },
   get: <T>(path: string) => request<T>('GET', path),
