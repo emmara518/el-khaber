@@ -17,8 +17,8 @@ import { ConflictException } from '../common/errors';
 
 import type { Prisma } from '@prisma/client';
 
-const VERIFICATION_STATES = ['pending', 'verified', 'rejected', 'suspended'] as const;
-type VerificationState = (typeof VERIFICATION_STATES)[number];
+// Verification state machine (docs/09_ADMIN.md §6).
+type VerificationState = 'pending' | 'verified' | 'rejected' | 'suspended';
 
 const REQUEST_OVERWRITABLE: ReadonlySet<string> = new Set([
   'pending',

@@ -15,7 +15,6 @@ import {
   AdminApi,
   AdminApiError,
   loadAdminSession,
-  clearAdminSession,
   type AdminListResult,
 } from '@/lib/admin-api';
 
@@ -144,14 +143,7 @@ export default function AdminDashboard() {
           <span style={{ color: '#667', fontSize: 13 }}>
             {session?.admin.email ?? ''}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              AdminApi.logout();
-              router.push('/login');
-            }}
-            style={headerBtn}
-          >
+          <button type="button" onClick={logout} style={headerBtn}>
             تسجيل الخروج
           </button>
         </div>
@@ -367,7 +359,7 @@ function RowSummary({ row }: { row: Row }) {
   if (typeof row.action === 'string') {
     return (
       <span dir="ltr">
-        {row.action} — {row.entityType}/{row.entityId.slice(0, 8)}
+        {row.action} — {String(row.entityType)}/{String(row.entityId).slice(0, 8)}
       </span>
     );
   }

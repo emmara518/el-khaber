@@ -25,6 +25,7 @@ export class AdminApiError extends Error {
     super(messageAr);
     this.status = status;
     this.code = code;
+    this.messageAr = messageAr;
   }
 }
 
@@ -84,11 +85,11 @@ async function request<T>(
   }
   let res: Response;
   try {
-    res = await fetch(`${baseUrl()}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
+    const init: RequestInit = { method, headers };
+    if (body !== undefined) {
+      init.body = JSON.stringify(body);
+    }
+    res = await fetch(`${baseUrl()}${path}`, init);
   } catch {
     // Network failure — normalized, user-safe (RULE 3: no fallback).
     throw new AdminApiError(0, 'NETWORK', 'تعذر الاتصال بالخادم. تحقق من الإنترنت');
