@@ -1,4 +1,4 @@
-import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 
@@ -20,6 +20,8 @@ import type { ApiSuccess } from '@khabir/shared-types';
 @ApiTags('health')
 @Controller()
 export class HealthController {
+  private readonly logger = new Logger('Readiness');
+
   constructor(private readonly prisma: PrismaService) {}
 
   @Public()
@@ -39,13 +41,16 @@ export class HealthController {
         await this.prisma.$queryRaw`SELECT 1`;
         // Connection is now healthy.
       } catch (err) {
+        // The raw driver error may contain host/connection detail. Log it
+        // server-side only; the public probe returns a stable, safe marker.
         const message = err instanceof Error ? err.message : 'database unreachable';
+        this.logger.error(`readiness check failed: ${message}`);
         throw new HttpException(
           {
             error: {
               code: 'INTERNAL_ERROR',
               message: 'Service not ready',
-              fields: { database: message },
+              fields: { database: 'unreachable' },
             },
           },
           HttpStatus.SERVICE_UNAVAILABLE,

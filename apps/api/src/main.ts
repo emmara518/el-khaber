@@ -14,6 +14,20 @@ import { getConfig } from './config/app.config';
 // In production, variables are provided by the platform (no .env file).
 loadDotenv();
 
+/**
+ * Safe database target for startup diagnostics: host/port/database only.
+ * Credentials are NEVER included (docs/10 §24).
+ */
+function describeDatabase(url: string): string {
+  try {
+    const u = new URL(url);
+    const db = u.pathname.replace(/^\//, '');
+    return `${u.hostname}${u.port.length > 0 ? `:${u.port}` : ''}/${db}`;
+  } catch {
+    return 'unknown';
+  }
+}
+
 async function bootstrap(): Promise<void> {
   const config = getConfig();
   const logger = new Logger('Bootstrap');
@@ -51,6 +65,21 @@ async function bootstrap(): Promise<void> {
   // `class-validator` package is not required.
 
   app.useGlobalFilters(new ApiExceptionFilter());
+
+  // Startup diagnostics (Task 11D). Non-secret configuration only.
+  logger.log(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      level: 'info',
+      event: 'startup',
+      env: config.env,
+      pid: process.pid,
+      port: config.port,
+      globalPrefix: config.globalPrefix,
+      corsOrigins: config.corsOrigins.length,
+      database: describeDatabase(config.databaseUrl),
+    }),
+  );
 
   await app.listen(config.port);
   logger.log(`[api] listening on http://localhost:${String(config.port)}/${config.globalPrefix}`);
