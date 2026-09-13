@@ -1498,6 +1498,60 @@ info:
   version: 0.1.0
 openapi: 3.0.3
 paths:
+  /api/v1/admin/audit-logs:
+    get:
+      operationId: AdminController_listAuditLogs
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: entity_type
+          required: false
+          schema:
+            maxLength: 64
+            minLength: 1
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuditLogDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Audit trail (entity-type filter; newest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/admin/auth/login:
     post:
       operationId: AdminAuthController_login
@@ -1682,6 +1736,155 @@ paths:
         - bearer: []
       tags:
         - admin-auth
+  /api/v1/admin/merchants:
+    get:
+      operationId: AdminController_listMerchants
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: q
+          required: false
+          schema:
+            maxLength: 100
+            minLength: 1
+            type: string
+        - in: query
+          name: verification_status
+          required: false
+          schema:
+            enum:
+              - pending
+              - verified
+              - rejected
+              - suspended
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminMerchantDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Merchant profiles (verification filter).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/merchants/{id}/verification:
+    post:
+      operationId: AdminController_setMerchantVerification
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminVerificationResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Verification status set (audited).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Merchant profile not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Verification status already set.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/metrics:
+    get:
+      operationId: AdminController_metrics
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminMetricsDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Platform counts (no decorative metrics).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/admin/notifications:
     post:
       operationId: AdminNotificationsController_notify
@@ -2042,6 +2245,208 @@ paths:
         - bearer: []
       tags:
         - admin-payments
+  /api/v1/admin/reviews:
+    get:
+      operationId: AdminController_listReviews
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminReviewDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: All reviews (moderation queue).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/reviews/{id}/remove:
+    post:
+      operationId: AdminController_removeReview
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminReviewRemoveResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Review removed per policy (audited; metrics recomputed).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Review not found.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/service-requests:
+    get:
+      operationId: AdminController_listServiceRequests
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - pending
+              - accepted
+              - on_the_way
+              - in_progress
+              - completed
+              - cancelled
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminServiceRequestDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: All service requests (status filter).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/service-requests/{id}/status:
+    post:
+      operationId: AdminController_setServiceRequestStatus
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminStatusOverrideResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Status override (audited; history + notification).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service request not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unsupported status / unchanged.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/admin/subscriptions/grant:
     post:
       operationId: AdminGrantsController_grantSubscription
@@ -2093,6 +2498,239 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Active-subscription conflict / plan inactive / role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/technicians:
+    get:
+      operationId: AdminController_listTechnicians
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: q
+          required: false
+          schema:
+            maxLength: 100
+            minLength: 1
+            type: string
+        - in: query
+          name: verification_status
+          required: false
+          schema:
+            enum:
+              - pending
+              - verified
+              - rejected
+              - suspended
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminTechnicianDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Technician profiles (verification filter).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/technicians/{id}/verification:
+    post:
+      operationId: AdminController_setTechnicianVerification
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminVerificationResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Verification status set (audited).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Technician profile not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Verification status already set.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/users:
+    get:
+      operationId: AdminController_listUsers
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: q
+          required: false
+          schema:
+            maxLength: 100
+            minLength: 1
+            type: string
+        - in: query
+          name: role
+          required: false
+          schema:
+            enum:
+              - customer
+              - technician
+              - merchant
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - active
+              - suspended
+              - pending
+              - deleted
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Users (search by email/phone, filter role/status).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/users/{id}:
+    get:
+      operationId: AdminController_getUser
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserDetailDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: User detail with role-appropriate profile + counts.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: User not found.
       security:
         - bearer: []
       tags:
