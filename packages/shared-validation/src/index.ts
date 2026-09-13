@@ -330,3 +330,43 @@ export const adminSubmissionListQuerySchema = paginationSchema.extend({
   status: z.enum(['pending', 'approved', 'rejected']).optional(),
 });
 export type AdminSubmissionListQuery = z.infer<typeof adminSubmissionListQuerySchema>;
+
+// -----------------------------------------------------------------------------
+// Technician self-service (Task 10J-R1)
+// Source: docs/07_API.md §16. Editable fields: displayName/bio/avatarUrl/
+// experienceYears + area labels (coordinates optional — label-only areas are
+// supported). verificationStatus, ratings, and counters are server-owned and
+// NEVER client-writable (docs/09 §6 — admin is the verification authority).
+// -----------------------------------------------------------------------------
+
+const areaSchema = z.object({
+  label_ar: z.string().trim().min(1).max(128),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+});
+
+export const technicianProfileUpdateSchema = z
+  .object({
+    display_name: z.string().trim().min(1).max(255).optional(),
+    bio: z.string().trim().max(2000).optional(),
+    avatar_url: z.string().trim().min(1).max(512).optional(),
+    experience_years: z.coerce.number().int().min(0).max(60).optional(),
+    areas: z.array(areaSchema).max(10).optional(),
+  })
+  .refine(
+    (v) =>
+      v.display_name !== undefined ||
+      v.bio !== undefined ||
+      v.avatar_url !== undefined ||
+      v.experience_years !== undefined ||
+      v.areas !== undefined,
+    { message: 'at least one field is required' },
+  );
+export type TechnicianProfileUpdateInput = z.infer<typeof technicianProfileUpdateSchema>;
+
+/** POST /technician/services — attach a documented catalog service. */
+export const technicianServiceAddSchema = z.object({
+  service_id: uuidParam,
+  price_from: z.number().min(0).max(999999.99).optional(),
+});
+export type TechnicianServiceAddInput = z.infer<typeof technicianServiceAddSchema>;

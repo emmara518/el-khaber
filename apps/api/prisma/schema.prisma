@@ -340,9 +340,12 @@ model TechnicianServiceArea {
   // Technician-entered area label. Unique per technician (duplicate
   // service-area prevention).
   labelAr      String                    @map("label_ar") @db.VarChar(128)
-  // Documented logical coordinates (docs/06_DATABASE.md §6).
-  latitude     Decimal                   @map("latitude") @db.Decimal(9, 6)
-  longitude    Decimal                   @map("longitude") @db.Decimal(9, 6)
+  // Logical coordinates. Nullable since Task 10J-R1: technician-entered
+  // LABEL-ONLY areas (the onboarding UI's preset district names) carry no
+  // coordinates; the derived geography stays NULL and radius filtering
+  // honestly excludes such entries. Coordinates optional, never invented.
+  latitude     Decimal?                  @map("latitude") @db.Decimal(9, 6)
+  longitude    Decimal?                  @map("longitude") @db.Decimal(9, 6)
   // PostGIS geography(Point, 4326), derived from latitude/longitude by the
   // shared trigger. Managed outside Prisma; excluded from the client.
   coordinates  Unsupported("geography")?

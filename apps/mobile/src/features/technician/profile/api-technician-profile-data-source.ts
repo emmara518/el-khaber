@@ -1,30 +1,18 @@
 /**
- * Real API `TechnicianProfileDataSource` (Task 10J).
+ * Real API `TechnicianProfileDataSource` (Task 10J + 10J-R1).
  *
- * DISCOVERED CONTRACT GAP (reported — the integration path is
- * intentionally NOT faked): docs/07 §16 documents self-service
- * technician endpoints (GET/PATCH /technician/profile, services,
- * submit-verification) but none are implemented backend-side (only
- * the PUBLIC discovery reads exist).
+ * Self-service surface (docs/07 §16 — endpoints implemented in 10J-R1):
+ * - getProfile: GET /technician/profile (lazily creates for onboarding),
+ * - saveProfile: PATCH /technician/profile (editable fields only),
+ * - submitVerificationProfile: PATCH /technician/profile — persists data;
+ *   verification STATUS is admin-owned (docs/09 §6) and is never mutated
+ *   client-side (the honest persisted state is returned).
  *
- * What this adapter does with REAL endpoints:
- * - getProfile: GET /me (identity) + the role-scoped request list to
- *   resolve the technician's own public-profile id, then the public
- *   GET /technicians/:id for the real displayName/bio/experience/
- *   services/rating/verification. With no requests (brand-new
- *   technician) it returns the honest empty profile.
- *
- * What it refuses to fabricate:
- * - saveProfile/submitVerificationProfile have no backend endpoints
- *   → they throw the existing typed ProfileSaveError with an explicit
- *   unavailability message instead of pretending success. Onboarding
- *   persistence for technicians is a CTO decision (see report).
+ * Area entries carry labels only (coordinates optional — label-only areas
+ * supported since 10J-R1; radius filtering excludes them honestly).
  */
 
 import { getApi } from '../../../lib/api-client';
-import { drainPages } from '../../../lib/api-query';
-import { getTechnicianPublic } from '../../../lib/catalog-reference';
-import { categorySlugById } from '../../../lib/catalog-reference';
 import { initialsOf } from '../../../lib/request-labels';
 
 import { ProfileSaveError } from './mock-technician-profile-data-source';
@@ -35,21 +23,14 @@ import type {
   TechnicianProfileDraft,
   TechnicianVerificationStatus,
 } from './technician-profile-types';
-import type { ApplianceSlug } from '../../customer/home/data/customer-home-types';
-import type {
-  MeDto,
-  ServiceRequestSummaryDto,
-  TechnicianPublicDto,
-} from '@khabir/shared-types';
-
+import type { TechnicianSelfProfileDto } from '@khabir/shared-types';
 
 export { ProfileSaveError };
 
-const SELF_UPDATE_UNAVAILABLE_AR =
-  'تحديث ملف الفني غير متاح حاليًا في الواجهة البرمجية (نقطة نهاية غير منفذة)';
-
 /** Backend verification → the screen's 4-state model. */
-function mapVerification(status: TechnicianPublicDto['verificationStatus']): TechnicianVerificationStatus {
+function mapVerification(
+  status: TechnicianSelfProfileDto['verificationStatus'],
+): TechnicianVerificationStatus {
   switch (status) {
     case 'verified':
       return 'approved';
@@ -64,94 +45,84 @@ function mapVerification(status: TechnicianPublicDto['verificationStatus']): Tec
   }
 }
 
-export async function mapSelfProfile(
-  me: MeDto,
-  tech: TechnicianPublicDto | null,
-): Promise<TechnicianProfile> {
-  if (tech === null) {
-    // Brand-new technician: real identity only, everything else empty.
-    return {
-      displayNameAr: '',
-      initialsAr: '',
-      phoneAr: me.phone ?? '',
-      bioAr: '',
-      experienceYears: 0,
-      specialtiesAr: [],
-      appliances: [],
-      servicesAr: [],
-      areasAr: [], // service areas not publicly exposed (reported gap)
-      verification: 'pending',
-      verificationNoteAr: '',
-      rating: 0,
-      reviewCount: 0,
-      completedCount: 0,
-    };
-  }
-  const displayName = tech.displayName ?? '';
-  const specialtiesAr: string[] = [];
-  const servicesAr: string[] = [];
-  const appliances = new Set<ApplianceSlug>();
-  for (const entry of tech.services) {
-    servicesAr.push(entry.service.nameAr);
-    if (!specialtiesAr.includes(entry.service.nameAr)) specialtiesAr.push(entry.service.nameAr);
-    const slug = await categorySlugById(entry.service.applianceCategoryId);
-    if (slug === 'washing_machine' || slug === 'refrigerator' || slug === 'air_conditioner') {
-      appliances.add(slug);
-    }
-  }
+function mapSelfProfile(dto: TechnicianSelfProfileDto, phoneAr: string): TechnicianProfile {
+  const displayName = dto.displayName ?? '';
   return {
     displayNameAr: displayName,
     initialsAr: initialsOf(displayName),
-    phoneAr: me.phone ?? '',
-    bioAr: tech.bio ?? '',
-    experienceYears: tech.experienceYears,
-    specialtiesAr,
-    appliances: [...appliances],
-    servicesAr,
-    areasAr: [], // reported gap
-    verification: mapVerification(tech.verificationStatus),
-    verificationNoteAr:
-      tech.verificationStatus === 'verified' ? 'تم التحقق من بياناتك.' : '',
-    rating: tech.ratingAverage ?? 0,
-    reviewCount: tech.ratingCount,
-    completedCount: tech.completedServicesCount,
+    phoneAr,
+    bioAr: dto.bio ?? '',
+    experienceYears: dto.experienceYears,
+    specialtiesAr: [],
+    appliances: [],
+    servicesAr: dto.services.map((s) => s.nameAr),
+    areasAr: dto.areas.map((a) => a.labelAr),
+    verification: mapVerification(dto.verificationStatus),
+    verificationNoteAr: dto.verificationStatus === 'verified' ? 'تم التحقق من بياناتك.' : '',
+    rating: dto.ratingAverage ?? 0,
+    reviewCount: dto.ratingCount,
+    completedCount: dto.completedServicesCount,
   };
 }
 
 export class ApiTechnicianProfileDataSource implements TechnicianProfileDataSource {
   async getProfile(_input: { role: 'technician' }): Promise<TechnicianProfile> {
+    // Real self profile + identity (phone lives on the account, not the profile).
     const api = getApi();
-    const [me, summaries] = await Promise.all([
-      api.request<MeDto>('GET', '/me').then((res) => res.data),
-      drainPages<ServiceRequestSummaryDto>((page, limit) =>
-        api
-          .request<ServiceRequestSummaryDto[]>(
-            'GET',
-            `/service-requests?page=${String(page)}&limit=${String(limit)}`,
-          )
-          .then((res) => ({ items: res.data, meta: res.meta })),
-      ),
+    const [profile, me] = await Promise.all([
+      api.request<TechnicianSelfProfileDto>('GET', '/technician/profile').then((res) => res.data),
+      api
+        .request<{ phone: string | null }>('GET', '/me')
+        .then((res) => res.data)
+        .catch(() => ({ phone: null })),
     ]);
-    const selfId = summaries.find((s) => s.technicianId !== null)?.technicianId ?? null;
-    const tech = selfId !== null ? await getTechnicianPublic(selfId) : null;
-    return mapSelfProfile(me, tech);
+    return mapSelfProfile(profile, me.phone ?? '');
   }
 
-  async saveProfile(_input: {
+  async saveProfile(input: {
     role: 'technician';
     profile: TechnicianProfileDraft;
   }): Promise<TechnicianProfile> {
-    // No PATCH /technician/profile endpoint exists (reported gap) —
-    // refuse honestly instead of fabricating a save.
-    throw new ProfileSaveError(SELF_UPDATE_UNAVAILABLE_AR);
+    const saved = await this.patchProfile(input.profile);
+    return mapSelfProfile(saved, input.profile.phoneAr ?? '');
   }
 
-  async submitVerificationProfile(_input: {
+  /**
+   * Persists the submitted profile via PATCH. Verification STATUS remains
+   * admin-owned (docs/09 §6) — no self-approval is performed anywhere; the
+   * honest persisted state is returned.
+   */
+  async submitVerificationProfile(input: {
     role: 'technician';
     profile: TechnicianProfileDraft;
   }): Promise<TechnicianProfile> {
-    // No submit-verification endpoint exists (reported gap) — refuse
-    // honestly; verification is admin-authoritative server-side.
-    throw new ProfileSaveError(SELF_UPDATE_UNAVAILABLE_AR);
+    return this.saveProfile(input);
+  }
+
+  private async patchProfile(draft: TechnicianProfileDraft): Promise<TechnicianSelfProfileDto> {
+    const body: Record<string, unknown> = {};
+    if (typeof draft.displayNameAr === 'string' && draft.displayNameAr.trim().length > 0) {
+      body['display_name'] = draft.displayNameAr.trim();
+    }
+    if (typeof draft.bioAr === 'string') {
+      body['bio'] = draft.bioAr.trim();
+    }
+    if (typeof draft.experienceYears === 'number' && Number.isFinite(draft.experienceYears)) {
+      body['experience_years'] = draft.experienceYears;
+    }
+    if (Array.isArray(draft.areasAr) && draft.areasAr.length > 0) {
+      // Label-only areas (coordinates optional; no invented geo).
+      body['areas'] = draft.areasAr
+        .filter((a) => a.trim().length > 0)
+        .slice(0, 10)
+        .map((label) => ({ label_ar: label.trim() }));
+    }
+    if (Object.keys(body).length === 0) {
+      // Nothing to persist — idempotent no-op returns current server state.
+      return getApi().request<TechnicianSelfProfileDto>('GET', '/technician/profile').then((r) => r.data);
+    }
+    return getApi()
+      .request<TechnicianSelfProfileDto>('PATCH', '/technician/profile', body)
+      .then((r) => r.data);
   }
 }

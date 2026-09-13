@@ -652,6 +652,146 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     required: ['id', 'userId', 'type'],
     additionalProperties: false,
   },
+
+  // ---------------------------------------------------------------------------
+  // Technician self-service (Task 10J-R1). Source: docs/07_API.md §16.
+  // ---------------------------------------------------------------------------
+  TechnicianSelfProfileDto: {
+    type: 'object',
+    description:
+      'Own technician profile. verificationStatus/ratings/counters are ' +
+      'server-owned (admin is the verification authority); areas are ' +
+      'label-based with OPTIONAL coordinates (label-only areas carry no geo ' +
+      'and are excluded from radius filtering).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      avatarUrl: { type: 'string', nullable: true },
+      verificationStatus: REF('VerificationStatus'),
+      experienceYears: { type: 'integer' },
+      completedServicesCount: { type: 'integer' },
+      ratingAverage: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer' },
+      availabilityStatus: REF('TechnicianAvailabilityStatus'),
+      services: { type: 'array', items: REF('TechnicianSelfServiceDto') },
+      areas: { type: 'array', items: REF('TechnicianSelfAreaDto') },
+    },
+    required: [
+      'id',
+      'displayName',
+      'bio',
+      'avatarUrl',
+      'verificationStatus',
+      'experienceYears',
+      'completedServicesCount',
+      'ratingAverage',
+      'ratingCount',
+      'availabilityStatus',
+      'services',
+      'areas',
+    ],
+    additionalProperties: false,
+  },
+  TechnicianSelfServiceDto: {
+    type: 'object',
+    description: 'A catalog service attached by the technician.',
+    properties: {
+      serviceId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      priceFrom: { type: 'number', nullable: true },
+    },
+    required: ['serviceId', 'nameAr', 'slug', 'applianceCategoryId', 'priceFrom'],
+    additionalProperties: false,
+  },
+  TechnicianSelfAreaDto: {
+    type: 'object',
+    description: 'Technician service area (label; coordinates optional).',
+    properties: {
+      labelAr: { type: 'string' },
+      latitude: { type: 'number', nullable: true },
+      longitude: { type: 'number', nullable: true },
+    },
+    required: ['labelAr', 'latitude', 'longitude'],
+    additionalProperties: false,
+  },
+  TechnicianStatsDto: {
+    type: 'object',
+    description: 'Server-derived technician request counters + rating metrics.',
+    properties: {
+      pendingCount: { type: 'integer', minimum: 0 },
+      onTheWayCount: { type: 'integer', minimum: 0 },
+      inProgressCount: { type: 'integer', minimum: 0 },
+      completedCount: { type: 'integer', minimum: 0 },
+      completedServicesCount: { type: 'integer', minimum: 0 },
+      ratingAverage: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer', minimum: 0 },
+    },
+    required: [
+      'pendingCount',
+      'onTheWayCount',
+      'inProgressCount',
+      'completedCount',
+      'completedServicesCount',
+      'ratingAverage',
+      'ratingCount',
+    ],
+    additionalProperties: false,
+  },
+  UpdateTechnicianProfileDto: {
+    type: 'object',
+    description:
+      'PATCH /technician/profile payload. Editable: display_name, bio, ' +
+      'avatar_url, experience_years, areas (label + optional coordinates). ' +
+      'verificationStatus/ratings/counters are NEVER writable.',
+    properties: {
+      display_name: { type: 'string', minLength: 1, maxLength: 255 },
+      bio: { type: 'string', maxLength: 2000 },
+      avatar_url: { type: 'string', minLength: 1, maxLength: 512 },
+      experience_years: { type: 'integer', minimum: 0, maximum: 60 },
+      areas: {
+        type: 'array',
+        maxItems: 10,
+        items: {
+          type: 'object',
+          properties: {
+            label_ar: { type: 'string', minLength: 1, maxLength: 128 },
+            latitude: { type: 'number', minimum: -90, maximum: 90 },
+            longitude: { type: 'number', minimum: -180, maximum: 180 },
+          },
+          required: ['label_ar'],
+          additionalProperties: false,
+        },
+      },
+    },
+    additionalProperties: false,
+  },
+  CreateTechnicianServiceDto: {
+    type: 'object',
+    description: 'POST /technician/services payload (attach a catalog service).',
+    properties: {
+      service_id: { type: 'string', format: 'uuid' },
+      price_from: { type: 'number', minimum: 0 },
+    },
+    required: ['service_id'],
+    additionalProperties: false,
+  },
+  TechnicianSelfService: {
+    type: 'object',
+    description: 'GET /technician/services item.',
+    properties: {
+      serviceId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      priceFrom: { type: 'number', nullable: true },
+      isActive: { type: 'boolean' },
+    },
+    required: ['serviceId', 'nameAr', 'slug', 'applianceCategoryId', 'priceFrom', 'isActive'],
+    additionalProperties: false,
+  },
   // ---------------------------------------------------------------------------
   // Merchant domain (Task 10G). Source: docs/07_API.md §17, docs/06 §21.
   // Verification status is read-only for merchants (admin is the authority).

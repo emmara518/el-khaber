@@ -327,6 +327,16 @@ interface AuditLogRow {
   createdAt: Date;
 }
 
+interface AreaRow {
+  id: string;
+  technicianId: string;
+  labelAr: string;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface TechnicianServiceRow {
   technicianId: string;
   serviceId: string;
@@ -396,6 +406,7 @@ class FakePrismaClient {
   services: ServiceRow[] = [];
   faultServiceLinks: FaultServiceLinkRow[] = [];
   technicianServices: TechnicianServiceRow[] = [];
+  areaRows: AreaRow[] = [];
   technicianProfiles: TechnicianProfileRow[] = [];
   locations: LocationRow[] = [];
   serviceRequests: ServiceRequestRow[] = [];
@@ -759,6 +770,69 @@ class FakePrismaClient {
     },
   };
 
+  technicianServiceArea = {
+    findMany: async (args: { where: { technicianId?: string } }): Promise<Array<{ id: string; labelAr: string; latitude: number | null; longitude: number | null }>> =>
+      this.areaRows.filter((a) => args.where.technicianId === undefined || a.technicianId === args.where.technicianId),
+    findFirst: async (args: { where: { technicianId?: string; labelAr?: string } }): Promise<{ id: string; labelAr: string; latitude: number | null; longitude: number | null } | null> =>
+      this.areaRows.find(
+        (a) =>
+          (args.where.technicianId === undefined || a.technicianId === args.where.technicianId) &&
+          (args.where.labelAr === undefined || a.labelAr === args.where.labelAr),
+      ) ?? null,
+    create: async (args: { data: { technicianId: string; labelAr: string; latitude: number | null; longitude: number | null } }): Promise<{ id: string; labelAr: string }> => {
+      const now = new Date();
+      const row = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
+      this.areaRows.push(row as AreaRow);
+      return { id: row.id, labelAr: row.labelAr, latitude: row.latitude, longitude: row.longitude };
+    },
+    update: async (args: { where: { id: string }; data: { latitude?: number | null; longitude?: number | null } }): Promise<{ id: string }> => {
+      const row = this.areaRows.find((a) => a.id === args.where.id);
+      if (row === undefined) throw new Error('Area not found');
+      row.latitude = args.data.latitude ?? row.latitude;
+      row.longitude = args.data.longitude ?? row.longitude;
+      row.updatedAt = new Date();
+      return { id: row.id, labelAr: row.labelAr, latitude: row.latitude, longitude: row.longitude };
+    },
+    deleteMany: async (args: { where: { technicianId?: string; labelAr?: string } }): Promise<{ count: number }> => {
+      const before = this.areaRows.length;
+      this.areaRows = this.areaRows.filter(
+        (a) =>
+          !(
+            (args.where.technicianId === undefined || a.technicianId === args.where.technicianId) &&
+            (args.where.labelAr === undefined || a.labelAr === args.where.labelAr)
+          ),
+      );
+      return { count: before - this.areaRows.length };
+    },
+  };
+
+  technicianService = {
+    findFirst: async (args: { where: { technicianId?: string; serviceId?: string } }): Promise<TechnicianServiceRow | null> =>
+      this.technicianServices.find(
+        (ts) =>
+          (args.where.technicianId === undefined || ts.technicianId === args.where.technicianId) &&
+          (args.where.serviceId === undefined || ts.serviceId === args.where.serviceId),
+      ) ?? null,
+    findMany: async (args: { where: { technicianId?: string }, select?: Record<string, unknown> }): Promise<Array<TechnicianServiceRow>> =>
+      this.technicianServices.filter((ts) => (args as { where: { technicianId?: string | undefined } }).where.technicianId === undefined || ts.technicianId === (args as { where: { technicianId?: string | undefined } }).where.technicianId),
+    create: async (args: { data: { technicianId: string; serviceId: string; priceFrom: number | null; isActive: boolean } }): Promise<TechnicianServiceRow> => {
+      const row = { ...args.data } as TechnicianServiceRow;
+      this.technicianServices.push(row);
+      return row;
+    },
+    deleteMany: async (args: { where: { technicianId?: string; serviceId?: string } }): Promise<{ count: number }> => {
+      const before = this.technicianServices.length;
+      this.technicianServices = this.technicianServices.filter(
+        (ts) =>
+          !(
+            (args.where.technicianId === undefined || ts.technicianId === args.where.technicianId) &&
+            (args.where.serviceId === undefined || ts.serviceId === args.where.serviceId)
+          ),
+      );
+      return { count: before - this.technicianServices.length };
+    },
+  };
+
   service = {
     findFirst: async (args: { where: { id: string } }): Promise<ServiceRow | null> => {
       return this.services.find((s) => s.id === args.where.id) ?? null;
@@ -779,6 +853,14 @@ class FakePrismaClient {
   };
 
   technicianProfile = {
+    create: async (_args: { data: { userId: string } }): Promise<TechnicianProfileRow> => {
+      const now = new Date();
+      const row: TechnicianProfileRow = { id: randomUUID(), createdAt: now, updatedAt: now };
+      this.technicianProfiles.push(row);
+      // Lazy-create surface — the caller uses the returned id + defaults
+      // (pending verification, unavailable, zeroed counters).
+      return { ...row } as unknown as TechnicianProfileRow;
+    },
     count: async (args: { where: TechnicianWhere }): Promise<number> => this.matchTechnicians(args.where).length,
     findMany: async (args: {
       where: TechnicianWhere;

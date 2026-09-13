@@ -140,6 +140,14 @@ export interface CreateServiceRequestDto {
 }
 
 /**
+ * POST /technician/services payload (attach a catalog service).
+ */
+export interface CreateTechnicianServiceDto {
+  price_from?: number;
+  service_id: string;
+}
+
+/**
  * The principal current subscription with its plan (null when none).
  */
 export interface CurrentSubscriptionDto {
@@ -438,10 +446,73 @@ export interface TechnicianPublicDto {
 }
 
 /**
+ * Technician service area (label; coordinates optional).
+ */
+export interface TechnicianSelfAreaDto {
+  labelAr: string;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+/**
+ * Own technician profile. verificationStatus/ratings/counters are server-owned (admin is the verification authority); areas are label-based with OPTIONAL coordinates (label-only areas carry no geo and are excluded from radius filtering).
+ */
+export interface TechnicianSelfProfileDto {
+  areas: Array<TechnicianSelfAreaDto>;
+  availabilityStatus: TechnicianAvailabilityStatus;
+  avatarUrl: string | null;
+  bio: string | null;
+  completedServicesCount: number;
+  displayName: string | null;
+  experienceYears: number;
+  id: string;
+  ratingAverage: number | null;
+  ratingCount: number;
+  services: Array<TechnicianSelfServiceDto>;
+  verificationStatus: VerificationStatus;
+}
+
+/**
+ * GET /technician/services item.
+ */
+export interface TechnicianSelfService {
+  applianceCategoryId: string;
+  isActive: boolean;
+  nameAr: string;
+  priceFrom: number | null;
+  serviceId: string;
+  slug: string;
+}
+
+/**
+ * A catalog service attached by the technician.
+ */
+export interface TechnicianSelfServiceDto {
+  applianceCategoryId: string;
+  nameAr: string;
+  priceFrom: number | null;
+  serviceId: string;
+  slug: string;
+}
+
+/**
  * A service/specialty offered by a technician (active only).
  */
 export interface TechnicianServiceDto {
   service: ServiceDto;
+}
+
+/**
+ * Server-derived technician request counters + rating metrics.
+ */
+export interface TechnicianStatsDto {
+  completedCount: number;
+  completedServicesCount: number;
+  inProgressCount: number;
+  onTheWayCount: number;
+  pendingCount: number;
+  ratingAverage: number | null;
+  ratingCount: number;
 }
 
 /**
@@ -474,6 +545,17 @@ export interface UpdateMerchantProfileDto {
   contactPhone?: string;
   locationId?: string;
   logoUrl?: string;
+}
+
+/**
+ * PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years, areas (label + optional coordinates). verificationStatus/ratings/counters are NEVER writable.
+ */
+export interface UpdateTechnicianProfileDto {
+  areas?: Array<{ label_ar: string; latitude?: number; longitude?: number }>;
+  avatar_url?: string;
+  bio?: string;
+  display_name?: string;
+  experience_years?: number;
 }
 
 export type UserStatus = 'active' | 'suspended' | 'pending' | 'deleted';

@@ -303,6 +303,19 @@ components:
         - problem_description
         - location_id
       type: object
+    CreateTechnicianServiceDto:
+      additionalProperties: false
+      description: POST /technician/services payload (attach a catalog service).
+      properties:
+        price_from:
+          minimum: 0
+          type: number
+        service_id:
+          format: uuid
+          type: string
+      required:
+        - service_id
+      type: object
     CurrentSubscriptionDto:
       additionalProperties: false
       description: The principal current subscription with its plan (null when none).
@@ -1182,6 +1195,128 @@ components:
         - ratingCount
         - services
       type: object
+    TechnicianSelfAreaDto:
+      additionalProperties: false
+      description: Technician service area (label; coordinates optional).
+      properties:
+        labelAr:
+          type: string
+        latitude:
+          nullable: true
+          type: number
+        longitude:
+          nullable: true
+          type: number
+      required:
+        - labelAr
+        - latitude
+        - longitude
+      type: object
+    TechnicianSelfProfileDto:
+      additionalProperties: false
+      description: >-
+        Own technician profile. verificationStatus/ratings/counters are server-owned (admin is the verification
+        authority); areas are label-based with OPTIONAL coordinates (label-only areas carry no geo and are excluded from
+        radius filtering).
+      properties:
+        areas:
+          items:
+            $ref: '#/components/schemas/TechnicianSelfAreaDto'
+          type: array
+        availabilityStatus:
+          $ref: '#/components/schemas/TechnicianAvailabilityStatus'
+        avatarUrl:
+          nullable: true
+          type: string
+        bio:
+          nullable: true
+          type: string
+        completedServicesCount:
+          type: integer
+        displayName:
+          nullable: true
+          type: string
+        experienceYears:
+          type: integer
+        id:
+          format: uuid
+          type: string
+        ratingAverage:
+          nullable: true
+          type: number
+        ratingCount:
+          type: integer
+        services:
+          items:
+            $ref: '#/components/schemas/TechnicianSelfServiceDto'
+          type: array
+        verificationStatus:
+          $ref: '#/components/schemas/VerificationStatus'
+      required:
+        - id
+        - displayName
+        - bio
+        - avatarUrl
+        - verificationStatus
+        - experienceYears
+        - completedServicesCount
+        - ratingAverage
+        - ratingCount
+        - availabilityStatus
+        - services
+        - areas
+      type: object
+    TechnicianSelfService:
+      additionalProperties: false
+      description: GET /technician/services item.
+      properties:
+        applianceCategoryId:
+          format: uuid
+          type: string
+        isActive:
+          type: boolean
+        nameAr:
+          type: string
+        priceFrom:
+          nullable: true
+          type: number
+        serviceId:
+          format: uuid
+          type: string
+        slug:
+          type: string
+      required:
+        - serviceId
+        - nameAr
+        - slug
+        - applianceCategoryId
+        - priceFrom
+        - isActive
+      type: object
+    TechnicianSelfServiceDto:
+      additionalProperties: false
+      description: A catalog service attached by the technician.
+      properties:
+        applianceCategoryId:
+          format: uuid
+          type: string
+        nameAr:
+          type: string
+        priceFrom:
+          nullable: true
+          type: number
+        serviceId:
+          format: uuid
+          type: string
+        slug:
+          type: string
+      required:
+        - serviceId
+        - nameAr
+        - slug
+        - applianceCategoryId
+        - priceFrom
+      type: object
     TechnicianServiceDto:
       additionalProperties: false
       description: A service/specialty offered by a technician (active only).
@@ -1190,6 +1325,40 @@ components:
           $ref: '#/components/schemas/ServiceDto'
       required:
         - service
+      type: object
+    TechnicianStatsDto:
+      additionalProperties: false
+      description: Server-derived technician request counters + rating metrics.
+      properties:
+        completedCount:
+          minimum: 0
+          type: integer
+        completedServicesCount:
+          minimum: 0
+          type: integer
+        inProgressCount:
+          minimum: 0
+          type: integer
+        onTheWayCount:
+          minimum: 0
+          type: integer
+        pendingCount:
+          minimum: 0
+          type: integer
+        ratingAverage:
+          nullable: true
+          type: number
+        ratingCount:
+          minimum: 0
+          type: integer
+      required:
+        - pendingCount
+        - onTheWayCount
+        - inProgressCount
+        - completedCount
+        - completedServicesCount
+        - ratingAverage
+        - ratingCount
       type: object
     UpdateMeDto:
       additionalProperties: false
@@ -1258,6 +1427,49 @@ components:
         logoUrl:
           maxLength: 512
           type: string
+      type: object
+    UpdateTechnicianProfileDto:
+      additionalProperties: false
+      description: >-
+        PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years, areas (label +
+        optional coordinates). verificationStatus/ratings/counters are NEVER writable.
+      properties:
+        areas:
+          items:
+            additionalProperties: false
+            properties:
+              label_ar:
+                maxLength: 128
+                minLength: 1
+                type: string
+              latitude:
+                maximum: 90
+                minimum: -90
+                type: number
+              longitude:
+                maximum: 180
+                minimum: -180
+                type: number
+            required:
+              - label_ar
+            type: object
+          maxItems: 10
+          type: array
+        avatar_url:
+          maxLength: 512
+          minLength: 1
+          type: string
+        bio:
+          maxLength: 2000
+          type: string
+        display_name:
+          maxLength: 255
+          minLength: 1
+          type: string
+        experience_years:
+          maximum: 60
+          minimum: 0
+          type: integer
       type: object
     UserStatus:
       enum:
@@ -4054,6 +4266,336 @@ paths:
         - bearer: []
       tags:
         - subscriptions
+  /api/v1/technician/profile:
+    get:
+      operationId: TechnicianSelfController_getProfile
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianSelfProfileDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own technician profile (lazily created for onboarding).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
+    patch:
+      operationId: TechnicianSelfController_updateProfile
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                areas:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      label_ar:
+                        maxLength: 128
+                        minLength: 1
+                        type: string
+                      latitude:
+                        maximum: 90
+                        minimum: -90
+                        type: number
+                      longitude:
+                        maximum: 180
+                        minimum: -180
+                        type: number
+                    required:
+                      - label_ar
+                    type: object
+                  type: array
+                avatar_url:
+                  maxLength: 512
+                  minLength: 1
+                  type: string
+                bio:
+                  maxLength: 2000
+                  type: string
+                display_name:
+                  maxLength: 255
+                  minLength: 1
+                  type: string
+                experience_years:
+                  maximum: 60
+                  minimum: 0
+                  type: integer
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianSelfProfileDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Profile updated (editable fields only).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
+  /api/v1/technician/requests:
+    get:
+      operationId: TechnicianSelfController_listRequests
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - pending
+              - accepted
+              - on_the_way
+              - in_progress
+              - completed
+              - cancelled
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestSummaryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Role-scoped requests (pending targeted + assigned).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
+  /api/v1/technician/services:
+    get:
+      operationId: TechnicianSelfController_listServices
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianSelfServiceDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own attached catalog services.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
+    post:
+      operationId: TechnicianSelfController_addService
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                price_from:
+                  maximum: 999999.99
+                  minimum: 0
+                  type: number
+                service_id:
+                  type: string
+              required:
+                - service_id
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianSelfServiceDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Service attached (price_from optional).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service not found in the catalog.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service already attached.
+      security:
+        - bearer: []
+      tags:
+        - technician
+  /api/v1/technician/services/{serviceId}:
+    delete:
+      operationId: TechnicianSelfController_removeService
+      parameters:
+        - in: path
+          name: serviceId
+          required: true
+          schema:
+            type: string
+      responses:
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service not attached to this technician.
+      security:
+        - bearer: []
+      tags:
+        - technician
+  /api/v1/technician/stats:
+    get:
+      operationId: TechnicianSelfController_stats
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TechnicianStatsDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Server-derived request counters + rating metrics.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
   /api/v1/technicians:
     get:
       operationId: TechniciansController_list

@@ -15,8 +15,8 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { LabeledInput, MultiSelectChips } from './components/profile-selectors';
 import { ApiTechnicianProfileDataSource } from './api-technician-profile-data-source';
+import { LabeledInput, MultiSelectChips } from './components/profile-selectors';
 import {
   APPLIANCE_OPTIONS,
   AREA_OPTIONS,

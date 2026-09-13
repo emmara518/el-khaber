@@ -19,6 +19,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { TechnicianModule } from './technician/technician.module';
 
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
@@ -37,6 +38,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     ReviewsModule,
     NotificationsModule,
     SubscriptionsModule,
+    TechnicianModule,
   ],
   providers: [
     Reflector,
