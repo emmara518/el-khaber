@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockMerchantProfileDataSource } from './mock-merchant-profile-data-source';
+import { ApiMerchantProfileDataSource } from './api-merchant-profile-data-source';
 
 import type { MerchantProfile, MerchantProfileDataSource, MerchantProfileDraft } from './merchant-profile-types';
 
@@ -28,7 +28,7 @@ export interface MerchantProfileViewModel {
 }
 
 export function useMerchantProfileViewModel(
-  source: MerchantProfileDataSource = new MockMerchantProfileDataSource(),
+  source: MerchantProfileDataSource = new ApiMerchantProfileDataSource(),
 ): MerchantProfileViewModel {
   const [stableSource] = useState(() => source);
   const [attempt, setAttempt] = useState(0);

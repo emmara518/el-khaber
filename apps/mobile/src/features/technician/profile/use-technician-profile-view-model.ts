@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockTechnicianProfileDataSource } from './mock-technician-profile-data-source';
+import { ApiTechnicianProfileDataSource } from './api-technician-profile-data-source';
 
 import type { TechnicianProfile, TechnicianProfileDataSource, TechnicianProfileDraft } from './technician-profile-types';
 
@@ -28,7 +28,7 @@ export interface TechnicianProfileViewModel {
 }
 
 export function useTechnicianProfileViewModel(
-  source: TechnicianProfileDataSource = new MockTechnicianProfileDataSource(),
+  source: TechnicianProfileDataSource = new ApiTechnicianProfileDataSource(),
 ): TechnicianProfileViewModel {
   const [attempt, setAttempt] = useState(0);
   const [loadStatus, setLoadStatus] = useState<TechnicianProfileLoadStatus>('loading');

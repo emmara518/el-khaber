@@ -1,3 +1,4 @@
+import { ApiTechnicianProfileDataSource } from '../../src/features/technician/profile/api-technician-profile-data-source';
 import TechnicianProfileScreen from '../../src/features/technician/profile/technician-profile-screen';
 
 /**
@@ -7,5 +8,5 @@ import TechnicianProfileScreen from '../../src/features/technician/profile/techn
  * prefilled onboarding flow. Other tabs stay placeholders.
  */
 export default function TechnicianProfileRoute() {
-  return <TechnicianProfileScreen />;
+  return <TechnicianProfileScreen source={new ApiTechnicianProfileDataSource()} />;
 }

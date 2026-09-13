@@ -1,10 +1,10 @@
 import { useLocalSearchParams } from 'expo-router';
 
+import { sharedMerchantProductsSource } from '../../../src/features/merchant/products/api-merchant-products-data-source';
 import MerchantProductDetailScreen from '../../../src/features/merchant/products/merchant-product-detail-screen';
 import {
   findMerchantProduct,
 } from '../../../src/features/merchant/products/merchant-product-types';
-import { sharedMerchantProductsSource } from '../../../src/features/merchant/products/mock-merchant-products-data-source';
 import { useMerchantProductsViewModel } from '../../../src/features/merchant/products/use-merchant-products-view-model';
 
 /**

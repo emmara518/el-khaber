@@ -5,9 +5,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockTechnicianReviewsDataSource, type TechnicianReviewsDataSource } from './technician-reviews-types';
+import { ApiTechnicianReviewsDataSource } from './api-technician-reviews-data-source';
 
-import type { TechnicianReviewsSummary } from './technician-reviews-types';
+import type { TechnicianReviewsDataSource, TechnicianReviewsSummary } from './technician-reviews-types';
 
 export type TechnicianReviewsStatus = 'loading' | 'loaded' | 'error';
 
@@ -19,7 +19,7 @@ export interface TechnicianReviewsState {
 }
 
 export function useTechnicianReviewsViewModel(
-  source: TechnicianReviewsDataSource = new MockTechnicianReviewsDataSource(),
+  source: TechnicianReviewsDataSource = new ApiTechnicianReviewsDataSource(),
 ): TechnicianReviewsState {
   const [stableSource] = useState(() => source);
   const [attempt, setAttempt] = useState(0);

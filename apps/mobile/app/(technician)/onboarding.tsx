@@ -9,7 +9,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import TechnicianOnboardingScreen from '../../src/features/technician/onboarding/technician-onboarding-screen';
-import { MockTechnicianProfileDataSource } from '../../src/features/technician/profile/mock-technician-profile-data-source';
+import { ApiTechnicianProfileDataSource } from '../../src/features/technician/profile/api-technician-profile-data-source';
 import {
   draftFromProfile,
   type TechnicianProfileDraft,
@@ -23,7 +23,7 @@ export default function TechnicianOnboardingRoute() {
   useEffect(() => {
     if (params.resume !== '1') return;
     let cancelled = false;
-    new MockTechnicianProfileDataSource()
+    new ApiTechnicianProfileDataSource()
       .getProfile({ role: 'technician' })
       .then((profile) => {
         if (cancelled) return;

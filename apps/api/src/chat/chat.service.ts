@@ -121,10 +121,16 @@ export class ChatService {
     }
 
     // Participants: the request customer + the request technician's account.
-    const technicianProfile = await this.prisma.technicianProfile.findFirst({
-      where: { id: request.technicianId ?? '__never__' },
-      select: { userId: true },
-    });
+    // A request always carries a technician in the current product flow;
+    // the null guard keeps the lookup total without a dummy-id sentinel
+    // (Prisma validates UUID parameters and would reject one).
+    const technicianProfile =
+      request.technicianId === null
+        ? null
+        : await this.prisma.technicianProfile.findFirst({
+            where: { id: request.technicianId },
+            select: { userId: true },
+          });
     const created = await this.prisma.$transaction(async (tx) => {
       const conversation = await tx.conversation.create({
         data: { serviceRequestId },

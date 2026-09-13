@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
-import { MockFaultGuideDataSource } from '../fault-guide/mock-fault-guide-data-source';
+import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
 import { TechnicianResultCard } from './components/technician-result-card';
 import {
@@ -52,7 +52,7 @@ export default function TechnicianSearchScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    new MockFaultGuideDataSource()
+    new ApiFaultGuideDataSource()
       .getGuide({ role: 'customer' })
       .then((g) => {
         if (!cancelled) setGuide(g);

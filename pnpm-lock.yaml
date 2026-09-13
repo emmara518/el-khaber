@@ -273,6 +273,9 @@ importers:
       '@khabir/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@types/node':
+        specifier: 20.14.10
+        version: 20.14.10
       '@types/react':
         specifier: ~18.3.12
         version: 18.3.12

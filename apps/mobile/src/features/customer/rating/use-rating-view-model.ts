@@ -8,7 +8,7 @@
 
 import { useCallback, useState } from 'react';
 
-import { MockRatingDataSource } from './mock-rating-data-source';
+import { ApiRatingDataSource } from './api-rating-data-source';
 import { toggleTag, validateRating, type RatingDataSource } from './rating-types';
 
 export type RatingSubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
@@ -29,7 +29,7 @@ export interface RatingViewModel {
 
 export function useRatingViewModel(
   input: { requestId: string; technicianId: string },
-  source: RatingDataSource = new MockRatingDataSource(),
+  source: RatingDataSource = new ApiRatingDataSource(),
 ): RatingViewModel {
   const [stars, setStars] = useState<number | null>(null);
   const [tags, setTags] = useState<ReadonlyArray<string>>([]);

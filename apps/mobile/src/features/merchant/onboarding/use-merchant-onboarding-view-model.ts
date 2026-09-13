@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
-import { MockMerchantProfileDataSource } from '../profile/mock-merchant-profile-data-source';
+import { ApiMerchantProfileDataSource } from '../profile/api-merchant-profile-data-source';
 
 import {
   INITIAL_MERCHANT_ONBOARDING_STATE,
@@ -37,7 +37,7 @@ export interface MerchantOnboardingViewModel {
 
 export function useMerchantOnboardingViewModel(
   initialDraft?: MerchantProfileDraft,
-  source: MerchantProfileDataSource = new MockMerchantProfileDataSource(),
+  source: MerchantProfileDataSource = new ApiMerchantProfileDataSource(),
 ): MerchantOnboardingViewModel {
   const [machine, dispatch] = useReducer(merchantOnboardingReducer, INITIAL_MERCHANT_ONBOARDING_STATE);
   const [submitStatus, setSubmitStatus] = useState<MerchantSubmitStatus>('idle');

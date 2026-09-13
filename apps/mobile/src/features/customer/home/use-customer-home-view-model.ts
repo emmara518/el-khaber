@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { MockCustomerHomeDataSource } from './data/mock-customer-home-data-source';
+import { ApiCustomerHomeDataSource } from './api-customer-home-data-source';
 
 import type {
   CustomerHomeDataSource,
@@ -33,7 +33,7 @@ export function useCustomerHomeViewModel(): CustomerHomeViewModelState {
 
   useEffect(() => {
     let cancelled = false;
-    const source: CustomerHomeDataSource = new MockCustomerHomeDataSource();
+    const source: CustomerHomeDataSource = new ApiCustomerHomeDataSource();
     setState({ status: 'loading', data: null, error: null });
     source
       .getHome({ role: 'customer' })

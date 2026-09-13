@@ -10,8 +10,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { ApiTechnicianRequestsDataSource } from './api-technician-requests-data-source';
 import {
-  MockTechnicianRequestsDataSource,
   RequestActionError,
   type TechnicianRequestsDataSource,
 } from './mock-technician-requests-data-source';
@@ -38,12 +38,12 @@ export interface TechnicianRequestsViewModel {
 }
 
 export function useTechnicianRequestsViewModel(
-  source?: TechnicianRequestsDataSource,
+  provided?: TechnicianRequestsDataSource,
 ): TechnicianRequestsViewModel {
-  // Stabilize the default source: a fresh `new Mock…()` per render
+  // Stabilize the default source: a fresh `new Api…()` per render
   // would retrigger the loader endlessly.
-  const [stableSource] = useState(
-    () => source ?? new MockTechnicianRequestsDataSource(),
+  const [source] = useState(
+    () => provided ?? new ApiTechnicianRequestsDataSource(),
   );
   const [attempt, setAttempt] = useState(0);
   const [listStatus, setListStatus] = useState<TechnicianRequestsStatus>('loading');
@@ -57,14 +57,14 @@ export function useTechnicianRequestsViewModel(
     setListStatus('loading');
     setListError(null);
     try {
-      const data = await stableSource.getRequests({ role: 'technician' });
+      const data = await source.getRequests({ role: 'technician' });
       setRequests(data);
       setListStatus('loaded');
     } catch (err) {
       setListError(err instanceof Error ? err : new Error(String(err)));
       setListStatus('error');
     }
-  }, [stableSource]);
+  }, [source]);
 
   useEffect(() => {
     void load();
@@ -80,10 +80,10 @@ export function useTechnicianRequestsViewModel(
         try {
           const updated =
             kind === 'accept'
-              ? await stableSource.acceptRequest({ role: 'technician', requestId })
+              ? await source.acceptRequest({ role: 'technician', requestId })
               : kind === 'reject'
-                ? await stableSource.rejectRequest({ role: 'technician', requestId })
-                : await stableSource.advanceStatus({ role: 'technician', requestId });
+                ? await source.rejectRequest({ role: 'technician', requestId })
+                : await source.advanceStatus({ role: 'technician', requestId });
           setRequests((current) => current.map((r) => (r.id === updated.id ? updated : r)));
           setActionResult(updated);
           setActionStatus('success');
@@ -94,10 +94,14 @@ export function useTechnicianRequestsViewModel(
             setActionError(requestActionErrorAr('unknown'));
           }
           setActionStatus('error');
+          // Task 10J §20: a rejected/stale transition means the local
+          // list may hold a stale server state — refresh it through
+          // the real API so the UI reflects the server result.
+          void load();
         }
       })();
     },
-    [stableSource, actionStatus],
+    [source, actionStatus, load],
   );
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);

@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
-import { MockTechnicianProfileDataSource } from '../profile/mock-technician-profile-data-source';
+import { ApiTechnicianProfileDataSource } from '../profile/api-technician-profile-data-source';
 
 import {
   INITIAL_ONBOARDING_STATE,
@@ -38,7 +38,7 @@ export interface TechnicianOnboardingViewModel {
 
 export function useTechnicianOnboardingViewModel(
   initialDraft?: TechnicianProfileDraft,
-  source: TechnicianProfileDataSource = new MockTechnicianProfileDataSource(),
+  source: TechnicianProfileDataSource = new ApiTechnicianProfileDataSource(),
 ): TechnicianOnboardingViewModel {
   const [machine, dispatch] = useReducer(onboardingReducer, INITIAL_ONBOARDING_STATE);
   const [submitStatus, setSubmitStatus] = useState<OnboardingSubmitStatus>('idle');

@@ -26,13 +26,9 @@ import {
 
 import { ListError, ListLoading } from '../components/list-state-view';
 import { useSafeBack } from '../components/use-safe-back';
-import { MockTechnicianDataSource } from '../discovery/mock-technician-data-source';
-import { MockFaultGuideDataSource } from '../fault-guide/mock-fault-guide-data-source';
+import { ApiTechnicianDataSource } from '../discovery/api-technician-data-source';
+import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
-import {
-  MockServiceRequestDataSource,
-  type ServiceRequestDataSource,
-} from './mock-service-request-data-source';
 import { ServiceRequestProgress } from './service-request-progress';
 import {
   DESCRIPTION_MAX,
@@ -47,6 +43,7 @@ import {
 } from './service-request-types';
 import { useServiceRequestViewModel } from './use-service-request-view-model';
 
+import type { ServiceRequestDataSource } from './mock-service-request-data-source';
 import type { Technician } from '../discovery/technician-types';
 import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
@@ -71,7 +68,7 @@ export default function ServiceRequestScreen({
   const { t } = useI18n();
   const router = useRouter();
   const safeBack = useSafeBack('/(customer)/find-technician');
-  const vm = useServiceRequestViewModel(handoff, source ?? new MockServiceRequestDataSource());
+  const vm = useServiceRequestViewModel(handoff, source);
 
   const [technician, setTechnician] = useState<Technician | null>(null);
   const [techMissing, setTechMissing] = useState(false);
@@ -79,7 +76,7 @@ export default function ServiceRequestScreen({
 
   useEffect(() => {
     let cancelled = false;
-    new MockTechnicianDataSource()
+    new ApiTechnicianDataSource()
       .getTechnicians({ role: 'customer' })
       .then((techs) => {
         if (cancelled) return;
@@ -90,7 +87,7 @@ export default function ServiceRequestScreen({
       .catch(() => {
         if (!cancelled) setTechMissing(true);
       });
-    new MockFaultGuideDataSource()
+    new ApiFaultGuideDataSource()
       .getGuide({ role: 'customer' })
       .then((g) => {
         if (!cancelled) setGuide(g);

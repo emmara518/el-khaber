@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockCustomerProfileDataSource } from './mock-customer-profile-data-source';
+import { ApiCustomerProfileDataSource } from './api-customer-profile-data-source';
 
 import type { CustomerProfileSummary } from './customer-profile-types';
 
@@ -28,7 +28,7 @@ export function useCustomerProfileViewModel(): CustomerProfileState {
 
   useEffect(() => {
     let cancelled = false;
-    const source = new MockCustomerProfileDataSource();
+    const source = new ApiCustomerProfileDataSource();
     setState({ status: 'loading', data: null, error: null });
     source
       .getProfile({ role: 'customer' })

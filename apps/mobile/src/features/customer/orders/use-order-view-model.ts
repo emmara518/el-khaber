@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockOrderDataSource } from './mock-order-data-source';
+import { ApiOrderDataSource } from './api-order-data-source';
 
 import type { OrderDataSource, OrderDetail } from './order-detail-types';
 
@@ -19,7 +19,7 @@ export interface OrderDetailState {
 
 export function useOrderViewModel(
   requestId: string,
-  source: OrderDataSource = new MockOrderDataSource(),
+  source: OrderDataSource = new ApiOrderDataSource(),
 ): OrderDetailState {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<Omit<OrderDetailState, 'retry'>>({

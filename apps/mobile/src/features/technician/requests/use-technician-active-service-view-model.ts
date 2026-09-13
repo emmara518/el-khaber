@@ -8,19 +8,14 @@
  * and derives the current request + next documented action.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
-import {
-  advanceActionLabelAr,
-} from './request-policy';
-import { findTechnicianRequest } from './technician-request-types';
+import { ApiTechnicianRequestsDataSource } from './api-technician-requests-data-source';
+import { advanceActionLabelAr } from './request-policy';
+import { findTechnicianRequest, type TechnicianRequest } from './technician-request-types';
 import { useTechnicianRequestsViewModel } from './use-technician-requests-view-model';
 
-import type {
-  MockTechnicianRequestsDataSource,
-  TechnicianRequestsDataSource,
-} from './mock-technician-requests-data-source';
-import type { TechnicianRequest } from './technician-request-types';
+import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 export type ActiveServiceActionStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -43,9 +38,17 @@ export function useTechnicianActiveServiceViewModel(
   requestId: string,
   source?: TechnicianRequestsDataSource,
 ): TechnicianActiveServiceViewModel {
-  const vm = useTechnicianRequestsViewModel(source);
+  const stableSource = useMemo(
+    () => source ?? new ApiTechnicianRequestsDataSource(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see note below
+    [],
+  );
+  // `source` is a test-only override; treating it as mount-only keeps the
+  // request session stable across renders (same pattern as the list VM —
+  // a fresh `new Api…()` per render would retrigger loading endlessly).
+  void source;
+  const vm = useTechnicianRequestsViewModel(stableSource);
   const [stableId] = useState(() => requestId);
-
   const request = findTechnicianRequest(vm.requests, stableId);
   const advanceForRequest = useCallback(() => vm.advance(stableId), [vm, stableId]);
 
@@ -63,4 +66,3 @@ export function useTechnicianActiveServiceViewModel(
   };
 }
 
-export type { MockTechnicianRequestsDataSource };

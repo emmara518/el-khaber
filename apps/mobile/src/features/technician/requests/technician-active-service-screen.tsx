@@ -24,8 +24,8 @@ import {
   View,
 } from 'react-native';
 
+import { ApiChatDataSource } from '../../customer/chat/api-chat-data-source';
 import { ChatDialog } from '../../customer/chat/chat-dialog';
-import { MockChatDataSource } from '../../customer/chat/mock-chat-data-source';
 import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
 import { useTechnicianActiveServiceViewModel } from './use-technician-active-service-view-model';
@@ -254,7 +254,7 @@ export default function TechnicianActiveServiceScreen({
         onClose={() => setChatOpen(false)}
         conversationId={`req-chat-${request.id}`}
         technicianNameAr={request.customerNameAr}
-        source={new MockChatDataSource({ sender: 'technician' })}
+        source={new ApiChatDataSource()}
       />
 
       <Modal

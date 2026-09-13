@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockTechnicianDataSource } from './mock-technician-data-source';
+import { ApiTechnicianDataSource } from './api-technician-data-source';
 
 import type { Technician } from './technician-types';
 
@@ -33,7 +33,7 @@ export function useTechniciansViewModel(): TechniciansState {
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'loading', data: null, error: null });
-    new MockTechnicianDataSource()
+    new ApiTechnicianDataSource()
       .getTechnicians({ role: 'customer' })
       .then((data) => {
         if (cancelled) return;

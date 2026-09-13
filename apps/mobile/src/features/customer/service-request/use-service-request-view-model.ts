@@ -10,11 +10,11 @@
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
 import {
-  MockServiceRequestDataSource,
+  ApiServiceRequestDataSource,
   type ServiceRequestDataSource,
   type ServiceRequestFormData,
   type ServiceRequestSubmission,
-} from './mock-service-request-data-source';
+} from './api-service-request-data-source';
 import {
   INITIAL_SERVICE_REQUEST_STATE,
   serviceRequestReducer,
@@ -41,7 +41,7 @@ export interface ServiceRequestViewModel {
 
 export function useServiceRequestViewModel(
   handoff: ServiceRequestHandoff,
-  source: ServiceRequestDataSource = new MockServiceRequestDataSource(),
+  source: ServiceRequestDataSource = new ApiServiceRequestDataSource(),
 ): ServiceRequestViewModel {
   const [machine, dispatch] = useReducer(serviceRequestReducer, INITIAL_SERVICE_REQUEST_STATE);
   const [attempt, setAttempt] = useState(0);

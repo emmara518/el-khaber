@@ -6,11 +6,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  MockMerchantProductsDataSource,
-  type MerchantProductsDataSource,
-} from './mock-merchant-products-data-source';
+import { ApiMerchantProductsDataSource } from './api-merchant-products-data-source';
 
+import type { MerchantProductDataSource } from './merchant-product-types';
 import type { MerchantProduct, MerchantProductStatus } from './merchant-product-types';
 
 export type MerchantProductsStatus = 'loading' | 'loaded' | 'error';
@@ -29,7 +27,7 @@ export interface MerchantProductsState {
 }
 
 export function useMerchantProductsViewModel(
-  source: MerchantProductsDataSource = new MockMerchantProductsDataSource(),
+  source: MerchantProductDataSource = new ApiMerchantProductsDataSource(),
 ): MerchantProductsState {
   const [stableSource] = useState(() => source);
   const [attempt, setAttempt] = useState(0);

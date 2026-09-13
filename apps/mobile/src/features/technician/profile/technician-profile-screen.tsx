@@ -16,9 +16,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { LabeledInput, MultiSelectChips } from './components/profile-selectors';
-import {
-  MockTechnicianProfileDataSource,
-} from './mock-technician-profile-data-source';
+import { ApiTechnicianProfileDataSource } from './api-technician-profile-data-source';
 import {
   APPLIANCE_OPTIONS,
   AREA_OPTIONS,
@@ -42,7 +40,7 @@ export default function TechnicianProfileScreen({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const vm = useTechnicianProfileViewModel(source ?? new MockTechnicianProfileDataSource());
+  const vm = useTechnicianProfileViewModel(source ?? new ApiTechnicianProfileDataSource());
 
   if (vm.loadStatus === 'loading') {
     return (

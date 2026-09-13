@@ -8,9 +8,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockCustomerRequestsDataSource } from './mock-customer-requests-data-source';
+import { ApiCustomerRequestsDataSource } from './api-customer-requests-data-source';
 
-import type { CustomerRequestsViewModel } from './customer-requests-types';
+import type { CustomerRequestsDataSource, CustomerRequestsViewModel } from './customer-requests-types';
 
 export type CustomerRequestsStatus = 'loading' | 'loaded' | 'error';
 
@@ -21,7 +21,8 @@ export interface CustomerRequestsState {
   retry: () => void;
 }
 
-export function useCustomerRequestsViewModel(): CustomerRequestsState {
+export function useCustomerRequestsViewModel(source?: CustomerRequestsDataSource): CustomerRequestsState {
+  const [stableSource] = useState<CustomerRequestsDataSource>(() => source ?? new ApiCustomerRequestsDataSource());
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<Omit<CustomerRequestsState, 'retry'>>({
     status: 'loading',
@@ -31,9 +32,8 @@ export function useCustomerRequestsViewModel(): CustomerRequestsState {
 
   useEffect(() => {
     let cancelled = false;
-    const source = new MockCustomerRequestsDataSource();
     setState({ status: 'loading', data: null, error: null });
-    source
+    stableSource
       .getRequests({ role: 'customer' })
       .then((data) => {
         if (cancelled) return;
@@ -50,7 +50,7 @@ export function useCustomerRequestsViewModel(): CustomerRequestsState {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [stableSource, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 

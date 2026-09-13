@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockConversationsDataSource } from './mock-conversations-data-source';
+import { ApiConversationsDataSource } from './api-conversations-data-source';
 
 import type { ConversationsViewModel } from './conversations-types';
 
@@ -28,7 +28,7 @@ export function useConversationsViewModel(): ConversationsState {
 
   useEffect(() => {
     let cancelled = false;
-    const source = new MockConversationsDataSource();
+    const source = new ApiConversationsDataSource();
     setState({ status: 'loading', data: null, error: null });
     source
       .getConversations({ role: 'customer' })

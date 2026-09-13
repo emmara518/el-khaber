@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockTechnicianHomeDataSource } from './mock-technician-home-data-source';
+import { ApiTechnicianHomeDataSource } from './api-technician-home-data-source';
 
 import type { TechnicianHomeViewModel } from './technician-home-types';
 
@@ -29,7 +29,7 @@ export function useTechnicianHomeViewModel(): TechnicianHomeState {
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'loading', data: null, error: null });
-    new MockTechnicianHomeDataSource()
+    new ApiTechnicianHomeDataSource()
       .getHome({ role: 'technician' })
       .then((data) => {
         if (cancelled) return;

@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { sharedMerchantProductsSource } from './api-merchant-products-data-source';
 import {
   EMPTY_PRODUCT_DRAFT,
   MERCHANT_PRODUCT_CATEGORIES,
@@ -19,7 +20,7 @@ import {
   type MerchantProductDataSource,
   type MerchantProductDraft,
 } from './merchant-product-types';
-import { sharedMerchantProductsSource } from './mock-merchant-products-data-source';import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
+import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card } from '@/ui';

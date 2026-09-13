@@ -67,9 +67,11 @@ export class AuthService {
 
     const existing = await this.prisma.user.findFirst({
       where: {
+        // Only provided identifiers participate; Prisma validates UUID
+        // parameters client-side, so no dummy-id sentinel may be used.
         OR: [
-          input.phone !== undefined ? { phone: input.phone } : { id: '__never__' },
-          input.email !== undefined ? { email: input.email } : { id: '__never__' },
+          ...(input.phone !== undefined ? [{ phone: input.phone }] : []),
+          ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },
       select: { id: true },
@@ -112,8 +114,8 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          input.phone !== undefined ? { phone: input.phone } : { id: '__never__' },
-          input.email !== undefined ? { email: input.email } : { id: '__never__' },
+          ...(input.phone !== undefined ? [{ phone: input.phone }] : []),
+          ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },
     });

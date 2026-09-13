@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { ApiChatDataSource } from './api-chat-data-source';
 import {
   markMessage,
   withPendingMessage,
@@ -15,7 +16,6 @@ import {
   type ChatMessage,
   type ChatRole,
 } from './chat-types';
-import { MockChatDataSource } from './mock-chat-data-source';
 
 export type ChatLoadStatus = 'loading' | 'loaded' | 'error';
 
@@ -35,7 +35,7 @@ export interface ChatViewModel {
 export function useChatViewModel(
   conversationId: string,
   role: ChatRole = 'customer',
-  source: ChatDataSource = new MockChatDataSource({ sender: role }),
+  source: ChatDataSource = new ApiChatDataSource(),
 ): ChatViewModel {
   // Stabilize the source across renders so the loader never
   // re-triggers from an inline default.
