@@ -3,6 +3,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core'
 
 
 import { AdminAuthModule } from './admin/admin-auth.module';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ChatModule } from './chat/chat.module';
@@ -31,6 +32,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     HealthModule,
     MeModule,
     AdminAuthModule,
+    AdminModule,
     CatalogModule,
     ServiceRequestsModule,
     MerchantModule,
