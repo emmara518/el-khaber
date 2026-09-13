@@ -12,6 +12,7 @@ import { AuthGuardModule } from './common/auth-guard.module';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { requestIdMiddleware } from './common/request-id.middleware';
+import { securityHeaders } from './common/security-headers.middleware';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
 import { MeModule } from './me/me.module';
@@ -55,6 +56,8 @@ export class AppModule implements NestModule {
   // The request-ID middleware MUST run before everything else so the
   // whole request lifecycle executes inside the correlation context.
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(requestIdMiddleware).forRoutes('*');
+    // Request-ID first so the whole lifecycle runs inside the correlation
+    // context; security headers applied to every response (Task 11C).
+    consumer.apply(requestIdMiddleware, securityHeaders).forRoutes('*');
   }
 }

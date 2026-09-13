@@ -76,6 +76,15 @@ afterAll(async () => {
 });
 
 describe('HTTP E2E — security isolation', () => {
+  it('sets baseline HTTP security headers and never advertises the framework', async () => {
+    const res = await request(ctx.app.getHttpServer()).get(`${base}/health`).expect(200);
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+    expect(res.headers['x-frame-options']).toBe('DENY');
+    expect(res.headers['referrer-policy']).toBe('no-referrer');
+    expect(res.headers['strict-transport-security']).toContain('max-age=');
+    expect(res.headers['x-powered-by']).toBeUndefined();
+  });
+
   it('customer cannot read another customer\'s request (identical 404)', async () => {
     const a = await register('customer', 'sec-c-a@example.com');
     const b = await register('customer', 'sec-c-b@example.com');
