@@ -86,6 +86,7 @@ describe('service request lifecycle e2e', () => {
     prisma.technicianServices.length = 0;
     prisma.serviceRequests.length = 0;
     prisma.serviceRequestStatusHistoryStore.length = 0;
+    prisma.notificationRows.length = 0;
     prisma.locations.length = 0;
     prisma.applianceCategories.length = 0;
     prisma.services.length = 0;
@@ -518,6 +519,87 @@ describe('service request lifecycle e2e', () => {
       const anon = await request(app.getHttpServer()).get('/api/v1/service-requests');
       expect(anon.status).toBe(401);
       expect(anon.body.error.code).toBe('AUTH_REQUIRED');
+    });
+  });
+
+  describe('business event notifications (Task 10M)', () => {
+    it('notifies the CUSTOMER on every technician transition (counterparty only, unread)', async () => {
+      const customer = await register('customer', 'cust-notif@example.com');
+      const tech = await register('technician', 'tech-notif@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(customer, techId);
+      const auth = { Authorization: `Bearer ${tech.accessToken}` };
+      const notesFor = (userId: string) => prisma.notificationRows.filter((n) => n.userId === userId);
+
+      await request(app.getHttpServer()).post(`/api/v1/service-requests/${created.id}/accept`).set(auth).expect(200);
+      let notes = notesFor(customer.userId);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].type).toBe('request_status');
+      expect(notes[0].titleAr).toBe('تم قبول طلب الخدمة');
+      expect(notes[0].readAt).toBeNull();
+      // The acting technician never receives their own action.
+      expect(notesFor(tech.userId)).toHaveLength(0);
+
+      await request(app.getHttpServer()).post(`/api/v1/service-requests/${created.id}/start`).set(auth).expect(200);
+      await request(app.getHttpServer()).post(`/api/v1/service-requests/${created.id}/start`).set(auth).expect(200);
+      await request(app.getHttpServer()).post(`/api/v1/service-requests/${created.id}/complete`).set(auth).expect(200);
+
+      notes = notesFor(customer.userId);
+      expect(notes.map((n) => n.titleAr)).toEqual([
+        'تم قبول طلب الخدمة',
+        'الفني في الطريق',
+        'بدأ تنفيذ الخدمة',
+        'تم إكمال الخدمة',
+      ]);
+      // Every transition produced exactly one persisted row; no phantom rows.
+      expect(notes).toHaveLength(4);
+    });
+
+    it('notifies the assigned TECHNICIAN when the customer cancels (server-derived recipient)', async () => {
+      const customer = await register('customer', 'cust-cancel-notif@example.com');
+      const tech = await register('technician', 'tech-cancel-notif@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(customer, techId);
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/service-requests/${created.id}/cancel`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .expect(200);
+
+      const techNotes = prisma.notificationRows.filter((n) => n.userId === tech.userId);
+      expect(techNotes).toHaveLength(1);
+      expect(techNotes[0].type).toBe('request_status');
+      expect(techNotes[0].titleAr).toBe('تم إلغاء طلب الخدمة');
+      // The cancelling customer is not the recipient of their own action.
+      expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(0);
+    });
+
+    it('creates NO notification when the business action is rejected (stale / invalid / unauthorized)', async () => {
+      const customer = await register('customer', 'cust-stale-notif@example.com');
+      const tech = await register('technician', 'tech-stale-notif@example.com');
+      const merchant = await register('merchant', 'merchant-stale-notif@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(customer, techId);
+      const auth = { Authorization: `Bearer ${tech.accessToken}` };
+      const url = (action: string): string => `/api/v1/service-requests/${created.id}/${action}`;
+
+      // Invalid transition on a fresh pending request: skip to start.
+      const skip = await request(app.getHttpServer()).post(url('start')).set(auth);
+      expect(skip.status).toBe(409);
+      expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(0);
+
+      // Duplicate accept: first succeeds (1 notification), second is stale.
+      await request(app.getHttpServer()).post(url('accept')).set(auth).expect(200);
+      const dup = await request(app.getHttpServer()).post(url('accept')).set(auth);
+      expect(dup.status).toBe(409);
+      expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(1);
+
+      // Unauthorized actor (merchant / cross-role) is rejected before any write.
+      const unauthorized = await request(app.getHttpServer())
+        .post(url('complete'))
+        .set('Authorization', `Bearer ${merchant.accessToken}`);
+      expect(unauthorized.status).toBe(401);
+      expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(1);
     });
   });
 });

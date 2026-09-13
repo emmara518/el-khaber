@@ -6,6 +6,7 @@ import { Module } from '@nestjs/common';
 
 import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 import { AdminGrantsController, AdminNotificationsController, AdminPaymentsController } from './admin-payments.controller';
 import { PaymentsService } from './payments.service';
@@ -14,7 +15,8 @@ import { SubscriptionsService } from './subscriptions.service';
 
 @Module({
   // AuthModule provides JwtModule (guard) + the admin/user JWT authorities.
-  imports: [AuthModule, AuditModule],
+  // NotificationsModule provides the server-authoritative notification write.
+  imports: [AuthModule, AuditModule, NotificationsModule],
   controllers: [
     SubscriptionsController,
     MerchantSubscriptionController,

@@ -19,6 +19,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { ConflictException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
+import {
+  entitlementGrantedNotification,
+  subscriptionActivatedNotification,
+  subscriptionRenewalCancelledNotification,
+} from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import type { Prisma, UserRole } from '@prisma/client';
 
@@ -57,7 +63,10 @@ function planToDto(row: PlanRow): Record<string, unknown> {
 
 @Injectable()
 export class SubscriptionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Active plans for the requested role (JWT role by default). */
   async listPlans(
@@ -177,19 +186,34 @@ export class SubscriptionsService {
   /** POST /subscriptions/:id/cancel — cancels RENEWAL (docs/08 §10). */
   async cancelRenewal(userId: string, subscriptionId: string): Promise<Record<string, unknown>> {
     // Atomic owner-scoped mutation; only an ACTIVE subscription cancels.
-    const updated = await this.prisma.subscription.updateMany({
-      where: { id: subscriptionId, userId, status: 'active' },
-      data: { renewalEnabled: false, cancelledAt: new Date() },
-    });
-    if (updated.count === 0) {
-      const exists = await this.prisma.subscription.findFirst({
+    // Task 10M: the confirmation notification is written in the SAME
+    // transaction, and only on the transition where renewal was still
+    // enabled (a repeated idempotent cancel does not duplicate it).
+    const result = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.subscription.findFirst({
         where: { id: subscriptionId, userId },
-        select: { id: true, status: true },
+        select: { status: true, renewalEnabled: true },
       });
-      if (exists === null) {
-        throw new NotFoundException('Subscription not found');
+      if (before === null) {
+        return 'not-found' as const;
       }
       // Not active: cancellation/renewal mutation is not applicable.
+      if (before.status !== 'active') {
+        return 'not-active' as const;
+      }
+      await tx.subscription.updateMany({
+        where: { id: subscriptionId, userId, status: 'active' },
+        data: { renewalEnabled: false, cancelledAt: new Date() },
+      });
+      if (before.renewalEnabled) {
+        await this.notifications.create(userId, subscriptionRenewalCancelledNotification(), tx);
+      }
+      return 'cancelled' as const;
+    });
+    if (result === 'not-found') {
+      throw new NotFoundException('Subscription not found');
+    }
+    if (result === 'not-active') {
       throw new ConflictException('Subscription is not active');
     }
     const current = await this.getCurrent(userId);
@@ -258,6 +282,9 @@ export class SubscriptionsService {
           afterJson: { userId, planId, periodDays: PROVISIONAL_PERIOD_DAYS } as never,
         },
       });
+      // Subscription event → persisted notification for the recipient
+      // (server-derived user id), same transaction as activation + audit.
+      await this.notifications.create(userId, subscriptionActivatedNotification(), tx);
       return subscription;
     });
     return { id: created.id, userId, planId, status: 'active' };
@@ -278,7 +305,7 @@ export class SubscriptionsService {
     }
     const entitlement = await this.prisma.entitlement.findFirst({
       where: { id: entitlementId },
-      select: { id: true, code: true, isActive: true },
+      select: { id: true, code: true, nameAr: true, isActive: true },
     });
     if (entitlement === null) {
       throw new NotFoundException('Entitlement not found');
@@ -307,6 +334,8 @@ export class SubscriptionsService {
           afterJson: { userId, entitlementId, code: entitlement.code } as never,
         },
       });
+      // Subscription-adjacent event → persisted notification (same tx).
+      await this.notifications.create(userId, entitlementGrantedNotification(entitlement.nameAr), tx);
       return grant;
     });
     return { id: created.id, userId, entitlementId, code: entitlement.code };

@@ -3,6 +3,11 @@
  * Persistence + read APIs only — NO delivery provider (Expo/FCM/APNs/
  * email/SMS are later platform decisions). `type` is an open string until
  * product trigger types are ratified (nothing invented here).
+ *
+ * Task 10M adds the server-authoritative WRITE path (`create`) reused by
+ * business-event wiring (service requests, subscriptions, admin grants).
+ * The `type` values remain the constrained set already used by the system
+ * (see `notification-events.ts`).
  */
 
 import { buildPageMeta } from '@khabir/shared-types';
@@ -13,6 +18,14 @@ import { PrismaService } from '../database/prisma.service';
 
 import type { NotificationDto } from '@khabir/shared-types';
 import type { Prisma } from '@prisma/client';
+
+/** Server-authoritative notification content (type + Arabic copy). */
+export interface NotificationContent {
+  type: string;
+  titleAr: string;
+  bodyAr: string;
+  dataJson?: Record<string, unknown> | null;
+}
 
 const NOTIFICATION_SELECT = {
   id: true,
@@ -27,6 +40,36 @@ const NOTIFICATION_SELECT = {
 @Injectable()
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Server-authoritative notification write (Task 10M). Callers never
+   * accept recipient/type/content from the client — they pass a
+   * server-derived `userId` and a content object built by trusted logic.
+   *
+   * When the notification corresponds to a business state mutation, the
+   * enclosing transaction client MUST be passed as `tx` so the state change
+   * and the notification commit or roll back together (no silent
+   * "state changed but notification missing").
+   */
+  async create(
+    userId: string,
+    content: NotificationContent,
+    tx?: Prisma.TransactionClient,
+  ): Promise<{ id: string }> {
+    const client = tx ?? this.prisma;
+    return client.notification.create({
+      data: {
+        userId,
+        type: content.type,
+        titleAr: content.titleAr,
+        bodyAr: content.bodyAr,
+        ...(content.dataJson !== undefined && content.dataJson !== null
+          ? { dataJson: content.dataJson as never }
+          : {}),
+      },
+      select: { id: true },
+    });
+  }
 
   async list(
     userId: string,

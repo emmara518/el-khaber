@@ -21,6 +21,8 @@ import { Injectable } from '@nestjs/common';
 
 import { InvalidStateTransitionException, NotFoundException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
+import { requestStatusNotification } from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { rulesFor, type TransitionAction } from './request-state';
 
@@ -112,7 +114,10 @@ interface RequestUserRef {
 
 @Injectable()
 export class ServiceRequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Customer create (docs/07_API.md §7)
@@ -311,11 +316,48 @@ export class ServiceRequestsService {
   // ---------------------------------------------------------------------------
 
   /**
+   * Server-authoritative recipient for a service-request transition
+   * (Task 10M §8). The counterparty is derived from the request's own
+   * relationships — never from client input:
+   *   - a TECHNICIAN action notifies the request's customer;
+   *   - a CUSTOMER action (cancel) notifies the assigned technician's USER
+   *     account (`service_requests.technician_id` references the technician
+   *     PROFILE).
+   * Returns null when no counterparty account exists.
+   */
+  private async resolveCounterparty(
+    tx: Prisma.TransactionClient,
+    actor: RequestUserRef,
+    id: string,
+  ): Promise<string | null> {
+    const row = await tx.serviceRequest.findFirst({
+      where: { id },
+      select: { customerId: true, technicianId: true },
+    });
+    if (row === null) {
+      return null;
+    }
+    if (actor.role === 'technician') {
+      return row.customerId;
+    }
+    if (row.technicianId === null) {
+      return null;
+    }
+    const profile = await tx.technicianProfile.findFirst({
+      where: { id: row.technicianId },
+      select: { userId: true },
+    });
+    return profile?.userId ?? null;
+  }
+
+  /**
    * Applies ONE atomic transition: `updateMany` carries the expected
    * current status + actor scope, so the winner of any race is decided by
    * PostgreSQL row locking. count=0 means either the request is not
    * visible to this actor (404) or the status has moved on (409 stale).
-   * Status write + history record share one transaction.
+   * Status write + history record + counterparty notification share one
+   * transaction: a stale/duplicate action mutates nothing and therefore
+   * can never emit a phantom notification (Task 10M §11).
    */
   private async transition(
     actor: RequestUserRef,
@@ -348,6 +390,11 @@ export class ServiceRequestsService {
             changedByUserId: actor.id,
           },
         });
+        // Business event → persisted notification, same transaction.
+        const recipientId = await this.resolveCounterparty(tx, actor, id);
+        if (recipientId !== null) {
+          await this.notifications.create(recipientId, requestStatusNotification(rule.to), tx);
+        }
         return 'applied' as const;
       });
       if (result === 'applied') {

@@ -346,21 +346,32 @@ Implementation notes (Task 10H):
   status + one review per request). Tags must reference seeded review tags.
   The technician's ratingAverage/ratingCount are recomputed server-side on
   creation. GET `/technicians/:id/reviews` is public and exposes only
-  rating, comment, tag labels, and createdAt — no customer identifiers.
+  rating, comment, tag labels, and createdAt ï¿½ no customer identifiers.
 
 - Chat: the conversation is 1:1 with the service request and is created
   lazily on first access (Tracking/Active Service ? Chat flow). Participants
   are the request's customer and targeted/assigned technician; membership is
-  derived server-side from the request — conversation ids alone grant
+  derived server-side from the request ï¿½ conversation ids alone grant
   nothing. Messages are text-only (attachment types require storage) with
-  content limits (1–2000 chars); sender identity is always the verified JWT
+  content limits (1ï¿½2000 chars); sender identity is always the verified JWT
   subject; history is bounded and ordered newest-first. NO realtime: HTTP
   persistence/read/send only.
 
-- Notifications: persistence + read APIs only — NO delivery provider
+- Notifications: persistence + read APIs only ï¿½ NO delivery provider
   (Expo/FCM/APNs/email/SMS are later platform decisions). `type` is an
   open string until product trigger types are ratified; read-state
   mutations are recipient-scoped and idempotent.
+- Notification triggers (Task 10M): approved business events persist a
+  notification server-side in the SAME transaction as the state mutation
+  (atomic â€” a failed action never emits a phantom notification). Service
+  request transitions (`request_status`) notify the counterparty: the
+  customer for technician actions (accept/on_the_way/in_progress/completed/
+  cancelled) and the assigned technician for a customer cancellation.
+  Subscription activation (payment approval or admin manual grant),
+  cancellation-of-renewal (exactly once), and manual entitlement grants
+  notify the plan owner (`subscription`). Admin operational notifications
+  remain recipient-validated and Admin-JWT-authoritative. Recipients,
+  type, and content are always derived server-side.
 
 ---
 
@@ -389,7 +400,7 @@ Returns active/current subscription.
 Cancels renewal according to billing policy.
 
 ### POST `/subscriptions/:id/change-plan`
-Upgrade/downgrade behavior. NOT IMPLEMENTED (Task 10I): upgrade/downgrade semantics are undefined (docs/08) — CTO decision required.
+Upgrade/downgrade behavior. NOT IMPLEMENTED (Task 10I): upgrade/downgrade semantics are undefined (docs/08) ï¿½ CTO decision required.
 
 Implementation notes (Task 10I):
 
@@ -404,7 +415,7 @@ Implementation notes (Task 10I):
   `/admin/payments/submissions/:id/approve|reject`. Resubmission = a new
   submission (history immutable).
 - Approval is one transaction: submission ? approved, ACTIVE subscription
-  created (PROVISIONAL 30-day period — docs/08 defines no durations), audit
+  created (PROVISIONAL 30-day period ï¿½ docs/08 defines no durations), audit
   record, and the user notification. Rejection never activates anything.
 - `GET /subscriptions/current` / `GET /me/subscription` / `GET /me/entitlements`:
   identity from JWT. Effective entitlements = active plan entitlements ?
@@ -413,7 +424,7 @@ Implementation notes (Task 10I):
   backend-managed and audited; disabled methods cannot be selected by users.
 - Admin manual grants (`/admin/subscriptions/grant`, `/admin/entitlements/grant`)
   are audited and NEVER create payment records. An existing ACTIVE
-  subscription blocks a new grant (409) — semantics pending CTO decision.
+  subscription blocks a new grant (409) ï¿½ semantics pending CTO decision.
 
 ---
 

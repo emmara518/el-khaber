@@ -83,6 +83,7 @@ describe('subscriptions + manual payments e2e', () => {
     prisma.paymentMethodConfigs.length = 0;
     prisma.paymentSubmissionRows.length = 0;
     prisma.auditLogRows.length = 0;
+    prisma.notificationRows.length = 0;
 
     prisma.subscriptionPlans.push(
       { id: PLAN_CUSTOMER_BASIC, role: 'customer', code: 'basic', nameAr: 'عادي', nameEn: 'Basic', billingInterval: 'monthly', price: 0, currency: 'SAR', isActive: false, sortOrder: 1 },
@@ -445,6 +446,79 @@ describe('subscriptions + manual payments e2e', () => {
       expect(anon.status).toBe(401);
       const anonCurrent = await request(app.getHttpServer()).get('/api/v1/subscriptions/current');
       expect(anonCurrent.status).toBe(401);
+    });
+  });
+
+  describe('business event notifications (Task 10M)', () => {
+    it('notifies on activation, renewal cancellation (exactly once), and entitlement grant', async () => {
+      const customer = await register('customer', 's-notif@example.com');
+      const admin = await loginAdmin('s-notif-admin@example.com');
+      const notesFor = () => prisma.notificationRows.filter((n) => n.userId === customer.userId);
+
+      // Subscription activation (admin manual grant) → one notification.
+      const grant = await request(app.getHttpServer())
+        .post('/api/v1/admin/subscriptions/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, plan_id: '99999999-0000-4000-8000-000000000002' })
+        .expect(201);
+      const subscriptionId = grant.body.data.id as string;
+      let notes = notesFor();
+      expect(notes).toHaveLength(1);
+      expect(notes[0].type).toBe('subscription');
+      expect(notes[0].titleAr).toBe('تم تفعيل اشتراكك');
+      expect(notes[0].readAt).toBeNull();
+
+      // Cancellation → one confirmation; a repeated idempotent cancel does
+      // not duplicate it (state did not change a second time).
+      await request(app.getHttpServer())
+        .post(`/api/v1/subscriptions/${subscriptionId}/cancel`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({})
+        .expect(200);
+      await request(app.getHttpServer())
+        .post(`/api/v1/subscriptions/${subscriptionId}/cancel`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({})
+        .expect(200);
+      notes = notesFor();
+      expect(notes.filter((n) => n.titleAr === 'تم إيقاف تجديد الاشتراك')).toHaveLength(1);
+      expect(notes).toHaveLength(2);
+
+      // Entitlement grant → notification naming the granted feature.
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/entitlements/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, entitlement_id: ENT_PRIORITY })
+        .expect(201);
+      notes = notesFor();
+      expect(notes).toHaveLength(3);
+      const entNote = notes.find((n) => n.titleAr === 'تم منحك ميزة جديدة');
+      expect(entNote?.bodyAr).toContain('دعم ذو أولوية');
+    });
+
+    it('admin operational notification remains functional and recipient-validated', async () => {
+      const customer = await register('customer', 's-adminnotif@example.com');
+      const admin = await loginAdmin('s-adminnotif-admin@example.com');
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/admin/notifications')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, type: 'administrative', title_ar: 'تنبيه إداري', body_ar: 'رسالة تشغيلية' })
+        .expect(201);
+      expect(res.body.data.userId).toBe(customer.userId);
+      const notes = prisma.notificationRows.filter((n) => n.userId === customer.userId);
+      expect(notes).toHaveLength(1);
+      expect(notes[0].type).toBe('administrative');
+      // Sender authority is the authenticated Admin JWT; the write is audited.
+      expect(prisma.auditLogRows.some((a) => a.action === 'admin.notification.create')).toBe(true);
+
+      // Unknown recipient is rejected; no notification persisted.
+      const bad = await request(app.getHttpServer())
+        .post('/api/v1/admin/notifications')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: uid(), type: 'administrative', title_ar: 'x', body_ar: 'y' });
+      expect(bad.status).toBe(404);
+      expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(1);
     });
   });
 });
