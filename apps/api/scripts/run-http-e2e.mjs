@@ -11,15 +11,30 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { rmSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const apiDir = resolve(here, '..');
+const shell = process.platform === 'win32';
 
 const testUrl =
   process.env.TEST_DATABASE_URL ??
   'postgresql://khabir_test:khabir_test_pw@localhost:55432/khabir_test?schema=public';
+
+// The harness imports the COMPILED app from dist/. Force a fresh emit so a
+// prior `nest build` (which deletes dist) followed by a stale incremental
+// tsbuildinfo can never leave dist missing.
+rmSync(join(apiDir, 'tsconfig.tsbuildinfo'), { force: true });
+const compile = spawnSync('pnpm', ['exec', 'tsc', '-p', 'tsconfig.json'], {
+  cwd: apiDir,
+  stdio: 'inherit',
+  shell,
+});
+if (compile.status !== 0) {
+  process.exit(compile.status ?? 1);
+}
 
 const result = spawnSync(
   'pnpm',

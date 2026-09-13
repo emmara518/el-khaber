@@ -10,7 +10,7 @@
     "start:prod": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "tsc -p tsconfig.json && vitest run --coverage",
+    "test": "node -e \"require('fs').rmSync('tsconfig.tsbuildinfo',{force:true})\" && tsc -p tsconfig.json && vitest run --coverage",
     "test:watch": "vitest",
     "provision:test-db": "node scripts/provision-test-db.mjs",
     "test:http-e2e": "node scripts/run-http-e2e.mjs",
