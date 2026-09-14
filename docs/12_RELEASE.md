@@ -1,8 +1,8 @@
 # الخبير — Release Candidate Manifest
 
 **Path:** `docs/12_RELEASE.md`
-**Status:** Release Candidate **V2** — remediation applied, prepared for
-independent audit #2 (Task REM). **NOT deployed. NOT merged to main.**
+**Status:** Release Candidate **V3** — final blocker-closure sprint applied,
+prepared for independent audit #3. **NOT deployed. NOT merged to main.**
 
 ---
 
@@ -10,10 +10,10 @@ independent audit #2 (Task REM). **NOT deployed. NOT merged to main.**
 
 | Field | Value |
 |---|---|
-| Branch | `review/release-candidate-v2` |
-| Base branch | `review/remediation-mvp-blockers` |
-| Previous RC | `review/release-candidate` @ `907122e44d7b84b57757e482b7916b68f74b22a3` |
-| Release version | `0.0.1-rc.2` |
+| Branch | `review/release-candidate-v3` |
+| Base branch | `review/final-mvp-blocker-closure` |
+| Previous RC | `review/release-candidate-v2` @ `f516c6b18277058c76b4b3ef47c22a119777a6df` |
+| Release version | `0.0.1-rc.3` |
 | API version | `0.0.1` (contract in `docs/api/openapi.yaml`) |
 | Mobile version | `0.0.1` (Expo/RN; JS-only, no native artifact) |
 | Admin web | `0.0.1` (Next.js) |
@@ -22,42 +22,33 @@ independent audit #2 (Task REM). **NOT deployed. NOT merged to main.**
 
 ---
 
-## 2. Remediation outcome
+## 2. Blocker-closure outcome (final sprint)
 
 | ID | Blocker | Outcome |
 |---|---|---|
-| REM-001 | Customer request journey broken (no `/locations` API) | **FIXED** — API + Mobile + HTTP E2E closed |
-| REM-002 | Payment proof not operational | **BLOCKED — CTO storage-provider decision required** |
-| REM-003 | Native Android unverified | **BLOCKED — native QA environment required** |
-| REM-004 | Rate-limit / lockout topology unresolved | **CTO DECISION REQUIRED** — constraint made explicit |
+| REM-001 | Customer request journey (`/locations`) | **CLOSED — VERIFIED, no regression** (HTTP E2E 18/18) |
+| Payment proof | No approved storage provider | **STILL BLOCKED — CTO decision required** (no provider invented) |
+| Native Android | No runtime in build environment | **STILL BLOCKED — environment required** (not faked) |
+| Topology | Unapproved single- vs multi-instance | **STILL OPEN — CTO decision required** (explicit constraint kept) |
+| Subscription policy | Provisional 30-day period | **Kept provisional** — single source, docs-marked, ratification recommended |
 
-### REM-001 (fixed)
-- Added `POST/GET/PATCH /locations` (owner-scoped, `customer|merchant`),
-  `LocationDto`, validation, and an additive migration making location
-  coordinates optional (`docs/06 §6` — "store exact coordinates only when
-  required"; no map/geocoding provider is approved).
-- Mobile service-request flow now **reads** locations (`GET /locations`)
-  and **creates** them inline (label + optional address), then selects the
-  new location and submits a real `location_id`. The previous permanent
-  `LOCATION_MISSING_AR` dead-end is gone.
-- Real HTTP E2E now creates the location through HTTP (no Prisma fixture)
-  and asserts list/ownership/validation/IDOR.
+### New in V3 (hardening on top of RC2)
+- REM-001 guard re-run green before any new work.
+- Fixed a stale Mobile comment that still claimed “no locations API exists”.
+- Fixed explicit-`null` coordinates coercing to `0`: `null` is now
+  normalized to omitted (consistent with the optional contract), and an
+  all-`null` PATCH body is rejected as empty — unit-covered in
+  `test/validation.spec.ts`.
+- Fixed the OpenAPI generator dropping `optional` through `z.preprocess`
+  wrappers (fields were wrongly emitted `required`); regenerated contract
+  is byte-deterministic again.
 
-### REM-002 (blocked — CTO decision)
-No object-storage provider is approved (ADR-0004 excludes Supabase Storage;
-`docs/local-dev.md §11` lists it as a CTO decision). No provider was
-invented; no fake upload. `proofStorageKey` remains a reserved reference.
-
-### REM-003 (blocked — environment)
-No Android emulator binary, no AVD, and no connected device exist in the
-build environment. Native QA was not faked; browser QA is not a substitute.
-
-### REM-004 (CTO decision)
-`@nestjs/throttler` and `LoginAttemptGuard` are in-memory (process-local).
-The API now emits a production `topology-notice` warning and
-`docs/11_PRODUCTION.md §7` makes the single-instance constraint explicit.
-The topology itself (single vs multi-instance, shared store) is not yet
-approved.
+### What was deliberately NOT done
+- No storage provider invented (Supabase Storage / S3 / R2 / Cloudinary /
+  Firebase / local filesystem / Base64) — payment proof stays blocked.
+- No Android runtime installed — native QA stays unverified.
+- No Redis/shared store installed — topology stays a CTO decision.
+- No pricing, billing cadence, or notification semantics invented.
 
 ---
 
@@ -67,11 +58,12 @@ approved.
 |---|---|---|
 | Repo typecheck | PASS (11/11 packages) | `pnpm typecheck` |
 | Repo lint | PASS (0 errors) | `pnpm lint` |
-| API unit + e2e (in-memory) | PASS — 24 files / 183 tests | `pnpm --filter @khabir/api test` |
+| API unit + e2e (in-memory) | PASS — 24 files / **187 tests** | `pnpm --filter @khabir/api test` |
 | Mobile tests | PASS — 27 files / 249 tests | `pnpm --filter @khabir/mobile test` |
 | Real HTTP E2E (isolated `khabir_test`) | PASS — 3 files / **18 tests**, RUN 1 + RUN 2 | `pnpm --filter @khabir/api test:http-e2e` |
 | OpenAPI + generated types | deterministic | `pnpm gen:openapi`, `pnpm gen:types` |
-| Migrations | additive, non-destructive | `20260914000000_location_coordinates_optional` |
+| Migrations | additive, non-destructive (6 total, no new migration in V3) | `prisma/migrations` |
+| khabir-dev residue | ZERO (all probe prefixes 0/0/0) | probe query |
 | Native Android QA | NOT RUN — no runtime | — |
 | Payment proof | BLOCKED — no approved provider | — |
 
@@ -85,11 +77,10 @@ approved.
 20260911000000_technician_service_areas
 20260912000000_payments_and_grants
 20260913000000_technician_self_service
-20260914000000_location_coordinates_optional   (new in RC v2)
+20260914000000_location_coordinates_optional
 ```
 
-The new migration only relaxes `locations.latitude/longitude` NOT NULL
-(no DROP TABLE/COLUMN, no data rewrite).
+No new migration in V3 (validation-only changes need none).
 
 ---
 
@@ -104,15 +95,14 @@ The new migration only relaxes `locations.latitude/longitude` NOT NULL
   channel/scheduling remain unimplemented (documented in `docs/09_ADMIN.md`).
 - **P3:** Admin web remains a functional console; missing `favicon.ico`.
 - **P3:** Pre-existing full-suite flake in one raw-SQL integration probe
-  (passes in isolation).
+  (passes in isolation; green in this sprint's full run).
 
 ---
 
 ## 6. GO / NO-GO pre-assessment
 
-**NO-GO.** REM-001 is resolved, but the release gate (`§14` of the
-remediation brief) forbids a ready classification while payment proof is
-blocked, native core flow is unverified, and the production topology is
-unresolved. These are CTO / environment decisions, not engineering
-failures. Release Candidate V2 is complete and ready for independent
-audit #2.
+**NO-GO.** The release gate forbids a ready classification while payment
+proof is blocked, native core flow is unverified, and the production
+topology is unresolved. These are CTO / environment decisions, not
+engineering failures. Release Candidate V3 is complete and ready for
+independent audit #3.
