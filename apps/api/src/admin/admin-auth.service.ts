@@ -135,11 +135,12 @@ export class AdminAuthService {
     }
     return {
       id: admin.id,
-      // Admin roles are not one of the three end-user roles, but the
-      // AuthUserDto shape requires a `role`. We use a placeholder
-      // 'customer' value here only to satisfy the type; the Admin UI
-      // uses the admin role from a separate field, not this DTO.
-      role: 'customer' as Role,
+      // Admin roles are a separate authority from the three end-user roles,
+      // but AuthUserDto only models end-user Role. The real admin role is
+      // returned here (cast) so API consumers see truthful identity; the
+      // JWT `kind: 'admin'` claim plus the separate admin secret remain the
+      // authorization boundary, never this display value.
+      role: admin.role as Role,
       status: admin.status as UserStatus,
       phone: null,
       email: admin.email,
@@ -187,7 +188,7 @@ export class AdminAuthService {
       expiresIn: config.adminAuth.accessTtlSeconds,
       user: {
         id: admin.id,
-        role: 'customer' as Role,
+        role: admin.role as Role,
         status: admin.status as UserStatus,
         phone: null,
         email: admin.email,

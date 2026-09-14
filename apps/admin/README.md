@@ -12,4 +12,4 @@ Internal admin dashboard for الخبير. Next.js App Router. Permission groups
 | `pnpm --filter @khabir/admin typecheck` | TypeScript check |
 | `pnpm --filter @khabir/admin lint` | ESLint |
 
-Admin modules (users, technicians, merchants, appliances, faults, services, requests, reviews, subscriptions, notifications, content, audit) are added in later tasks.
+Admin surfaces (login, dashboard with metrics/users/technicians/merchants/requests/reviews/payments/grants/notifications/audit) live under `src/app`. Surfaces not yet built are tracked in the release manifest, not in this file.

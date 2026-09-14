@@ -3,8 +3,9 @@
 /**
  * Admin kitchen-sink dashboard (Task 10K). Real API surfaces only:
  * metrics, users, technicians/merchants verification, service-request
- * operations, review moderation, payments (config/review), manual
- * grants, operational notification, audit logs. Every mutation audited.
+ * operations, review moderation, payment review (detail/approve/reject),
+ * manual subscription/entitlement grants, operational notifications, and
+ * audit logs. Every mutation audited. Destructive actions confirm first.
  * NOT a god mode; each surface uses the documented/implemented endpoint.
  */
 
@@ -26,6 +27,8 @@ type Tab =
   | 'requests'
   | 'reviews'
   | 'payments'
+  | 'grants'
+  | 'notify'
   | 'audit';
 
 interface Row {
@@ -41,6 +44,8 @@ const TABS: ReadonlyArray<{ id: Tab; labelAr: string }> = [
   { id: 'requests', labelAr: 'الطلبات' },
   { id: 'reviews', labelAr: 'التقييمات' },
   { id: 'payments', labelAr: 'المدفوعات' },
+  { id: 'grants', labelAr: 'المنح' },
+  { id: 'notify', labelAr: 'إشعارات' },
   { id: 'audit', labelAr: 'سجل التدقيق' },
 ];
 
@@ -51,6 +56,8 @@ export default function AdminDashboard() {
   const [items, setItems] = useState<Row[] | null>(null);
   const [meta, setMeta] = useState<AdminListResult<Row>['meta'] | null>(null);
   const [metrics, setMetrics] = useState<Record<string, unknown> | null>(null);
+  const [paymentDetail, setPaymentDetail] = useState<Record<string, unknown> | null>(null);
+  const [detailStatus, setDetailStatus] = useState<'idle' | 'loading' | 'error'>('idle');
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
@@ -64,6 +71,8 @@ export default function AdminDashboard() {
       setError(null);
       setItems(null);
       setMeta(null);
+      setPaymentDetail(null);
+      setDetailStatus('idle');
       const paths: Record<Tab, string> = {
         metrics: '/admin/metrics',
         users: `/admin/users?page=${String(page)}&limit=${String(limit)}`,
@@ -72,8 +81,18 @@ export default function AdminDashboard() {
         requests: `/admin/service-requests?page=${String(page)}&limit=${String(limit)}`,
         reviews: `/admin/reviews?page=${String(page)}&limit=${String(limit)}`,
         payments: `/admin/payments/submissions?page=${String(page)}&limit=${String(limit)}`,
+        grants: '',
+        notify: '',
         audit: `/admin/audit-logs?page=${String(page)}&limit=${String(limit)}`,
       };
+      // Grants and notifications are form-only tabs (no list endpoint).
+      if (targetTab === 'grants' || targetTab === 'notify') {
+        setItems(null);
+        setMeta(null);
+        setPaymentDetail(null);
+        setStatus('loaded');
+        return;
+      }
       const promise =
         targetTab === 'metrics'
           ? AdminApi.get(paths.metrics).then((data: unknown) => {
@@ -106,15 +125,34 @@ export default function AdminDashboard() {
     load(tab, 1, 20);
   }, [tab, load]);
 
-  const runAction = (path: string, body: unknown, successAr: string) => {
+  const runAction = (path: string, body: unknown, successAr: string, confirmAr?: string) => {
+    // Destructive or irreversible mutations require explicit confirmation.
+    if (confirmAr !== undefined && typeof window !== 'undefined' && !window.confirm(confirmAr)) {
+      return;
+    }
     setActionMsg(null);
     void AdminApi.post(path, body)
       .then(() => {
         setActionMsg(successAr);
+        setPaymentDetail(null);
         load(tab, 1, 20);
       })
       .catch((err: unknown) => {
         setActionMsg(err instanceof AdminApiError ? err.messageAr : 'فشل الإجراء');
+      });
+  };
+
+  const loadPaymentDetail = (id: string) => {
+    setDetailStatus('loading');
+    setPaymentDetail(null);
+    void AdminApi.get<Record<string, unknown>>(`/admin/payments/submissions/${id}`)
+      .then((data) => {
+        setPaymentDetail(data);
+        setDetailStatus('idle');
+      })
+      .catch((err: unknown) => {
+        setActionMsg(err instanceof AdminApiError ? err.messageAr : 'تعذر تحميل تفاصيل الدفع');
+        setDetailStatus('error');
       });
   };
 
@@ -208,7 +246,7 @@ export default function AdminDashboard() {
                         <RowSummary row={row} />
                       </td>
                       <td style={td} colSpan={2}>
-                        <Actions tab={tab} row={row} onAction={runAction} />
+                        <Actions tab={tab} row={row} onAction={runAction} onDetail={loadPaymentDetail} />
                       </td>
                     </tr>
                   ))}
@@ -232,6 +270,36 @@ export default function AdminDashboard() {
           ) : null}
         </div>
       ) : null}
+
+      {status === 'loaded' && tab === 'payments' ? (
+        <div style={{ ...panel, marginTop: 12 }}>
+          <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>تفاصيل الدفع المحدد</h2>
+          {detailStatus === 'loading' ? <div>جاري التحميل…</div> : null}
+          {detailStatus === 'error' ? (
+            <div role="alert" style={{ color: '#c0392b' }}>
+              تعذر تحميل تفاصيل الدفع
+            </div>
+          ) : null}
+          {paymentDetail !== null ? (
+            <div dir="ltr" style={{ fontSize: 13, color: '#334', lineHeight: 1.9 }}>
+              <div>id: {String(paymentDetail.id)}</div>
+              <div>user: {String(paymentDetail.userId)}</div>
+              <div>plan: {String(paymentDetail.planId)}</div>
+              <div>
+                method: {String(paymentDetail.method)} — status: {String(paymentDetail.status)}
+              </div>
+              <div>transferReference: {String(paymentDetail.transferReference)}</div>
+              <div>proofStorageKey: {String(paymentDetail.proofStorageKey ?? '—')}</div>
+              <div>subscription: {String(paymentDetail.subscriptionId ?? '—')}</div>
+            </div>
+          ) : detailStatus === 'idle' ? (
+            <div style={{ color: '#667', fontSize: 13 }}>اختر «تفاصيل» من أي صف لعرض بيانات الدفع قبل المراجعة.</div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {status === 'loaded' && tab === 'grants' ? <GrantsPanel onAction={runAction} /> : null}
+      {status === 'loaded' && tab === 'notify' ? <NotifyPanel onAction={runAction} /> : null}
     </main>
   );
 }
@@ -369,10 +437,12 @@ function Actions({
   tab,
   row,
   onAction,
+  onDetail,
 }: {
   tab: Tab;
   row: Row;
-  onAction: (path: string, body: unknown, successAr: string) => void;
+  onAction: (path: string, body: unknown, successAr: string, confirmAr?: string) => void;
+  onDetail: (id: string) => void;
 }) {
   if (tab === 'technicians' || tab === 'merchants') {
     const current = String(row.verificationStatus ?? row.status ?? '');
@@ -390,6 +460,7 @@ function Actions({
                 `/admin/${kind}/${String(row.id)}/verification`,
                 { status: s },
                 `تم تحديث التوثيق إلى: ${STATUS_AR[s]}`,
+                'تأكيد تغيير حالة التوثيق؟',
               );
             }}
           >
@@ -404,7 +475,14 @@ function Actions({
       <button
         type="button"
         style={{ ...actionBtn, borderColor: '#c0392b', color: '#c0392b' }}
-        onClick={() => onAction(`/admin/reviews/${String(row.id)}/remove`, undefined, 'تم حذف التقييم')}
+        onClick={() =>
+          onAction(
+            `/admin/reviews/${String(row.id)}/remove`,
+            undefined,
+            'تم حذف التقييم',
+            'سيتم حذف التقييم نهائيًا. متابعة؟',
+          )
+        }
       >
         حذف
       </button>
@@ -425,6 +503,7 @@ function Actions({
                 `/admin/service-requests/${String(row.id)}/status`,
                 { status: s },
                 `حالة الطلب: ${STATUS_AR[s]}`,
+                'تأكيد تغيير حالة الطلب؟',
               )
             }
           >
@@ -435,10 +514,213 @@ function Actions({
     );
   }
   if (tab === 'payments') {
-    return <span style={{ color: '#667', fontSize: 12 }}>المراجعة عبر تفاصيل الدفع</span>;
+    const status = String(row.status);
+    const decided = status === 'approved' || status === 'rejected';
+    return (
+      <div style={{ display: 'flex', gap: 4 }}>
+        <button type="button" style={actionBtn} onClick={() => onDetail(String(row.id))}>
+          تفاصيل
+        </button>
+        <button
+          type="button"
+          disabled={decided}
+          style={{ ...actionBtn, opacity: decided ? 0.4 : 1 }}
+          onClick={() =>
+            onAction(
+              `/admin/payments/submissions/${String(row.id)}/approve`,
+              undefined,
+              'تم قبول الدفع وتفعيل الاشتراك',
+              'سيؤدي القبول إلى تفعيل اشتراك المستخدم. متابعة؟',
+            )
+          }
+        >
+          قبول
+        </button>
+        <button
+          type="button"
+          disabled={decided}
+          style={{ ...actionBtn, borderColor: '#c0392b', color: '#c0392b', opacity: decided ? 0.4 : 1 }}
+          onClick={() =>
+            onAction(
+              `/admin/payments/submissions/${String(row.id)}/reject`,
+              undefined,
+              'تم رفض إثبات الدفع',
+              'سيتم رفض إثبات الدفع. متابعة؟',
+            )
+          }
+        >
+          رفض
+        </button>
+      </div>
+    );
   }
   return <span />;
 }
+
+function GrantsPanel({
+  onAction,
+}: {
+  onAction: (path: string, body: unknown, successAr: string) => void;
+}) {
+  const [subUserId, setSubUserId] = useState('');
+  const [planId, setPlanId] = useState('');
+  const [entUserId, setEntUserId] = useState('');
+  const [entitlementId, setEntitlementId] = useState('');
+  return (
+    <div style={panel}>
+      <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>منح اشتراك يدوي</h2>
+      <div style={{ color: '#667', fontSize: 12, marginBottom: 8 }}>
+        ينشئ اشتراكًا نشطًا دون سجل دفع. الصق المعرفات من جداول المستخدمين والخطط.
+      </div>
+      <label style={formLabel} htmlFor="grant-sub-user">معرف المستخدم (user_id)</label>
+      <input
+        id="grant-sub-user"
+        dir="ltr"
+        style={formInput}
+        value={subUserId}
+        onChange={(e) => setSubUserId(e.target.value)}
+        placeholder="00000000-0000-0000-0000-000000000000"
+      />
+      <label style={formLabel} htmlFor="grant-plan">معرف الخطة (plan_id)</label>
+      <input
+        id="grant-plan"
+        dir="ltr"
+        style={formInput}
+        value={planId}
+        onChange={(e) => setPlanId(e.target.value)}
+        placeholder="00000000-0000-0000-0000-000000000000"
+      />
+      <button
+        type="button"
+        style={actionBtn}
+        onClick={() =>
+          onAction(
+            '/admin/subscriptions/grant',
+            { user_id: subUserId.trim(), plan_id: planId.trim() },
+            'تم منح الاشتراك',
+          )
+        }
+      >
+        منح الاشتراك
+      </button>
+
+      <h2 style={{ fontSize: 15, color: '#12284a', margin: '20px 0 8px' }}>منح ميزة يدويًا</h2>
+      <label style={formLabel} htmlFor="grant-ent-user">معرف المستخدم (user_id)</label>
+      <input
+        id="grant-ent-user"
+        dir="ltr"
+        style={formInput}
+        value={entUserId}
+        onChange={(e) => setEntUserId(e.target.value)}
+        placeholder="00000000-0000-0000-0000-000000000000"
+      />
+      <label style={formLabel} htmlFor="grant-ent">معرف الميزة (entitlement_id)</label>
+      <input
+        id="grant-ent"
+        dir="ltr"
+        style={formInput}
+        value={entitlementId}
+        onChange={(e) => setEntitlementId(e.target.value)}
+        placeholder="00000000-0000-0000-0000-000000000000"
+      />
+      <button
+        type="button"
+        style={actionBtn}
+        onClick={() =>
+          onAction(
+            '/admin/entitlements/grant',
+            { user_id: entUserId.trim(), entitlement_id: entitlementId.trim() },
+            'تم منح الميزة',
+          )
+        }
+      >
+        منح الميزة
+      </button>
+    </div>
+  );
+}
+
+function NotifyPanel({
+  onAction,
+}: {
+  onAction: (path: string, body: unknown, successAr: string) => void;
+}) {
+  const [userId, setUserId] = useState('');
+  const [type, setType] = useState('general');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  return (
+    <div style={panel}>
+      <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>إرسال إشعار تشغيلي</h2>
+      <div style={{ color: '#667', fontSize: 12, marginBottom: 8 }}>
+        إشعار لمستلم واحد محدد — لا يوجد إرسال جماعي.
+      </div>
+      <label style={formLabel} htmlFor="notify-user">معرف المستخدم (user_id)</label>
+      <input
+        id="notify-user"
+        dir="ltr"
+        style={formInput}
+        value={userId}
+        onChange={(e) => setUserId(e.target.value)}
+        placeholder="00000000-0000-0000-0000-000000000000"
+      />
+      <label style={formLabel} htmlFor="notify-type">النوع (type)</label>
+      <input
+        id="notify-type"
+        dir="ltr"
+        style={formInput}
+        value={type}
+        onChange={(e) => setType(e.target.value)}
+        placeholder="general"
+      />
+      <label style={formLabel} htmlFor="notify-title">العنوان</label>
+      <input
+        id="notify-title"
+        style={formInput}
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="عنوان الإشعار"
+      />
+      <label style={formLabel} htmlFor="notify-body">المحتوى</label>
+      <textarea
+        id="notify-body"
+        style={{ ...formInput, minHeight: 80 }}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="نص الإشعار"
+      />
+      <button
+        type="button"
+        style={actionBtn}
+        onClick={() =>
+          onAction(
+            '/admin/notifications',
+            { user_id: userId.trim(), type: type.trim(), title_ar: title, body_ar: body },
+            'تم إرسال الإشعار',
+          )
+        }
+      >
+        إرسال
+      </button>
+    </div>
+  );
+}
+
+const formLabel: React.CSSProperties = {
+  display: 'block',
+  fontSize: 12,
+  color: '#334',
+  margin: '10px 0 4px',
+};
+
+const formInput: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '8px 10px',
+  border: '1px solid #ccd3dd',
+  borderRadius: 8,
+  fontSize: 13,
+};
 
 const headerBtn: React.CSSProperties = {
   padding: '8px 14px',

@@ -1,8 +1,8 @@
 import { color, spacing, typography } from '@khabir/ui-tokens';
 
 /**
- * Admin bootstrap page. Real dashboard is added in later tasks per
- * docs/09_ADMIN.md.
+ * Admin bootstrap page. The operational console lives at `/dashboard`
+ * (login at `/login`); this entry point links there.
  */
 export default function AdminHome() {
   return (
@@ -30,7 +30,7 @@ export default function AdminHome() {
           marginTop: spacing[2],
         }}
       >
-        Al-Khabir admin dashboard · bootstrap
+        Al-Khabir admin dashboard · <a href="/login">تسجيل الدخول</a>
       </p>
     </main>
   );
