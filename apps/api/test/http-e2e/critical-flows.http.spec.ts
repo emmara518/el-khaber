@@ -398,6 +398,43 @@ describe('HTTP E2E — merchant and admin operations', () => {
       .expect(200);
     expect(techs.body.data.map((t: { id: string }) => t.id)).toContain(profileId);
 
+    // The verification filter must actually filter: an unverified
+    // technician is listed unfiltered but excluded when filtered.
+    const pendingTech = await register('technician', 'http-admin-pending@example.com');
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(pendingTech.accessToken))
+      .send({ display_name: 'فني بانتظار التوثيق' })
+      .expect(200);
+    const pendingProfile = await ctx.prisma.technicianProfile.findFirstOrThrow({
+      where: { userId: pendingTech.userId },
+      select: { id: true },
+    });
+    const unfiltered = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/technicians`)
+      .set(auth(admin))
+      .expect(200);
+    expect(unfiltered.body.data.map((t: { id: string }) => t.id)).toContain(pendingProfile.id);
+    const verifiedOnly = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/technicians`)
+      .set(auth(admin))
+      .query({ verification_status: 'verified' })
+      .expect(200);
+    expect(verifiedOnly.body.data.map((t: { id: string }) => t.id)).not.toContain(
+      pendingProfile.id,
+    );
+
+    // The audit entity-type filter must actually filter as well.
+    const filteredAudit = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/audit-logs`)
+      .set(auth(admin))
+      .query({ entity_type: 'technician_verification' })
+      .expect(200);
+    expect(filteredAudit.body.data.length).toBeGreaterThan(0);
+    expect(
+      filteredAudit.body.data.every((a: { entityType: string }) => a.entityType === 'technician_verification'),
+    ).toBe(true);
+
     const merchants = await request(ctx.app.getHttpServer())
       .get(`${base}/admin/merchants`)
       .set(auth(admin))

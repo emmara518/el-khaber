@@ -103,7 +103,13 @@ export class AdminController {
   async listTechnicians(
     @Query(new ZodValidationPipe(technicianListQuery)) query: TechnicianListQuery,
   ): Promise<ApiSuccess<Payload[]> & { meta: ApiMeta }> {
-    const { items, meta } = await this.operations.listTechnicians(query);
+    // Map the documented snake_case query onto the service contract.
+    const { items, meta } = await this.operations.listTechnicians({
+      page: query.page,
+      limit: query.limit,
+      q: query.q,
+      verificationStatus: query.verification_status,
+    });
     return { data: items, meta };
   }
 
@@ -126,7 +132,13 @@ export class AdminController {
   async listMerchants(
     @Query(new ZodValidationPipe(technicianListQuery)) query: TechnicianListQuery,
   ): Promise<ApiSuccess<Payload[]> & { meta: ApiMeta }> {
-    const { items, meta } = await this.operations.listMerchants(query);
+    // Map the documented snake_case query onto the service contract.
+    const { items, meta } = await this.operations.listMerchants({
+      page: query.page,
+      limit: query.limit,
+      q: query.q,
+      verificationStatus: query.verification_status,
+    });
     return { data: items, meta };
   }
 
@@ -199,7 +211,12 @@ export class AdminController {
   async listAuditLogs(
     @Query(new ZodValidationPipe(auditListQuery)) query: AuditListQuery,
   ): Promise<ApiSuccess<Payload[]> & { meta: ApiMeta }> {
-    const { items, meta } = await this.operations.listAuditLogs(query);
+    // Map the documented snake_case query onto the service contract.
+    const { items, meta } = await this.operations.listAuditLogs({
+      page: query.page,
+      limit: query.limit,
+      entityType: query.entity_type,
+    });
     return { data: items, meta };
   }
 }

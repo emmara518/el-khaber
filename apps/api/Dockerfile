@@ -51,4 +51,9 @@ COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 
 EXPOSE 3000
 # Liveness/readiness are HTTP probes: GET /api/v1/health, GET /api/v1/ready.
+# /health is process-only (no DB dependency), so the container healthcheck
+# stays green while the database is briefly unreachable; /ready reports
+# dependency state to the orchestrator.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "const p=process.env.PORT||3000;const g=process.env.API_GLOBAL_PREFIX||'api/v1';fetch(`http://127.0.0.1:${p}/${g}/health`).then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "apps/api/dist/main.js"]

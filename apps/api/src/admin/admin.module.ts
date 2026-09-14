@@ -1,11 +1,10 @@
 /**
  * Admin operational module (Task 10K).
  *
- * Registers the Admin operational controller and its services. These were
- * implemented in Task 10K but never wired into the application graph, so the
- * whole `/admin/*` operational surface (metrics, users, verification,
- * service-request override, review moderation, audit log) returned 404.
- * Discovered by the Task 10N real-HTTP E2E suite.
+ * Registers the Admin operational controller and its services
+ * (`/admin/*`: metrics, users, verification, service-request override,
+ * review moderation, audit log). The module registration itself was the
+ * 10N fix for the unwired-controller 404.
  */
 
 import { Module } from '@nestjs/common';

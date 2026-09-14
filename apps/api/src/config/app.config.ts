@@ -48,6 +48,7 @@ export interface AppConfig {
   readonly globalPrefix: string;
   readonly corsOrigins: readonly string[];
   readonly databaseUrl: string;
+  readonly directUrl: string;
   readonly auth: {
     readonly accessSecret: string;
     readonly accessTtlSeconds: number;
@@ -95,6 +96,10 @@ export function getConfig(): AppConfig {
     globalPrefix: readString('API_GLOBAL_PREFIX', 'api/v1'),
     corsOrigins: readList('CORS_ORIGINS'),
     databaseUrl: requireString('DATABASE_URL'),
+    // Prisma requires DIRECT_URL for migrations/DDL even though the pooled
+    // DATABASE_URL serves runtime traffic. Fail fast here instead of
+    // surfacing a cryptic Prisma error later.
+    directUrl: requireString('DIRECT_URL'),
     auth: {
       accessSecret,
       accessTtlSeconds: readNumber('JWT_ACCESS_TTL', 900),
