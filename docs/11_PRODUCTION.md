@@ -97,10 +97,16 @@ Rules:
    approved; Supabase Storage is explicitly out of scope per ADR. Image
    proof cannot ship until a provider is chosen.
 2. **Multi-instance rate limiting / login lockout** — the current throttler
-   and failed-login lockout are **in-memory per instance**. If production
-   runs more than one API instance, limiter/lockout state is not shared and
-   becomes weaker. A production-safe design needs a shared store (e.g.
-   Redis), which is a provider/infrastructure decision.
+   (`@nestjs/throttler`) and failed-login lockout (`LoginAttemptGuard`) are
+   **in-memory per instance**. They are only safe when the API runs as a
+   **single instance**. The production topology is **not yet approved**
+   (CTO decision). Until it is:
+   - the API logs a `topology-notice` warning at startup under
+     `NODE_ENV=production` making the constraint explicit;
+   - horizontal scaling MUST NOT be enabled while relying on in-memory
+     state;
+   - a production-safe multi-instance design requires a CTO-approved shared
+     store (e.g. Redis).
 3. **Notification delivery provider** (push/email/SMS) — out of scope;
    notifications are persisted only.
 4. **Payment gateway** — MVP is manual transfer + Admin review; no gateway.

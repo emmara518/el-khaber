@@ -81,6 +81,22 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  // Topology notice (Task REM-004): rate limiting and failed-login lockout
+  // are PROCESS-LOCAL (in-memory). They are only safe when the API runs as a
+  // single instance. This does not resolve the topology (a CTO decision) but
+  // makes the constraint impossible to miss in production logs.
+  if (config.env === 'production') {
+    logger.warn(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: 'warn',
+        event: 'topology-notice',
+        message:
+          'Rate limiting and failed-login lockout are in-memory (process-local). Run a SINGLE API instance, or provide a CTO-approved shared store, before scaling horizontally.',
+      }),
+    );
+  }
+
   await app.listen(config.port);
   logger.log(`[api] listening on http://localhost:${String(config.port)}/${config.globalPrefix}`);
 }
