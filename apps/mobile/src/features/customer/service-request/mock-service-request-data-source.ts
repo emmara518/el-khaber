@@ -37,6 +37,8 @@ export class ServiceRequestSubmissionError extends Error {
 
 export interface ServiceRequestDataSource {
   getFormData(input: { role: 'customer' }): Promise<ServiceRequestFormData>;
+  /** Creates an owned location (Task REM-001) and returns it selectable. */
+  createLocation(input: { labelAr: string; addressAr: string }): Promise<RequestLocation>;
   submitRequest(draft: ServiceRequestDraft): Promise<ServiceRequestSubmission>;
 }
 
@@ -67,10 +69,28 @@ const FORM_FIXTURE: ServiceRequestFormData = {
 };
 
 export class MockServiceRequestDataSource implements ServiceRequestDataSource {
+  private readonly createdLocations: RequestLocation[] = [];
+
   constructor(private readonly mode: 'success' | 'failing' = 'success') {}
 
   async getFormData(_input: { role: 'customer' }): Promise<ServiceRequestFormData> {
-    return JSON.parse(JSON.stringify(FORM_FIXTURE)) as ServiceRequestFormData;
+    const fixture = JSON.parse(JSON.stringify(FORM_FIXTURE)) as ServiceRequestFormData;
+    return { ...fixture, locations: [...fixture.locations, ...this.createdLocations] };
+  }
+
+  async createLocation(input: { labelAr: string; addressAr: string }): Promise<RequestLocation> {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    if (this.mode === 'failing') {
+      throw new Error('فشل إضافة الموقع. حاول مجددًا');
+    }
+    const created: RequestLocation = {
+      id: `loc-${String(this.createdLocations.length + 1)}-${String(Date.now() % 100000)}`,
+      labelAr: input.labelAr.trim(),
+      detailAr: input.addressAr.trim().length > 0 ? input.addressAr.trim() : '—',
+      isDefault: false,
+    };
+    this.createdLocations.push(created);
+    return created;
   }
 
   async submitRequest(draft: ServiceRequestDraft): Promise<ServiceRequestSubmission> {

@@ -46,11 +46,23 @@ async function loginAdmin(): Promise<string> {
   return res.body.data.accessToken as string;
 }
 
-async function createLocation(userId: string): Promise<string> {
-  const loc = await ctx.prisma.location.create({
-    data: { userId, label: 'المنزل', city: 'الرياض', latitude: 24.7, longitude: 46.7 },
-  });
-  return loc.id;
+/**
+ * Creates a location through the REAL HTTP surface (Task REM-001). The
+ * customer journey must never be satisfied by a Prisma location fixture.
+ */
+async function createLocation(customer: Session, label = 'المنزل'): Promise<string> {
+  const res = await request(ctx.app.getHttpServer())
+    .post(`${base}/locations`)
+    .set(auth(customer.accessToken))
+    .send({
+      label,
+      address_text: 'حي النزهة، الرياض',
+      city: 'الرياض',
+      latitude: 24.7,
+      longitude: 46.7,
+    })
+    .expect(201);
+  return res.body.data.id as string;
 }
 
 async function setupVerifiedTechnician(email: string): Promise<{ session: Session; profileId: string }> {
@@ -124,10 +136,77 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
     expect(technicians.body.data.map((t: { id: string }) => t.id)).toContain(profileId);
   });
 
+  it('locations: create → list → owner update, with IDOR + validation safety', async () => {
+    const customer = await register('customer', 'http-loc-c@example.com');
+    const other = await register('customer', 'http-loc-other@example.com');
+
+    // Create (coordinates optional — label/address-only is valid).
+    const created = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'المنزل', address_text: 'حي النزهة', city: 'الرياض' })
+      .expect(201);
+    const id = created.body.data.id as string;
+    expect(created.body.data.label).toBe('المنزل');
+    expect(created.body.data.latitude).toBeNull();
+
+    // Owner lists it; another customer sees nothing.
+    const ownList = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(ownList.body.data.map((l: { id: string }) => l.id)).toContain(id);
+    const otherList = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(other.accessToken))
+      .expect(200);
+    expect(otherList.body.data).toHaveLength(0);
+
+    // Cross-customer PATCH ≡ 404 (no existence leak).
+    const foreignPatch = await request(ctx.app.getHttpServer())
+      .patch(`${base}/locations/${id}`)
+      .set(auth(other.accessToken))
+      .send({ label: 'hack' });
+    expect(foreignPatch.status).toBe(404);
+
+    // Owner PATCH works, including adding coordinates later.
+    const patched = await request(ctx.app.getHttpServer())
+      .patch(`${base}/locations/${id}`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'العمل', latitude: 24.1, longitude: 46.2 })
+      .expect(200);
+    expect(patched.body.data.label).toBe('العمل');
+    expect(patched.body.data.latitude).toBeCloseTo(24.1);
+
+    // latitude without longitude is a validation error.
+    const bad = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'x', latitude: 24 });
+    expect(bad.status).toBe(400);
+
+    // Unauthenticated and wrong-role access rejected.
+    await request(ctx.app.getHttpServer()).get(`${base}/locations`).expect(401);
+    const { session: tech } = await setupVerifiedTechnician('http-loc-tech@example.com');
+    const techCreate = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(tech.accessToken))
+      .send({ label: 'x' });
+    expect(techCreate.status).toBe(401);
+  });
+
   it('full lifecycle: request → accept → on_the_way → in_progress → complete → review, with notifications + chat', async () => {
     const customer = await register('customer', 'http-lifecycle-c@example.com');
     const { session: tech, profileId } = await setupVerifiedTechnician('http-lifecycle-t@example.com');
-    const locationId = await createLocation(customer.userId);
+    const locationId = await createLocation(customer);
+
+    // The created location is listed back through the real API and is
+    // owned by this customer (REM-001 journey step).
+    const locations = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(locations.body.data.map((l: { id: string }) => l.id)).toContain(locationId);
 
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
@@ -194,7 +273,7 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
   it('customer cancellation notifies the assigned technician; read + read-all work', async () => {
     const customer = await register('customer', 'http-cancel-c@example.com');
     const { session: tech, profileId } = await setupVerifiedTechnician('http-cancel-t@example.com');
-    const locationId = await createLocation(customer.userId);
+    const locationId = await createLocation(customer);
 
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
@@ -321,7 +400,7 @@ describe('HTTP E2E — merchant and admin operations', () => {
     const admin = await loginAdmin();
     const customer = await register('customer', 'http-admin-op-c@example.com');
     const { profileId } = await setupVerifiedTechnician('http-admin-op-t@example.com');
-    const locationId = await createLocation(customer.userId);
+    const locationId = await createLocation(customer);
 
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)

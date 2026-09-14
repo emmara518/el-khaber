@@ -7,13 +7,13 @@
  * - submission: POST /service-requests (customer-only; identity and
  *   lifecycle are server-owned).
  *
- * DISCOVERED CONTRACT GAPS (reported — NOT invented around):
- * - Saved locations: the backend has NO locations endpoints
- *   (docs/07 §8 documents POST/GET /locations but they are not
- *   implemented), while POST /service-requests REQUIRES an owned
- *   `location_id`. Until that path exists the location step stays
- *   empty and submission reports the honest error instead of
- *   fabricating a location id.
+ * Locations (Task REM-001): the customer's owned locations are read from
+ * GET /locations and created through POST /locations, so the request
+ * journey is executable end-to-end (a request requires an owned
+ * `location_id`). No mock fallback: a failed location call surfaces an
+ * honest error.
+ *
+ * REMAINING CONTRACT GAPS (reported — NOT invented around):
  * - Appointment slots: no slot inventory API exists; the step stays
  *   on its documented "coordinate by phone" (optional) semantics and
  *   omits `scheduled_at`.
@@ -40,9 +40,10 @@ import {
 import type {
   AppointmentSlot,
   ProblemOption,
+  RequestLocation,
   ServiceRequestDraft,
 } from './service-request-types';
-import type { FaultSummaryDto } from '@khabir/shared-types';
+import type { FaultSummaryDto, LocationDto } from '@khabir/shared-types';
 
 export { ServiceRequestSubmissionError };
 export type {
@@ -52,7 +53,22 @@ export type {
 } from './mock-service-request-data-source';
 
 const SUBMIT_FALLBACK_AR = 'فشل إرسال الطلب. تحقق من الاتصال وحاول مجددًا';
-const LOCATION_MISSING_AR = 'اختر موقع تقديم الخدمة أولًا — لا توجد مواقع محفوظة حتى الآن';
+const LOCATION_MISSING_AR = 'اختر موقع تقديم الخدمة أو أضف موقعًا جديدًا';
+const LOCATION_LOAD_FALLBACK_AR = 'تعذر تحميل المواقع. تحقق من الاتصال وحاول مجددًا';
+const LOCATION_CREATE_FALLBACK_AR = 'تعذر حفظ الموقع. تحقق من الاتصال وحاول مجددًا';
+
+/** Maps a backend LocationDto → the form's RequestLocation shape. */
+export function mapLocation(dto: LocationDto, isDefault: boolean): RequestLocation {
+  const detailParts = [dto.addressText, dto.city, dto.region].filter(
+    (part): part is string => typeof part === 'string' && part.length > 0,
+  );
+  return {
+    id: dto.id,
+    labelAr: dto.label ?? 'موقع',
+    detailAr: detailParts.length > 0 ? detailParts.join('، ') : '—',
+    isDefault,
+  };
+}
 
 /** Published faults → the form's predefined problem options. */
 export async function mapProblemOptions(): Promise<ReadonlyArray<ProblemOption>> {
@@ -83,15 +99,46 @@ export async function mapProblemOptions(): Promise<ReadonlyArray<ProblemOption>>
 
 export class ApiServiceRequestDataSource implements ServiceRequestDataSource {
   async getFormData(_input: { role: 'customer' }): Promise<ServiceRequestFormData> {
-    const problems = await mapProblemOptions();
+    const [problems, locations] = await Promise.all([mapProblemOptions(), this.loadLocations()]);
     return {
       problems,
-      // CONTRACT GAP: no locations endpoints implemented backend-side.
-      locations: [],
+      locations,
       // CONTRACT GAP: no appointment-slot inventory exists; the
       // "coordinate by phone" choice remains the valid default.
       slots: [] as ReadonlyArray<AppointmentSlot>,
     };
+  }
+
+  /** Reads the customer's owned locations (real API). */
+  private async loadLocations(): Promise<ReadonlyArray<RequestLocation>> {
+    try {
+      const items = await drainPages<LocationDto>((page, limit) =>
+        getApi()
+          .request<LocationDto[]>('GET', `/locations${buildQuery({ page, limit })}`)
+          .then((res) => ({ items: res.data, meta: res.meta })),
+      );
+      return items.map((dto, index) => mapLocation(dto, index === 0));
+    } catch (err: unknown) {
+      throw new Error(toUserMessage(err, LOCATION_LOAD_FALLBACK_AR));
+    }
+  }
+
+  /** Creates an owned location (real API) and returns it selectable. */
+  async createLocation(input: { labelAr: string; addressAr: string }): Promise<RequestLocation> {
+    const label = input.labelAr.trim();
+    const address = input.addressAr.trim();
+    if (label.length === 0) {
+      throw new Error('أدخل اسم الموقع');
+    }
+    try {
+      const res = await getApi().request<LocationDto>('POST', '/locations', {
+        label,
+        ...(address.length > 0 ? { address_text: address } : {}),
+      });
+      return mapLocation(res.data, false);
+    } catch (err: unknown) {
+      throw new Error(toUserMessage(err, LOCATION_CREATE_FALLBACK_AR));
+    }
   }
 
   async submitRequest(draft: ServiceRequestDraft): Promise<ServiceRequestSubmission> {

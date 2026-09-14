@@ -250,6 +250,49 @@ export const merchantProductUpdateSchema = z
 export type MerchantProductUpdateInput = z.infer<typeof merchantProductUpdateSchema>;
 
 // -----------------------------------------------------------------------------
+// Locations (Task REM-001) — docs/07_API.md §8, docs/06_DATABASE.md §6.
+// User-owned location records used by the service-request flow (a request
+// requires an owned `location_id`). Coordinates are OPTIONAL: docs/06 §6 says
+// "store exact coordinates only when required", and no map/geocoding provider
+// is approved, so label/address-only locations are valid.
+// -----------------------------------------------------------------------------
+
+const locationBody = {
+  label: z.string().trim().min(1).max(128),
+  address_text: z.string().trim().max(2000).optional(),
+  city: z.string().trim().max(128).optional(),
+  region: z.string().trim().max(128).optional(),
+  country: z.string().trim().max(128).optional(),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
+};
+
+/** POST /locations — create an owned location. */
+export const createLocationSchema = z
+  .object(locationBody)
+  .refine((v) => (v.latitude === undefined) === (v.longitude === undefined), {
+    message: 'latitude and longitude must be provided together',
+  });
+export type CreateLocationInput = z.infer<typeof createLocationSchema>;
+
+/** PATCH /locations/:id — partial update; absent fields unchanged. */
+export const updateLocationSchema = z
+  .object({
+    label: locationBody.label.optional(),
+    address_text: locationBody.address_text,
+    city: locationBody.city,
+    region: locationBody.region,
+    country: locationBody.country,
+    latitude: locationBody.latitude,
+    longitude: locationBody.longitude,
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'at least one field is required' })
+  .refine((v) => (v.latitude === undefined) === (v.longitude === undefined), {
+    message: 'latitude and longitude must be provided together',
+  });
+export type UpdateLocationInput = z.infer<typeof updateLocationSchema>;
+
+// -----------------------------------------------------------------------------
 // Chat / Reviews / Notifications (Task 10H)
 // Source: docs/07_API.md §10–§12. No realtime, no delivery providers, no
 // invented message features (reactions/edits/typing) — HTTP persistence only.

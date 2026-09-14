@@ -525,6 +525,54 @@ components:
         - status
         - service
       type: object
+    LocationDto:
+      additionalProperties: false
+      description: >-
+        User-owned location (docs/07_API.md §8, docs/06_DATABASE.md §6). Coordinates are optional (label/address-only
+        locations are valid).
+      properties:
+        addressText:
+          nullable: true
+          type: string
+        city:
+          nullable: true
+          type: string
+        country:
+          nullable: true
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        label:
+          nullable: true
+          type: string
+        latitude:
+          nullable: true
+          type: number
+        longitude:
+          nullable: true
+          type: number
+        region:
+          nullable: true
+          type: string
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - label
+        - addressText
+        - city
+        - region
+        - country
+        - latitude
+        - longitude
+        - createdAt
+        - updatedAt
+      type: object
     MeDto:
       $ref: '#/components/schemas/AuthUserDto'
       description: Authenticated user profile (see AuthUserDto).
@@ -3240,6 +3288,197 @@ paths:
           description: Liveness probe (process-level only).
       tags:
         - health
+  /api/v1/locations:
+    get:
+      operationId: LocationsController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LocationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own locations (paginated, oldest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - locations
+    post:
+      operationId: LocationsController_create
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                address_text:
+                  maxLength: 2000
+                  type: string
+                city:
+                  maxLength: 128
+                  type: string
+                country:
+                  maxLength: 128
+                  type: string
+                label:
+                  maxLength: 128
+                  minLength: 1
+                  type: string
+                latitude:
+                  maximum: 90
+                  minimum: -90
+                  type: number
+                longitude:
+                  maximum: 180
+                  minimum: -180
+                  type: number
+                region:
+                  maxLength: 128
+                  type: string
+              required:
+                - label
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LocationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Location created and owned by the current account.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+      security:
+        - bearer: []
+      tags:
+        - locations
+  /api/v1/locations/{id}:
+    patch:
+      operationId: LocationsController_update
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                address_text:
+                  maxLength: 2000
+                  type: string
+                city:
+                  maxLength: 128
+                  type: string
+                country:
+                  maxLength: 128
+                  type: string
+                label:
+                  maxLength: 128
+                  minLength: 1
+                  type: string
+                latitude:
+                  maximum: 90
+                  minimum: -90
+                  type: number
+                longitude:
+                  maximum: 180
+                  minimum: -180
+                  type: number
+                region:
+                  maxLength: 128
+                  type: string
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/LocationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Location updated (owner only).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Location not found or not owned by this account.
+      security:
+        - bearer: []
+      tags:
+        - locations
   /api/v1/me:
     get:
       operationId: MeController_me

@@ -24,6 +24,7 @@ export type {
   AuthSessionDto,
   MeDto,
   ApplianceCategoryDto,
+  LocationDto,
   FaultSummaryDto,
   FaultDto,
   ServiceDto,

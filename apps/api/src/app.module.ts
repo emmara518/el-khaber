@@ -15,6 +15,7 @@ import { requestIdMiddleware } from './common/request-id.middleware';
 import { securityHeaders } from './common/security-headers.middleware';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
+import { LocationsModule } from './locations/locations.module';
 import { MeModule } from './me/me.module';
 import { MerchantModule } from './merchant/merchant.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -31,6 +32,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     AuthGuardModule,
     AuthModule,
     HealthModule,
+    LocationsModule,
     MeModule,
     AdminAuthModule,
     AdminModule,

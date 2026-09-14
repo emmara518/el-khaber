@@ -208,6 +208,22 @@ export interface HealthDto {
   status: 'ok';
 }
 
+/**
+ * User-owned location (docs/07_API.md §8, docs/06_DATABASE.md §6). Coordinates are optional (label/address-only locations are valid).
+ */
+export interface LocationDto {
+  addressText: string | null;
+  city: string | null;
+  country: string | null;
+  createdAt: string;
+  id: string;
+  label: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  region: string | null;
+  updatedAt: string;
+}
+
 export type MeDto = AuthUserDto;
 
 /**

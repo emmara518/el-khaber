@@ -165,6 +165,37 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     required: ['id', 'nameAr', 'slug', 'iconUrl', 'imageUrl', 'sortOrder'],
     additionalProperties: false,
   },
+  LocationDto: {
+    type: 'object',
+    description:
+      'User-owned location (docs/07_API.md §8, docs/06_DATABASE.md §6). ' +
+      'Coordinates are optional (label/address-only locations are valid).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      label: { type: 'string', nullable: true },
+      addressText: { type: 'string', nullable: true },
+      city: { type: 'string', nullable: true },
+      region: { type: 'string', nullable: true },
+      country: { type: 'string', nullable: true },
+      latitude: { type: 'number', nullable: true },
+      longitude: { type: 'number', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'label',
+      'addressText',
+      'city',
+      'region',
+      'country',
+      'latitude',
+      'longitude',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
   FaultSummaryDto: {
     type: 'object',
     description: 'Published fault-guide list item (summary fields only).',

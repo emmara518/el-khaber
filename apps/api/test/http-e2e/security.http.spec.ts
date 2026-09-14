@@ -59,9 +59,14 @@ async function verifiedTechnician(email: string): Promise<{ session: Session; pr
   return { session, profileId: profile.id };
 }
 
-async function location(userId: string): Promise<string> {
-  const loc = await ctx.prisma.location.create({ data: { userId, latitude: 24.7, longitude: 46.7 } });
-  return loc.id;
+/** Creates a location through the REAL HTTP surface (no Prisma fixture). */
+async function location(session: Session): Promise<string> {
+  const res = await request(ctx.app.getHttpServer())
+    .post(`${base}/locations`)
+    .set(auth(session.accessToken))
+    .send({ label: 'موقع أمني', latitude: 24.7, longitude: 46.7 })
+    .expect(201);
+  return res.body.data.id as string;
 }
 
 beforeAll(async () => {
@@ -93,7 +98,7 @@ describe('HTTP E2E — security isolation', () => {
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
       .set(auth(a.accessToken))
-      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(a.userId) })
+      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(a) })
       .expect(201);
 
     const foreign = await request(ctx.app.getHttpServer())
@@ -112,7 +117,7 @@ describe('HTTP E2E — security isolation', () => {
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
       .set(auth(customer.accessToken))
-      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(customer.userId) })
+      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(customer) })
       .expect(201);
     const custAccept = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests/${created.body.data.id}/accept`)
@@ -123,7 +128,7 @@ describe('HTTP E2E — security isolation', () => {
     const merchantCreate = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
       .set(auth(merchant.accessToken))
-      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(merchant.userId) });
+      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(merchant) });
     expect(merchantCreate.status).toBe(401);
 
     // Customer cannot create merchant products.
@@ -142,7 +147,7 @@ describe('HTTP E2E — security isolation', () => {
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
       .set(auth(customer.accessToken))
-      .send({ technician_id: tA.profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(customer.userId) })
+      .send({ technician_id: tA.profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(customer) })
       .expect(201);
 
     const foreign = await request(ctx.app.getHttpServer())
@@ -205,7 +210,7 @@ describe('HTTP E2E — security isolation', () => {
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/service-requests`)
       .set(auth(a.accessToken))
-      .send({ technician_id: t.profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(a.userId) })
+      .send({ technician_id: t.profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: await location(a) })
       .expect(201);
     const conversation = await request(ctx.app.getHttpServer())
       .get(`${base}/service-requests/${created.body.data.id}/conversation`)

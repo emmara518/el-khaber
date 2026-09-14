@@ -392,9 +392,14 @@ model Location {
   city        String?                   @db.VarChar(128)
   region      String?                   @db.VarChar(128)
   country     String?                   @db.VarChar(128)
-  // Documented logical coordinates (docs/06_DATABASE.md §6).
-  latitude    Decimal                   @map("latitude") @db.Decimal(9, 6)
-  longitude   Decimal                   @map("longitude") @db.Decimal(9, 6)
+  // Documented logical coordinates (docs/06_DATABASE.md §6). Nullable since
+  // Task REM-001: docs/06 §6 says "store exact coordinates only when
+  // required", and no map/geocoding provider is approved, so a customer
+  // location may be label/address-only. The coordinate-derivation trigger
+  // already handles NULL latitude/longitude (same pattern as
+  // technician_service_areas).
+  latitude    Decimal?                  @map("latitude") @db.Decimal(9, 6)
+  longitude   Decimal?                  @map("longitude") @db.Decimal(9, 6)
   // PostGIS geography(Point, 4326). Derived from latitude/longitude by a
   // database trigger (see migration) so there is exactly one business truth.
   // Managed outside Prisma; excluded from the generated client.

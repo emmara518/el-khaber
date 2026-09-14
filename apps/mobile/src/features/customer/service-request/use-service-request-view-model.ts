@@ -32,6 +32,9 @@ export interface ServiceRequestViewModel {
   formError: Error | null;
   formData: ServiceRequestFormData | null;
   reloadForm: () => void;
+  locationStatus: 'idle' | 'saving' | 'error';
+  locationError: string | null;
+  addLocation: (input: { labelAr: string; addressAr: string }) => void;
   submitStatus: ServiceRequestSubmitStatus;
   submission: ServiceRequestSubmission | null;
   submitError: string | null;
@@ -48,6 +51,8 @@ export function useServiceRequestViewModel(
   const [formStatus, setFormStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [formError, setFormError] = useState<Error | null>(null);
   const [formData, setFormData] = useState<ServiceRequestFormData | null>(null);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<ServiceRequestSubmitStatus>('idle');
   const [submission, setSubmission] = useState<ServiceRequestSubmission | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -108,6 +113,26 @@ export function useServiceRequestViewModel(
   }, [source, machine.draft]);
 
   const reloadForm = useCallback(() => setAttempt((n) => n + 1), []);
+
+  /** Creates an owned location, selects it, and refreshes the form data. */
+  const addLocation = useCallback(
+    (input: { labelAr: string; addressAr: string }) => {
+      setLocationStatus('saving');
+      setLocationError(null);
+      void (async () => {
+        try {
+          const created = await source.createLocation(input);
+          dispatch({ type: 'SET_LOCATION', locationId: created.id });
+          setAttempt((n) => n + 1);
+          setLocationStatus('idle');
+        } catch (err) {
+          setLocationError(err instanceof Error ? err.message : 'تعذر حفظ الموقع. حاول مجددًا');
+          setLocationStatus('error');
+        }
+      })();
+    },
+    [source],
+  );
   const retrySubmit = useCallback(() => {
     setSubmitStatus('idle');
     setSubmitError(null);
@@ -120,6 +145,9 @@ export function useServiceRequestViewModel(
     formError,
     formData,
     reloadForm,
+    locationStatus,
+    locationError,
+    addLocation,
     submitStatus,
     submission,
     submitError,

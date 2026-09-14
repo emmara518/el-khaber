@@ -247,6 +247,9 @@ export default function ServiceRequestScreen({
           draft={draft}
           locations={vm.formData.locations}
           onSelect={(locationId) => vm.dispatch({ type: 'SET_LOCATION', locationId })}
+          onCreate={vm.addLocation}
+          addStatus={vm.locationStatus}
+          addError={vm.locationError}
         />
       ) : null}
       {step === 'appointment' ? (
@@ -523,35 +526,98 @@ function LocationStep({
   draft,
   locations,
   onSelect,
+  onCreate,
+  addStatus,
+  addError,
 }: {
   draft: ServiceRequestDraft;
   locations: ReadonlyArray<{ id: string; labelAr: string; detailAr: string }>;
   onSelect: (locationId: string) => void;
+  onCreate: (input: { labelAr: string; addressAr: string }) => void;
+  addStatus: 'idle' | 'saving' | 'error';
+  addError: string | null;
 }) {
   const { t } = useI18n();
+  const [label, setLabel] = useState('');
+  const [address, setAddress] = useState('');
+  const saving = addStatus === 'saving';
+  const canSave = !saving && label.trim().length > 0;
+
+  const save = () => {
+    if (!canSave) return;
+    onCreate({ labelAr: label, addressAr: address });
+    setLabel('');
+    setAddress('');
+  };
+
   return (
     <View>
       <SectionHeader titleKey="request.location.title" />
-      <View accessibilityRole="radiogroup" accessibilityLabel={t('request.location.title')} style={styles.options}>
-        {locations.map((location) => {
-          const selected = draft.locationId === location.id;
-          return (
-            <Pressable
-              key={location.id}
-              accessibilityRole="radio"
-              accessibilityLabel={`الموقع: ${location.labelAr}، ${location.detailAr}${selected ? '، محدد حاليًا' : ''}`}
-              accessibilityState={{ selected, checked: selected }}
-              onPress={() => onSelect(location.id)}
-              style={({ pressed }) => [styles.listOption, selected && styles.optionSelected, pressed && styles.pressed]}
-            >
-              <View style={styles.locationText}>
-                <Text style={styles.listOptionText}>📍 {location.labelAr}</Text>
-                <Text style={styles.locationDetail}>{location.detailAr}</Text>
-              </View>
-              {selected ? <Text style={styles.checkMark}>✓</Text> : null}
-            </Pressable>
-          );
-        })}
+      {locations.length === 0 ? (
+        <Text style={styles.emptyHint}>{t('request.location.empty')}</Text>
+      ) : (
+        <View accessibilityRole="radiogroup" accessibilityLabel={t('request.location.title')} style={styles.options}>
+          {locations.map((location) => {
+            const selected = draft.locationId === location.id;
+            return (
+              <Pressable
+                key={location.id}
+                accessibilityRole="radio"
+                accessibilityLabel={`الموقع: ${location.labelAr}، ${location.detailAr}${selected ? '، محدد حاليًا' : ''}`}
+                accessibilityState={{ selected, checked: selected }}
+                onPress={() => onSelect(location.id)}
+                style={({ pressed }) => [styles.listOption, selected && styles.optionSelected, pressed && styles.pressed]}
+              >
+                <View style={styles.locationText}>
+                  <Text style={styles.listOptionText}>📍 {location.labelAr}</Text>
+                  <Text style={styles.locationDetail}>{location.detailAr}</Text>
+                </View>
+                {selected ? <Text style={styles.checkMark}>✓</Text> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={styles.addLocation}>
+        <Text style={styles.addLocationTitle}>{t('request.location.addTitle')}</Text>
+        <TextInput
+          accessibilityLabel={t('request.location.labelPlaceholder')}
+          placeholder={t('request.location.labelPlaceholder')}
+          placeholderTextColor={color.text.secondary}
+          value={label}
+          onChangeText={setLabel}
+          editable={!saving}
+          style={styles.input}
+        />
+        <TextInput
+          accessibilityLabel={t('request.location.addressPlaceholder')}
+          placeholder={t('request.location.addressPlaceholder')}
+          placeholderTextColor={color.text.secondary}
+          value={address}
+          onChangeText={setAddress}
+          editable={!saving}
+          style={styles.input}
+        />
+        {addError !== null ? (
+          <Text accessibilityRole="alert" style={styles.inlineErrorText}>
+            {addError}
+          </Text>
+        ) : null}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('request.location.save')}
+          accessibilityState={{ disabled: !canSave, busy: saving }}
+          onPress={save}
+          disabled={!canSave}
+          style={({ pressed }) => [styles.addBtn, !canSave && styles.disabled, pressed && canSave && styles.pressed]}
+        >
+          {saving ? (
+            <ActivityIndicator color={color.surface.base} />
+          ) : (
+            <Text style={styles.addBtnText}>＋ {t('request.location.save')}</Text>
+          )}
+        </Pressable>
       </View>
     </View>
   );
@@ -871,6 +937,36 @@ const styles = StyleSheet.create({
     fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
+  },
+  emptyHint: {
+    color: color.text.secondary,
+    fontSize: typography.size.body,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: spacing[2],
+  },
+  addLocation: {
+    marginTop: spacing[5],
+    gap: spacing[1],
+  },
+  addLocationTitle: {
+    color: color.text.primary,
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.bold,
+    textAlign: 'right',
+  },
+  addBtn: {
+    backgroundColor: color.brand.navy,
+    borderRadius: radius.lg,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[3],
+  },
+  addBtnText: {
+    color: color.surface.base,
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.bold,
   },
   contextCard: {
     marginBottom: spacing[3],
