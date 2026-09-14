@@ -181,6 +181,12 @@ Rules:
 - Cancelled may mean “cancel renewal” while access remains active until period end.
 - Payment failure rules must be explicit before production billing launch.
 
+**Billing-period duration is NOT defined by this document.** The
+implementation uses a **provisional 30-day period** — a single source of
+truth in `apps/api/src/subscriptions/subscription-period.ts`
+(`PROVISIONAL_PERIOD_DAYS`) — pending CTO ratification. This is engineering
+default behavior, not approved commercial policy.
+
 ---
 
 ## 9. Upgrade

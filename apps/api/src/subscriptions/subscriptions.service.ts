@@ -26,10 +26,9 @@ import {
 } from '../notifications/notification-events';
 import { NotificationsService } from '../notifications/notifications.service';
 
-import type { Prisma, UserRole } from '@prisma/client';
+import { provisionalPeriodEnd, PROVISIONAL_PERIOD_DAYS } from './subscription-period';
 
-/** PROVISIONAL period length pending CTO ratification (docs/08 undefined). */
-export const PROVISIONAL_PERIOD_DAYS = 30;
+import type { Prisma, UserRole } from '@prisma/client';
 
 const PLAN_SELECT = {
   id: true,
@@ -259,7 +258,7 @@ export class SubscriptionsService {
     }
 
     const now = new Date();
-    const periodEnd = new Date(now.getTime() + PROVISIONAL_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+    const periodEnd = provisionalPeriodEnd(now);
     const created = await this.prisma.$transaction(async (tx) => {
       const subscription = await tx.subscription.create({
         data: {

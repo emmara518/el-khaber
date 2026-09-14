@@ -24,6 +24,8 @@ import { AuditService } from '../audit/audit.service';
 import { ConflictException, NotFoundException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
+import { provisionalPeriodEnd } from './subscription-period';
+
 import type {
   AdminNotificationInput,
   AdminPaymentConfigUpsertInput,
@@ -291,7 +293,7 @@ export class PaymentsService {
         }
 
         const now = new Date();
-        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const periodEnd = provisionalPeriodEnd(now);
         const subscription = await tx.subscription.create({
           data: {
             userId: submission.userId,
