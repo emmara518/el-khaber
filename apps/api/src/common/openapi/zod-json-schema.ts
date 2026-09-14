@@ -3,9 +3,10 @@
  *
  * Scope: exactly the zod constructs used by `@khabir/shared-validation`
  * (object, string, number/integer, boolean, enum, array, optional,
- * nullable, default, effects). Runtime-only refinements (`.refine`,
- * `.superRefine`) have no OpenAPI representation and are intentionally
- * not emitted — they remain enforced by the `ZodValidationPipe`.
+ * nullable, default, effects incl. preprocess). Runtime-only refinements
+ * (`.refine`, `.superRefine`) have no OpenAPI representation and are
+ * intentionally not emitted — they remain enforced by the
+ * `ZodValidationPipe`.
  *
  * This converter exists so the OpenAPI document is derived from the
  * SAME zod schemas that validate real requests (ADR-0003: the contract
@@ -121,8 +122,20 @@ export function zodToJsonSchema(input: ZodTypeAny): JsonObject {
 }
 
 function isOptional(schema: ZodTypeAny): boolean {
-  return (
-    schema._def.typeName === ZodFirstPartyTypeKind.ZodOptional ||
-    schema._def.typeName === ZodFirstPartyTypeKind.ZodDefault
-  );
+  const def = schema._def as { typeName: ZodFirstPartyTypeKind; schema?: ZodTypeAny };
+  if (
+    def.typeName === ZodFirstPartyTypeKind.ZodOptional ||
+    def.typeName === ZodFirstPartyTypeKind.ZodDefault
+  ) {
+    return true;
+  }
+  // preprocess/transform wrappers (ZodEffects): optionality is determined
+  // by the wrapped schema, mirroring zodToJsonSchema's unwrapping above.
+  // Without this, a construct like
+  // `z.preprocess(nullToUndefined, z.coerce.number().optional())` would be
+  // wrongly emitted as `required` in the contract.
+  if (def.typeName === ZodFirstPartyTypeKind.ZodEffects && def.schema !== undefined) {
+    return isOptional(def.schema);
+  }
+  return false;
 }

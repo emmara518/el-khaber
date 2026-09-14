@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createLocationSchema,
   emailSchema,
   forgotPasswordSchema,
   loginSchema,
@@ -15,8 +16,10 @@ import {
   registerSchema,
   resetPasswordSchema,
   roleSchema,
+  updateLocationSchema,
   updateMeSchema,
 } from '../../packages/shared-validation/src';
+import { zodToJsonSchema } from '../src/common/openapi/zod-json-schema';
 
 describe('shared validation', () => {
   it('roleSchema accepts only the three end-user roles', () => {
@@ -106,5 +109,35 @@ describe('shared validation', () => {
   it('updateMeSchema rejects malformed values', () => {
     expect(() => updateMeSchema.parse({ phone: '12345' })).toThrow();
     expect(() => updateMeSchema.parse({ email: 'not-an-email' })).toThrow();
+  });
+
+  it('createLocationSchema accepts omitted coordinates and explicit null (never coerced to 0)', () => {
+    const omitted = createLocationSchema.parse({ label: 'المنزل' });
+    expect(omitted.latitude).toBeUndefined();
+    expect(omitted.longitude).toBeUndefined();
+    const nulled = createLocationSchema.parse({ label: 'المنزل', latitude: null, longitude: null });
+    expect(nulled.latitude).toBeUndefined();
+    expect(nulled.longitude).toBeUndefined();
+  });
+
+  it('location schemas require coordinates as a pair, never a single one', () => {
+    expect(() => createLocationSchema.parse({ label: 'x', latitude: 24 })).toThrow();
+    expect(() => createLocationSchema.parse({ label: 'x', longitude: 46 })).toThrow();
+    expect(() => updateLocationSchema.parse({ latitude: 24 })).toThrow();
+    expect(
+      createLocationSchema.parse({ label: 'x', latitude: 24.7, longitude: 46.7 }),
+    ).toMatchObject({ latitude: 24.7, longitude: 46.7 });
+  });
+
+  it('updateLocationSchema requires at least one field', () => {
+    expect(() => updateLocationSchema.parse({})).toThrow();
+    expect(updateLocationSchema.parse({ label: 'العمل' })).toBeTruthy();
+  });
+
+  it('zodToJsonSchema does not mark preprocess-wrapped optionals as required', () => {
+    const create = zodToJsonSchema(createLocationSchema) as { required?: string[] };
+    expect(create.required ?? []).toEqual(['label']);
+    const update = zodToJsonSchema(updateLocationSchema) as { required?: string[] };
+    expect(update.required).toBeUndefined();
   });
 });
