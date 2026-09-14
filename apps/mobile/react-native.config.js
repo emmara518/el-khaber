@@ -1,3 +1,4 @@
+/* eslint-disable no-undef -- CommonJS is required by the React Native CLI autolinker. */
 /**
  * Project-level React Native autolinking overrides (Android QA build).
  *
