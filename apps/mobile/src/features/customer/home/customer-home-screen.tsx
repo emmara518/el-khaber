@@ -1,5 +1,5 @@
 import { color, spacing, typography } from '@khabir/ui-tokens';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApplianceCarouselCard } from './components/appliance-carousel-card';
@@ -25,12 +25,11 @@ import { SectionHeader } from '@/ui/section-header';
  * technicians), the quick services row, the gold service guarantee
  * banner, and the section headers. The screen consumes only the
  * view-model returned by `useCustomerHomeViewModel`; the data
- * source is currently a mock and will be swapped for the real API
- * adapter in a later task.
+ * source is the real API adapter (`ApiCustomerHomeDataSource`).
  */
 export default function CustomerHomeScreen() {
   const { t } = useI18n();
-  const { status, data, error } = useCustomerHomeViewModel();
+  const { status, data, error, reload } = useCustomerHomeViewModel();
 
   return (
     <View style={styles.root}>
@@ -57,7 +56,7 @@ export default function CustomerHomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {renderBody({ status, data, error, t })}
+        {renderBody({ status, data, error, onRetry: reload, t })}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
@@ -68,11 +67,13 @@ function renderBody({
   status,
   data,
   error,
+  onRetry,
   t,
 }: {
   status: ReturnType<typeof useCustomerHomeViewModel>['status'];
   data: ReturnType<typeof useCustomerHomeViewModel>['data'];
   error: ReturnType<typeof useCustomerHomeViewModel>['error'];
+  onRetry: () => void;
   t: (key: TranslationKey) => string;
 }) {
   if (status === 'loading') {
@@ -88,6 +89,14 @@ function renderBody({
         <Text style={styles.stateText}>
           {error ? error.message : t('placeholder.body')}
         </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('state.retry')}
+          onPress={onRetry}
+          style={styles.retryBtn}
+        >
+          <Text style={styles.retryText}>{t('state.retry')}</Text>
+        </Pressable>
       </Card>
     );
   }
@@ -173,5 +182,18 @@ const styles = StyleSheet.create({
   stateText: {
     color: color.text.secondary,
     fontSize: typography.size.body,
+  },
+  retryBtn: {
+    marginTop: spacing[3],
+    paddingVertical: spacing[2],
+    paddingHorizontal: spacing[5],
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: color.brand.navy,
+  },
+  retryText: {
+    color: color.brand.navy,
+    fontSize: typography.size.body,
+    fontWeight: typography.weight.semibold,
   },
 });

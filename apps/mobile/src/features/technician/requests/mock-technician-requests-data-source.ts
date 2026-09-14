@@ -197,7 +197,8 @@ export class MockTechnicianRequestsDataSource implements TechnicianRequestsDataS
 /**
  * Shared session instance: list / detail / active-service screens
  * must observe the SAME in-memory session state so transitions stay
- * consistent across navigation (T-D §19). Deterministic; replaced
- * wholesale by the future API adapter.
+ * consistent across navigation (T-D §19). Deterministic; the shipped
+ * screens use the real API adapter instead, this mock remains the
+ * deterministic fixture for the spec suite only.
  */
 export const sharedTechnicianRequestsSource = new MockTechnicianRequestsDataSource();

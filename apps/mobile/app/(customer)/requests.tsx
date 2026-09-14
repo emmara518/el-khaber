@@ -2,8 +2,8 @@ import CustomerRequestsScreen from '../../src/features/customer/requests/custome
 
 /**
  * Route entry: Customer Requests. Presentation lives in the feature
- * folder behind the `useCustomerRequestsViewModel` hook (mock data
- * source today, real API adapter later without touching this file).
+ * folder behind the `useCustomerRequestsViewModel` hook backed by the
+ * real API adapter.
  */
 export default function RequestsRoute() {
   return <CustomerRequestsScreen />;

@@ -2,8 +2,8 @@ import MerchantHomeScreen from '../../src/features/merchant/home/merchant-home-s
 
 /**
  * Route entry: Merchant Home (M-A). Presentation lives in the
- * feature folder behind `useMerchantHomeViewModel` (mock data
- * source today, real API adapter later without touching this file).
+ * feature folder behind `useMerchantHomeViewModel` backed by the real
+ * API adapter.
  * Products/messages/profile tabs remain explicit placeholders until
  * their assigned batches.
  */

@@ -1,3 +1,4 @@
+import { ActivityIndicator, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 
 import { sharedMerchantProductsSource } from '../../../../src/features/merchant/products/api-merchant-products-data-source';
@@ -18,7 +19,16 @@ export default function EditProductRoute() {
   const { status, data } = useMerchantProductsViewModel(sharedMerchantProductsSource);
   const product = status === 'loaded' ? findMerchantProduct(data ?? [], productId) : null;
 
-  if (status === 'loading') return null;
+  if (status === 'loading') {
+    return (
+      <View
+        accessibilityRole="progressbar"
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}
+      >
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
   if (product === null) {
     return (
       <MerchantProductFormScreen

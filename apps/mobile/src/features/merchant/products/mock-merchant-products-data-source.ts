@@ -181,7 +181,8 @@ export class MockMerchantProductsDataSource implements MerchantProductsDataSourc
 /**
  * Session-scoped shared instance: catalog/detail/form screens must
  * observe the SAME in-memory session so mutations stay consistent
- * across navigation (M-D §17). Replaced wholesale by the future API
- * adapter (POST/PATCH /merchant/products).
+ * across navigation (M-D §17). The shipped screens use the real API
+ * adapter instead; this mock remains the deterministic fixture for the
+ * spec suite only.
  */
 export const sharedMerchantProductsSource = new MockMerchantProductsDataSource();

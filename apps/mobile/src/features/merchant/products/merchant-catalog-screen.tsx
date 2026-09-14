@@ -4,7 +4,7 @@
  * Search (simple text match) + category/status chips + product
  * cards (image placeholder, name, category, description, status,
  * optional price) → detail. Empty/error/loading states; "إضافة
- * منتج" CTA is an explicit M-D handoff (deferred, not implemented).
+ * منتج" CTA opens the product form screen.
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';

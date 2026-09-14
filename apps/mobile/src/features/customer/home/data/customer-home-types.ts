@@ -2,9 +2,7 @@
  * Customer Home — view-model and data-source contracts.
  *
  * The Home screen renders a `CustomerHomeViewModel`. The data is
- * fetched by a `CustomerHomeDataSource` (currently a mock; will be
- * replaced by a real API adapter in a later task without touching
- * the presentation layer).
+ * fetched by a `CustomerHomeDataSource` (real API adapter).
  *
  * Source: Task #003 spec; docs/01_PROJECT.md §4.1; docs/02_PRODUCT.md
  * §3.4; docs/03_USER_FLOWS.md §6.
