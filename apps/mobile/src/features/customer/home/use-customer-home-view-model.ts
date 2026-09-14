@@ -13,6 +13,9 @@ export interface CustomerHomeViewModelState {
   status: CustomerHomeStatus;
   data: CustomerHomeViewModel | null;
   error: Error | null;
+}
+
+export interface CustomerHomeViewModelResult extends CustomerHomeViewModelState {
   reload: () => void;
 }
 
@@ -23,7 +26,7 @@ export interface CustomerHomeViewModelState {
  * screen component) reads `status` and `data` and renders the
  * appropriate state. The data source is the real API adapter.
  */
-export function useCustomerHomeViewModel(): CustomerHomeViewModelState {
+export function useCustomerHomeViewModel(): CustomerHomeViewModelResult {
   const [state, setState] = useState<CustomerHomeViewModelState>({
     status: 'loading',
     data: null,

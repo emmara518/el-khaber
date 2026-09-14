@@ -1,4 +1,4 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
