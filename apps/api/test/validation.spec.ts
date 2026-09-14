@@ -131,6 +131,7 @@ describe('shared validation', () => {
 
   it('updateLocationSchema requires at least one field', () => {
     expect(() => updateLocationSchema.parse({})).toThrow();
+    expect(() => updateLocationSchema.parse({ latitude: null, longitude: null })).toThrow();
     expect(updateLocationSchema.parse({ label: 'العمل' })).toBeTruthy();
   });
 

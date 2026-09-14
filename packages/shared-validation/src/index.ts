@@ -295,7 +295,9 @@ export const updateLocationSchema = z
     latitude: locationBody.latitude,
     longitude: locationBody.longitude,
   })
-  .refine((v) => Object.keys(v).length > 0, { message: 'at least one field is required' })
+  .refine((v) => Object.values(v).some((field) => field !== undefined), {
+    message: 'at least one field is required',
+  })
   .refine((v) => (v.latitude === undefined) === (v.longitude === undefined), {
     message: 'latitude and longitude must be provided together',
   });
