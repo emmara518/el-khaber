@@ -207,6 +207,15 @@ Admin capabilities:
 
 All material changes are audited.
 
+Implementation status (Release Candidate): implemented today are
+**manual exceptions** (`POST /admin/subscriptions/grant`,
+`POST /admin/entitlements/grant`) and **payment review**
+(`/admin/payments/*`), both audited. **Not yet implemented**: viewing the
+plan catalogue, activate/deactivate, pricing/entitlement/limit editing, and
+an active-subscriptions list. Plan/entitlement data is currently
+administered out-of-band (seed/direct DB). This is a documented
+scope deferral, not a hidden capability.
+
 ---
 
 ## 13. Merchant/Marketplace management
@@ -235,6 +244,13 @@ Capabilities:
 - audit
 
 Do not send bulk notifications without an explicit target definition.
+
+Implementation status (Release Candidate): implemented is a
+**single-recipient operational notification**
+(`POST /admin/notifications` — validated recipient, Admin-JWT sender
+authority, audited). **Not implemented**: audience targeting, channel
+selection, scheduling, and bulk sends. Notifications are persisted only
+(no delivery provider).
 
 ---
 

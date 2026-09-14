@@ -280,6 +280,22 @@ Returns user-authorized locations.
 ### PATCH `/locations/:id`
 Owner/Admin policy only.
 
+Implementation notes (Task REM-001):
+
+- `GET /locations`, `POST /locations`, and `PATCH /locations/:id` are
+  implemented. All routes are authenticated and restricted to
+  `customer | merchant` (technicians use service areas, not locations).
+- Ownership comes from the verified JWT. Another account's location
+  behaves as missing (identical `404`); cross-account `PATCH` is `404`.
+- Writable fields: `label` (required, 1–128), `address_text`, `city`,
+  `region`, `country`, and `latitude`/`longitude` (which must be supplied
+  together). **Coordinates are OPTIONAL** — docs/06 §6 says "store exact
+  coordinates only when required"; no map/geocoding provider is approved,
+  so label/address-only locations are valid. This is what makes the
+  customer service-request journey executable (a request requires an owned
+  `location_id`).
+- No `DELETE` endpoint: deletion semantics are not documented.
+
 ---
 
 ## 9. Media endpoints
@@ -292,6 +308,13 @@ Recommended flow:
 4. persist reference
 
 Never accept arbitrary public file URLs as trusted storage.
+
+Implementation status (Task 10L / REM-002): **NOT IMPLEMENTED.** No object
+storage provider is approved — Supabase Storage is explicitly out of scope
+per ADR-0004, and docs/local-dev.md §11 lists the object-storage provider as
+a CTO decision. Payment proof images therefore cannot be uploaded or
+inspected yet; `PaymentSubmission.proofStorageKey` remains a reserved typed
+reference. This is a **release blocker** until a provider is approved.
 
 ---
 
