@@ -185,6 +185,15 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
       .send({ label: 'x', latitude: 24 });
     expect(bad.status).toBe(400);
 
+    // Explicit null coordinates are treated as omitted (never coerced to 0).
+    const nulled = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'صريح', latitude: null, longitude: null })
+      .expect(201);
+    expect(nulled.body.data.latitude).toBeNull();
+    expect(nulled.body.data.longitude).toBeNull();
+
     // Unauthenticated and wrong-role access rejected.
     await request(ctx.app.getHttpServer()).get(`${base}/locations`).expect(401);
     const { session: tech } = await setupVerifiedTechnician('http-loc-tech@example.com');

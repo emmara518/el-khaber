@@ -291,9 +291,10 @@ Implementation notes (Task REM-001):
   `region`, `country`, and `latitude`/`longitude` (which must be supplied
   together). **Coordinates are OPTIONAL** — docs/06 §6 says "store exact
   coordinates only when required"; no map/geocoding provider is approved,
-  so label/address-only locations are valid. This is what makes the
-  customer service-request journey executable (a request requires an owned
-  `location_id`).
+  so label/address-only locations are valid. An explicit JSON `null`
+  coordinate is treated as omitted (never coerced to `0`). This is what
+  makes the customer service-request journey executable (a request
+  requires an owned `location_id`).
 - No `DELETE` endpoint: deletion semantics are not documented.
 
 ---

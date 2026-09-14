@@ -263,8 +263,17 @@ const locationBody = {
   city: z.string().trim().max(128).optional(),
   region: z.string().trim().max(128).optional(),
   country: z.string().trim().max(128).optional(),
-  latitude: z.coerce.number().min(-90).max(90).optional(),
-  longitude: z.coerce.number().min(-180).max(180).optional(),
+  // Explicit JSON null must NOT coerce to 0 (z.coerce.number maps
+  // null -> 0, which would silently store a wrong coordinate). Null is
+  // normalized to omitted, consistent with the optional contract.
+  latitude: z.preprocess(
+    (v) => (v === null ? undefined : v),
+    z.coerce.number().min(-90).max(90).optional(),
+  ),
+  longitude: z.preprocess(
+    (v) => (v === null ? undefined : v),
+    z.coerce.number().min(-180).max(180).optional(),
+  ),
 };
 
 /** POST /locations — create an owned location. */

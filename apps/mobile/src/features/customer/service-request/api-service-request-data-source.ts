@@ -146,8 +146,9 @@ export class ApiServiceRequestDataSource implements ServiceRequestDataSource {
       throw new ServiceRequestSubmissionError('بيانات الطلب غير مكتملة');
     }
     if (draft.locationId === null) {
-      // Honest failure — the backend requires an owned location id and
-      // no locations API exists to create/select one (see header).
+      // Honest failure — submission requires a location selected in the
+      // location step (owned locations via GET /locations, created inline
+      // via POST /locations). Nothing is fabricated or defaulted here.
       throw new ServiceRequestSubmissionError(LOCATION_MISSING_AR);
     }
     const applianceCategoryId = await categoryIdBySlug(draft.appliance);
