@@ -110,7 +110,14 @@ Rules:
 3. **Notification delivery provider** (push/email/SMS) — out of scope;
    notifications are persisted only.
 4. **Payment gateway** — MVP is manual transfer + Admin review; no gateway.
-5. **Native release pipeline** (EAS/Play AAB signing, Android SDK) — not
-   provisioned in the current environment.
+5. **Native release pipeline** — PARTIAL. The build environment provides
+   OpenJDK 17 + Android SDK (platforms 33–36, build-tools 35.0.0) with no
+   emulator/AVD/device and no EAS account. A local **debug QA APK** builds
+   successfully (`assembleDebug`, package `ai.khabir.app`, version `0.0.1`);
+   the required `expo.modules` autolink import is pinned in
+   `apps/mobile/react-native.config.js` (locked Expo 52.0.49 namespace
+   mismatch). Still missing: on-device/emulator QA execution, release
+   signing keystore, and Play AAB (EAS/Play signing is a CTO/infra
+   decision — no credentials invented).
 6. **Object storage for service-request media** — same provider decision as
    (1).
