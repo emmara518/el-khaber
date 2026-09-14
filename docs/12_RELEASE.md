@@ -62,7 +62,10 @@ given the environment. **NOT deployed. NOT merged to main.**
 | Migrations | additive, non-destructive (6 total) | `prisma/migrations` |
 | khabir-dev residue | ZERO (all probe prefixes 0/0/0) | probe query |
 | Android QA APK | BUILT (debug) — see §4 | `assembleDebug` + aapt2 badging |
-| Native QA execution | NOT RUN — no runtime | — |
+| Live QA execution (API journeys, 42/42) | PASS | `scripts/api-qa-run.cjs` (§6a) |
+| Admin console surfaces QA | PASS — 4 actions verified + audited | browser run (§6a) |
+| Android emulator QA (login/browse/product) | PASS — happy paths | `khabir_qa` AVD (§6a) |
+| Native QA execution | PASS on emulator (see §6a) | — |
 | Payment proof | BLOCKED — no approved provider | — |
 
 ---
@@ -98,8 +101,6 @@ given the environment. **NOT deployed. NOT merged to main.**
 ## 6. Known risks
 
 - **P1:** Payment proof not operational (CTO storage-provider decision).
-- **P1:** Native execution unverified — APK built but never launched
-  (no emulator/device; environment required).
 - **P1:** Rate-limit/lockout topology unapproved (single-instance only;
   logged at startup, documented, not enforced by infra).
 - **P2:** No payment/subscription UI in Mobile (backend verified; blocked
@@ -110,6 +111,73 @@ given the environment. **NOT deployed. NOT merged to main.**
   unimplemented (documented in `docs/09_ADMIN.md`).
 - **P3:** Admin web is a functional console; missing `favicon.ico`;
   type-only imports from mock files (zero runtime effect).
+
+---
+
+## 6a. Live QA execution run — 2026-09-14/15 (final delivery QA)
+
+Environment: local QA API on `:3100` (isolated `khabir_test`,
+6 migrations applied + QA seed `scripts/seed-qa.mjs`), Android QA APK
+installed on the `khabir_qa` emulator, admin web on `:3001`
+(`NEXT_PUBLIC_API_URL=http://localhost:3100/api/v1`).
+
+### Automated API journey (`scripts/api-qa-run.cjs`) — 42/42 PASS
+
+Customer → technician → merchant full lifecycle executed against the
+real HTTP API:
+
+- Auth: login per role, wrong-password 401, unauthenticated `/me` 401.
+- Catalog: categories, services, faults, technician discovery, locations.
+- Service request lifecycle: create (pending) → technician accept →
+  start (accepted → `on_the_way`) → start #2 (`in_progress`) →
+  complete → customer review (rating 5) → technician stats reflect the
+  review. Cancel path: second request cancelled; cancelling a completed
+  request correctly rejected (409).
+- Conversation: opened with the request, message sent by customer and
+  read by technician.
+- Technician self-service: profile, services, stats.
+- Merchant: profile, products, subscription current, role-scoped plans
+  (merchant sees zero customer plans), payments config (2 methods).
+- Notifications: customer and technician received lifecycle events.
+
+### Manual/Android + admin console QA
+
+- Android QA APK launched on the `khabir_qa` emulator against the QA
+  API: onboarding → role selection → login (customer, merchant) →
+  customer profile with live order counts → merchant home shows account
+  status «قيد المراجعة» (seeded pending) → product creation form submits
+  and the product appears in «إدارة المنتجات» (active, 1450 SAR).
+  *(Description text artifacts during typing came from the QA typing
+  tool, not the app; the record was corrected via API afterwards.)*
+- Admin console (browser-driven): dashboard metrics render live data
+  (6 users, request counts by status); merchant verification approve
+  works with confirm dialog and reflected state; payment submission
+  created via merchant API then approved in console → subscription
+  became ACTIVE (verified via `/merchant/subscription/current`:
+  monthly period 2026-09-14 → 2026-10-14); manual entitlement grant →
+  customer `/me/entitlements` returns `priority_support`; operational
+  notification → delivered to customer `/notifications`; audit log
+  recorded all four admin actions (`verification.verified`,
+  `payment.approve`, `manual_grant.entitlement`, `notification.create`).
+
+### New findings from this run
+
+- **P2 (admin UX):** access-token expiry is enforced client-side by
+  wiping the whole stored session — including the still-valid refresh
+  token (`loadAdminSession`, `apps/admin/src/lib/admin-api.ts:51`).
+  The single-retry silent refresh is therefore unreachable in the
+  expired case and an admin working longer than 15 minutes is signed
+  out mid-task (observed twice; in-flight form content is lost).
+  Suggested fix: on expiry keep the refresh token and let the 401 →
+  `tryRefresh()` path rotate the session.
+- **P3 (test seed):** seed ships no `merchant` plan; the merchant
+  subscription flow cannot be exercised without adding one (added
+  manually during this run via `qa-seed-merchant-plan.cjs`).
+
+### Notes for parallel work
+
+- The emulator/UI session (`تحسينات UI/UX`) drives the same QA API and
+  `khabir_test` database; this QA run shared it without conflicts.
 
 ---
 
