@@ -901,8 +901,13 @@ model PaymentSubmission {
   subscriptionId    String?                 @map("subscription_id") @db.Uuid
   method            PaymentMethodType
   transferReference String                  @map("transfer_reference") @db.VarChar(100)
-  // Typed reference reserved for the future proof-media task (no upload path exists).
+  // Typed reference reserved for the future proof-media task.
   proofStorageKey   String?                 @map("proof_storage_key") @db.VarChar(512)
+  // Proof lifecycle metadata (PHASE 20): bound on confirm after HEAD +
+  // magic-byte validation. Nullable so pre-existing submissions stay valid.
+  proofMimeType     String?                 @map("proof_mime_type") @db.VarChar(128)
+  proofByteSize     Int?                    @map("proof_byte_size")
+  proofConfirmedAt  DateTime?               @map("proof_confirmed_at")
   status            PaymentSubmissionStatus @default(pending)
   reviewedByAdminId String?                 @map("reviewed_by_admin_id") @db.Uuid
   reviewedAt        DateTime?               @map("reviewed_at")

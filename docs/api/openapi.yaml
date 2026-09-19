@@ -2242,6 +2242,51 @@ paths:
         - bearer: []
       tags:
         - admin-payments
+  /api/v1/admin/payments/submissions/{id}/proof-url:
+    get:
+      operationId: AdminProofController_proofUrl
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProofDownloadUrlDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Short-lived presigned GET for the bound proof (audited).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Submission not found or no proof attached.
+      security:
+        - bearer: []
+      tags:
+        - admin-payments
   /api/v1/admin/payments/submissions/{id}/reject:
     post:
       operationId: AdminPaymentsController_reject
@@ -5139,6 +5184,136 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Subscription is not active.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/subscriptions/{id}/proof-confirm:
+    post:
+      operationId: ProofController_confirmProof
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                storage_key:
+                  maxLength: 512
+                  minLength: 4
+                  type: string
+              required:
+                - storage_key
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PaymentSubmissionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Proof validated and bound to the submission.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Upload rejected (missing/oversized/non-image content or foreign key).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Submission not found or not owned.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Submission already reviewed.
+      security:
+        - bearer: []
+      tags:
+        - subscriptions
+  /api/v1/subscriptions/{id}/proof-upload-url:
+    post:
+      operationId: ProofController_requestUploadUrl
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                mime_type:
+                  maxLength: 128
+                  minLength: 1
+                  type: string
+              required:
+                - mime_type
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ProofUploadUrlDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Presigned PUT URL + server-generated storage key.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Submission not found or not owned.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Submission already reviewed.
       security:
         - bearer: []
       tags:
