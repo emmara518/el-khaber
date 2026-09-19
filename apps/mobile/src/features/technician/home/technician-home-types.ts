@@ -20,6 +20,8 @@ export interface TechnicianHomeProfile {
   readonly verification: TechnicianVerification;
   readonly verificationNoteAr: string;
   readonly availabilityLabelAr: string;
+  /** True when the technician's availability status is "available". */
+  readonly available: boolean;
 }
 
 export interface TechnicianTodayOverview {
@@ -60,15 +62,15 @@ export interface TechnicianHomeDataSource {
 
 /** Verification copy — icon + text, never color alone (unit-tested). */
 export function verificationCopy(state: TechnicianVerification): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'alert-circle';
   titleAr: string;
 } {
   switch (state) {
     case 'verified':
-      return { icon: '✓', titleAr: 'تم التحقق' };
+      return { icon: 'check-circle', titleAr: 'تم التحقق' };
     case 'pending':
-      return { icon: '◷', titleAr: 'قيد المراجعة' };
+      return { icon: 'clock', titleAr: 'قيد المراجعة' };
     case 'action_required':
-      return { icon: '!', titleAr: 'يحتاج إجراء' };
+      return { icon: 'alert-circle', titleAr: 'يحتاج إجراء' };
   }
 }

@@ -36,7 +36,7 @@ export function GuaranteeBanner({
           <Text style={styles.description}>{description}</Text>
         </View>
         <View style={styles.iconWrap}>
-          <Text style={styles.shield}>🛡️</Text>
+          <Text style={styles.shield}></Text>
         </View>
       </View>
       <Pressable

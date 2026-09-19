@@ -8,10 +8,14 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
 
 import { RATING_LABELS_AR, RATING_TAGS_AR, type RatingDataSource } from './rating-types';
 import { useRatingViewModel } from './use-rating-view-model';
+
+import { Icon } from '@/ui/icon';
+import { sceneAssets } from '@/ui/scene-assets';
 
 export function RatingForm({
   requestId,
@@ -33,7 +37,13 @@ export function RatingForm({
         accessibilityLabel="تم إرسال تقييمك بنجاح. شكرًا لك."
         style={styles.done}
       >
-        <Text style={styles.doneEmoji}>✓</Text>
+        <Image
+          source={sceneAssets.tracking_success}
+          accessible={false}
+          importantForAccessibility="no"
+          resizeMode="cover"
+          style={styles.doneScene}
+        />
         <Text style={styles.doneTitle}>تم إرسال تقييمك بنجاح</Text>
         <Text style={styles.doneBody}>شكرًا لك — تقييمك يساعد عملاء آخرين على الاختيار بثقة.</Text>
       </View>
@@ -58,9 +68,11 @@ export function RatingForm({
               disabled={submitting}
               style={({ pressed }) => [styles.star, pressed && !submitting && styles.pressed]}
             >
-              <Text style={[styles.starGlyph, selected ? styles.starOn : styles.starOff]}>
-                {selected ? '★' : '☆'}
-              </Text>
+              <Icon
+                name="star"
+                size={34}
+                color={selected ? color.brand.gold : color.border.default}
+              />
             </Pressable>
           );
         })}
@@ -88,9 +100,8 @@ export function RatingForm({
               disabled={submitting}
               style={({ pressed }) => [styles.tag, on && styles.tagOn, pressed && styles.pressed]}
             >
-              <Text style={[styles.tagText, on && styles.tagTextOn]}>
-                {on ? '✓ ' : ''}{tag}
-              </Text>
+              {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
+              <Text style={[styles.tagText, on && styles.tagTextOn]}>{tag}</Text>
             </Pressable>
           );
         })}
@@ -170,15 +181,6 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  starGlyph: {
-    fontSize: 36,
-  },
-  starOn: {
-    color: color.brand.gold,
-  },
-  starOff: {
-    color: color.border.default,
-  },
   ratingLabel: {
     color: color.text.primary,
     fontSize: typography.size.body,
@@ -211,11 +213,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   tagOn: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
   },
   tagText: {
     color: color.text.secondary,
@@ -273,9 +278,19 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     paddingVertical: spacing[4],
   },
-  doneEmoji: {
-    fontSize: 48,
-    color: color.success.DEFAULT,
+  doneBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.success.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneScene: {
+    width: '100%',
+    height: 140,
+    borderRadius: radius.lg,
+    backgroundColor: color.brand.navyDeep,
   },
   doneTitle: {
     color: color.text.primary,

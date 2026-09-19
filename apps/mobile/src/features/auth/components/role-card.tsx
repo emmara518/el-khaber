@@ -4,14 +4,20 @@
  * Exactly three instances are ever rendered (عميل / فني / تاجر).
  * Selected state never relies on color alone: border weight, gold
  * marker dot, and the accessibility `selected` state all change.
+ * The card elevates on press with a subtle opacity change and a
+ * gold-focus ring, communicating premium interactivity without
+ * sacrificating the honest empty-state semantics when no role is chosen.
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+
 import { ROLE_OPTIONS, type RoleOption } from '../roles';
 
 import type { Role } from '@khabir/shared-types';
+
+import { Icon } from '@/ui/icon';
 
 export { ROLE_OPTIONS };
 export type { RoleOption };
@@ -38,7 +44,7 @@ export function RoleCard({
       ]}
     >
       <View style={styles.iconWrap}>
-        <Text style={styles.icon}>{option.icon}</Text>
+        <Icon name={option.icon} size={22} color={selected ? color.brand.navy : color.text.secondary} />
       </View>
       <View style={styles.textWrap}>
         <Text style={styles.title}>{option.titleAr}</Text>
@@ -66,11 +72,15 @@ const styles = StyleSheet.create({
     padding: spacing[4],
     gap: spacing[3],
     minHeight: 84,
+    transitionProperty: 'border-color, box-shadow',
+    transitionDuration: '150ms',
+    transitionTimingFunction: 'ease-in-out',
   },
   cardSelected: {
     borderColor: color.brand.gold,
     borderWidth: 2,
     backgroundColor: color.surface.base,
+    boxShadow: '0 0 0 1px rgba(233, 168, 36, 0.15)',
   },
   pressed: {
     opacity: 0.8,
@@ -82,9 +92,6 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.subtle,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  icon: {
-    fontSize: 24,
   },
   textWrap: {
     flex: 1,

@@ -25,7 +25,8 @@ import { useTechnicianRequestsViewModel } from './use-technician-requests-view-m
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
+import { Icon, StatusBadge } from '@/ui';
+import { SceneHero } from '@/ui/cinematic';
 
 
 export default function TechnicianRequestsScreen({
@@ -40,43 +41,49 @@ export default function TechnicianRequestsScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('tech.requests.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('tech.requests.subtitle')}</Text>
+      <SceneHero
+        compact
+        asset="technician_requests"
+        eyebrow="تنظيم العمل"
+        title={t('tech.requests.title')}
+        body={t('tech.requests.subtitle')}
+      />
 
-      {vm.listStatus === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {vm.listStatus === 'error' ? (
-        <ListError
-          title={t('tech.requests.error')}
-          message={vm.listError?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={vm.reload}
-        />
-      ) : null}
-      {vm.listStatus === 'loaded' ? (
-        <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-            {TECHNICIAN_REQUEST_FILTERS.map((option) => {
-              const selected = filter === option.id;
-              return (
-                <Pressable
-                  key={option.id}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`تصفية الطلبات: ${option.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => setFilter(option.id)}
-                  style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.labelAr}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          {renderList(filterTechnicianRequests(vm.requests, filter), t)}
-        </>
-      ) : null}
-      <View style={styles.bottomSpacer} />
+      <View style={styles.editorial}>
+        {vm.listStatus === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_availability" /> : null}
+        {vm.listStatus === 'error' ? (
+          <ListError
+            asset="fault_empty"
+            title={t('tech.requests.error')}
+            message={vm.listError?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={vm.reload}
+          />
+        ) : null}
+        {vm.listStatus === 'loaded' ? (
+          <>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+              {TECHNICIAN_REQUEST_FILTERS.map((option) => {
+                const selected = filter === option.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    accessibilityRole="tab"
+                    accessibilityLabel={`تصفية الطلبات: ${option.labelAr}${selected ? '، محدد حاليًا' : ''}`}
+                    accessibilityState={{ selected }}
+                    onPress={() => setFilter(option.id)}
+                    style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.labelAr}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {renderList(filterTechnicianRequests(vm.requests, filter), t)}
+          </>
+        ) : null}
+        <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 
@@ -87,7 +94,8 @@ export default function TechnicianRequestsScreen({
     if (requests.length === 0) {
       return (
         <ListEmpty
-          icon="📋"
+          asset="technician_requests"
+          icon="clipboard"
           iconLabel="لا توجد طلبات"
           title={translate('tech.requests.empty')}
           body={translate('tech.requests.emptyBody')}
@@ -104,7 +112,7 @@ export default function TechnicianRequestsScreen({
             onPress={() => router.push({ pathname: '/(technician)/orders/[id]', params: { id: item.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
-            <Card background={color.surface.base} padded style={styles.card}>
+            <View style={styles.card}>
               <View style={styles.top}>
                 <View style={styles.topText}>
                   <Text style={styles.customer}>{item.customerNameAr}</Text>
@@ -115,10 +123,17 @@ export default function TechnicianRequestsScreen({
                 <StatusBadge status={item.status} label={item.statusLabelAr} />
               </View>
               <View style={styles.meta}>
-                <Text style={styles.metaText}>📍 {item.locationAr}</Text>
-                <Text style={styles.metaText}>🕐 {item.timeAr}</Text>
+                <View style={styles.metaRow}>
+                  <Icon name="map-pin" size={13} color={color.text.secondary} accessibilityLabel="الموقع" />
+                  <Text style={styles.metaText}>{item.locationAr}</Text>
+                </View>
+                <View style={styles.metaRow}>
+                  <Icon name="clock" size={13} color={color.text.secondary} accessibilityLabel="الوقت" />
+                  <Text style={styles.metaText}>{item.timeAr}</Text>
+                </View>
               </View>
-            </Card>
+              <View style={styles.openRow}><Text style={styles.openText}>تفاصيل الطلب والخطوة التالية</Text><Icon name="arrow-left" size={18} color={color.brand.navy} /></View>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -127,10 +142,14 @@ export default function TechnicianRequestsScreen({
 }
 
 const styles = StyleSheet.create({
+  openRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], paddingTop: spacing[2] },
+  openText: { flex: 1, color: color.brand.navy, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right' },
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    direction: 'rtl',
     paddingBottom: spacing[8],
+  },
+  editorial: {
+    paddingHorizontal: spacing[5],
   },
   title: {
     color: color.text.primary,
@@ -162,9 +181,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipSelected: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
   },
   pressed: {
     opacity: 0.75,
@@ -182,7 +206,12 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   card: {
-    gap: spacing[2],
+    gap: spacing[3],
+    borderStartWidth: 3,
+    borderStartColor: color.brand.gold,
+    backgroundColor: color.surface.base,
+    padding: spacing[4],
+    borderRadius: radius.md,
   },
   top: {
     flexDirection: 'row',

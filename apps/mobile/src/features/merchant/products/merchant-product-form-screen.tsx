@@ -10,7 +10,7 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { sharedMerchantProductsSource } from './api-merchant-products-data-source';
 import {
@@ -23,7 +23,9 @@ import {
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card } from '@/ui';
+import { Card, Icon } from '@/ui';
+import { SceneHero } from '@/ui/cinematic';
+import { sceneAssets } from '@/ui/scene-assets';
 
 export default function MerchantProductFormScreen({
   mode,
@@ -57,13 +59,25 @@ export default function MerchantProductFormScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {mode === 'create' ? t('merchant.productForm.createTitle') : t('merchant.productForm.editTitle')}
-      </Text>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <SceneHero
+        compact
+        asset="merchant_products"
+        eyebrow="المتجر · المنتجات"
+        title={mode === 'create' ? t('merchant.productForm.createTitle') : t('merchant.productForm.editTitle')}
+        body={mode === 'create' ? 'أضف منتجًا جديدًا ليظهر داخل كتالوج متجرك.' : 'حدّث بيانات المنتج مع الحفاظ على حالة الظهور الحالية.'}
+      />
 
       {vm.status === 'success' && savedProduct !== null ? (
         <View style={styles.form}>
+          <Image
+            source={sceneAssets.merchant_success}
+            accessible={false}
+            importantForAccessibility="no"
+            resizeMode="cover"
+            style={styles.successScene}
+          />
           <Card
             background={color.success.soft}
             borderColor={color.success.DEFAULT}
@@ -137,8 +151,9 @@ export default function MerchantProductFormScreen({
                     pressed && styles.pressed,
                   ]}
                 >
+                  {selected ? <Icon name="check" size={13} color={color.brand.navy} /> : null}
                   <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {selected ? '✓ ' : ''}{category}
+                    {category}
                   </Text>
                 </Pressable>
               );
@@ -204,8 +219,14 @@ export default function MerchantProductFormScreen({
               pressed && !submitting && styles.pressed,
             ]}
           >
+            <Icon
+              name="image"
+              size={16}
+              color={draft.imageSelected ? color.brand.navy : color.text.secondary}
+              accessibilityLabel="الصورة"
+            />
             <Text style={[styles.chipText, draft.imageSelected && styles.chipTextSelected]}>
-              🖼️ {draft.imageSelected ? t('merchant.productForm.imageOn') : t('merchant.productForm.imageOff')}
+              {draft.imageSelected ? t('merchant.productForm.imageOn') : t('merchant.productForm.imageOff')}
             </Text>
           </Pressable>
           <Text style={styles.optional}>{t('merchant.productForm.imageNote')}</Text>
@@ -245,25 +266,25 @@ export default function MerchantProductFormScreen({
       )}
       <View style={styles.bottomSpacer} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    direction: 'rtl',
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginBottom: spacing[4],
+  successScene: {
+    width: '100%',
+    height: 150,
+    borderRadius: radius.lg,
+    backgroundColor: color.brand.navyDeep,
   },
   form: {
     gap: spacing[2],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
   },
   label: {
     color: color.text.primary,
@@ -311,11 +332,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     minHeight: 44,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
   },
   chipSelected: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
   },
   chipText: {
     color: color.text.secondary,
@@ -334,6 +358,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
     minHeight: 52,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
   },
   optional: {
     color: color.text.secondary,

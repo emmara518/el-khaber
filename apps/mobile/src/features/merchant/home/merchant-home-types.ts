@@ -42,16 +42,16 @@ export interface MerchantHomeDataSource {
 
 /** Verification copy — icon + text, never color alone (unit-tested). */
 export function merchantVerificationCopy(state: MerchantVerification): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'alert-circle';
   titleAr: string;
 } {
   switch (state) {
     case 'verified':
-      return { icon: '✓', titleAr: 'تم التحقق' };
+      return { icon: 'check-circle', titleAr: 'تم التحقق' };
     case 'pending':
-      return { icon: '◷', titleAr: 'قيد المراجعة' };
+      return { icon: 'clock', titleAr: 'قيد المراجعة' };
     case 'action_required':
-      return { icon: '!', titleAr: 'يحتاج إجراء' };
+      return { icon: 'alert-circle', titleAr: 'يحتاج إجراء' };
   }
 }
 

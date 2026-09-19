@@ -10,6 +10,8 @@
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/ui/icon';
+
 const STEPS_AR = ['الجهاز', 'العرض', 'النتيجة'] as const;
 
 export function FaultProgressIndicator({ position }: { position: 0 | 1 | 2 }) {
@@ -32,7 +34,7 @@ export function FaultProgressIndicator({ position }: { position: 0 | 1 | 2 }) {
                   current && styles.dotCurrent,
                 ]}
               >
-                {done ? <Text style={styles.check}>✓</Text> : null}
+                {done ? <Icon name="check" size={13} color={color.surface.base} /> : null}
               </View>
               {index < STEPS_AR.length - 1 ? (
                 <View style={[styles.line, index < position && styles.lineDone]} />
@@ -86,11 +88,6 @@ const styles = StyleSheet.create({
   dotCurrent: {
     borderColor: color.brand.navy,
     backgroundColor: color.brand.gold,
-  },
-  check: {
-    color: color.surface.base,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
   },
   line: {
     position: 'absolute',

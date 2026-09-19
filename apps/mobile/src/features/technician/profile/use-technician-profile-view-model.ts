@@ -28,8 +28,10 @@ export interface TechnicianProfileViewModel {
 }
 
 export function useTechnicianProfileViewModel(
-  source: TechnicianProfileDataSource = new ApiTechnicianProfileDataSource(),
+  sourceOverride?: TechnicianProfileDataSource,
 ): TechnicianProfileViewModel {
+  const [defaultSource] = useState(() => new ApiTechnicianProfileDataSource());
+  const source = sourceOverride ?? defaultSource;
   const [attempt, setAttempt] = useState(0);
   const [loadStatus, setLoadStatus] = useState<TechnicianProfileLoadStatus>('loading');
   const [loadError, setLoadError] = useState<Error | null>(null);

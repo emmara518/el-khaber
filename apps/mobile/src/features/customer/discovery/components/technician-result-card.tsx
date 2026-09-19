@@ -1,21 +1,23 @@
-/**
- * Full-width technician result card (Batch C).
- *
- * Distinct from the Home carousel card (fixed 116px teaser): this
- * card carries verification, experience, service area, availability,
- * and the profile CTA. Built from `Avatar`, `RatingStars`, and
- * `VerificationBadge` — no duplicated primitives.
- */
+import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-
+import { getTechnicianCardContent } from './technician-result-card-content';
 import { VerificationBadge } from './verification-badge';
 
 import type { Technician } from '../technician-types';
 
-import { Avatar, Card, RatingStars } from '@/ui';
-
+import { Avatar } from '@/ui/avatar';
+import { Card } from '@/ui/card';
+import { applianceSceneAsset } from '@/ui/cinematic';
+import { Icon } from '@/ui/icon';
+import { RatingStars } from '@/ui/rating-stars';
+import { sceneAssets } from '@/ui/scene-assets';
 
 export function TechnicianResultCard({
   technician,
@@ -24,109 +26,204 @@ export function TechnicianResultCard({
   technician: Technician;
   onPress: () => void;
 }) {
+  const content = getTechnicianCardContent(technician);
+  const serviceAsset = applianceSceneAsset(technician.appliances[0] ?? '');
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  const hasTrust = content.rating !== null || content.verified || content.availability.length > 0;
+
+  function animatePress(pressed: boolean) {
+    scale.value = withTiming(pressed ? 0.985 : 1, {
+      duration: pressed ? 100 : 150,
+      reduceMotion: ReduceMotion.System,
+    });
+  }
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`عرض ملف ${technician.nameAr}، ${technician.specialtiesAr.join('، ')}، التقييم ${technician.rating} من ٥${technician.verified ? '، موثّق من الخبير' : ''}`}
-      onPress={onPress}
-      style={({ pressed }) => [pressed && styles.pressed]}
-    >
-      <Card background={color.surface.base} padded style={styles.card}>
-        <View style={styles.row}>
-          <Avatar
-            initials={technician.initialsAr}
-            size={60}
-            statusDot
-            statusColor={technician.available ? color.success.DEFAULT : color.text.secondary}
-            accessibilityLabel={`${technician.nameAr}${technician.available ? '، متاح' : '، مشغول حاليًا'}`}
-          />
-          <View style={styles.middle}>
-            <Text style={styles.name}>{technician.nameAr}</Text>
-            <RatingStars rating={technician.rating} reviewCount={technician.reviewCount} size="sm" />
-            <Text style={styles.meta}>
-              {technician.specialtiesAr.join(' · ')}
-            </Text>
-          </View>
-          <Text style={styles.chevron}>‹</Text>
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={content.accessibilityLabel}
+        onPress={onPress}
+        onPressIn={() => animatePress(true)}
+        onPressOut={() => animatePress(false)}
+      >
+        <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <Card borderRadius={radius.xl} style={styles.card}>
+            <View style={styles.monogramPanel}>
+              <Avatar initials={content.initials} size={64} background={color.brand.goldSoft} foreground={color.brand.navy} />
+              <View style={styles.visualContext}>
+                <Text style={styles.visualLabel}>الخدمات والأجهزة</Text>
+                <Text style={styles.visualCaption}>صورة توضيحية للخدمة</Text>
+              </View>
+              <Image source={sceneAssets[serviceAsset ?? 'technician_profile_services']} accessible={false} resizeMode="contain" style={styles.serviceImage} />
+            </View>
+            <View style={styles.body}>
+              <View style={styles.identity}>
+                <Text style={styles.name}>{content.name}</Text>
+                {content.specialties.length > 0 ? (
+                  <Text style={styles.specialties}>{content.specialties.join(' · ')}</Text>
+                ) : null}
+              </View>
+              {content.services.length > 0 ? (
+                <View style={styles.services}>
+                  {content.services.map((service) => (
+                    <View key={service} style={styles.serviceTag}>
+                      <Text style={styles.serviceText}>{service}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {hasTrust ? (
+                <View style={styles.trustStrip}>
+                  {content.rating !== null ? (
+                    <RatingStars rating={content.rating.value} reviewCount={content.rating.count} />
+                  ) : null}
+                  {content.verified ? <VerificationBadge verified /> : null}
+                  {content.availability.length > 0 ? (
+                    <View style={styles.availability}>
+                      <Icon name="clock" size={14} color={color.text.secondary} />
+                      <Text style={styles.detailText}>{content.availability}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              {content.experience.length > 0 ? (
+                <Text style={styles.detailText}>{content.experience}</Text>
+              ) : null}
+              {content.areas.length > 0 ? (
+                <View style={styles.areaRow}>
+                  <Icon name="map-pin" size={14} color={color.text.secondary} />
+                  <Text style={[styles.detailText, styles.areaText]}>
+                    {content.areas.join('، ')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.action}>
+              <Text style={styles.actionText}>عرض الملف الشخصي</Text>
+              <View style={styles.actionIcon}>
+                <Icon name="arrow-left" size={20} color={color.brand.navy} />
+              </View>
+            </View>
+          </Card>
         </View>
-        <View style={styles.footer}>
-          <VerificationBadge verified={technician.verified} />
-          <Text style={styles.area}>
-            📍 {technician.areasAr.join('، ')}
-          </Text>
-        </View>
-        <View style={styles.footer}>
-          <Text style={styles.experience}>🛠️ {technician.experienceAr}</Text>
-          <Text
-            style={[
-              styles.availability,
-              technician.available ? styles.available : styles.busy,
-            ]}
-          >
-            {technician.available ? '●' : '○'} {technician.availabilityLabelAr}
-          </Text>
-        </View>
-      </Card>
-    </Pressable>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.8,
-  },
   card: {
-    gap: spacing[3],
+    overflow: 'hidden',
+    direction: 'rtl',
   },
-  row: {
+  monogramPanel: {
+    backgroundColor: color.brand.navy,
+    padding: spacing[4],
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing[3],
   },
-  middle: {
-    flex: 1,
+  visualContext: { flex: 1, gap: spacing[1] },
+  visualLabel: { color: color.surface.base, fontSize: typography.size.body, fontWeight: typography.weight.bold, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
+  visualCaption: { color: color.border.default, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
+  serviceImage: { width: 72, height: 80, borderRadius: radius.md },
+  body: {
+    padding: spacing[5],
+    gap: spacing[3],
+  },
+  identity: {
     gap: spacing[1],
   },
   name: {
     color: color.text.primary,
-    fontSize: typography.size.h3,
+    fontSize: typography.size.h2,
     fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  meta: {
+  specialties: {
+    color: color.text.secondary,
+    fontSize: typography.size.body,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  services: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+  },
+  serviceTag: {
+    maxWidth: '100%',
+    backgroundColor: color.surface.subtle,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+  },
+  serviceText: {
+    color: color.brand.navy,
+    fontSize: typography.size.caption,
+    fontWeight: typography.weight.medium,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  trustStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: spacing[3],
+    paddingTop: spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: color.border.default,
+  },
+  availability: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    maxWidth: '100%',
+  },
+  detailText: {
     color: color.text.secondary,
     fontSize: typography.size.caption,
     textAlign: 'right',
+    writingDirection: 'rtl',
+    flexShrink: 1,
   },
-  chevron: {
-    color: color.text.secondary,
-    fontSize: 26,
+  areaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
   },
-  footer: {
+  areaText: {
+    flex: 1,
+  },
+  action: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: spacing[2],
+    backgroundColor: color.brand.navy,
+    paddingHorizontal: spacing[5],
+    paddingVertical: spacing[3],
+    gap: spacing[3],
+    minHeight: 60,
   },
-  area: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
+  actionText: {
     flex: 1,
-    textAlign: 'left',
-  },
-  experience: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-  },
-  availability: {
-    fontSize: typography.size.caption,
+    color: color.surface.base,
+    fontSize: typography.size.button,
     fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
-  available: {
-    color: color.success.DEFAULT,
-  },
-  busy: {
-    color: color.text.secondary,
+  actionIcon: {
+    backgroundColor: color.brand.goldSoft,
+    borderRadius: radius.pill,
+    padding: spacing[2],
   },
 });

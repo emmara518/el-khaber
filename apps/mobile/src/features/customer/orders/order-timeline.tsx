@@ -11,6 +11,9 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { TimelineStep } from './order-detail-types';
 
+import { Icon } from '@/ui/icon';
+
+
 export function OrderTimeline({ steps }: { steps: ReadonlyArray<TimelineStep> }) {
   return (
     <View accessibilityLabel="مراحل الطلب" style={styles.root}>
@@ -31,7 +34,9 @@ export function OrderTimeline({ steps }: { steps: ReadonlyArray<TimelineStep> })
                   step.state === 'current' && styles.dotCurrent,
                 ]}
               >
-                {step.state === 'done' ? <Text style={styles.check}>✓</Text> : null}
+                {step.state === 'done' ? (
+                  <Icon name="check" size={14} color={color.surface.base} />
+                ) : null}
                 {step.state === 'current' ? <View style={styles.pulse} /> : null}
               </View>
               {last ? null : (
@@ -82,11 +87,6 @@ const styles = StyleSheet.create({
   dotCurrent: {
     borderColor: color.brand.navy,
     backgroundColor: color.brand.gold,
-  },
-  check: {
-    color: color.surface.base,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
   },
   pulse: {
     width: 12,

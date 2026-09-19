@@ -7,13 +7,31 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/ui/card';
+import { Icon, type IconName } from '@/ui/icon';
+import { sceneAssets, type SceneAssetName } from '@/ui/scene-assets';
 
-export function ListLoading({ label }: { label: string }) {
+function StateScene({ asset, height = 128 }: { asset?: SceneAssetName; height?: number }) {
+  if (!asset) {
+    return null;
+  }
+  return (
+    <Image
+      source={sceneAssets[asset]}
+      accessible={false}
+      importantForAccessibility="no"
+      resizeMode="cover"
+      style={[styles.scene, { height }]}
+    />
+  );
+}
+
+export function ListLoading({ label, asset }: { label: string; asset?: SceneAssetName }) {
   return (
     <Card background={color.surface.base} padded style={styles.center}>
+      <StateScene asset={asset} height={112} />
       <ActivityIndicator accessibilityLabel={label} color={color.brand.navy} />
       <Text style={styles.muted}>{label}</Text>
     </Card>
@@ -27,19 +45,25 @@ export function ListEmpty({
   body,
   actionLabel,
   onAction,
+  asset,
 }: {
-  icon: string;
+  icon: IconName;
   iconLabel: string;
   title: string;
   body: string;
   actionLabel?: string;
   onAction?: () => void;
+  asset?: SceneAssetName;
 }) {
   return (
     <Card background={color.surface.base} padded style={styles.center}>
-      <View accessibilityRole="image" accessibilityLabel={iconLabel} style={styles.iconWrap}>
-        <Text style={styles.icon}>{icon}</Text>
-      </View>
+      {asset ? (
+        <StateScene asset={asset} />
+      ) : (
+        <View accessibilityRole="image" accessibilityLabel={iconLabel} style={styles.iconWrap}>
+          <Icon name={icon} size={26} color={color.text.secondary} accessibilityLabel={iconLabel} />
+        </View>
+      )}
       <Text accessibilityRole="header" style={styles.title}>
         {title}
       </Text>
@@ -63,17 +87,23 @@ export function ListError({
   message,
   retryLabel,
   onRetry,
+  asset,
 }: {
   title: string;
   message: string;
   retryLabel: string;
   onRetry: () => void;
+  asset?: SceneAssetName;
 }) {
   return (
     <Card background={color.surface.base} padded style={styles.center}>
-      <View accessibilityRole="image" accessibilityLabel="خطأ" style={styles.iconWrap}>
-        <Text style={styles.icon}>⚠️</Text>
-      </View>
+      {asset ? (
+        <StateScene asset={asset} />
+      ) : (
+        <View accessibilityRole="image" accessibilityLabel="خطأ" style={[styles.iconWrap, styles.iconWrapError]}>
+          <Icon name="cloud-off" size={26} color={color.error.DEFAULT} accessibilityLabel="خطأ" />
+        </View>
+      )}
       <Text accessibilityRole="alert" accessibilityLabel={`${title}. ${message}`} style={styles.title}>
         {title}
       </Text>
@@ -91,6 +121,11 @@ export function ListError({
 }
 
 const styles = StyleSheet.create({
+  scene: {
+    width: '100%',
+    borderRadius: radius.lg,
+    backgroundColor: color.brand.navyDeep,
+  },
   center: {
     alignItems: 'center',
     marginTop: spacing[5],
@@ -104,8 +139,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    fontSize: 30,
+  iconWrapError: {
+    backgroundColor: color.error.soft,
   },
   title: {
     color: color.text.primary,

@@ -1,31 +1,23 @@
-/**
- * Technician Search screen (Batch C).
- *
- * Two entries, one screen: contextual (from Fault Guide via
- * `?symptomId=`, appliance pre-filtered but editable) and general
- * (all technicians). Live search + appliance chips; the remaining
- * facets live in a filter panel with explicit apply/reset.
- * Deterministic filtering only — no ranking invented.
- */
-
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
+import { ListError, ListLoading } from '../components/list-state-view';
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
+import { DiscoveryEmptyState } from './components/discovery-empty-state';
+import { DiscoveryHero } from './components/discovery-hero';
 import { TechnicianResultCard } from './components/technician-result-card';
 import {
   ACTIVE_APPLIANCE_FILTERS,
   applyTechnicianFilters,
   activeFilterCount,
-  AREA_OPTIONS,
   EMPTY_TECHNICIAN_FILTERS,
   RATING_OPTIONS,
   resolveSearchContext,
-  SPECIALTY_OPTIONS,
   type TechnicianSearchFilters,
 } from './technician-types';
 import { useTechniciansViewModel } from './use-technicians-view-model';
@@ -34,48 +26,50 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card } from '@/ui';
-
+import { applianceSceneAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
+import { Icon } from '@/ui/icon';
 
 export default function TechnicianSearchScreen() {
   const { t } = useI18n();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ symptomId?: string }>();
   const symptomId = typeof params.symptomId === 'string' ? params.symptomId : '';
-
-  const { status, data, error, retry } = useTechniciansViewModel();
+  const scrollRef = useRef<ScrollView>(null);
+  const searchRef = useRef<TextInput>(null);
+  const searchOffset = useRef(0);
+  const editorialOffset = useRef(0);
+  const { status, data, retry } = useTechniciansViewModel();
   const [guide, setGuide] = useState<FaultGuideData | null>(null);
-
   const [filters, setFilters] = useState<TechnicianSearchFilters>(EMPTY_TECHNICIAN_FILTERS);
   const [draft, setDraft] = useState<TechnicianSearchFilters>(EMPTY_TECHNICIAN_FILTERS);
   const [panelOpen, setPanelOpen] = useState(false);
   const [contextApplied, setContextApplied] = useState(false);
 
   useEffect(() => {
+    if (symptomId.length === 0) return;
     let cancelled = false;
     new ApiFaultGuideDataSource()
       .getGuide({ role: 'customer' })
-      .then((g) => {
-        if (!cancelled) setGuide(g);
+      .then((loadedGuide) => {
+        if (!cancelled) setGuide(loadedGuide);
       })
-      .catch(() => {
-        // Context is a nicety; general search works without it.
-      });
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [symptomId]);
 
   const context = useMemo(
     () => (guide !== null ? resolveSearchContext(guide, symptomId) : null),
     [guide, symptomId],
   );
 
-  // Pre-filter by the contextual appliance exactly once (still editable).
   useEffect(() => {
     if (context !== null && !contextApplied) {
       setContextApplied(true);
-      setFilters((f) => ({ ...f, appliance: context.applianceSlug }));
-      setDraft((d) => ({ ...d, appliance: context.applianceSlug }));
+      setFilters((current) => ({ ...current, appliance: context.applianceSlug }));
+      setDraft((current) => ({ ...current, appliance: context.applianceSlug }));
     }
   }, [context, contextApplied]);
 
@@ -83,194 +77,275 @@ export default function TechnicianSearchScreen() {
     () => (data !== null ? applyTechnicianFilters(data, filters) : []),
     [data, filters],
   );
+  const specialtyOptions = useMemo(
+    () => [...new Set((data ?? []).flatMap((technician) => technician.specialtiesAr))]
+      .filter((specialty) => specialty.trim().length > 0),
+    [data],
+  );
+  const areaOptions = useMemo(
+    () => [...new Set((data ?? []).flatMap((technician) => technician.areasAr))]
+      .filter((area) => area.trim().length > 0),
+    [data],
+  );
   const activeCount = activeFilterCount(filters);
+  const selectedApplianceLabel = ACTIVE_APPLIANCE_FILTERS.find(
+    (option) => option.value === filters.appliance,
+  )?.labelAr;
+  const applianceLabel = filters.appliance === null
+    ? 'جهازك'
+    : context !== null && context.applianceSlug === filters.appliance && context.applianceTitleAr.length > 0
+      ? context.applianceTitleAr
+      : selectedApplianceLabel ?? 'جهازك';
+  const activeSummary = [
+    filters.query.trim().length > 0 ? `البحث: ${filters.query.trim()}` : null,
+    filters.appliance !== null ? applianceLabel : null,
+    filters.specialty,
+    filters.area,
+    filters.minRating !== null ? `التقييم: ${filters.minRating} فأعلى` : null,
+    filters.availableOnly ? 'المتاحون فقط' : null,
+  ].filter((label): label is string => label !== null);
 
   function clearAll() {
+    Keyboard.dismiss();
     setFilters(EMPTY_TECHNICIAN_FILTERS);
     setDraft(EMPTY_TECHNICIAN_FILTERS);
+    setPanelOpen(false);
+  }
+
+  function explore() {
+    scrollRef.current?.scrollTo({ y: editorialOffset.current + searchOffset.current, animated: false });
+    searchRef.current?.focus();
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('discovery.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('discovery.subtitle')}</Text>
-
-      {context !== null ? (
-        <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.context}>
-          <Text style={styles.contextTitle}>فنيون مناسبون لـ {context.applianceTitleAr}</Text>
-          <Text style={styles.contextBody}>{context.symptomTitleAr}</Text>
-        </Card>
-      ) : null}
-
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          title={t('discovery.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data !== null ? (
-        <>
-          <TextInput
-            accessibilityLabel="ابحث باسم الفني أو التخصص أو الخدمة"
-            placeholder="ابحث باسم الفني أو التخصص…"
-            placeholderTextColor={color.text.secondary}
-            value={filters.query}
-            onChangeText={(query) => setFilters((f) => ({ ...f, query }))}
-            style={styles.search}
-            textAlign="right"
-          />
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {ACTIVE_APPLIANCE_FILTERS.map((option) => {
-              const selected = filters.appliance === option.value;
-              return (
-                <Pressable
-                  key={option.value ?? 'all'}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`تصفية حسب الجهاز: ${option.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => {
-                    setFilters((f) => ({ ...f, appliance: option.value }));
-                    setDraft((d) => ({ ...d, appliance: option.value }));
-                  }}
-                  style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.labelAr}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
+    <View style={styles.root}>
+      <View style={[styles.navigation, { paddingTop: insets.top + spacing[2] }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="رجوع"
+          onPress={() => {
+            Keyboard.dismiss();
+            if (router.canGoBack()) router.back();
+            else router.replace('/(customer)');
+          }}
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+        >
+          <Icon name="arrow-right" size={24} color={color.surface.base} />
+        </Pressable>
+        <Text accessibilityRole="header" style={styles.navigationTitle}>{t('discovery.title')}</Text>
+        <Icon name="search" size={22} color={color.brand.gold} />
+      </View>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
+        <DiscoveryHero applianceLabel={applianceLabel} onExplore={explore} />
+        <View style={styles.editorial} onLayout={(event) => { editorialOffset.current = event.nativeEvent.layout.y; }}>
+        {context !== null && filters.appliance === context.applianceSlug ? (
+          <View style={styles.context}>
+            <Icon name="info" size={18} color={color.brand.navy} />
+            <Text style={styles.contextText}>بحث من دليل الأعطال: {context.symptomTitleAr}</Text>
+          </View>
+        ) : null}
+        <View
+          style={styles.searchSection}
+          onLayout={(event) => { searchOffset.current = event.nativeEvent.layout.y; }}
+        >
+          <Text accessibilityRole="header" style={styles.sectionTitle}>ابحث حسب احتياجك</Text>
+          <View style={styles.searchRow}>
+            <Icon name="search" size={20} color={color.text.secondary} />
+            <TextInput
+              ref={searchRef}
+              accessibilityLabel="ابحث باسم الفني أو التخصص أو الخدمة"
+              placeholder="اسم الفني أو التخصص أو الخدمة"
+              placeholderTextColor={color.text.secondary}
+              value={filters.query}
+              onChangeText={(query) => setFilters((current) => ({ ...current, query }))}
+              style={styles.search}
+              textAlign="right"
+              returnKeyType="search"
+              onSubmitEditing={() => Keyboard.dismiss()}
+            />
+            {filters.query.length > 0 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="مسح نص البحث"
+                onPress={() => setFilters((current) => ({ ...current, query: '' }))}
+                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+              >
+                <Icon name="x" size={20} color={color.text.secondary} />
+              </Pressable>
+            ) : null}
+          </View>
+          <View accessibilityRole="radiogroup" accessibilityLabel="تصفية حسب الجهاز" style={styles.applianceObjects}>
+            {ACTIVE_APPLIANCE_FILTERS.map((option) => (
+              <SceneObject
+                key={option.value ?? 'all'}
+                title={option.labelAr}
+                asset={option.value ? applianceSceneAsset(option.value) : undefined}
+                selected={filters.appliance === option.value}
+                accessibilityLabel={`تصفية حسب الجهاز: ${option.labelAr}`}
+                onPress={() => {
+                  setFilters((current) => ({ ...current, appliance: option.value }));
+                  setDraft((current) => ({ ...current, appliance: option.value }));
+                }}
+              />
+            ))}
+          </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`خيارات التصفية المتقدمة${activeCount > 0 ? `، ${activeCount} مرشحات نشطة` : ''}`}
+            accessibilityLabel={t('discovery.filters')}
+            accessibilityState={{ expanded: panelOpen }}
             onPress={() => {
+              Keyboard.dismiss();
               setDraft(filters);
               setPanelOpen((open) => !open);
             }}
             style={({ pressed }) => [styles.filterToggle, pressed && styles.pressed]}
           >
-            <Text style={styles.filterToggleText}>
-              ⚙️ {t('discovery.filters')}{activeCount > 0 ? ` (${activeCount})` : ''}
-            </Text>
-            <Text style={styles.filterToggleText}>{panelOpen ? '▴' : '▾'}</Text>
+            <Icon name="sliders" size={20} color={color.brand.navy} />
+            <Text style={styles.filterToggleText}>{t('discovery.filters')}</Text>
+            <Icon name={panelOpen ? 'chevron-up' : 'chevron-down'} size={20} color={color.brand.navy} />
           </Pressable>
-
-          {panelOpen ? (
-            <Card background={color.surface.base} padded style={styles.panel}>
-              <FilterGroup label="التخصص">
-                {SPECIALTY_OPTIONS.map((specialty) => (
-                  <FilterChip
-                    key={specialty}
-                    label={specialty}
-                    selected={draft.specialty === specialty}
-                    groupLabel="التخصص"
-                    onPress={() =>
-                      setDraft((d) => ({ ...d, specialty: d.specialty === specialty ? null : specialty }))
-                    }
-                  />
-                ))}
-              </FilterGroup>
-              <FilterGroup label="التقييم">
-                {RATING_OPTIONS.map((option) => (
-                  <FilterChip
-                    key={option.labelAr}
-                    label={option.labelAr}
-                    selected={draft.minRating === option.value}
-                    groupLabel="التقييم"
-                    onPress={() => setDraft((d) => ({ ...d, minRating: option.value }))} 
-                  />
-                ))}
-              </FilterGroup>
-              <FilterGroup label="المنطقة">
-                {AREA_OPTIONS.map((area) => (
-                  <FilterChip
-                    key={area}
-                    label={area}
-                    selected={draft.area === area}
-                    groupLabel="المنطقة"
-                    onPress={() => setDraft((d) => ({ ...d, area: d.area === area ? null : area }))} 
-                  />
-                ))}
-              </FilterGroup>
+          {activeCount > 0 ? (
+            <View style={styles.summary}>
+              <Text style={styles.summaryText}>التصفية الحالية: {activeSummary.join('، ')}</Text>
               <Pressable
-                accessibilityRole="togglebutton"
-                accessibilityLabel={`الفنيون المتاحون فقط${draft.availableOnly ? '، مفعّل' : ''}`}
-                accessibilityState={{ selected: draft.availableOnly }}
-                onPress={() => setDraft((d) => ({ ...d, availableOnly: !d.availableOnly }))}
-                style={({ pressed }) => [styles.availability, draft.availableOnly && styles.chipSelected, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="مسح كل المرشحات والبحث"
+                onPress={clearAll}
+                style={({ pressed }) => [styles.summaryReset, pressed && styles.pressed]}
               >
-                <Text style={[styles.chipText, draft.availableOnly && styles.chipTextSelected]}>
-                  {draft.availableOnly ? '✓ ' : ''}المتاحون فقط
-                </Text>
+                <Icon name="rotate-ccw" size={16} color={color.brand.navy} />
+                <Text style={styles.resetText}>إعادة ضبط</Text>
               </Pressable>
-              <View style={styles.panelActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="تطبيق المرشحات"
-                  onPress={() => {
-                    setFilters(draft);
-                    setPanelOpen(false);
-                  }}
-                  style={({ pressed }) => [styles.apply, pressed && styles.pressed]}
-                >
-                  <Text style={styles.applyText}>{t('discovery.apply')}</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="مسح كل المرشحات"
-                  onPress={() => {
-                    clearAll();
-                    setPanelOpen(false);
-                  }}
-                  style={({ pressed }) => [styles.reset, pressed && styles.pressed]}
-                >
-                  <Text style={styles.resetText}>{t('discovery.clear')}</Text>
-                </Pressable>
-              </View>
-            </Card>
+            </View>
           ) : null}
-
-          <Text style={styles.count}>عدد النتائج: {results.length}</Text>
-
-          {results.length === 0 ? (
-            <ListEmpty
-              icon="🔍"
-              iconLabel="لا نتائج"
-              title={t('discovery.empty.title')}
-              body={t('discovery.empty.body')}
-              actionLabel={t('discovery.clear')}
-              onAction={clearAll}
+          {panelOpen ? (
+            <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
+              <Card background={color.surface.base} padded style={styles.panel}>
+                {specialtyOptions.length > 0 ? (
+                  <FilterGroup label="التخصص والخدمة">
+                    {specialtyOptions.map((specialty) => (
+                      <FilterChip
+                        key={specialty}
+                        label={specialty}
+                        selected={draft.specialty === specialty}
+                        groupLabel="التخصص والخدمة"
+                        onPress={() => setDraft((current) => ({
+                          ...current,
+                          specialty: current.specialty === specialty ? null : specialty,
+                        }))}
+                      />
+                    ))}
+                  </FilterGroup>
+                ) : null}
+                {areaOptions.length > 0 ? (
+                  <FilterGroup label="مناطق الخدمة">
+                    {areaOptions.map((area) => (
+                      <FilterChip
+                        key={area}
+                        label={area}
+                        selected={draft.area === area}
+                        groupLabel="مناطق الخدمة"
+                        onPress={() => setDraft((current) => ({ ...current, area: current.area === area ? null : area }))}
+                      />
+                    ))}
+                  </FilterGroup>
+                ) : null}
+                <FilterGroup label="التقييم">
+                  {RATING_OPTIONS.map((option) => (
+                    <FilterChip
+                      key={option.labelAr}
+                      label={option.labelAr}
+                      selected={draft.minRating === option.value}
+                      groupLabel="التقييم"
+                      onPress={() => setDraft((current) => ({ ...current, minRating: option.value }))}
+                    />
+                  ))}
+                </FilterGroup>
+                <FilterGroup label="التوفر">
+                  <FilterChip
+                    label="المتاحون فقط"
+                    selected={draft.availableOnly}
+                    groupLabel="التوفر"
+                    onPress={() => setDraft((current) => ({ ...current, availableOnly: !current.availableOnly }))}
+                  />
+                </FilterGroup>
+                <View style={styles.panelActions}>
+                  <SceneAction
+                    label={t('discovery.apply')}
+                    style={styles.panelAction}
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setFilters((current) => ({ ...draft, query: current.query, appliance: current.appliance }));
+                      setPanelOpen(false);
+                    }}
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="مسح كل المرشحات والبحث"
+                    onPress={clearAll}
+                    style={({ pressed }) => [styles.reset, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.resetText}>{t('discovery.clear')}</Text>
+                  </Pressable>
+                </View>
+              </Card>
+            </Animated.View>
+          ) : null}
+        </View>
+        {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+        {status === 'error' ? (
+          <ListError
+            title={t('discovery.error.title')}
+            message="لم نتمكن من تحميل قائمة الفنيين الآن. تحقق من اتصالك بالإنترنت وحاول مرة أخرى."
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        ) : null}
+        {status === 'loaded' && data !== null ? (
+          results.length === 0 ? (
+            <DiscoveryEmptyState
+              hasActiveFilters={activeCount > 0}
+              catalogEmpty={data.length === 0}
+              onClearFilters={clearAll}
+              onRetry={retry}
+              onGuide={() => {
+                Keyboard.dismiss();
+                router.push('/(customer)/maintenance');
+              }}
             />
           ) : (
-            <View style={styles.list}>
+            <SceneSection style={styles.list} title={`نتائج البحث (${results.length})`} eyebrow="قارن ثم اختر" body="تعرّف على التخصص والخدمات ومناطق العمل من الملف الشخصي.">
               {results.map((technician) => (
                 <TechnicianResultCard
                   key={technician.id}
                   technician={technician}
-                  onPress={() =>
+                  onPress={() => {
+                    Keyboard.dismiss();
                     router.push({
                       pathname: '/(customer)/technician/[id]',
                       params: {
                         id: technician.id,
                         ...(filters.appliance !== null ? { appliance: filters.appliance } : {}),
-                        ...(symptomId.length > 0 ? { symptomId } : {}),
+                        ...(context !== null && filters.appliance === context.applianceSlug
+                          ? { symptomId: context.symptomId }
+                          : {}),
                       },
-                    })
-                  }
+                    });
+                  }}
                 />
               ))}
-            </View>
-          )}
-        </>
-      ) : null}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+            </SceneSection>
+          )
+        ) : null}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -283,12 +358,7 @@ function FilterGroup({ label, children }: { label: string; children: React.React
   );
 }
 
-function FilterChip({
-  label,
-  selected,
-  groupLabel,
-  onPress,
-}: {
+function FilterChip({ label, selected, groupLabel, onPress }: {
   label: string;
   selected: boolean;
   groupLabel: string;
@@ -297,66 +367,106 @@ function FilterChip({
   return (
     <Pressable
       accessibilityRole="checkbox"
-      accessibilityLabel={`${groupLabel}: ${label}${selected ? '، محدد' : ''}`}
-      accessibilityState={{ selected, checked: selected }}
+      accessibilityLabel={`${groupLabel}: ${label}`}
+      accessibilityState={{ checked: selected }}
       onPress={onPress}
       style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
     >
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-        {selected ? '✓ ' : ''}{label}
-      </Text>
+      {selected ? <Icon name="check" size={16} color={color.brand.navy} /> : null}
+      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
+  navigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
     paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+    backgroundColor: color.brand.navy,
+  },
+  navigationTitle: {
+    flex: 1,
+    color: color.surface.base,
+    fontSize: typography.size.h3,
+    fontWeight: typography.weight.bold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  iconButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  editorial: {
+    paddingHorizontal: spacing[5],
   },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  applianceObjects: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+    marginVertical: spacing[4],
+  },
+  panelAction: {
+    flexGrow: 1,
   },
   context: {
-    marginTop: spacing[4],
-    gap: spacing[1],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[3],
+    padding: spacing[3],
+    backgroundColor: color.brand.goldSoft,
+    borderRadius: radius.md,
   },
-  contextTitle: {
-    color: color.brand.gold,
-    fontSize: typography.size.body,
+  contextText: {
+    flex: 1,
+    color: color.brand.navy,
+    fontSize: typography.size.caption,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  searchSection: {
+    marginTop: spacing[5],
+  },
+  sectionTitle: {
+    color: color.text.primary,
+    fontSize: typography.size.h3,
     fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  contextBody: {
-    color: color.surface.base,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  search: {
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
     borderWidth: 1,
     borderColor: color.border.default,
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
+    paddingHorizontal: spacing[3],
+    marginTop: spacing[3],
+  },
+  search: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 54,
     color: color.text.primary,
     fontSize: typography.size.body,
-    paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
-    minHeight: 52,
-    marginTop: spacing[4],
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   chips: {
     flexDirection: 'row',
@@ -364,6 +474,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[3],
   },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    maxWidth: '100%',
     borderWidth: 1,
     borderColor: color.border.default,
     borderRadius: radius.pill,
@@ -375,16 +489,18 @@ const styles = StyleSheet.create({
   },
   chipSelected: {
     borderColor: color.brand.gold,
-    borderWidth: 2,
     backgroundColor: color.brand.goldSoft,
   },
   pressed: {
     opacity: 0.75,
   },
   chipText: {
+    flexShrink: 1,
     color: color.text.secondary,
     fontSize: typography.size.body,
     fontWeight: typography.weight.medium,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   chipTextSelected: {
     color: color.text.primary,
@@ -393,7 +509,7 @@ const styles = StyleSheet.create({
   filterToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: spacing[3],
     borderWidth: 1,
     borderColor: color.border.default,
     backgroundColor: color.surface.base,
@@ -402,9 +518,30 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   filterToggleText: {
+    flex: 1,
     color: color.brand.navy,
     fontSize: typography.size.body,
     fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  summary: {
+    marginTop: spacing[3],
+    gap: spacing[1],
+  },
+  summaryText: {
+    color: color.text.secondary,
+    fontSize: typography.size.caption,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  summaryReset: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing[2],
   },
   panel: {
     marginTop: spacing[3],
@@ -418,32 +555,24 @@ const styles = StyleSheet.create({
     fontSize: typography.size.body,
     fontWeight: typography.weight.bold,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   groupChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
   },
-  availability: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-  },
   panelActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing[3],
   },
   apply: {
-    flex: 1,
+    flexGrow: 1,
     backgroundColor: color.brand.navy,
     borderRadius: radius.md,
     minHeight: 50,
+    padding: spacing[3],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -451,14 +580,17 @@ const styles = StyleSheet.create({
     color: color.surface.base,
     fontSize: typography.size.button,
     fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   reset: {
-    flex: 1,
+    flexGrow: 1,
     borderWidth: 1,
     borderColor: color.border.default,
     backgroundColor: color.surface.base,
     borderRadius: radius.md,
     minHeight: 50,
+    padding: spacing[3],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -466,18 +598,11 @@ const styles = StyleSheet.create({
     color: color.brand.navy,
     fontSize: typography.size.body,
     fontWeight: typography.weight.medium,
-  },
-  count: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[3],
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   list: {
     gap: spacing[3],
-    marginTop: spacing[2],
-  },
-  bottomSpacer: {
-    height: spacing[6],
+    marginTop: spacing[5],
   },
 });

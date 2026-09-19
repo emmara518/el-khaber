@@ -91,32 +91,32 @@ export function toggleMerchantList<T>(list: ReadonlyArray<T>, value: T): Readonl
 
 /** Conservative 4-state copy — generic messages, no legal claims. */
 export function merchantVerificationStatusCopy(status: MerchantVerificationStatus): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'x-circle' | 'alert-circle';
   titleAr: string;
   bodyAr: string;
 } {
   switch (status) {
     case 'approved':
       return {
-        icon: '✓',
+        icon: 'check-circle',
         titleAr: 'تم التحقق',
         bodyAr: 'تم التحقق من بيانات متجرك. ملفك ظاهر الآن للعملاء.',
       };
     case 'pending':
       return {
-        icon: '◷',
+        icon: 'clock',
         titleAr: 'قيد المراجعة',
         bodyAr: 'تم إرسال بيانات المتجر للمراجعة. سنعلمك فور انتهائها.',
       };
     case 'rejected':
       return {
-        icon: '✕',
+        icon: 'x-circle',
         titleAr: 'تعذر اعتماد البيانات',
         bodyAr: 'لم يتم اعتماد بيانات المتجر الحالية. راجعها وحدثها ثم أعد الإرسال.',
       };
     case 'action_required':
       return {
-        icon: '!',
+        icon: 'alert-circle',
         titleAr: 'يحتاج إلى تحديث البيانات',
         bodyAr: 'نحتاج إلى تحديث بعض بيانات المتجر قبل إتمام المراجعة.',
       };

@@ -22,7 +22,8 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, IconText, StatusBadge } from '@/ui';
+import { Avatar, Card, Icon, IconText, StatusBadge } from '@/ui';
+import { SceneHero } from '@/ui/cinematic';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
@@ -32,53 +33,59 @@ export default function CustomerRequestsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('requests.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('requests.subtitle')}</Text>
+      <SceneHero
+        compact
+        asset="customer_home_hero"
+        eyebrow="طلباتي"
+        title={t('requests.title')}
+        body={t('requests.subtitle')}
+      />
 
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          title={t('requests.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data ? (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filters}
-          >
-            {REQUEST_FILTERS.map((f) => {
-              const selected = filter === f.id;
-              return (
-                <Pressable
-                  key={f.id}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`تصفية الطلبات: ${f.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => setFilter(f.id)}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    selected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {f.labelAr}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          {renderList(filterRequestsByStatus(data.requests, filter), t)}
-        </>
-      ) : null}
-      <View style={styles.bottomSpacer} />
+      <View style={styles.editorial}>
+        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_availability" /> : null}
+        {status === 'error' ? (
+          <ListError
+            asset="fault_empty"
+            title={t('requests.error.title')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        ) : null}
+        {status === 'loaded' && data ? (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
+              {REQUEST_FILTERS.map((f) => {
+                const selected = filter === f.id;
+                return (
+                  <Pressable
+                    key={f.id}
+                    accessibilityRole="tab"
+                    accessibilityLabel={`تصفية الطلبات: ${f.labelAr}${selected ? '، محدد حاليًا' : ''}`}
+                    accessibilityState={{ selected }}
+                    onPress={() => setFilter(f.id)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      selected && styles.chipSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                      {f.labelAr}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {renderList(filterRequestsByStatus(data.requests, filter), t)}
+          </>
+        ) : null}
+        <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 
@@ -89,7 +96,8 @@ export default function CustomerRequestsScreen() {
     if (requests.length === 0) {
       return (
         <ListEmpty
-          icon="📋"
+          asset="customer_onboarding_diagnosis"
+          icon="clipboard"
           iconLabel="لا توجد طلبات"
           title={translate('requests.empty.title')}
           body={translate('requests.empty.body')}
@@ -137,7 +145,11 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
         </View>
       </View>
       <View style={styles.footer}>
-        <IconText glyph="📅" label={item.scheduledLabelAr} size="sm" />
+        <IconText
+          glyph={<Icon name="calendar" size={13} color={color.brand.gold} accessibilityLabel="الموعد" />}
+          label={item.scheduledLabelAr}
+          size="sm"
+        />
       </View>
     </Card>
     </Pressable>
@@ -146,9 +158,10 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
     paddingBottom: spacing[8],
+  },
+  editorial: {
+    paddingHorizontal: spacing[5],
   },
   title: {
     color: color.text.primary,

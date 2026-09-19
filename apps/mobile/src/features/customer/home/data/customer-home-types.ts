@@ -30,6 +30,8 @@ export interface QuickServiceItem {
   readonly titleAr: string;
   /** Icon glyph used in the reference design (simple letterform). */
   readonly icon: 'wrench' | 'search' | 'clipboard' | 'package';
+  /** Customer-group route the tile opens. */
+  readonly route: 'maintenance' | 'find-technician' | 'requests';
 }
 
 export type OrderStatus = 'in_progress' | 'scheduled' | 'completed';

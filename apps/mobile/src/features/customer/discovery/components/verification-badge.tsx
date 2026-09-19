@@ -10,6 +10,8 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/ui/icon';
+
 export function VerificationBadge({ verified }: { verified: boolean }) {
   if (verified) {
     return (
@@ -18,7 +20,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
         accessibilityLabel="موثّق من الخبير: تم التحقق من الهوية والخبرة"
         style={[styles.badge, styles.verified]}
       >
-        <Text style={[styles.icon, styles.verifiedText]}>✓</Text>
+        <Icon name="check-circle" size={13} color={color.success.DEFAULT} accessibilityLabel="موثّق" />
         <Text style={[styles.label, styles.verifiedText]}>موثّق من الخبير</Text>
       </View>
     );
@@ -29,7 +31,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
       accessibilityLabel="لم يتم توثيقه بعد"
       style={[styles.badge, styles.unverified]}
     >
-      <Text style={[styles.icon, styles.unverifiedText]}>○</Text>
+      <Icon name="circle" size={13} color={color.text.secondary} accessibilityLabel="غير موثّق" />
       <Text style={[styles.label, styles.unverifiedText]}>لم يتم توثيقه بعد</Text>
     </View>
   );
@@ -43,7 +45,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    gap: spacing[1],
+    gap: spacing[1] + 2,
   },
   verified: {
     backgroundColor: color.success.soft,
@@ -52,10 +54,6 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.subtle,
     borderWidth: 1,
     borderColor: color.border.default,
-  },
-  icon: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
   },
   label: {
     fontSize: typography.size.caption,

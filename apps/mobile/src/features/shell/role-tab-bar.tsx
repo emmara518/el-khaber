@@ -3,18 +3,19 @@
  *
  * Same visual system as `CustomerTabBar` (white bar, gray icons,
  * gold active) so Customer / Technician / Merchant read as ONE
- * product. Customer keeps its own existing component untouched;
- * Technician and Merchant shells consume this generic bar with
- * their own tab descriptors.
+ * product. Technician and Merchant shells consume this generic bar
+ * with their own tab descriptors.
  */
 
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
+import { Icon, type IconName } from '@/ui/icon';
+
 export interface ShellTab {
   id: string;
   labelAr: string;
-  icon: string;
+  icon: IconName;
 }
 
 export function RoleTabBar({
@@ -41,17 +42,17 @@ export function RoleTabBar({
             accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
             style={({ pressed }) => [styles.item, pressed && styles.pressed]}
           >
-            <Text
-              style={[styles.icon, { color: isActive ? color.brand.gold : color.text.secondary }]}
-            >
-              {tab.icon}
-            </Text>
+            <Icon
+              name={tab.icon}
+              size="nav"
+              color={isActive ? color.brand.gold : color.text.secondary}
+            />
             <Text
               style={[
                 styles.label,
                 {
                   color: isActive ? color.brand.gold : color.text.secondary,
-                  fontWeight: isActive ? typography.weight.bold : typography.weight.regular,
+                  fontWeight: isActive ? typography.weight.semibold : typography.weight.regular,
                 },
               ]}
             >
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: spacing[2],
+    paddingTop: spacing[2] + 2,
     paddingBottom: spacing[3],
     paddingHorizontal: spacing[2],
     backgroundColor: color.surface.base,
@@ -79,18 +80,13 @@ const styles = StyleSheet.create({
   item: {
     flex: 1,
     alignItems: 'center',
-    minHeight: 48,
-    justifyContent: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[1],
   },
   pressed: {
     opacity: 0.7,
   },
-  icon: {
-    fontSize: 20,
-    lineHeight: 22,
-  },
   label: {
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
+    fontSize: typography.size.caption - 1,
   },
 });

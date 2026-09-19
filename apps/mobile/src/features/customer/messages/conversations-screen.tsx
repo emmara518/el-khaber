@@ -18,6 +18,7 @@ import type { ConversationItem } from './conversations-types';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Avatar, Card } from '@/ui';
+import { SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function ConversationsScreen() {
   const { t } = useI18n();
@@ -25,37 +26,46 @@ export default function ConversationsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('messages.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('messages.subtitle')}</Text>
+      <SceneHero
+        compact
+        asset="technician_profile_reviews"
+        eyebrow={t('messages.subtitle')}
+        title={t('messages.title')}
+        body="محادثاتك مرتبطة بطلباتك الحالية، وكل رسالة تصل للفني المعني."
+      />
 
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          title={t('messages.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data ? (
-        data.conversations.length === 0 ? (
-          <ListEmpty
-            icon="💬"
-            iconLabel="لا توجد محادثات"
-            title={t('messages.empty.title')}
-            body={t('messages.empty.body')}
+      <View style={styles.editorial}>
+        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_availability" /> : null}
+        {status === 'error' ? (
+          <ListError
+            asset="fault_empty"
+            title={t('messages.error.title')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
           />
-        ) : (
-          <View style={styles.list}>
-            {data.conversations.map((conversation) => (
-              <ConversationRow key={conversation.id} conversation={conversation} />
-            ))}
-          </View>
-        )
-      ) : null}
-      <View style={styles.bottomSpacer} />
+        ) : null}
+        {status === 'loaded' && data ? (
+          data.conversations.length === 0 ? (
+            <ListEmpty
+              asset="technician_profile_reviews"
+              icon="message-circle"
+              iconLabel="لا توجد محادثات"
+              title={t('messages.empty.title')}
+              body={t('messages.empty.body')}
+            />
+          ) : (
+            <SceneSection eyebrow="المحادثات" title={`${data.conversations.length} محادثة`} body="افتح الطلب للدخول إلى المحادثة مع الفني.">
+              <View style={styles.list}>
+                {data.conversations.map((conversation) => (
+                  <ConversationRow key={conversation.id} conversation={conversation} />
+                ))}
+              </View>
+            </SceneSection>
+          )
+        ) : null}
+        <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 }
@@ -98,27 +108,14 @@ function ConversationRow({ conversation }: { conversation: ConversationItem }) {
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
   },
   list: {
     gap: spacing[3],
-    marginTop: spacing[4],
   },
   card: {
     padding: spacing[4],

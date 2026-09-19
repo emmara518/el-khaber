@@ -28,7 +28,8 @@ import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
+import { Icon, StatusBadge } from '@/ui';
+import { SceneAction, SceneHero } from '@/ui/cinematic';
 
 
 export default function MerchantCatalogScreen({
@@ -42,15 +43,21 @@ export default function MerchantCatalogScreen({
   const [filters, setFilters] = useState<MerchantProductFilters>(EMPTY_PRODUCT_FILTERS);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('merchant.catalog.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('merchant.catalog.subtitle')}</Text>
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <SceneHero
+        compact
+        asset="merchant_products"
+        eyebrow="المتجر · الكتالوج"
+        title={t('merchant.catalog.title')}
+        body={t('merchant.catalog.subtitle')}
+        action={<SceneAction label={t('merchant.catalog.add')} onPress={() => router.push('/(merchant)/products/new')} />}
+      />
 
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+      <View style={styles.editorial}>
+      {status === 'loading' ? <ListLoading label={t('state.loading')} asset="merchant_products" /> : null}
       {status === 'error' ? (
         <ListError
+          asset="fault_empty"
           title={t('merchant.catalog.error')}
           message={error?.message ?? ''}
           retryLabel={t('state.retry')}
@@ -104,8 +111,9 @@ export default function MerchantCatalogScreen({
                     pressed && styles.pressed,
                   ]}
                 >
+                  {selected ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
                   <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {selected ? '✓ ' : ''}{option.labelAr}
+                    {option.labelAr}
                   </Text>
                 </Pressable>
               );
@@ -117,7 +125,8 @@ export default function MerchantCatalogScreen({
           {renderList(filterMerchantProducts(data, filters), t)}
         </>
       ) : null}
-      <View style={styles.bottomSpacer} />
+        <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 
@@ -128,7 +137,8 @@ export default function MerchantCatalogScreen({
     if (products.length === 0) {
       return (
         <ListEmpty
-          icon="📦"
+          asset="merchant_products"
+          icon="package"
           iconLabel="لا توجد منتجات"
           title={translate('merchant.catalog.empty')}
           body={translate('merchant.catalog.emptyBody')}
@@ -151,7 +161,7 @@ export default function MerchantCatalogScreen({
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
-            <Card background={color.surface.base} padded style={styles.card}>
+            <View style={styles.card}>
               <View style={styles.row}>
                 <ProductImagePlaceholder nameAr={product.nameAr} hasImage={product.hasImage} />
                 <View style={styles.middle}>
@@ -172,7 +182,7 @@ export default function MerchantCatalogScreen({
                   <StatusBadge status={product.status} label={product.statusLabelAr} />
                 </View>
               </View>
-            </Card>
+            </View>
           </Pressable>
         ))}
       </View>
@@ -182,23 +192,12 @@ export default function MerchantCatalogScreen({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    direction: 'rtl',
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
   },
   search: {
     borderWidth: 1,
@@ -231,6 +230,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     minHeight: 44,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
   },
   chip: {
     borderWidth: 1,
@@ -243,9 +245,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipSelected: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
   },
   pressed: {
     opacity: 0.75,
@@ -270,6 +272,11 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: 0,
+    backgroundColor: color.surface.base,
+    padding: spacing[4],
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: color.border.default,
   },
   row: {
     flexDirection: 'row',

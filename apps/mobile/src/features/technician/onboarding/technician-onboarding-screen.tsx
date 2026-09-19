@@ -28,7 +28,7 @@ import {
 import { useTechnicianOnboardingViewModel } from './use-technician-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, SectionHeader } from '@/ui';
+import { Card, Icon, SectionHeader } from '@/ui';
 
 const STEP_TITLES: Record<OnboardingStep, string> = {
   info: 'البيانات الأساسية',
@@ -57,7 +57,7 @@ export default function TechnicianOnboardingScreen({
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
-          <Text style={styles.successEmoji}>◷</Text>
+          <View style={styles.successBadge}><Icon name="clock" size={26} color={color.brand.navy} accessibilityLabel="قيد المراجعة" /></View>
           <Text accessibilityRole="header" style={styles.successTitle}>
             تم إرسال البيانات للمراجعة
           </Text>
@@ -98,7 +98,7 @@ export default function TechnicianOnboardingScreen({
             key={s}
             style={[styles.dot, i < index && styles.dotDone, i === index && styles.dotCurrent]}
           >
-            {i < index ? <Text style={styles.check}>✓</Text> : null}
+            {i < index ? <Icon name="check" size={13} color={color.surface.base} /> : null}
           </View>
         ))}
       </View>
@@ -213,7 +213,7 @@ export default function TechnicianOnboardingScreen({
             disabled={index === 0}
             style={({ pressed }) => [styles.navBtn, index === 0 && styles.disabled, pressed && styles.pressed]}
           >
-            <Text style={styles.navBtnText}>› رجوع</Text>
+            <Icon name="corner-up-right" size={16} color={color.brand.navy} /><Text style={styles.navBtnText}>رجوع</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -221,7 +221,7 @@ export default function TechnicianOnboardingScreen({
             onPress={() => vm.dispatch({ type: 'NEXT' })}
             style={({ pressed }) => [styles.navPrimary, pressed && styles.pressed]}
           >
-            <Text style={styles.navPrimaryText}>التالي ‹</Text>
+            <Text style={styles.navPrimaryText}>التالي</Text><Icon name="chevron-left" size={16} color={color.surface.base} />
           </Pressable>
         </View>
       ) : null}
@@ -368,11 +368,6 @@ const styles = StyleSheet.create({
     borderColor: color.brand.navy,
     backgroundColor: color.brand.gold,
   },
-  check: {
-    color: color.surface.base,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
-  },
   section: {
     gap: spacing[4],
     marginTop: spacing[4],
@@ -405,6 +400,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navBtnText: {
     color: color.brand.navy,
@@ -418,6 +415,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navPrimaryText: {
     color: color.surface.base,
@@ -486,9 +485,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[2],
   },
-  successEmoji: {
-    fontSize: 48,
-    color: color.success.DEFAULT,
+  successBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successTitle: {
     color: color.text.primary,

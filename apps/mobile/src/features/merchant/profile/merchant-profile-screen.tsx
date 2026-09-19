@@ -24,7 +24,8 @@ import {
 import { useMerchantProfileViewModel } from './use-merchant-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, SectionHeader } from '@/ui';
+import { Avatar, Card, Icon, SectionHeader } from '@/ui';
+import { SceneHero } from '@/ui/cinematic';
 
 export default function MerchantProfileScreen({
   source,
@@ -37,7 +38,7 @@ export default function MerchantProfileScreen({
 
   if (vm.loadStatus === 'loading') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
         <Text accessibilityRole="header" style={styles.title}>
           {t('merchant.profile.title')}
         </Text>
@@ -48,7 +49,7 @@ export default function MerchantProfileScreen({
 
   if (vm.loadStatus === 'error' || vm.profile === null) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
         <Text accessibilityRole="header" style={styles.title}>
           {t('merchant.profile.title')}
         </Text>
@@ -93,17 +94,29 @@ export default function MerchantProfileScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('merchant.profile.title')}
-      </Text>
+      <SceneHero
+        compact
+        asset="merchant_dashboard_hero"
+        eyebrow="ملف المتجر"
+        title={t('merchant.profile.title')}
+        body="هويتك التجارية وحالة التوثيق وبيانات التواصل."
+      />
 
+      <View style={styles.editorial}>
       <Card
         background={profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft}
         borderColor={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold}
         padded
         style={styles.statusCard}
       >
-        <Text style={styles.statusIcon}>{status.icon}</Text>
+        <View style={styles.statusIconWrap}>
+          <Icon
+            name={status.icon}
+            size={22}
+            color={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.navy}
+            accessibilityLabel={status.titleAr}
+          />
+        </View>
         <View style={styles.statusText}>
           <Text
             accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`}
@@ -135,7 +148,7 @@ export default function MerchantProfileScreen({
           accessibilityLabel={`شعار ${profile.businessNameAr}`}
         />
         <Text style={styles.name}>{profile.businessNameAr}</Text>
-        <Text style={styles.heroMeta}>📍 {profile.cityAr}</Text>
+        <Text style={styles.heroMeta}>{profile.cityAr}</Text>
         <Text style={styles.heroBadge}>{status.titleAr}</Text>
       </Card>
 
@@ -161,9 +174,11 @@ export default function MerchantProfileScreen({
         onPress={() => router.push('/(merchant)/settings')}
         style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
       >
-        <Text style={styles.secondaryText}>⚙️ {t('merchant.settings.title')}</Text>
+        <Icon name="settings" size={18} color={color.brand.navy} />
+        <Text style={styles.secondaryText}>{t('merchant.settings.title')}</Text>
       </Pressable>
-      <View style={styles.bottomSpacer} />
+        <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 }
@@ -203,7 +218,7 @@ function ProfileEditForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[styles.content, styles.padded]} showsVerticalScrollIndicator={false}>
       <Text accessibilityRole="header" style={styles.title}>
         {t('merchant.profile.editTitle')}
       </Text>
@@ -239,8 +254,11 @@ function ProfileEditForm({
                   pressed && styles.pressed,
                 ]}
               >
+                {selected ? (
+                  <Icon name="check" size={14} color={color.surface.base} />
+                ) : null}
                 <Text style={[styles.cityText, selected && styles.cityTextSelected]}>
-                  {selected ? '✓ ' : ''}{city}
+                  {city}
                 </Text>
               </Pressable>
             );
@@ -333,9 +351,14 @@ function ProfileEditForm({
 
 const styles = StyleSheet.create({
   content: {
+    paddingBottom: spacing[8],
+  },
+  padded: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
-    paddingBottom: spacing[8],
+  },
+  editorial: {
+    paddingHorizontal: spacing[5],
   },
   title: {
     color: color.text.primary,
@@ -351,9 +374,13 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     paddingVertical: spacing[4],
   },
-  statusIcon: {
-    fontSize: 28,
-    fontWeight: typography.weight.bold,
+  statusIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusText: {
     flex: 1,
@@ -444,6 +471,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing[3],
+    flexDirection: 'row',
+    gap: spacing[2],
   },
   secondaryText: {
     color: color.brand.navy,
@@ -502,11 +531,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   cityChipSelected: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
   },
   cityText: {
     color: color.text.secondary,

@@ -13,9 +13,8 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ApiTechnicianProfileDataSource } from './api-technician-profile-data-source';
 import { LabeledInput, MultiSelectChips } from './components/profile-selectors';
 import {
   APPLIANCE_OPTIONS,
@@ -31,7 +30,8 @@ import {
 import { useTechnicianProfileViewModel } from './use-technician-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, RatingStars, SectionHeader } from '@/ui';
+import { Avatar, Card, Icon, RatingStars } from '@/ui';
+import { SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function TechnicianProfileScreen({
   source,
@@ -40,7 +40,7 @@ export default function TechnicianProfileScreen({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const vm = useTechnicianProfileViewModel(source ?? new ApiTechnicianProfileDataSource());
+  const vm = useTechnicianProfileViewModel(source);
 
   if (vm.loadStatus === 'loading') {
     return (
@@ -97,9 +97,9 @@ export default function TechnicianProfileScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('tech.profile.title')}
-      </Text>
+      <SceneHero compact asset="technician_profile_hero" eyebrow="ملفك المهني · مشهد توضيحي" title={profile.displayNameAr} body={profile.specialtiesAr.join(' · ') || 'لم تُضف تخصصات بعد'}>
+        <Avatar initials={profile.initialsAr} size={48} accessibilityLabel={`الصورة الرمزية لـ ${profile.displayNameAr}`} />
+      </SceneHero>
 
       <Card
         background={profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft}
@@ -107,7 +107,14 @@ export default function TechnicianProfileScreen({
         padded
         style={styles.statusCard}
       >
-        <Text style={styles.statusIcon}>{status.icon}</Text>
+        <View style={styles.statusIconWrap}>
+          <Icon
+            name={status.icon}
+            size={22}
+            color={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.navy}
+            accessibilityLabel={status.titleAr}
+          />
+        </View>
         <View style={styles.statusText}>
           <Text
             accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`}
@@ -135,42 +142,23 @@ export default function TechnicianProfileScreen({
         </Pressable>
       )}
 
-      <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.hero}>
-        <Avatar
-          initials={profile.initialsAr}
-          size={72}
-          background={color.brand.gold}
-          foreground={color.brand.navy}
-          accessibilityLabel={`الصورة الرمزية لـ ${profile.displayNameAr}`}
-        />
-        <Text style={styles.name}>{profile.displayNameAr}</Text>
-        <Text style={styles.heroMeta}>{profile.specialtiesAr.join(' · ') || '—'}</Text>
+      <SceneSection title={t('tech.profile.about')} body={profile.bioAr || 'لم تُضف نبذة مهنية بعد'}>
+        <Text style={styles.meta}>{t('tech.profile.phone')}: {profile.phoneAr || '—'}</Text>
+        <Text style={styles.meta}>{t('tech.profile.experience')}: {profile.experienceYears === null ? '—' : `${profile.experienceYears} سنوات`}</Text>
+      </SceneSection>
+      <SceneSection asset="technician_profile_services" title={t('tech.profile.services')} eyebrow="ما تقدّمه للعملاء">
+        <ChipRow items={profile.servicesAr} emptyLabel={t('tech.profile.emptyServices')} />
+        <Text style={styles.statusTitle}>{t('tech.profile.appliances')}</Text>
+        <ChipRow items={profile.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)} emptyLabel="—" />
+      </SceneSection>
+      <SceneSection asset="technician_profile_location" title={t('tech.profile.areas')}>
+        <ChipRow items={profile.areasAr} emptyLabel={t('tech.profile.emptyAreas')} />
+      </SceneSection>
+      <SceneSection asset="technician_profile_reviews" title="خبرة يقيّمها العملاء" eyebrow="سجل الخدمة الفعلي">
+        <Text style={styles.statusTitle}>{t('tech.profile.completed')}: {profile.completedCount}</Text>
         <RatingStars rating={profile.rating} reviewCount={profile.reviewCount} />
-      </Card>
-
-      <SectionHeader titleKey="tech.profile.about" />
-      <Card background={color.surface.base} padded>
-        <Text style={styles.body}>{profile.bioAr || '—'}</Text>
-        <Text style={styles.meta}>
-          {t('tech.profile.phone')}: {profile.phoneAr || '—'}
-        </Text>
-        <Text style={styles.meta}>
-          {t('tech.profile.experience')}:{' '}
-          {profile.experienceYears === null ? '—' : `${profile.experienceYears} سنوات`}
-        </Text>
-        <Text style={styles.meta}>
-          {t('tech.profile.completed')}: {profile.completedCount}
-        </Text>
-      </Card>
-
-      <SectionHeader titleKey="tech.profile.appliances" />
-      <ChipRow items={profile.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)} emptyLabel="—" />
-
-      <SectionHeader titleKey="tech.profile.services" />
-      <ChipRow items={profile.servicesAr} emptyLabel={t('tech.profile.emptyServices')} />
-
-      <SectionHeader titleKey="tech.profile.areas" />
-      <ChipRow items={profile.areasAr} emptyLabel={t('tech.profile.emptyAreas')} />
+      </SceneSection>
+      <SceneSection asset="technician_trust" title="الثقة والتوثيق" eyebrow="حالة ملفك" body={profile.verificationNoteAr || 'حالة التوثيق من سجل المنصة.'} />
 
       {profile.verification === 'approved' && (
         <Pressable
@@ -188,7 +176,8 @@ export default function TechnicianProfileScreen({
         onPress={() => router.push('/(technician)/settings')}
         style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
       >
-        <Text style={styles.secondaryText}>⚙️ {t('tech.settings.title')}</Text>
+        <Icon name="settings" size={18} color={color.brand.navy} />
+        <Text style={styles.secondaryText}>{t('tech.settings.title')}</Text>
       </Pressable>
       <View style={styles.bottomSpacer} />
     </ScrollView>
@@ -249,7 +238,8 @@ function ProfileEditForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text accessibilityRole="header" style={styles.title}>
         {t('tech.profile.editTitle')}
       </Text>
@@ -388,11 +378,13 @@ function ProfileEditForm({
       )}
       <View style={styles.bottomSpacer} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    direction: 'rtl',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
     paddingBottom: spacing[8],
@@ -411,9 +403,13 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     paddingVertical: spacing[4],
   },
-  statusIcon: {
-    fontSize: 28,
-    fontWeight: typography.weight.bold,
+  statusIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   statusText: {
     flex: 1,
@@ -513,6 +509,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing[3],
+    flexDirection: 'row',
+    gap: spacing[2],
   },
   secondaryText: {
     color: color.brand.navy,

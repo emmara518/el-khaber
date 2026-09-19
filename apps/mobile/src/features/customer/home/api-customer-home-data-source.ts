@@ -46,10 +46,10 @@ import type {
 
 /** Static navigation entries — UI copy, unchanged from the design. */
 const QUICK_SERVICES: ReadonlyArray<QuickServiceItem> = [
-  { id: 'track-order', titleAr: 'تتبع الطلبات', icon: 'package' },
-  { id: 'request-maintenance', titleAr: 'طلب صيانة', icon: 'clipboard' },
-  { id: 'search-technician', titleAr: 'ابحث عن فني', icon: 'search' },
-  { id: 'fix-fault', titleAr: 'إصلاح الأعطال', icon: 'wrench' },
+  { id: 'track-order', titleAr: 'تتبع الطلبات', icon: 'package', route: 'requests' },
+  { id: 'request-maintenance', titleAr: 'طلب صيانة', icon: 'clipboard', route: 'find-technician' },
+  { id: 'search-technician', titleAr: 'ابحث عن فني', icon: 'search', route: 'find-technician' },
+  { id: 'fix-fault', titleAr: 'إصلاح الأعطال', icon: 'wrench', route: 'maintenance' },
 ];
 
 /** Static guarantee banner — UI copy (docs/04 design content). */
@@ -139,7 +139,7 @@ export class ApiCustomerHomeDataSource implements CustomerHomeDataSource {
       },
       greeting: {
         // No name to greet — neutral copy (no fabricated name).
-        line1Ar: 'مرحبًا بك 👋',
+        line1Ar: 'مرحبًا بك',
         line2Ar: 'كيف يمكننا مساعدتك اليوم؟',
       },
       appliances,
@@ -176,7 +176,7 @@ export class ApiCustomerHomeDataSource implements CustomerHomeDataSource {
         availableTechnicians,
         // No per-appliance warranty copy exists in the API (gap).
         captionAr: '',
-        techniciansAr: availableTechnicians > 0 ? 'فني متاح' : '',
+        techniciansAr: availableTechnicians > 0 ? 'فني متاح' : 'لا يوجد فني',
         accent: 'soft',
       });
     }

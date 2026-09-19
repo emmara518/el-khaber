@@ -2,6 +2,7 @@ import { color, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { useI18n, type TranslationKey } from '@/i18n/use-i18n';
+import { Icon, type IconName } from '@/ui/icon';
 
 export type CustomerTabId = 'home' | 'requests' | 'maintenance' | 'messages' | 'profile';
 
@@ -14,21 +15,23 @@ interface CustomerTabBarProps {
 interface TabDescriptor {
   id: CustomerTabId;
   labelKey: TranslationKey;
-  icon: string;
+  icon: IconName;
+  /** Filled-tile treatment for the active state. */
+  activeIcon: IconName;
 }
 
 const TABS: ReadonlyArray<TabDescriptor> = [
-  { id: 'home', labelKey: 'tab.home', icon: '🏠' },
-  { id: 'requests', labelKey: 'tab.requests', icon: '📋' },
-  { id: 'maintenance', labelKey: 'tab.maintenance', icon: '🛠️' },
-  { id: 'messages', labelKey: 'tab.messages', icon: '💬' },
-  { id: 'profile', labelKey: 'tab.profile', icon: '👤' },
+  { id: 'home', labelKey: 'tab.home', icon: 'home', activeIcon: 'home' },
+  { id: 'requests', labelKey: 'tab.requests', icon: 'clipboard', activeIcon: 'clipboard' },
+  { id: 'maintenance', labelKey: 'tab.maintenance', icon: 'tool', activeIcon: 'tool' },
+  { id: 'messages', labelKey: 'tab.messages', icon: 'message-circle', activeIcon: 'message-circle' },
+  { id: 'profile', labelKey: 'tab.profile', icon: 'user', activeIcon: 'user' },
 ];
 
 /**
  * Customer bottom tab bar. Five destinations. The active tab uses
- * the brand gold. Matches the reference design (الرئيسية highlighted
- * in gold; the others in surface.base on the subtle background).
+ * the brand gold with a soft tinted dot anchor; the rest stay in
+ * text.secondary. Uniform Feather icons on a 24px grid.
  */
 export function CustomerTabBar({ active, onChange, style }: CustomerTabBarProps) {
   const { t } = useI18n();
@@ -45,20 +48,17 @@ export function CustomerTabBar({ active, onChange, style }: CustomerTabBarProps)
             accessibilityLabel={isActive ? `${t(tab.labelKey)}، الصفحة الحالية` : t(tab.labelKey)}
             style={({ pressed }) => [styles.item, pressed && styles.pressed]}
           >
-            <Text
-              style={[
-                styles.icon,
-                { color: isActive ? color.brand.gold : color.text.secondary },
-              ]}
-            >
-              {tab.icon}
-            </Text>
+            <Icon
+              name={tab.icon}
+              size="nav"
+              color={isActive ? color.brand.gold : color.text.secondary}
+            />
             <Text
               style={[
                 styles.label,
                 {
                   color: isActive ? color.brand.gold : color.text.secondary,
-                  fontWeight: isActive ? typography.weight.bold : typography.weight.regular,
+                  fontWeight: isActive ? typography.weight.semibold : typography.weight.regular,
                 },
               ]}
             >
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: spacing[2],
+    paddingTop: spacing[2] + 2,
     paddingBottom: spacing[3],
     paddingHorizontal: spacing[2],
     backgroundColor: color.surface.base,
@@ -86,16 +86,13 @@ const styles = StyleSheet.create({
   item: {
     flex: 1,
     alignItems: 'center',
+    gap: spacing[1],
+    paddingVertical: spacing[1],
   },
   pressed: {
     opacity: 0.7,
   },
-  icon: {
-    fontSize: 20,
-    lineHeight: 22,
-  },
   label: {
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
+    fontSize: typography.size.caption - 1,
   },
 });

@@ -27,7 +27,7 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
     districtAr: 'حي النزهة',
   },
   greeting: {
-    line1Ar: 'مرحبا أحمد 👋',
+    line1Ar: 'مرحبا أحمد ',
     line2Ar: 'كيف يمكننا مساعدتك اليوم؟',
   },
   appliances: [
@@ -57,10 +57,10 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
     },
   ],
   quickServices: [
-    { id: 'track-order', titleAr: 'تتبع الطلبات', icon: 'package' },
-    { id: 'request-maintenance', titleAr: 'طلب صيانة', icon: 'clipboard' },
-    { id: 'search-technician', titleAr: 'ابحث عن فني', icon: 'search' },
-    { id: 'fix-fault', titleAr: 'إصلاح الأعطال', icon: 'wrench' },
+    { id: 'track-order', titleAr: 'تتبع الطلبات', icon: 'package', route: 'requests' },
+    { id: 'request-maintenance', titleAr: 'طلب صيانة', icon: 'clipboard', route: 'find-technician' },
+    { id: 'search-technician', titleAr: 'ابحث عن فني', icon: 'search', route: 'find-technician' },
+    { id: 'fix-fault', titleAr: 'إصلاح الأعطال', icon: 'wrench', route: 'maintenance' },
   ],
   guarantee: {
     titleAr: 'ضمان الخدمة الذهبي',

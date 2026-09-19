@@ -6,14 +6,15 @@
  * is never treated as the authenticated authority.
  */
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { AuthButton, AuthLink } from '../src/features/auth/components/auth-feedback';
 import { AuthScreen } from '../src/features/auth/components/auth-screen';
 import { ROLE_OPTIONS, RoleCard } from '../src/features/auth/components/role-card';
+import { sceneAssets } from '../src/ui/scene-assets';
 
 import type { Role } from '@khabir/shared-types';
 
@@ -23,6 +24,13 @@ export default function AccountTypeRoute() {
 
   return (
     <AuthScreen title="اختر نوع حسابك" subtitle="اختر الدور المناسب لك للمتابعة إلى تسجيل الدخول أو إنشاء حساب">
+      <Image
+        source={sceneAssets.customer_onboarding_diagnosis}
+        accessibilityRole="image"
+        accessibilityLabel="مشهد سينمائي لرحلة التشخيص واختيار المسار المناسب في الخبير"
+        resizeMode="cover"
+        style={styles.visual}
+      />
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel="اختيار نوع الحساب"
@@ -63,6 +71,12 @@ export default function AccountTypeRoute() {
 }
 
 const styles = StyleSheet.create({
+  visual: {
+    width: '100%',
+    height: 220,
+    borderRadius: radius.lg,
+    backgroundColor: color.brand.navy,
+  },
   group: {
     gap: spacing[3],
   },

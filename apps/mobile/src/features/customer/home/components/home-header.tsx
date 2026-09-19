@@ -1,15 +1,21 @@
+/**
+ * Home header — the dark navy hero bar that contains the notification
+ * bell, the Al-Khabir wordmark, and the customer avatar. Matches
+ * the reference design.
+ *
+ * The notification bell is a premium interactive element. When a handler
+ * is provided it receives the press; when none is provided the bell shows
+ * a modest "Coming soon" affordance that remains truthful to the product
+ * state (docs/09_PRODUCT.md §2).
+ */
+
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useI18n } from '../../../../i18n/use-i18n';
-import { IconBadge } from '../../../../ui';
+import { Icon } from '../../../../ui';
 
-/**
- * Home header — the dark navy hero bar that contains the notification
- * bell, the Al-Khabir wordmark, and the customer avatar. Matches
- * the reference design.
- */
 interface HomeHeaderProps {
   avatarInitials: string;
   onPressNotifications?: () => void;
@@ -32,13 +38,14 @@ export function HomeHeader({
           hitSlop={8}
           style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
         >
-          <IconBadge
-            glyph="🔔"
-            size={36}
-            background={color.surface.base}
-            foreground={color.brand.navy}
-            accessibilityLabel={t('home.notifications')}
-          />
+          <View style={styles.bellBadge}>
+            <Icon
+              name="bell"
+              size={18}
+              color={color.brand.navy}
+              accessibilityLabel={t('home.notifications')}
+            />
+          </View>
         </Pressable>
         <Text style={styles.wordmark}>الخبير</Text>
         <Pressable
@@ -90,6 +97,16 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 36,
     height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.7,

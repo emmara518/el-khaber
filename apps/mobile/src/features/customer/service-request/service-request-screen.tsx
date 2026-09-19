@@ -30,12 +30,11 @@ import { ApiTechnicianDataSource } from '../discovery/api-technician-data-source
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
 import { ServiceRequestProgress } from './service-request-progress';
+import { REQUEST_SCENES } from './service-request-scenes';
 import {
   DESCRIPTION_MAX,
   OTHER_PROBLEM_ID,
-  PHOTOS_MAX,
   STEP_INDEX,
-  nextPhotoLabel,
   problemsForAppliance,
   type ServiceRequestDraft,
   type ServiceRequestHandoff,
@@ -49,7 +48,8 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ApplianceIcon, Avatar, Card, SectionHeader } from '@/ui';
+import { ApplianceIcon, Avatar, Card, Icon, SectionHeader } from '@/ui';
+import { applianceSceneAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
 
 
 const APPLIANCE_TITLES: Record<ApplianceSlug, string> = {
@@ -122,8 +122,11 @@ export default function ServiceRequestScreen({
     return guide.symptoms.find((s) => s.id === vm.machine.draft.symptomId)?.titleAr ?? null;
   }, [guide, vm.machine.draft.symptomId]);
 
+  if (technician === null && !techMissing) {
+    return <ListLoading label={t('state.loading')} />;
+  }
+
   if (techMissing || technician === null) {
-    if (technician !== null) return null;
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <Text accessibilityRole="header" style={styles.title}>
@@ -166,44 +169,38 @@ export default function ServiceRequestScreen({
     const submission = vm.submission;
     return (
       <ScrollView contentContainerStyle={styles.content}>
-        <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
-          <Text style={styles.successEmoji}>✓</Text>
-          <Text accessibilityRole="header" style={styles.successTitle}>
-            {t('request.success.title')}
-          </Text>
-          <Text style={styles.successBody}>{t('request.success.body')}</Text>
-          <Text style={styles.successMeta}>
-            رقم الطلب: {submission.requestId} · {technician.nameAr}
-          </Text>
-        </Card>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('request.success.track')}
-          onPress={() =>
-            router.push({ pathname: '/(customer)/requests/[id]', params: { id: submission.requestId } })
-          }
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>{t('request.success.track')}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('request.success.orders')}
-          onPress={() => router.replace('/(customer)/requests')}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>{t('request.success.orders')}</Text>
-        </Pressable>
+        <SceneHero compact asset="service_request_success" eyebrow="تم إرسال الطلب" title={t('request.success.title')} body="يمكنك الآن متابعة حالة الطلب ورد الفني. إرسال الطلب لا يعني تأكيد موعد الزيارة."
+          action={<SceneAction label={t('request.success.track')} onPress={() => router.replace({ pathname: '/(customer)/requests/[id]', params: { id: submission.requestId } })} />}
+        />
+        <SceneSection title={technician.nameAr} eyebrow={`رقم الطلب: ${submission.requestId}`} body={submission.createdAtAr}>
+          <Text style={styles.contextValue}>{vm.machine.draft.appliance ? APPLIANCE_TITLES[vm.machine.draft.appliance] : ''}</Text>
+          <SceneAction variant="secondary" label={t('request.success.orders')} onPress={() => router.replace('/(customer)/requests')} />
+        </SceneSection>
       </ScrollView>
     );
   }
 
   const { step, draft, stepError } = vm.machine;
+  const scene = REQUEST_SCENES[step];
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <RequestHeader technician={technician} onExit={safeBack} />
       <ServiceRequestProgress index={STEP_INDEX[step]} />
+      <SceneHero compact asset={scene.asset} eyebrow="طلب خدمة · خطوة بخطوة" title={scene.title} body={scene.body} />
+      {draft.appliance !== null ? (
+        <View style={styles.applianceContext}>
+          <ApplianceIcon slug={draft.appliance} size={40} />
+          <View style={styles.techText}>
+            <Text style={styles.contextLabel}>الجهاز المختار</Text>
+            <Text style={styles.contextValue}>{APPLIANCE_TITLES[draft.appliance]}</Text>
+          </View>
+          <Pressable accessibilityRole="button" accessibilityLabel="تغيير الجهاز" disabled={vm.submitStatus === 'submitting'} onPress={() => vm.dispatch({ type: 'GOTO', step: 'appliance' })} style={styles.reviewEdit}>
+            <Text style={styles.reviewEditText}>تغيير</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={styles.stepBody}>
 
       {stepError !== null ? (
         <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${stepError}`} style={styles.inlineError}>
@@ -230,17 +227,9 @@ export default function ServiceRequestScreen({
         />
       ) : null}
       {step === 'photos' ? (
-        <PhotosStep
-          draft={draft}
-          onAdd={() =>
-            vm.dispatch({
-              type: 'ADD_PHOTO',
-              photoId: `photo-${draft.photos.length + 1}-${Date.now() % 100000}`,
-              labelAr: nextPhotoLabel(draft.photos.length),
-            })
-          }
-          onRemove={(photoId) => vm.dispatch({ type: 'REMOVE_PHOTO', photoId })}
-        />
+        <SceneSection title="تابع دون صور" body="لا يتم رفع أو إرسال أي صور مع الطلب في النسخة الحالية. اكتب التفاصيل المهمة في وصف المشكلة.">
+          <SceneAction label="تعديل الوصف" variant="secondary" onPress={() => vm.dispatch({ type: 'GOTO', step: 'description' })} />
+        </SceneSection>
       ) : null}
       {step === 'location' ? (
         <LocationStep
@@ -277,25 +266,11 @@ export default function ServiceRequestScreen({
         />
       ) : null}
 
+      </View>
       {step !== 'review' ? (
         <View style={styles.nav}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('request.back')}
-            onPress={() => vm.dispatch({ type: 'BACK' })}
-            disabled={step === 'appliance'}
-            style={({ pressed }) => [styles.navBtn, step === 'appliance' && styles.disabled, pressed && styles.pressed]}
-          >
-            <Text style={styles.navBtnText}>› {t('request.back')}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('request.next')}
-            onPress={() => vm.dispatch({ type: 'NEXT' })}
-            style={({ pressed }) => [styles.navPrimary, pressed && styles.pressed]}
-          >
-            <Text style={styles.navPrimaryText}>{t('request.next')} ‹</Text>
-          </Pressable>
+          <SceneAction style={{ flex: 1 }} variant="secondary" label={t('request.back')} disabled={step === 'appliance'} onPress={() => vm.dispatch({ type: 'BACK' })} />
+          <SceneAction style={{ flex: 2 }} label={step === 'photos' ? 'المتابعة دون صور' : t('request.next')} onPress={() => vm.dispatch({ type: 'NEXT' })} />
         </View>
       ) : null}
       <View style={styles.bottomSpacer} />
@@ -317,18 +292,22 @@ function RequestHeader({ technician, onExit }: { technician: Technician; onExit:
           onPress={onExit}
           style={({ pressed }) => [styles.exit, pressed && styles.pressed]}
         >
-          <Text style={styles.exitText}>✕ {t('request.cancel')}</Text>
+          <Icon name="x" size={16} color={color.error.DEFAULT} accessibilityLabel="إلغاء" />
+          <Text style={styles.exitText}>{t('request.cancel')}</Text>
         </Pressable>
       </View>
-      <Card background={color.surface.base} padded style={styles.techCard}>
+      <View style={styles.techCard}>
         <Avatar initials={technician.initialsAr} size={48} accessibilityLabel={technician.nameAr} />
         <View style={styles.techText}>
           <Text style={styles.techName}>{technician.nameAr}</Text>
-          <Text style={styles.techMeta}>
-            {technician.specialtiesAr.join(' · ')} · ★ {technician.rating.toFixed(1)}
-          </Text>
+          <View style={styles.techMetaRow}>
+            <Icon name="star" size={13} color={color.brand.gold} accessibilityLabel="التقييم" />
+            <Text style={styles.techMeta}>
+              {technician.specialtiesAr.join(' · ')} · {technician.rating.toFixed(1)}
+            </Text>
+          </View>
         </View>
-      </Card>
+      </View>
     </View>
   );
 }
@@ -349,17 +328,7 @@ function ApplianceStep({
         {options.map((slug) => {
           const selected = draft.appliance === slug;
           return (
-            <Pressable
-              key={slug}
-              accessibilityRole="radio"
-              accessibilityLabel={`الجهاز: ${APPLIANCE_TITLES[slug]}${selected ? '، محدد حاليًا' : ''}`}
-              accessibilityState={{ selected, checked: selected }}
-              onPress={() => onSelect(slug)}
-              style={({ pressed }) => [styles.option, selected && styles.optionSelected, pressed && styles.pressed]}
-            >
-              <ApplianceIcon slug={slug} size={56} />
-              <Text style={styles.optionTitle}>{APPLIANCE_TITLES[slug]}</Text>
-            </Pressable>
+            <SceneObject key={slug} asset={applianceSceneAsset(slug)} title={APPLIANCE_TITLES[slug]} selected={selected} onPress={() => onSelect(slug)} />
           );
         })}
       </View>
@@ -405,7 +374,7 @@ function ProblemStep({
                 style={({ pressed }) => [styles.listOption, selected && styles.optionSelected, pressed && styles.pressed]}
               >
                 <Text style={styles.listOptionText}>{problem.titleAr}</Text>
-                {selected ? <Text style={styles.checkMark}>✓</Text> : null}
+                {selected ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
               </Pressable>
             );
           })}
@@ -421,7 +390,7 @@ function ProblemStep({
           ]}
         >
           <Text style={styles.listOptionText}>{t('request.problem.other')}</Text>
-          {draft.problemId === OTHER_PROBLEM_ID ? <Text style={styles.checkMark}>✓</Text> : null}
+          {draft.problemId === OTHER_PROBLEM_ID ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
         </Pressable>
       </View>
       {draft.problemId === OTHER_PROBLEM_ID ? (
@@ -465,59 +434,6 @@ function DescriptionStep({
       <Text style={styles.counter}>
         {draft.descriptionAr.length} / {DESCRIPTION_MAX}
       </Text>
-    </View>
-  );
-}
-
-function PhotosStep({
-  draft,
-  onAdd,
-  onRemove,
-}: {
-  draft: ServiceRequestDraft;
-  onAdd: () => void;
-  onRemove: (photoId: string) => void;
-}) {
-  const { t } = useI18n();
-  const full = draft.photos.length >= PHOTOS_MAX;
-  return (
-    <View>
-      <SectionHeader titleKey="request.photos.title" />
-      {draft.photos.length === 0 ? (
-        <Card background={color.surface.base} padded style={styles.center}>
-          <Text style={styles.emoji}>📷</Text>
-          <Text style={styles.muted}>{t('request.photos.empty')}</Text>
-        </Card>
-      ) : (
-        <View style={styles.photoGrid}>
-          {draft.photos.map((photo) => (
-            <View key={photo.id} style={styles.photo}>
-              <Text style={styles.photoEmoji}>🖼️</Text>
-              <Text style={styles.photoLabel}>{photo.labelAr}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${t('request.photos.remove')}: ${photo.labelAr}`}
-                onPress={() => onRemove(photo.id)}
-                style={styles.photoRemove}
-              >
-                <Text style={styles.photoRemoveText}>✕</Text>
-              </Pressable>
-            </View>
-          ))}
-        </View>
-      )}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${t('request.photos.add')}، ${draft.photos.length} من ${PHOTOS_MAX}`}
-        accessibilityState={{ disabled: full }}
-        onPress={onAdd}
-        disabled={full}
-        style={({ pressed }) => [styles.secondary, full && styles.disabled, pressed && !full && styles.pressed]}
-      >
-        <Text style={styles.secondaryText}>
-          ＋ {t('request.photos.add')} ({draft.photos.length}/{PHOTOS_MAX})
-        </Text>
-      </Pressable>
     </View>
   );
 }
@@ -569,10 +485,13 @@ function LocationStep({
                 style={({ pressed }) => [styles.listOption, selected && styles.optionSelected, pressed && styles.pressed]}
               >
                 <View style={styles.locationText}>
-                  <Text style={styles.listOptionText}>📍 {location.labelAr}</Text>
+                  <View style={styles.iconLead}>
+                    <Icon name="map-pin" size={15} color={color.text.secondary} accessibilityLabel="الموقع" />
+                    <Text style={styles.listOptionText}>{location.labelAr}</Text>
+                  </View>
                   <Text style={styles.locationDetail}>{location.detailAr}</Text>
                 </View>
-                {selected ? <Text style={styles.checkMark}>✓</Text> : null}
+                {selected ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
               </Pressable>
             );
           })}
@@ -615,7 +534,10 @@ function LocationStep({
           {saving ? (
             <ActivityIndicator color={color.surface.base} />
           ) : (
-            <Text style={styles.addBtnText}>＋ {t('request.location.save')}</Text>
+            <View style={styles.addBtnInner}>
+              <Icon name="plus" size={16} color={color.surface.base} />
+              <Text style={styles.addBtnText}>{t('request.location.save')}</Text>
+            </View>
           )}
         </Pressable>
       </View>
@@ -648,8 +570,13 @@ function AppointmentStep({
             pressed && styles.pressed,
           ]}
         >
-          <Text style={styles.listOptionText}>📞 {t('request.appointment.phone')}</Text>
-          {draft.appointmentSlotId === null ? <Text style={styles.checkMark}>✓</Text> : null}
+          <View style={styles.locationText}>
+            <View style={styles.iconLead}>
+              <Icon name="phone" size={15} color={color.text.secondary} accessibilityLabel="تواصل هاتفي" />
+              <Text style={styles.listOptionText}>{t('request.appointment.phone')}</Text>
+            </View>
+          </View>
+          {draft.appointmentSlotId === null ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
         </Pressable>
         {slots.map((slot) => {
           const selected = draft.appointmentSlotId === slot.id;
@@ -677,7 +604,7 @@ function AppointmentStep({
                   <Text style={styles.unavailable}>{t('request.appointment.unavailable')}</Text>
                 ) : null}
               </View>
-              {selected ? <Text style={styles.checkMark}>✓</Text> : null}
+              {selected ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
             </Pressable>
           );
         })}
@@ -754,7 +681,7 @@ function ReviewStep({
   return (
     <View>
       <SectionHeader titleKey="request.review.title" />
-      <Card background={color.surface.base} padded style={styles.review}>
+      <View style={styles.review}>
         {rows.map((row) => (
           <View key={row.key} style={styles.reviewRow}>
             <View style={styles.reviewText}>
@@ -765,49 +692,30 @@ function ReviewStep({
               accessibilityRole="button"
               accessibilityLabel={`${t('request.edit')} ${row.label}`}
               onPress={() => onGoto(row.step)}
+              disabled={submitting}
+              accessibilityState={{ disabled: submitting }}
               style={styles.reviewEdit}
             >
               <Text style={styles.reviewEditText}>{t('request.edit')}</Text>
             </Pressable>
           </View>
         ))}
-      </Card>
+      </View>
       {submitStatus === 'error' ? (
         <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${submitError ?? ''}`} style={styles.inlineError}>
           <Text style={styles.inlineErrorText}>{submitError}</Text>
         </View>
       ) : null}
-      {submitStatus === 'error' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('request.retrySubmit')}
-          onPress={onRetrySubmit}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>{t('request.retrySubmit')}</Text>
-        </Pressable>
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('request.submit')}
-          accessibilityState={{ disabled: submitting, busy: submitting }}
-          onPress={onSubmit}
-          disabled={submitting}
-          style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
-        >
-          {submitting ? (
-            <ActivityIndicator accessibilityLabel="جارٍ إرسال الطلب" color={color.surface.base} />
-          ) : (
-            <Text style={styles.primaryText}>{t('request.submit')}</Text>
-          )}
-        </Pressable>
-      )}
+      <SceneAction label={t(submitStatus === 'error' ? 'request.retrySubmit' : 'request.submit')} loading={submitting} loadingLabel="جارٍ إرسال الطلب…" onPress={submitStatus === 'error' ? onRetrySubmit : onSubmit} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  applianceContext: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[4], borderBottomWidth: 1, borderBottomColor: color.border.default },
+  stepBody: { paddingVertical: spacing[4] },
   content: {
+    direction: 'rtl',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
     paddingBottom: spacing[8],
@@ -830,6 +738,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing[2],
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   exitText: {
     color: color.error.DEFAULT,
@@ -851,10 +761,16 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
+  techMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: spacing[1] + 2,
+    marginTop: spacing[1],
+  },
   techMeta: {
     color: color.text.secondary,
     fontSize: typography.size.caption,
-    marginTop: spacing[1],
     textAlign: 'right',
   },
   inlineError: {
@@ -919,9 +835,12 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   checkMark: {
-    color: color.brand.gold,
-    fontSize: 20,
-    fontWeight: typography.weight.bold,
+    color: color.brand.navy,
+  },
+  iconLead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
   },
   locationText: {
     flex: 1,
@@ -962,6 +881,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing[3],
+  },
+  addBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
   },
   addBtnText: {
     color: color.surface.base,
@@ -1011,8 +935,22 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
     gap: spacing[2],
   },
-  emoji: {
-    fontSize: 40,
+  successBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoEmptyBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[1],
   },
   muted: {
     color: color.text.secondary,
@@ -1027,16 +965,13 @@ const styles = StyleSheet.create({
   },
   photo: {
     width: 100,
-    backgroundColor: color.surface.base,
+    backgroundColor: color.surface.subtle,
     borderWidth: 1,
     borderColor: color.border.default,
     borderRadius: radius.md,
     padding: spacing[2],
     alignItems: 'center',
     gap: spacing[1],
-  },
-  photoEmoji: {
-    fontSize: 32,
   },
   photoLabel: {
     color: color.text.primary,
@@ -1048,11 +983,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  photoRemoveText: {
-    color: color.error.DEFAULT,
-    fontSize: 18,
-    fontWeight: typography.weight.bold,
-  },
   secondary: {
     borderWidth: 1,
     borderColor: color.border.default,
@@ -1062,6 +992,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing[4],
+    flexDirection: 'row',
+    gap: spacing[2],
   },
   secondaryText: {
     color: color.brand.navy,
@@ -1134,6 +1066,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navBtnText: {
     color: color.brand.navy,
@@ -1147,15 +1081,13 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navPrimaryText: {
     color: color.surface.base,
     fontSize: typography.size.button,
     fontWeight: typography.weight.semibold,
-  },
-  successEmoji: {
-    fontSize: 56,
-    color: color.success.DEFAULT,
   },
   successTitle: {
     color: color.text.primary,

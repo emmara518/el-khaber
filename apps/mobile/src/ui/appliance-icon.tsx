@@ -1,5 +1,7 @@
-import { color, radius, typography } from '@khabir/ui-tokens';
-import { StyleSheet, Text, View } from 'react-native';
+import { color } from '@khabir/ui-tokens';
+import { StyleSheet, View } from 'react-native';
+
+import { Icon, type IconName } from './icon';
 
 import type { ApplianceSlug } from '../features/customer/home/data/customer-home-types';
 
@@ -11,13 +13,18 @@ interface ApplianceIconProps {
 }
 
 /**
- * Inline stylized illustration of an appliance. The reference design
- * uses an off-white tile per appliance. We render a circular tinted
- * tile with the appliance's first Arabic letter and a subtle border
- * to keep the visual weight consistent without bundling image assets.
+ * Vector appliance illustration: a soft tile with a navy glyph
+ * (droplet for washers, snowflake for fridges, wind for ACs).
+ * Consistent stroke and optical weight across the set — no letters,
+ * no emoji.
  */
 export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProps) {
-  const { glyph, tint } = ICONS[slug];
+  const ICONS: Record<ApplianceSlug, { icon: IconName; tint: string }> = {
+    air_conditioner: { icon: 'wind', tint: color.brand.navy },
+    refrigerator: { icon: 'thermometer', tint: color.brand.navy },
+    washing_machine: { icon: 'droplet', tint: color.brand.navy },
+  };
+  const { icon, tint } = ICONS[slug];
   return (
     <View
       style={[
@@ -25,45 +32,21 @@ export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProp
         {
           width: size,
           height: size,
-          borderRadius: radius.lg,
+          borderRadius: size / 3,
           backgroundColor: background ?? color.surface.subtle,
           borderColor: color.border.default,
         },
       ]}
     >
-      <View
-        style={[
-          styles.glyphWrap,
-          { backgroundColor: tint },
-        ]}
-      >
-        <Text style={[styles.glyph, { color: color.surface.base }]}>{glyph}</Text>
-      </View>
+      <Icon name={icon} size={Math.round(size * 0.4)} color={tint} />
     </View>
   );
 }
-
-const ICONS: Record<ApplianceSlug, { glyph: string; tint: string }> = {
-  air_conditioner: { glyph: 'م', tint: color.brand.navy },
-  refrigerator: { glyph: 'ث', tint: color.text.primary },
-  washing_machine: { glyph: 'غ', tint: color.text.secondary },
-};
 
 const styles = StyleSheet.create({
   tile: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  glyphWrap: {
-    width: '70%',
-    height: '70%',
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glyph: {
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
   },
 });

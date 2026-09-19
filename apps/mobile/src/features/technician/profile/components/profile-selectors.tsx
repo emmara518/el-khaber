@@ -1,12 +1,14 @@
 /**
  * Shared profile selectors (T-B) — one coherent selector language
  * used by BOTH the onboarding steps and the profile edit form:
- * multi-select chips (text + ✓ + border, never color alone) and a
+ * multi-select chips (text + check icon + border, never color alone) and a
  * labeled input with inline errors. No duplication between flows.
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { Icon } from '@/ui/icon';
 
 export function LabeledInput({
   label,
@@ -82,8 +84,9 @@ export function MultiSelectChips<T extends string>({
               onPress={() => onToggle(option)}
               style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
             >
+              {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
               <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                {on ? '✓ ' : ''}{option}
+                {option}
               </Text>
             </Pressable>
           );
@@ -147,11 +150,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     minHeight: 44,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
   },
   chipOn: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
   },
   pressed: {
     opacity: 0.75,

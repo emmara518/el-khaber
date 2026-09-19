@@ -15,10 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RoleTabBar, type ShellTab } from '@/features/shell/role-tab-bar';
 
 const TABS: ReadonlyArray<ShellTab> = [
-  { id: 'home', labelAr: 'الرئيسية', icon: '🏠' },
-  { id: 'products', labelAr: 'المنتجات', icon: '📦' },
-  { id: 'messages', labelAr: 'الرسائل', icon: '💬' },
-  { id: 'profile', labelAr: 'الملف الشخصي', icon: '👤' },
+  { id: 'home', labelAr: 'الرئيسية', icon: 'home' },
+  { id: 'products', labelAr: 'المنتجات', icon: 'package' },
+  { id: 'messages', labelAr: 'الرسائل', icon: 'message-circle' },
+  { id: 'profile', labelAr: 'الملف الشخصي', icon: 'user' },
 ];
 
 export default function MerchantTabsLayout() {

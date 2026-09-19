@@ -9,7 +9,7 @@
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   MERCHANT_CITY_OPTIONS,
@@ -24,7 +24,9 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, SectionHeader } from '@/ui';
+import { Card, Icon, SectionHeader } from '@/ui';
+import { SceneHero } from '@/ui/cinematic';
+import { sceneAssets } from '@/ui/scene-assets';
 
 const STEP_TITLES: Record<MerchantOnboardingStep, string> = {
   identity: 'هوية المتجر',
@@ -47,9 +49,16 @@ export default function MerchantOnboardingScreen({
 
   if (vm.submitStatus === 'submitted' && vm.submitted !== null) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
+        <Image
+          source={sceneAssets.merchant_success}
+          accessible={false}
+          importantForAccessibility="no"
+          resizeMode="cover"
+          style={styles.successScene}
+        />
         <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
-          <Text style={styles.successEmoji}>◷</Text>
+          <View style={styles.successBadge}><Icon name="clock" size={26} color={color.brand.navy} accessibilityLabel="قيد المراجعة" /></View>
           <Text accessibilityRole="header" style={styles.successTitle}>
             تم إرسال بيانات المتجر للمراجعة
           </Text>
@@ -71,9 +80,14 @@ export default function MerchantOnboardingScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        إكمال ملف المتجر
-      </Text>
+      <SceneHero
+        compact
+        asset="merchant_dashboard_hero"
+        eyebrow="إعداد المتجر"
+        title="إكمال ملف المتجر"
+        body={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
+      />
+      <View style={styles.editorial}>
       <Text
         accessibilityRole="text"
         accessibilityLabel={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
@@ -87,7 +101,7 @@ export default function MerchantOnboardingScreen({
             key={s}
             style={[styles.dot, i < index && styles.dotDone, i === index && styles.dotCurrent]}
           >
-            {i < index ? <Text style={styles.check}>✓</Text> : null}
+            {i < index ? <Icon name="check" size={13} color={color.surface.base} /> : null}
           </View>
         ))}
       </View>
@@ -132,8 +146,9 @@ export default function MerchantOnboardingScreen({
                     pressed && styles.pressed,
                   ]}
                 >
+                  {selected ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
                   <Text style={[styles.cityText, selected && styles.cityTextSelected]}>
-                    {selected ? '✓ ' : ''}{city}
+                    {city}
                   </Text>
                 </Pressable>
               );
@@ -209,7 +224,7 @@ export default function MerchantOnboardingScreen({
             disabled={index === 0}
             style={({ pressed }) => [styles.navBtn, index === 0 && styles.disabled, pressed && styles.pressed]}
           >
-            <Text style={styles.navBtnText}>› رجوع</Text>
+            <Icon name="corner-up-right" size={16} color={color.brand.navy} /><Text style={styles.navBtnText}>رجوع</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -217,11 +232,12 @@ export default function MerchantOnboardingScreen({
             onPress={() => vm.dispatch({ type: 'NEXT' })}
             style={({ pressed }) => [styles.navPrimary, pressed && styles.pressed]}
           >
-            <Text style={styles.navPrimaryText}>التالي ‹</Text>
+            <Text style={styles.navPrimaryText}>التالي</Text><Icon name="chevron-left" size={16} color={color.surface.base} />
           </Pressable>
         </View>
       ) : null}
       <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 }
@@ -300,15 +316,28 @@ function ReviewSummary({
           )}
         </Pressable>
       )}
-    </View>
+      </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
+    paddingBottom: spacing[8],
+  },
+  padded: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
-    paddingBottom: spacing[8],
+  },
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+  },
+  successScene: {
+    width: '100%',
+    height: 160,
+    borderRadius: radius.lg,
+    backgroundColor: color.brand.navyDeep,
+    marginBottom: spacing[4],
   },
   title: {
     color: color.text.primary,
@@ -347,11 +376,6 @@ const styles = StyleSheet.create({
   dotCurrent: {
     borderColor: color.brand.navy,
     backgroundColor: color.brand.gold,
-  },
-  check: {
-    color: color.surface.base,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
   },
   section: {
     gap: spacing[2],
@@ -408,11 +432,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
     minHeight: 44,
     justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   cityChipSelected: {
-    borderColor: color.brand.gold,
+    borderColor: color.brand.navy,
     borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
+    backgroundColor: color.surface.base,
   },
   cityText: {
     color: color.text.secondary,
@@ -450,6 +477,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navBtnText: {
     color: color.brand.navy,
@@ -463,6 +492,8 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navPrimaryText: {
     color: color.surface.base,
@@ -531,9 +562,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[2],
   },
-  successEmoji: {
-    fontSize: 48,
-    color: color.success.DEFAULT,
+  successBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successTitle: {
     color: color.text.primary,

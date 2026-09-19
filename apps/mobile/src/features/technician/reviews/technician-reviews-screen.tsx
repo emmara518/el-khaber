@@ -14,7 +14,8 @@ import { useTechnicianReviewsViewModel } from './use-technician-reviews-view-mod
 import type { TechnicianReviewsDataSource } from './technician-reviews-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, RatingStars, SectionHeader } from '@/ui';
+import { Card, RatingStars } from '@/ui';
+import { SceneHero } from '@/ui/cinematic';
 
 
 export default function TechnicianReviewsScreen({
@@ -27,63 +28,70 @@ export default function TechnicianReviewsScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('tech.reviews.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('tech.reviews.subtitle')}</Text>
+      <SceneHero
+        compact
+        asset="technician_profile_reviews"
+        eyebrow="سمعتك المهنية"
+        title={t('tech.reviews.title')}
+        body={t('tech.reviews.subtitle')}
+      />
 
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          title={t('tech.reviews.error')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data ? (
-        <>
-          <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.summary}>
-            <RatingStars rating={data.rating} reviewCount={data.reviewCount} />
-            <Text style={styles.summaryText}>
-              {data.reviewCount} {t('tech.reviews.count')}
-            </Text>
-          </Card>
+      <View style={styles.editorial}>
+        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_profile_reviews" /> : null}
+        {status === 'error' ? (
+          <ListError
+            asset="fault_empty"
+            title={t('tech.reviews.error')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        ) : null}
+        {status === 'loaded' && data ? (
+          <>
+            <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.summary}>
+              <RatingStars rating={data.rating} reviewCount={data.reviewCount} />
+              <Text style={styles.summaryText}>
+                {data.reviewCount} {t('tech.reviews.count')}
+              </Text>
+            </Card>
 
-          <SectionHeader titleKey="tech.reviews.list" />
-          {data.reviews.length === 0 ? (
-            <ListEmpty
-              icon="⭐"
-              iconLabel="لا توجد تقييمات"
-              title={t('tech.reviews.empty')}
-              body={t('tech.reviews.emptyBody')}
-            />
-          ) : (
-            <View style={styles.list}>
-              {data.reviews.map((review) => (
-                <Card key={review.id} background={color.surface.base} padded style={styles.review}>
-                  <View style={styles.reviewTop}>
-                    <Text style={styles.reviewAuthor}>{review.authorAr}</Text>
-                    <Text style={styles.reviewDate}>{review.dateAr}</Text>
-                  </View>
-                  <RatingStars rating={review.rating} reviewCount={0} size="sm" showCount={false} />
-                  <Text style={styles.reviewText}>{review.textAr}</Text>
-                </Card>
-              ))}
-            </View>
-          )}
-        </>
-      ) : null}
-      <View style={styles.bottomSpacer} />
+            {data.reviews.length === 0 ? (
+              <ListEmpty
+                asset="technician_trust"
+                icon="star"
+                iconLabel="لا توجد تقييمات"
+                title={t('tech.reviews.empty')}
+                body={t('tech.reviews.emptyBody')}
+              />
+            ) : (
+              <View style={styles.list}>
+                {data.reviews.map((review) => (
+                  <Card key={review.id} background={color.surface.base} padded style={styles.review}>
+                    <View style={styles.reviewTop}>
+                      <Text style={styles.reviewAuthor}>{review.authorAr}</Text>
+                      <Text style={styles.reviewDate}>{review.dateAr}</Text>
+                    </View>
+                    <RatingStars rating={review.rating} reviewCount={0} size="sm" showCount={false} />
+                    <Text style={styles.reviewText}>{review.textAr}</Text>
+                  </Card>
+                ))}
+              </View>
+            )}
+          </>
+        ) : null}
+        <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
     paddingBottom: spacing[8],
+  },
+  editorial: {
+    paddingHorizontal: spacing[5],
   },
   title: {
     color: color.text.primary,

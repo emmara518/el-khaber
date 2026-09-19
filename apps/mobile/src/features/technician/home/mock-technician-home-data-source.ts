@@ -24,6 +24,7 @@ const HOME_FIXTURE: TechnicianHomeViewModel = {
     verification: 'verified',
     verificationNoteAr: 'تم التحقق من الهوية والخبرة من قبل فريق الخبير.',
     availabilityLabelAr: 'متاح اليوم',
+    available: true,
   },
   today: {
     newRequests: 2,

@@ -2,9 +2,9 @@
  * Request action policy — pure transition layer (unit-tested).
  *
  * Derived from docs/07_API.md §22 (state transition rules):
- *   pending → accepted        (accept ✅)
- *   pending → cancelled       (reject ✅)
- *   accepted → cancelled      (reject ✅, policy permits)
+ *   pending → accepted        (accept [allowed])
+ *   pending → cancelled       (reject [allowed])
+ *   accepted → cancelled      (reject [allowed], policy permits)
  *   accepted → on_the_way     (T-D scope, not an action here)
  * Everything else (accept or reject from on_the_way / in_progress /
  * completed / cancelled, accept from accepted) is rejected.

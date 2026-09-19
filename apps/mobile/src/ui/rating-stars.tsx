@@ -1,6 +1,8 @@
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from './icon';
+
 interface RatingStarsProps {
   rating: number;
   reviewCount: number;
@@ -17,7 +19,7 @@ export function RatingStars({ rating, reviewCount, size = 'md', showCount = true
   const fontSize = size === 'sm' ? typography.size.caption : typography.size.body;
   return (
     <View style={styles.row}>
-      <Text style={[styles.star, { fontSize, color: color.brand.gold }]}>★</Text>
+      <Icon name="star" size={fontSize === typography.size.caption ? 13 : 15} color={color.brand.gold} accessibilityLabel="التقييم" />
       <Text style={[styles.rating, { fontSize, color: color.text.primary }]}>
         {rating.toFixed(1)}
       </Text>
@@ -34,13 +36,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  star: {
-    marginEnd: spacing[1],
-    fontWeight: typography.weight.bold,
+    gap: spacing[1],
   },
   rating: {
-    marginEnd: spacing[1],
     fontWeight: typography.weight.semibold,
   },
   count: {

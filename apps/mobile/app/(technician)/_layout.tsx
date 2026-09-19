@@ -16,11 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RoleTabBar, type ShellTab } from '@/features/shell/role-tab-bar';
 
 const TABS: ReadonlyArray<ShellTab> = [
-  { id: 'home', labelAr: 'الرئيسية', icon: '🏠' },
-  { id: 'orders', labelAr: 'الطلبات', icon: '📋' },
-  { id: 'services', labelAr: 'الخدمات', icon: '🛠️' },
-  { id: 'messages', labelAr: 'الرسائل', icon: '💬' },
-  { id: 'profile', labelAr: 'الملف الشخصي', icon: '👤' },
+  { id: 'home', labelAr: 'الرئيسية', icon: 'home' },
+  { id: 'orders', labelAr: 'الطلبات', icon: 'clipboard' },
+  { id: 'services', labelAr: 'الخدمات', icon: 'tool' },
+  { id: 'messages', labelAr: 'الرسائل', icon: 'message-circle' },
+  { id: 'profile', labelAr: 'الملف الشخصي', icon: 'user' },
 ];
 
 export default function TechnicianTabsLayout() {

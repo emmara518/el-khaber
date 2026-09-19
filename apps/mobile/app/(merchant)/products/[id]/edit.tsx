@@ -1,5 +1,5 @@
-import { ActivityIndicator, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 
 import { sharedMerchantProductsSource } from '../../../../src/features/merchant/products/api-merchant-products-data-source';
 import MerchantProductFormScreen from '../../../../src/features/merchant/products/merchant-product-form-screen';

@@ -1,16 +1,17 @@
 /**
- * Technician Profile screen (Batch C) — trust-first.
+ * Technician Profile screen (Batch C) — trust-first, cohesive narrative.
  *
- * Header (avatar, name, verification, rating, experience) →
- * availability → about → specialties/services → service area →
- * reviews → sticky "اطلب خدمة" handoff CTA (Batch D owns the
- * destination; this screen only builds the typed params).
- * Context (appliance/symptom) survives via route params.
+ * Real identity (avatar, name, verification, rating, availability)
+ * stays visually separate from the illustrative scene art. The page
+ * reads as one narrative: identity → about → services → reviews →
+ * location → request CTA. Context (appliance/symptom) survives via
+ * route params; the request handoff destination is unchanged.
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 import { useSafeBack } from '../components/use-safe-back';
@@ -26,8 +27,8 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, RatingStars, SectionHeader } from '@/ui';
-
+import { Avatar, Icon, RatingStars } from '@/ui';
+import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function TechnicianProfileScreen() {
   const { t } = useI18n();
@@ -47,28 +48,14 @@ export default function TechnicianProfileScreen() {
   const safeBack = useSafeBack('/(customer)/find-technician');
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <SafeAreaView edges={['top']} style={styles.root}>
       {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
       {status === 'error' ? (
-        <ListError
-          title={t('discovery.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
+        <ListError title={t('discovery.error.title')} message={error?.message ?? ''} retryLabel={t('state.retry')} onRetry={retry} />
       ) : null}
       {status === 'loaded' ? (
         technician === null ? (
-          <>
-            <ListEmpty
-              icon="👤"
-              iconLabel="فني غير موجود"
-              title={t('discovery.profile.missing')}
-              body={t('discovery.profile.missingBody')}
-              actionLabel={t('fault.back')}
-              onAction={safeBack}
-            />
-          </>
+          <ListEmpty asset="technician_placeholder_female" icon="user" iconLabel="فني غير موجود" title={t('discovery.profile.missing')} body={t('discovery.profile.missingBody')} actionLabel={t('fault.back')} onAction={safeBack} />
         ) : (
           <ProfileBody
             technician={technician}
@@ -79,211 +66,92 @@ export default function TechnicianProfileScreen() {
           />
         )
       ) : null}
-      <View style={styles.bottomSpacer} />
+    </SafeAreaView>
+  );
+}
+
+function ProfileBody({ technician, onRequestService, onBack }: { technician: Technician; onRequestService: () => void; onBack: () => void }) {
+  const { t } = useI18n();
+  return (
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <SceneHero
+        asset="technician_profile_hero"
+        eyebrow={technician.specialtiesAr.join(' · ')}
+        title={technician.nameAr}
+        body={`${technician.experienceAr} · ${technician.availabilityLabelAr}`}
+        action={<SceneAction label={t('discovery.profile.requestService')} accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`} onPress={onRequestService} />}
+        compact
+      >
+        <View style={styles.identity}>
+          <Avatar initials={technician.initialsAr} size={72} background={color.brand.gold} foreground={color.brand.navy} statusDot statusColor={technician.available ? color.success.DEFAULT : color.text.secondary} accessibilityLabel={`${technician.nameAr}${technician.available ? '، متاح' : '، مشغول حاليًا'}`} />
+          <View style={styles.identityCopy}>
+            <VerificationBadge verified={technician.verified} />
+            <RatingStars rating={technician.rating} reviewCount={technician.reviewCount} />
+          </View>
+        </View>
+      </SceneHero>
+      <View style={styles.editorial}>
+        <SceneSection title={t('discovery.profile.about')} eyebrow="نبذة" asset="technician_profile_services">
+          <Text style={styles.body}>{technician.aboutAr}</Text>
+        </SceneSection>
+        <SceneSection title={t('discovery.profile.services')} eyebrow="ما يمكنه تقديمه" body="الخدمات مدرجة كما يقدمها الفني." action={<SceneAction label="اطلب خدمة" onPress={onRequestService} />}>
+          <View style={styles.services}>
+            {technician.servicesAr.map((service) => (
+              <View key={service} style={styles.serviceTag} accessibilityLabel={`خدمة: ${service}`}>
+                <Text style={styles.serviceText}>{service}</Text>
+              </View>
+            ))}
+          </View>
+        </SceneSection>
+        <SceneSection title={t('discovery.profile.reviews')} eyebrow="تجارب حقيقية" asset="technician_profile_reviews">
+          {technician.reviews.length === 0 ? (
+            <Text style={styles.body}>{t('discovery.profile.noReviews')}</Text>
+          ) : (
+            <View style={styles.reviews}>
+              {technician.reviews.map((review) => (
+                <View key={review.id} style={styles.review}>
+                  <View style={styles.reviewTop}>
+                    <Text style={styles.reviewAuthor}>{review.authorAr}</Text>
+                    <Text style={styles.reviewDate}>{review.dateAr}</Text>
+                  </View>
+                  <RatingStars rating={review.rating} reviewCount={0} size="sm" showCount={false} />
+                  <Text style={styles.body}>{review.textAr}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </SceneSection>
+        <SceneSection title={t('discovery.profile.areas')} eyebrow="أين يعمل" asset="technician_profile_location">
+          <View style={styles.areaRow}>
+            <Icon name="map-pin" size={16} color={color.text.secondary} accessibilityLabel="مناطق الخدمة" />
+            <Text style={styles.body}>{technician.areasAr.join('، ')}</Text>
+          </View>
+        </SceneSection>
+        <SceneSection title="تعامل بثقة" eyebrow="الشفافية أولاً" asset="technician_trust" body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب." />
+        <View style={styles.ctaFooter}>
+          <SceneAction label={t('discovery.profile.requestService')} accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`} onPress={onRequestService} />
+          <SceneAction label={t('fault.back')} variant="secondary" onPress={onBack} />
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
-function ProfileBody({
-  technician,
-  onRequestService,
-  onBack,
-}: {
-  technician: Technician;
-  onRequestService: () => void;
-  onBack: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <>
-      <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.hero}>
-        <Avatar
-          initials={technician.initialsAr}
-          size={84}
-          background={color.brand.gold}
-          foreground={color.brand.navy}
-          statusDot
-          statusColor={technician.available ? color.success.DEFAULT : color.text.secondary}
-          accessibilityLabel={`${technician.nameAr}${technician.available ? '، متاح' : '، مشغول حاليًا'}`}
-        />
-        <Text accessibilityRole="header" style={styles.name}>
-          {technician.nameAr}
-        </Text>
-        <Text style={styles.specialty}>{technician.specialtiesAr.join(' · ')}</Text>
-        <RatingStars rating={technician.rating} reviewCount={technician.reviewCount} />
-        <View style={styles.heroRow}>
-          <VerificationBadge verified={technician.verified} />
-        </View>
-        <Text style={styles.heroMeta}>
-          {technician.experienceAr} · {technician.availabilityLabelAr}
-        </Text>
-      </Card>
-
-      <SectionHeader titleKey="discovery.profile.about" />
-      <Card background={color.surface.base} padded>
-        <Text style={styles.body}>{technician.aboutAr}</Text>
-      </Card>
-
-      <SectionHeader titleKey="discovery.profile.services" />
-      <View style={styles.tags}>
-        {technician.servicesAr.map((service) => (
-          <View key={service} accessibilityLabel={`خدمة: ${service}`} style={styles.tag}>
-            <Text style={styles.tagText}>{service}</Text>
-          </View>
-        ))}
-      </View>
-
-      <SectionHeader titleKey="discovery.profile.areas" />
-      <Card background={color.surface.base} padded>
-        <Text style={styles.body}>📍 {technician.areasAr.join('، ')}</Text>
-      </Card>
-
-      <SectionHeader titleKey="discovery.profile.reviews" />
-      {technician.reviews.length === 0 ? (
-        <Card background={color.surface.base} padded>
-          <Text style={styles.body}>{t('discovery.profile.noReviews')}</Text>
-        </Card>
-      ) : (
-        <View style={styles.reviews}>
-          {technician.reviews.map((review) => (
-            <Card key={review.id} background={color.surface.base} padded>
-              <View style={styles.reviewTop}>
-                <Text style={styles.reviewAuthor}>{review.authorAr}</Text>
-                <Text style={styles.reviewDate}>{review.dateAr}</Text>
-              </View>
-              <RatingStars rating={review.rating} reviewCount={0} size="sm" showCount={false} />
-              <Text style={styles.body}>{review.textAr}</Text>
-            </Card>
-          ))}
-        </View>
-      )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`}
-        onPress={onRequestService}
-        style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
-      >
-        <Text style={styles.ctaText}>{t('discovery.profile.requestService')}</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('fault.back')}
-        onPress={onBack}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Text style={styles.secondaryText}>{t('fault.back')}</Text>
-      </Pressable>
-    </>
-  );
-}
-
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    paddingBottom: spacing[8],
-  },
-  hero: {
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  name: {
-    color: color.surface.base,
-    fontSize: typography.size.h1,
-    fontWeight: typography.weight.bold,
-    textAlign: 'center',
-  },
-  specialty: {
-    color: color.brand.goldSoft,
-    fontSize: typography.size.body,
-    textAlign: 'center',
-  },
-  heroRow: {
-    flexDirection: 'row',
-    marginTop: spacing[1],
-  },
-  heroMeta: {
-    color: color.surface.base,
-    fontSize: typography.size.body,
-    opacity: 0.9,
-    textAlign: 'center',
-  },
-  body: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
-  },
-  tag: {
-    backgroundColor: color.surface.base,
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  tagText: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-  },
-  reviews: {
-    gap: spacing[3],
-  },
-  reviewTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  reviewAuthor: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-  },
-  reviewDate: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-  },
-  cta: {
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[5],
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  ctaText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  secondary: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[3],
-  },
-  secondaryText: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  root: { flex: 1, backgroundColor: color.brand.navy, direction: 'rtl' },
+  content: { flexGrow: 1, backgroundColor: color.surface.subtle, paddingBottom: spacing[8] },
+  editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[2] },
+  identityCopy: { gap: spacing[2] },
+  body: { color: color.text.primary, fontSize: typography.size.body, textAlign: 'right', writingDirection: 'rtl', lineHeight: 28 },
+  services: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
+  serviceTag: { backgroundColor: color.brand.goldSoft, borderRadius: radius.pill, paddingHorizontal: spacing[4], paddingVertical: spacing[2], minHeight: 44, justifyContent: 'center' },
+  serviceText: { color: color.brand.navy, fontSize: typography.size.body, fontWeight: typography.weight.semibold, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
+  reviews: { gap: spacing[3] },
+  review: { borderWidth: 1, borderColor: color.border.default, borderRadius: radius.lg, backgroundColor: color.surface.base, padding: spacing[4], gap: spacing[2] },
+  reviewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  reviewAuthor: { color: color.text.primary, fontSize: typography.size.body, fontWeight: typography.weight.bold, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
+  reviewDate: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
+  areaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  ctaFooter: { gap: spacing[3], marginTop: spacing[5] },
 });

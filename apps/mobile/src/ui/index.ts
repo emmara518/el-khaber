@@ -9,6 +9,8 @@
  * is the single source of visual truth (docs/04_UI_UX.md).
  */
 
+export { Icon, ICON_SIZE_SCALE, type IconName, type IconSize } from './icon';
+export { MenuRow, MenuDivider } from './menu-row';
 export { ScreenContainer } from './screen-container';
 export { SectionHeader } from './section-header';
 export { Card } from './card';

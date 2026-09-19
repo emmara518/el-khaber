@@ -1,5 +1,7 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { StyleSheet, Text, View, type TextStyle, type ViewStyle } from 'react-native';
+import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+
+import { Icon, type IconName } from './icon';
 
 import type { QuickServiceItem } from '../features/customer/home/data/customer-home-types';
 
@@ -12,7 +14,7 @@ interface QuickServiceIconProps {
 }
 
 /**
- * Square tile with a centered icon glyph and a label below. Matches
+ * Square tile with a centered vector icon and a label below. Matches
  * the "خدمات سريعة" row in the reference design.
  */
 export function QuickServiceIcon({
@@ -22,10 +24,11 @@ export function QuickServiceIcon({
   size = 56,
   style,
 }: QuickServiceIconProps) {
-  const glyphStyle: TextStyle = {
-    color: foreground ?? color.surface.base,
-    fontSize: Math.round(size * 0.4),
-    fontWeight: typography.weight.bold,
+  const ICONS: Record<QuickServiceItem['icon'], IconName> = {
+    wrench: 'tool',
+    search: 'search',
+    clipboard: 'clipboard',
+    package: 'package',
   };
   return (
     <View
@@ -44,7 +47,11 @@ export function QuickServiceIcon({
           },
         ]}
       >
-        <Text style={glyphStyle}>{GLYPHS[item.icon]}</Text>
+        <Icon
+          name={ICONS[item.icon]}
+          size={Math.round(size * 0.42)}
+          color={foreground ?? color.surface.base}
+        />
       </View>
       <Text style={styles.label} numberOfLines={2}>
         {item.titleAr}
@@ -52,13 +59,6 @@ export function QuickServiceIcon({
     </View>
   );
 }
-
-const GLYPHS: Record<QuickServiceItem['icon'], string> = {
-  wrench: '🔧',
-  search: '🔍',
-  clipboard: '📋',
-  package: '📦',
-};
 
 const styles = StyleSheet.create({
   wrap: {
@@ -68,9 +68,6 @@ const styles = StyleSheet.create({
   tile: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  glyph: {
-    fontWeight: typography.weight.bold,
   },
   label: {
     marginTop: spacing[2],

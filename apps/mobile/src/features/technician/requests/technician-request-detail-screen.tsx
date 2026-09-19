@@ -13,7 +13,6 @@ import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -26,12 +25,14 @@ import { ListEmpty, ListError, ListLoading } from '../../customer/components/lis
 
 import { canAccept, canReject } from './request-policy';
 import { findTechnicianRequest } from './technician-request-types';
+import { TechnicianWorkScene } from './technician-work-scene';
 import { useTechnicianRequestsViewModel } from './use-technician-requests-view-model';
 
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
+import { Card, Icon } from '@/ui';
+import { SceneAction, SceneSection } from '@/ui/cinematic';
 
 const ACTIVE_STATES = ['accepted', 'on_the_way', 'in_progress'] as const;
 
@@ -80,7 +81,7 @@ export default function TechnicianRequestDetailScreen({
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <ListEmpty
-          icon="📋"
+          icon="clipboard"
           iconLabel="طلب غير موجود"
           title={t('tech.request.missing')}
           body={t('tech.request.missingBody')}
@@ -97,35 +98,17 @@ export default function TechnicianRequestDetailScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.heading}>
-        <View>
-          <Text accessibilityRole="header" style={styles.title}>
-            {t('tech.request.title')}
-          </Text>
-          <Text style={styles.ref}>
-            {t('tech.request.ref')}: {request.id}
-          </Text>
-        </View>
-        <StatusBadge status={request.status} label={request.statusLabelAr} />
-      </View>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.customer')}</Text>
-        <Text style={styles.value}>{request.customerNameAr}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.problem')}</Text>
-        <Text style={styles.value}>
-          {request.applianceAr} · {request.problemAr}
-        </Text>
-        <Text style={styles.body}>{request.descriptionAr}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
+      <TechnicianWorkScene request={request} action={showAccept ? <SceneAction label={t('tech.request.accept')} loading={submitting} loadingLabel="جارٍ قبول الطلب" onPress={() => vm.accept(request.id)} /> : undefined} />
+      <SceneSection title={request.customerNameAr} eyebrow={request.applianceAr} body={request.descriptionAr}>
         <Text style={styles.sectionLabel}>{t('tech.request.logistics')}</Text>
-        <Text style={styles.value}>📍 {request.locationAr}</Text>
-        <Text style={styles.value}>🕐 {request.timeAr}</Text>
+        <View style={styles.valueRow}>
+          <Icon name="map-pin" size={15} color={color.text.secondary} accessibilityLabel="الموقع" />
+          <Text style={styles.value}>{request.locationAr}</Text>
+        </View>
+        <View style={styles.valueRow}>
+          <Icon name="clock" size={15} color={color.text.secondary} accessibilityLabel="الوقت" />
+          <Text style={styles.value}>{request.timeAr}</Text>
+        </View>
         <Text style={styles.meta}>
           {t('tech.request.created')}: {request.createdAr}
         </Text>
@@ -134,7 +117,7 @@ export default function TechnicianRequestDetailScreen({
             {t('tech.request.appointment')}: {request.appointmentAr}
           </Text>
         ) : null}
-      </Card>
+      </SceneSection>
 
       {vm.actionStatus === 'success' && vm.actionResult !== null ? (
         <Card
@@ -185,23 +168,6 @@ export default function TechnicianRequestDetailScreen({
         <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${vm.actionError ?? ''}`} style={styles.inlineError}>
           <Text style={styles.inlineErrorText}>{vm.actionError}</Text>
         </View>
-      ) : null}
-
-      {showAccept ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.request.accept')}
-          accessibilityState={{ disabled: submitting, busy: submitting }}
-          onPress={() => vm.accept(request.id)}
-          disabled={submitting}
-          style={({ pressed }) => [styles.accept, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
-        >
-          {submitting ? (
-            <ActivityIndicator accessibilityLabel="جارٍ قبول الطلب" color={color.surface.base} />
-          ) : (
-            <Text style={styles.acceptText}>✓ {t('tech.request.accept')}</Text>
-          )}
-        </Pressable>
       ) : null}
 
       {showReject ? (
@@ -284,6 +250,7 @@ export default function TechnicianRequestDetailScreen({
 
 const styles = StyleSheet.create({
   content: {
+    direction: 'rtl',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
     paddingBottom: spacing[8],
@@ -323,6 +290,12 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
+    marginTop: spacing[1],
   },
   body: {
     color: color.text.primary,
@@ -364,6 +337,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing[4],
+    flexDirection: 'row',
+    gap: spacing[2],
   },
   entryGap: {
     marginTop: spacing[2],

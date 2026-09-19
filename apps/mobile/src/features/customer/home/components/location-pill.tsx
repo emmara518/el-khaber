@@ -1,7 +1,7 @@
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Pill } from '../../../../ui';
+import { Icon, Pill } from '../../../../ui';
 
 interface LocationPillProps {
   city: string;
@@ -20,11 +20,9 @@ export function LocationPill({ city, district, onPress }: LocationPillProps) {
         onPress={onPress}
         accessibilityLabel={`${city} - ${district}`}
         background={color.surface.base}
-        leading={
-          <Text style={styles.pin}>📍</Text>
-        }
+        leading={<Icon name="map-pin" size={14} color={color.brand.gold} accessibilityLabel="الموقع" />}
         trailing={
-          <Text style={styles.chevron}>⌄</Text>
+          <Icon name="chevron-down" size={14} color={color.text.secondary} accessibilityLabel="تغيير الموقع" />
         }
       >
         <Text style={styles.text}>
@@ -39,13 +37,6 @@ const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
     paddingBottom: spacing[4],
-  },
-  pin: {
-    fontSize: typography.size.body,
-  },
-  chevron: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
   },
   text: {
     color: color.text.primary,

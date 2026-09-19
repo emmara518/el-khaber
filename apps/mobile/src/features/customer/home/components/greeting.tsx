@@ -8,7 +8,7 @@ interface GreetingProps {
 
 /**
  * Centered greeting on the navy header. The reference uses
- * "مرحبا أحمد 👋" followed by a calmer sub-line.
+ * "مرحبا أحمد " followed by a calmer sub-line.
  */
 export function Greeting({ line1, line2 }: GreetingProps) {
   return (

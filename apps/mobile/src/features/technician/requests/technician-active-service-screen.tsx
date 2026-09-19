@@ -15,7 +15,6 @@ import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -28,12 +27,14 @@ import { ApiChatDataSource } from '../../customer/chat/api-chat-data-source';
 import { ChatDialog } from '../../customer/chat/chat-dialog';
 import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
+import { TechnicianWorkScene } from './technician-work-scene';
 import { useTechnicianActiveServiceViewModel } from './use-technician-active-service-view-model';
 
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
+import { Card, Icon } from '@/ui';
+import { SceneAction, SceneSection } from '@/ui/cinematic';
 
 
 const STATUS_HINTS: Record<string, string> = {
@@ -89,7 +90,7 @@ export default function TechnicianActiveServiceScreen({
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <ListEmpty
-          icon="🛠️"
+          icon="tool"
           iconLabel="طلب غير موجود"
           title={t('tech.request.missing')}
           body={t('tech.request.missingBody')}
@@ -101,56 +102,31 @@ export default function TechnicianActiveServiceScreen({
   }
 
   const hint = STATUS_HINTS[request.status] ?? '';
-  const isTerminal = request.status === 'completed' || request.status === 'cancelled';
   const showCompleteConfirm = request.status === 'in_progress' && confirmingComplete;
   const submitting = vm.actionStatus === 'submitting';
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.heading}>
-        <View>
-          <Text accessibilityRole="header" style={styles.title}>
-            {t('tech.active.title')}
-          </Text>
-          <Text style={styles.ref}>
-            {t('tech.request.ref')}: {request.id}
-          </Text>
-        </View>
-        <StatusBadge status={request.status} label={request.statusLabelAr} />
-      </View>
+      <TechnicianWorkScene request={request} hint={hint} action={vm.nextActionAr !== null ? (
+        <SceneAction label={vm.nextActionAr} loading={submitting} loadingLabel="جارٍ تحديث حالة الطلب" onPress={() => {
+          if (request.status === 'in_progress') setConfirmingComplete(true);
+          else vm.advance();
+        }} />
+      ) : undefined} />
 
-      <Card
-        background={isTerminal ? color.surface.base : color.brand.navy}
-        borderColor={isTerminal ? color.border.default : color.brand.navy}
-        padded
-        style={styles.now}
-      >
-        <Text style={[styles.nowLabel, isTerminal && styles.nowLabelMuted]}>
-          {t('tech.active.now')}
-        </Text>
-        <Text style={[styles.nowHint, isTerminal && styles.nowHintMuted]}>{hint}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.customer')}</Text>
-        <Text style={styles.value}>{request.customerNameAr}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.problem')}</Text>
-        <Text style={styles.value}>
-          {request.applianceAr} · {request.problemAr}
-        </Text>
-        <Text style={styles.body}>{request.descriptionAr}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
+      <SceneSection title={request.customerNameAr} eyebrow={request.applianceAr} body={request.descriptionAr}>
         <Text style={styles.sectionLabel}>{t('tech.request.logistics')}</Text>
-        <Text style={styles.value}>📍 {request.locationAr}</Text>
+        <View style={styles.valueRow}>
+          <Icon name="map-pin" size={15} color={color.text.secondary} accessibilityLabel="الموقع" />
+          <Text style={styles.value}>{request.locationAr}</Text>
+        </View>
         {request.appointmentAr !== null ? (
-          <Text style={styles.value}>🕐 {request.appointmentAr}</Text>
+          <View style={styles.valueRow}>
+            <Icon name="clock" size={15} color={color.text.secondary} accessibilityLabel="الوقت" />
+            <Text style={styles.value}>{request.appointmentAr}</Text>
+          </View>
         ) : null}
-      </Card>
+      </SceneSection>
 
       {vm.actionStatus === 'success' && vm.actionResult !== null ? (
         vm.actionResult.status === 'completed' ? (
@@ -188,36 +164,6 @@ export default function TechnicianActiveServiceScreen({
         </View>
       ) : null}
 
-      {vm.nextActionAr !== null ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={vm.nextActionAr}
-          accessibilityState={{ disabled: submitting, busy: submitting }}
-          onPress={() => {
-            if (request.status === 'in_progress') {
-              setConfirmingComplete(true);
-            } else {
-              vm.advance();
-            }
-          }}
-          disabled={submitting}
-          style={({ pressed }) => [
-            styles.primary,
-            submitting && styles.disabled,
-            pressed && !submitting && styles.pressed,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator
-              accessibilityLabel="جارٍ تحديث حالة الطلب"
-              color={color.surface.base}
-            />
-          ) : (
-            <Text style={styles.primaryText}>{vm.nextActionAr}</Text>
-          )}
-        </Pressable>
-      ) : null}
-
       {vm.actionStatus === 'error' ? (
         <Pressable
           accessibilityRole="button"
@@ -236,7 +182,8 @@ export default function TechnicianActiveServiceScreen({
           onPress={() => setChatOpen(true)}
           style={({ pressed }) => [styles.chat, pressed && styles.pressed]}
         >
-          <Text style={styles.chatText}>💬 {t('tech.active.chat')}</Text>
+          <Icon name="message-circle" size={18} color={color.surface.base} accessibilityLabel="المحادثة" />
+          <Text style={styles.chatText}>{t('tech.active.chat')}</Text>
         </Pressable>
       ) : null}
 
@@ -303,6 +250,7 @@ export default function TechnicianActiveServiceScreen({
 
 const styles = StyleSheet.create({
   content: {
+    direction: 'rtl',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
     paddingBottom: spacing[8],
@@ -367,6 +315,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
+    marginTop: spacing[1],
+  },
   body: {
     color: color.text.primary,
     fontSize: typography.size.body,
@@ -423,6 +377,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     minHeight: 52,
     marginTop: spacing[4],
+    gap: spacing[2],
   },
   chatText: {
     color: color.surface.base,

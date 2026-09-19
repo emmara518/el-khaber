@@ -122,6 +122,7 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
           ? 'تم التحقق من الهوية والخبرة من قبل فريق الخبير.'
           : '',
         availabilityLabelAr: availabilityLabel,
+        available: tech?.availabilityStatus === 'available',
       },
       today: {
         newRequests: summaries.filter((s) => s.status === 'pending').length,

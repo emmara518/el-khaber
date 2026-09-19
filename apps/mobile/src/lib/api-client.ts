@@ -150,10 +150,32 @@ let singleton: ApiClient | null = null;
 
 export function getApi(): ApiClient {
   if (singleton === null) {
-    const baseUrl =
+    const raw =
+      // Dot access so Expo's babel plugin can statically inline EXPO_PUBLIC_* at bundle time.
+      process.env.EXPO_PUBLIC_API_URL ??
       (typeof process !== 'undefined' && process.env !== undefined
         ? process.env['EXPO_PUBLIC_API_URL']
-        : undefined) ?? 'http://localhost:3000/api/v1';
+        : undefined);
+    const isDev =
+      typeof __DEV__ !== 'undefined'
+        ? __DEV__
+        : process.env.NODE_ENV !== 'production';
+    if ((raw === undefined || raw.trim().length === 0) && !isDev) {
+      // Production must never silently fall back to an emulator loopback.
+      throw new Error(
+        'EXPO_PUBLIC_API_URL is not configured. Set it to the deployed HTTPS API base (e.g. https://api.example.com/api/v1).',
+      );
+    }
+    const fallback = 'http://10.0.2.2:3010/api/v1';
+    // Defensive: trim stray whitespace (prevents "/api/v1%20/..." 404s) and drop trailing slashes.
+    const baseUrl = (raw ?? fallback).trim().replace(/\/+$/, '');
+    if (!isDev && baseUrl.startsWith('http://')) {
+      // Fail-closed: production traffic must be HTTPS (or a loopback QA override set explicitly).
+      console.warn(
+        '[api-client] insecure http API URL in production build — use HTTPS:',
+        baseUrl,
+      );
+    }
     singleton = new ApiClient({ baseUrl });
   }
   return singleton;

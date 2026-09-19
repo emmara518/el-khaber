@@ -30,6 +30,7 @@ import type { MerchantProductsDataSource } from './mock-merchant-products-data-s
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card, StatusBadge } from '@/ui';
+import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function MerchantProductDetailScreen({
   productId,
@@ -51,7 +52,7 @@ export default function MerchantProductDetailScreen({
   if (status === 'loading') {
     return (
       <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text accessibilityRole="header" style={styles.detailTitle}>
           {t('merchant.product.title')}
         </Text>
         <ListLoading label={t('state.loading')} />
@@ -62,7 +63,7 @@ export default function MerchantProductDetailScreen({
   if (status === 'error') {
     return (
       <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text accessibilityRole="header" style={styles.detailTitle}>
           {t('merchant.product.title')}
         </Text>
         <ListError
@@ -80,7 +81,7 @@ export default function MerchantProductDetailScreen({
     return (
       <ScrollView contentContainerStyle={styles.content}>
         <ListEmpty
-          icon="📦"
+          icon="package"
           iconLabel="منتج غير موجود"
           title={t('merchant.product.missing')}
           body={t('merchant.product.missingBody')}
@@ -93,37 +94,25 @@ export default function MerchantProductDetailScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.heading}>
-        <View style={styles.headingText}>
-          <Text accessibilityRole="header" style={styles.title}>
-            {t('merchant.product.title')}
-          </Text>
-          <Text style={styles.ref}>
-            {t('merchant.product.ref')}: {product.id}
-          </Text>
-        </View>
-        <StatusBadge status={product.status} label={product.statusLabelAr} />
-      </View>
+      <SceneHero
+        compact
+        asset="merchant_success"
+        eyebrow={`منتج ${product.id} · ${product.statusLabelAr}`}
+        title={product.nameAr}
+        body={product.categoryAr !== '' ? product.categoryAr : `${t('merchant.product.ref')}: ${product.id}`}
+        action={editEnabled && shared ? (
+          <SceneAction label={t('merchant.product.edit')} onPress={() => router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })} />
+        ) : undefined}
+      >
+        {product.priceSar !== null ? <Text style={styles.heroPrice}>{product.priceSar} ريال</Text> : null}
+      </SceneHero>
 
-      <Card background={color.surface.base} padded style={styles.card}>
-        <View style={styles.imageRow}>
-          <ProductImagePlaceholder nameAr={product.nameAr} size={96} hasImage={product.hasImage} />
-          <View style={styles.imageText}>
-            <Text style={styles.name}>{product.nameAr}</Text>
-            <Text style={styles.category}>{product.categoryAr}</Text>
-            {product.priceSar !== null ? (
-              <Text style={styles.price}>{product.priceSar} ريال</Text>
-            ) : (
-              <Text style={styles.noPrice}>{t('merchant.catalog.noPrice')}</Text>
-            )}
-          </View>
+      <SceneSection title={t('merchant.product.description')} body={product.descriptionAr}>
+        <View style={styles.showcase}>
+          <ProductImagePlaceholder nameAr={product.nameAr} hasImage={product.hasImage} />
+          <StatusBadge status={product.status} label={product.statusLabelAr} />
         </View>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('merchant.product.description')}</Text>
-        <Text style={styles.body}>{product.descriptionAr}</Text>
-      </Card>
+      </SceneSection>
 
       {editEnabled && shared ? (
         <ProductActions
@@ -140,14 +129,16 @@ export default function MerchantProductDetailScreen({
         />
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('merchant.product.backToCatalog')}
-        onPress={() => router.replace('/(merchant)/products')}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Text style={styles.secondaryText}>{t('merchant.product.backToCatalog')}</Text>
-      </Pressable>
+      {!(editEnabled && shared) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('merchant.product.backToCatalog')}
+          onPress={() => router.replace('/(merchant)/products')}
+          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+        >
+          <Text style={styles.secondaryText}>{t('merchant.product.backToCatalog')}</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.bottomSpacer} />
     </ScrollView>
   );
@@ -227,7 +218,7 @@ function ProductActions({
           background={color.success.soft}
           borderColor={color.success.DEFAULT}
           padded
-          style={styles.card}
+          style={styles.successCard}
         >
           <Text accessibilityRole="alert" style={styles.statusTitle}>
             {mutationResult.status === 'active'
@@ -288,77 +279,13 @@ function ProductActions({
 
 const styles = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    direction: 'rtl',
     paddingBottom: spacing[8],
   },
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing[3],
-  },
-  headingText: {
-    flex: 1,
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  ref: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  card: {
-    marginTop: spacing[3],
-    gap: spacing[2],
-  },
-  imageRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  imageText: {
-    flex: 1,
-  },
-  name: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  category: {
-    color: color.brand.navy,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  price: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    marginTop: spacing[2],
-    textAlign: 'right',
-  },
-  noPrice: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[2],
-    textAlign: 'right',
-  },
-  sectionLabel: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
+  detailTitle: { color: color.text.primary, fontSize: typography.size.h2, fontWeight: typography.weight.bold, textAlign: 'right', writingDirection: 'rtl', padding: spacing[5] },
+  successCard: { marginHorizontal: spacing[5], gap: spacing[2] },
+  heroPrice: { color: color.brand.gold, fontSize: typography.size.h2, fontWeight: typography.weight.bold, lineHeight: 36, textAlign: 'right', writingDirection: 'rtl' },
+  showcase: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3], padding: spacing[3], backgroundColor: color.surface.base, borderRadius: radius.md, borderWidth: 1, borderColor: color.border.default },
   body: {
     color: color.text.primary,
     fontSize: typography.size.body,

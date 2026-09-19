@@ -140,32 +140,32 @@ export function toggleStringList<T>(list: ReadonlyArray<T>, value: T): ReadonlyA
 
 /** Conservative 4-state copy — generic messages, no legal claims. */
 export function verificationStatusCopy(status: TechnicianVerificationStatus): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'x-circle' | 'alert-circle';
   titleAr: string;
   bodyAr: string;
 } {
   switch (status) {
     case 'approved':
       return {
-        icon: '✓',
+        icon: 'check-circle',
         titleAr: 'تم التحقق',
         bodyAr: 'تم التحقق من بياناتك. ملفك ظاهر الآن للعملاء.',
       };
     case 'pending':
       return {
-        icon: '◷',
+        icon: 'clock',
         titleAr: 'قيد المراجعة',
         bodyAr: 'تم إرسال البيانات للمراجعة. سنعلمك فور انتهائها.',
       };
     case 'rejected':
       return {
-        icon: '✕',
+        icon: 'x-circle',
         titleAr: 'تعذر اعتماد البيانات',
         bodyAr: 'لم يتم اعتماد البيانات الحالية. راجع بياناتك وحدثها ثم أعد الإرسال.',
       };
     case 'action_required':
       return {
-        icon: '!',
+        icon: 'alert-circle',
         titleAr: 'يحتاج إلى تحديث البيانات',
         bodyAr: 'نحتاج إلى تحديث بعض بياناتك قبل إتمام المراجعة.',
       };
