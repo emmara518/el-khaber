@@ -39,9 +39,9 @@ describe('technician home fixture (deterministic)', () => {
 
 describe('verification copy (icon + text, never color alone)', () => {
   it('covers verified / pending / action_required', () => {
-    expect(verificationCopy('verified')).toEqual({ icon: '✓', titleAr: 'تم التحقق' });
-    expect(verificationCopy('pending')).toEqual({ icon: '◷', titleAr: 'قيد المراجعة' });
-    expect(verificationCopy('action_required')).toEqual({ icon: '!', titleAr: 'يحتاج إجراء' });
+    expect(verificationCopy('verified')).toEqual({ icon: 'check-circle', titleAr: 'تم التحقق' });
+    expect(verificationCopy('pending')).toEqual({ icon: 'clock', titleAr: 'قيد المراجعة' });
+    expect(verificationCopy('action_required')).toEqual({ icon: 'alert-circle', titleAr: 'يحتاج إجراء' });
   });
 
   it('uses conservative language (no licensing claims)', async () => {
