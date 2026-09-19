@@ -50,28 +50,15 @@ function baseUrl(): string {
 
 export function loadAdminSession(): AdminSession | null {
   if (typeof window === 'undefined') return null;
-  const raw = window.localStorage.getItem(TOKEN_KEY);
-  if (raw === null) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<AdminSession>;
-    if (
-      typeof parsed.accessToken !== 'string' ||
-      parsed.accessToken.length === 0 ||
-      typeof parsed.refreshToken !== 'string' ||
-      parsed.refreshToken.length === 0
-    ) {
-      return null;
-    }
-    // Enforce access-token expiry client-side: an expired session must
-    // re-authenticate instead of sending a known-dead token.
-    if (typeof parsed.expiresAt !== 'number' || Date.now() >= parsed.expiresAt) {
-      window.localStorage.removeItem(TOKEN_KEY);
-      return null;
-    }
-    return parsed as AdminSession;
-  } catch {
-    return null;
-  }
+  const stored = readStoredSession();
+  if (stored === null) return null;
+  // NOTE: an expired access token does NOT invalidate the stored session.
+  // Access expiry is enforced by the API (JWT `exp`); the client sends the
+  // token as-is and the 401 path below performs exactly one silent refresh
+  // (server-side rotation) and retries. Deleting the whole session here
+  // would destroy the still-valid refresh token and make silent refresh
+  // unreachable — forcing a full re-login every access-TTL window.
+  return stored;
 }
 
 /** Raw stored session regardless of expiry — refresh/logout flows only. */
@@ -95,6 +82,17 @@ function readStoredSession(): AdminSession | null {
     return null;
   }
 }
+
+/** Pre-emptive refresh window: rotate before the access token dies. */
+const PROACTIVE_REFRESH_MS = 60_000;
+
+/**
+ * Single shared in-flight refresh. Concurrent 401s (or a proactive plus a
+ * reactive refresh) MUST share one rotation: refresh rotates server-side
+ * (the presented token is revoked), so two parallel rotations with the same
+ * presented token would look like a replay and nuke the whole family.
+ */
+let refreshInflight: Promise<boolean> | null = null;
 
 export function storeAdminSession(session: AdminSession): void {
   window.localStorage.setItem(TOKEN_KEY, JSON.stringify(session));
@@ -142,7 +140,11 @@ async function requestEnvelope<T>(
 ): Promise<{ data: T; meta: AdminListMeta | undefined }> {
   const session = loadAdminSession();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (session !== null) {
+  // Auth endpoints authenticate via body credentials/refresh token — never
+  // attach a (possibly expired) bearer there.
+  const isAuthEndpoint =
+    path === '/admin/auth/login' || path === '/admin/auth/refresh' || path === '/admin/auth/logout';
+  if (session !== null && !isAuthEndpoint) {
     headers['Authorization'] = `Bearer ${session.accessToken}`;
   }
   const doFetch = async (): Promise<Response> => {
@@ -153,6 +155,24 @@ async function requestEnvelope<T>(
     return fetch(`${baseUrl()}${path}`, init);
   };
   let res: Response;
+  // Proactive rotation: when the access token is already expired or dies
+  // within the window, refresh first so the request below rarely 401s.
+  const stored = readStoredSession();
+  if (!isAuthEndpoint) {
+    if (stored !== null && stored.expiresAt - Date.now() < PROACTIVE_REFRESH_MS) {
+      const ok = await tryRefresh();
+      if (!ok) {
+        // Refresh dead (revoked/expired): surface the canonical session
+        // error without sending a request we know will 401.
+        throw new AdminApiError(401, 'AUTH_REQUIRED', CODE_MESSAGES_AR.AUTH_REQUIRED ?? 'حدث خطأ. حاول مجددًا');
+      }
+      // Rebuild the Authorization header from the rotated session.
+      const rotated = readStoredSession();
+      if (rotated !== null) {
+        headers['Authorization'] = `Bearer ${rotated.accessToken}`;
+      }
+    }
+  }
   try {
     res = await doFetch();
   } catch {
@@ -166,9 +186,7 @@ async function requestEnvelope<T>(
     if (
       !retried &&
       res.status === 401 &&
-      path !== '/admin/auth/login' &&
-      path !== '/admin/auth/refresh' &&
-      path !== '/admin/auth/logout'
+      !isAuthEndpoint
     ) {
       const refreshed = await tryRefresh();
       if (refreshed) {
@@ -176,7 +194,7 @@ async function requestEnvelope<T>(
       }
     }
     const messageAr = CODE_MESSAGES_AR[err.code] ?? 'حدث خطأ. حاول مجددًا';
-    if (err.code === 'AUTH_REQUIRED' && res.status === 401) {
+    if (res.status === 401) {
       clearAdminSession();
     }
     throw new AdminApiError(res.status, err.code, messageAr);
@@ -186,6 +204,17 @@ async function requestEnvelope<T>(
 
 /** Attempts one silent refresh; returns true when the session was rotated. */
 async function tryRefresh(): Promise<boolean> {
+  if (refreshInflight !== null) return refreshInflight;
+  const pending = doRefresh();
+  refreshInflight = pending;
+  try {
+    return await pending;
+  } finally {
+    if (refreshInflight === pending) refreshInflight = null;
+  }
+}
+
+async function doRefresh(): Promise<boolean> {
   const stored = readStoredSession();
   if (stored === null) return false;
   try {

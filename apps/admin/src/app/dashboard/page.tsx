@@ -1,17 +1,51 @@
 'use client';
 
 /**
- * Admin kitchen-sink dashboard (Task 10K). Real API surfaces only:
- * metrics, users, technicians/merchants verification, service-request
- * operations, review moderation, payment review (detail/approve/reject),
- * manual subscription/entitlement grants, operational notifications, and
- * audit logs. Every mutation audited. Destructive actions confirm first.
- * NOT a god mode; each surface uses the documented/implemented endpoint.
+ * Admin operations console. Real API surfaces only: metrics, users,
+ * technicians/merchants verification, service-request operations, review
+ * moderation, payment review, manual grants, operational notifications,
+ * and audit logs. Every mutation audited; destructive actions confirm.
+ * Presentation is token-driven (@khabir/ui-tokens) — no ad-hoc colors.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
+import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+import {
+  IconBell,
+  IconCancel,
+  IconChevronLeft,
+  IconRefresh,
+  IconClipboard,
+  IconCreditCard,
+  IconDashboard,
+  IconGift,
+  IconLogout,
+  IconScrollText,
+  IconShieldCheck,
+  IconStar,
+  IconStore,
+  IconUsers,
+  IconWrench,
+} from '@/components/icon';
+import {
+  ConfirmDialog,
+  EmptyState,
+  ErrorState,
+  GhostBtn,
+  HintText,
+  Panel,
+  Pagination,
+  SectionTitle,
+  SkeletonRows,
+  SolidBtn,
+  StatusBadge,
+  mono,
+  td,
+  th,
+} from '@/components/ui';
 import {
   AdminApi,
   AdminApiError,
@@ -36,18 +70,66 @@ interface Row {
   [key: string]: unknown;
 }
 
-const TABS: ReadonlyArray<{ id: Tab; labelAr: string }> = [
-  { id: 'metrics', labelAr: 'الرئيسية' },
-  { id: 'users', labelAr: 'المستخدمون' },
-  { id: 'technicians', labelAr: 'الفنيون' },
-  { id: 'merchants', labelAr: 'التجار' },
-  { id: 'requests', labelAr: 'الطلبات' },
-  { id: 'reviews', labelAr: 'التقييمات' },
-  { id: 'payments', labelAr: 'المدفوعات' },
-  { id: 'grants', labelAr: 'المنح' },
-  { id: 'notify', labelAr: 'إشعارات' },
-  { id: 'audit', labelAr: 'سجل التدقيق' },
+const TABS: ReadonlyArray<{ id: Tab; labelAr: string; Icon: typeof IconDashboard }> = [
+  { id: 'metrics', labelAr: 'الرئيسية', Icon: IconDashboard },
+  { id: 'users', labelAr: 'المستخدمون', Icon: IconUsers },
+  { id: 'technicians', labelAr: 'الفنيون', Icon: IconWrench },
+  { id: 'merchants', labelAr: 'التجار', Icon: IconStore },
+  { id: 'requests', labelAr: 'الطلبات', Icon: IconClipboard },
+  { id: 'reviews', labelAr: 'التقييمات', Icon: IconStar },
+  { id: 'payments', labelAr: 'المدفوعات', Icon: IconCreditCard },
+  { id: 'grants', labelAr: 'المنح', Icon: IconGift },
+  { id: 'notify', labelAr: 'إشعارات', Icon: IconBell },
+  { id: 'audit', labelAr: 'سجل التدقيق', Icon: IconScrollText },
 ];
+
+const TAB_CONTEXT: Record<Tab, string> = {
+  metrics: 'نظرة شاملة على المنصة وأولويات العمل',
+  users: 'حسابات المنصة وبيانات التواصل وحالة الوصول',
+  technicians: 'راجع هوية الفني وحالة توثيقه قبل اتخاذ القرار',
+  merchants: 'مساحة مراجعة التجار وإدارة حالات التوثيق',
+  requests: 'تابع سير طلبات الصيانة وحدّث حالتها بعناية',
+  reviews: 'مراجعة تقييمات الخدمة والحفاظ على جودة المحتوى',
+  payments: 'راجع التحويل وإثبات الدفع قبل قبول الاشتراك',
+  grants: 'إدارة الاشتراكات والمزايا الممنوحة يدويًا',
+  notify: 'تواصل تشغيلي مباشر مع مستخدم محدد',
+  audit: 'تتبّع إجراءات الإدارة والحساب المنفّذ والسجل المستهدف',
+};
+
+const COLUMNS: Record<Tab, [string, string, string]> = {
+  metrics: ['المعرف', 'الملخص', ''],
+  users: ['المعرف', 'المستخدم', 'الحالة'],
+  technicians: ['المعرف', 'الفني', 'التوثيق'],
+  merchants: ['المعرف', 'التاجر', 'التوثيق'],
+  requests: ['المعرف', 'الطلب', 'تغيير الحالة'],
+  reviews: ['المعرف', 'التقييم', 'الإجراءات'],
+  payments: ['المعرف', 'الدفع', 'الإجراءات'],
+  grants: ['المعرف', 'الملخص', ''],
+  notify: ['المعرف', 'الملخص', ''],
+  audit: ['المعرف', 'الحدث', ''],
+};
+
+const ROLE_AR: Readonly<Record<string, string>> = {
+  customer: 'عميل',
+  technician: 'فني',
+  merchant: 'تاجر',
+};
+
+const STATUS_AR: Readonly<Record<string, string>> = {
+  pending: 'بانتظار',
+  accepted: 'مقبول',
+  on_the_way: 'في الطريق',
+  in_progress: 'قيد التنفيذ',
+  completed: 'مكتمل',
+  cancelled: 'ملغي',
+  active: 'نشط',
+  suspended: 'موقوف',
+  verified: 'موثق',
+  rejected: 'مرفوض',
+  approved: 'مقبول',
+  rejected_payment: 'مرفوض',
+  deleted: 'محذوف',
+};
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -61,12 +143,37 @@ export default function AdminDashboard() {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [actionFailed, setActionFailed] = useState(false);
 
+  const [query, setQuery] = useState('');
+  const [rowStatus, setRowStatus] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState<{ path: string; body: unknown; success: string; message: string } | null>(null);
+  const loadVersion = useRef(0);
+  const detailVersion = useRef(0);
+  const actionLock = useRef(false);
   const authed = session !== null;
+  const currentTab = TABS.find((entry) => entry.id === tab)!;
+  const visibleItems = items?.filter((row) => {
+    const fields = [row.id, row.email, row.phone, row.displayName, row.businessName, row.problemDescription, row.method, row.transferReference, row.action, row.entityId, row.actorAdminId];
+    return fields.some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) &&
+      (!rowStatus || String(row.verificationStatus ?? row.status ?? '') === rowStatus);
+  }) ?? [];
+  const availableStatuses = Array.from(new Set(items?.map((row) => String(row.verificationStatus ?? row.status ?? '')).filter(Boolean) ?? []));
+  const navigate = (target: Tab) => {
+    setTab(target);
+    setQuery('');
+    setRowStatus('');
+    setMenuOpen(false);
+    setActionMsg(null);
+  };
 
   const load = useCallback(
     (targetTab: Tab, page: number, limit: number) => {
       if (!authed) return;
+      const version = ++loadVersion.current;
+      detailVersion.current += 1;
       setStatus('loading');
       setError(null);
       setItems(null);
@@ -96,15 +203,18 @@ export default function AdminDashboard() {
       const promise =
         targetTab === 'metrics'
           ? AdminApi.get(paths.metrics).then((data: unknown) => {
+              if (version !== loadVersion.current) return;
               setMetrics(data as Record<string, unknown>);
               setStatus('loaded');
             })
           : AdminApi.list<Row>(paths[targetTab]).then((list) => {
+              if (version !== loadVersion.current) return;
               setItems([...list.items]);
               setMeta(list.meta);
               setStatus('loaded');
             });
       void promise.catch((err: unknown) => {
+        if (version !== loadVersion.current) return;
         setError(err instanceof AdminApiError ? err.messageAr : 'تعذر التحميل');
         setStatus('error');
       });
@@ -125,33 +235,49 @@ export default function AdminDashboard() {
     load(tab, 1, 20);
   }, [tab, load]);
 
-  const runAction = (path: string, body: unknown, successAr: string, confirmAr?: string) => {
-    // Destructive or irreversible mutations require explicit confirmation.
-    if (confirmAr !== undefined && typeof window !== 'undefined' && !window.confirm(confirmAr)) {
-      return;
-    }
+  const executeAction = (path: string, body: unknown, successAr: string) => {
+    if (actionLock.current) return;
+    actionLock.current = true;
+    setActionBusy(true);
     setActionMsg(null);
+    setActionFailed(false);
     void AdminApi.post(path, body)
       .then(() => {
+        setConfirmation(null);
         setActionMsg(successAr);
         setPaymentDetail(null);
-        load(tab, 1, 20);
+        load(tab, meta?.page ?? 1, meta?.limit ?? 20);
       })
       .catch((err: unknown) => {
+        setConfirmation(null);
         setActionMsg(err instanceof AdminApiError ? err.messageAr : 'فشل الإجراء');
+        setActionFailed(true);
+      })
+      .finally(() => {
+        actionLock.current = false;
+        setActionBusy(false);
       });
   };
 
+  const runAction = (path: string, body: unknown, successAr: string, confirmAr?: string) => {
+    if (actionLock.current) return;
+    setConfirmation({ path, body, success: successAr, message: confirmAr ?? 'راجع بيانات المستلم والإجراء قبل التأكيد. سيتم حفظ العملية في سجل التدقيق.' });
+  };
+
   const loadPaymentDetail = (id: string) => {
+    const version = ++detailVersion.current;
     setDetailStatus('loading');
     setPaymentDetail(null);
     void AdminApi.get<Record<string, unknown>>(`/admin/payments/submissions/${id}`)
       .then((data) => {
+        if (version !== detailVersion.current) return;
         setPaymentDetail(data);
         setDetailStatus('idle');
       })
       .catch((err: unknown) => {
+        if (version !== detailVersion.current) return;
         setActionMsg(err instanceof AdminApiError ? err.messageAr : 'تعذر تحميل تفاصيل الدفع');
+        setActionFailed(true);
         setDetailStatus('error');
       });
   };
@@ -162,275 +288,396 @@ export default function AdminDashboard() {
   };
 
   if (!authed) {
-    return <div dir="rtl" style={{ minHeight: '100vh', backgroundColor: '#f4f6f9' }} />;
+    return <div dir="rtl" style={{ minHeight: '100vh', backgroundColor: color.surface.subtle }} />;
   }
 
   return (
-    <main dir="rtl" style={{ minHeight: '100vh', backgroundColor: '#f4f6f9', padding: 20 }}>
-      <header
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 16,
-        }}
-      >
-        <h1 style={{ fontSize: 20, margin: 0, color: '#12284a' }}>الخبير — لوحة الإدارة</h1>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ color: '#667', fontSize: 13 }}>
-            {session?.admin.email ?? ''}
-          </span>
-          <button type="button" onClick={logout} style={headerBtn}>
-            تسجيل الخروج
-          </button>
+    <div className="admin-shell" dir="rtl">
+      <a className="skip-link" href="#admin-content">انتقل إلى المحتوى</a>
+      <aside className="admin-sidebar">
+        <div className="brand-lockup">
+          <span className="brand-mark"><IconShieldCheck size={28} /></span>
+          <div><strong>الخبير</strong><span>لوحة إدارة العمليات</span></div>
         </div>
-      </header>
-
-      <nav style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            aria-label={t.labelAr}
-            onClick={() => setTab(t.id)}
-            style={{
-              ...tabBtn,
-              backgroundColor: tab === t.id ? '#12284a' : '#fff',
-              color: tab === t.id ? '#fff' : '#12284a',
-              border: '1px solid #12284a',
-            }}
-          >
-            {t.labelAr}
-          </button>
-        ))}
-      </nav>
+        <button className="mobile-menu" type="button" aria-expanded={menuOpen} aria-controls="admin-navigation" onClick={() => setMenuOpen(!menuOpen)}>
+          <IconDashboard size={18} /> أقسام الإدارة
+        </button>
+        <nav id="admin-navigation" className={menuOpen ? 'sidebar-nav is-open' : 'sidebar-nav'} aria-label="أقسام لوحة الإدارة">
+          {[
+            { title: 'مساحة العمل', tabs: TABS.slice(0, 1) },
+            { title: 'المنصة والخدمات', tabs: TABS.slice(1, 6) },
+            { title: 'المالية والتشغيل', tabs: TABS.slice(6) },
+          ].map((group) => (
+            <div className="nav-group" key={group.title}>
+              <div className="nav-group-label">{group.title}</div>
+              {group.tabs.map(({ id, labelAr, Icon }) => (
+                <button key={id} type="button" className="nav-item" aria-current={tab === id ? 'page' : undefined} disabled={actionBusy} onClick={() => navigate(id)}>
+                  <Icon size={19} /><span>{labelAr}</span>{tab === id ? <IconChevronLeft size={14} /> : null}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-note"><IconShieldCheck size={18} /><span>قرارات موثّقة<br /><small>كل إجراء له أثر في سجل التدقيق</small></span></div>
+          <GhostBtn onClick={logout} disabled={actionBusy}><IconLogout size={16} />تسجيل الخروج</GhostBtn>
+        </div>
+      </aside>
+      <div className="admin-workspace">
+        <header className="admin-topbar">
+          <div className="breadcrumb"><span>لوحة الإدارة</span><IconChevronLeft size={14} /><strong>{currentTab.labelAr}</strong></div>
+          <div className="admin-profile"><span className="profile-icon"><IconUsers size={18} /></span><div><strong>حساب الإدارة</strong><span dir="ltr">{session?.admin.email ?? ''}</span></div></div>
+        </header>
+        <main id="admin-content" className="admin-content" tabIndex={-1}>
+          <div className="page-heading">
+            <div><div className="eyebrow">الخبير / إدارة العمليات</div><h1>{tab === 'metrics' ? 'نظرة عامة' : currentTab.labelAr}</h1><p>{TAB_CONTEXT[tab]}</p></div>
+            <GhostBtn disabled={status === 'loading' || actionBusy} onClick={() => load(tab, meta?.page ?? 1, meta?.limit ?? 20)}><IconRefresh size={16} />تحديث البيانات</GhostBtn>
+          </div>
 
       {actionMsg !== null ? (
-        <div role="status" style={notice}>
+        <div
+          role="status"
+          style={{
+            backgroundColor: actionFailed ? color.error.soft : color.success.soft,
+            color: actionFailed ? color.error.DEFAULT : color.success.DEFAULT,
+            border: `1px solid ${actionFailed ? '#F3C4C4' : '#BFE6CF'}`,
+            borderRadius: radius.sm,
+            padding: `10px ${spacing[4]}`,
+            marginBottom: spacing[4],
+            fontSize: 13.5,
+          }}
+        >
           {actionMsg}
         </div>
       ) : null}
 
-      {status === 'loading' ? <div style={panel}>جاري التحميل…</div> : null}
-      {status === 'error' && error !== null ? (
-        <div style={panel}>
-          <div role="alert" style={{ color: '#c0392b' }}>
-            {error}
+      {status === 'loading' ? (
+        <Panel>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="data-table" style={table}>
+              <thead>
+                <tr>
+                  {COLUMNS[tab].map((h, i) => (
+                    <th key={i} style={th}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <SkeletonRows cols={3} />
+            </table>
           </div>
-          <button type="button" style={actionBtn} onClick={() => load(tab, 1, 20)}>
-            إعادة المحاولة
-          </button>
-        </div>
+        </Panel>
+      ) : null}
+
+      {status === 'error' && error !== null ? (
+        <ErrorState message={error} onRetry={() => load(tab, 1, 20)} />
       ) : null}
 
       {status === 'loaded' && tab === 'metrics' && metrics !== null ? (
-        <div style={panel}>
-          <MetricsView data={metrics} />
-        </div>
+        <MetricsView data={metrics} onNavigate={navigate} />
       ) : null}
 
       {status === 'loaded' && items !== null ? (
-        <div style={panel}>
-          {items.length === 0 ? (
-            <div style={{ color: '#667', padding: 16 }}>لا توجد بيانات</div>
+        <Panel>
+          <div className="table-heading"><div><SectionTitle>{currentTab.labelAr}</SectionTitle><HintText>{meta?.total ?? items.length} سجل إجمالًا · البحث والتصفية في الصفحة الحالية فقط</HintText></div><span className="table-icon"><currentTab.Icon size={22} /></span></div>
+          <div className="table-toolbar">
+            <label className="search-field"><span>البحث في الصفحة الحالية</span><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ابحث بالمعرف أو بيانات السجل…" /></label>
+            <label className="filter-field"><span>الحالة</span><select value={rowStatus} onChange={(event) => setRowStatus(event.target.value)}><option value="">كل الحالات</option>{availableStatuses.map((value) => <option key={value} value={value}>{statusLabel(value)}</option>)}</select></label>
+            <span className="result-count" role="status">{visibleItems.length} نتيجة في الصفحة</span>
+            {query || rowStatus ? <GhostBtn onClick={() => { setQuery(''); setRowStatus(''); }}>مسح التصفية</GhostBtn> : null}
+          </div>
+          {visibleItems.length === 0 ? (
+            <EmptyState title={items.length ? 'لا توجد نتائج مطابقة' : 'لا توجد سجلات للعرض'} hint={items.length ? 'عدّل البحث أو امسح التصفية لعرض سجلات الصفحة.' : 'ستظهر السجلات هنا عند توفرها. يمكنك تحديث البيانات.'} />
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={table}>
-                <tbody>
-                  {items.map((row) => (
-                    <tr key={row.id} style={{ borderBottom: '1px solid #dde3ec' }}>
-                      <td style={td} dir="ltr">
-                        {row.id.slice(0, 8)}…
-                      </td>
-                      <td style={td}>
-                        <RowSummary row={row} />
-                      </td>
-                      <td style={td} colSpan={2}>
-                        <Actions tab={tab} row={row} onAction={runAction} onDetail={loadPaymentDetail} />
-                      </td>
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="data-table" style={table}>
+                  <thead>
+                    <tr>
+                      {COLUMNS[tab].map((h, i) => (
+                        <th key={i} style={th}>
+                          {h}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {visibleItems.map((row) => (
+                      <tr key={row.id} className="row-enter">
+                        <td style={td}>
+                          <span style={mono} title={String(row.id)}>
+                            {row.id.slice(0, 8)}…
+                          </span>
+                        </td>
+                        <td style={td}>
+                          <RowSummary row={row} />
+                        </td>
+                        <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                          <Actions
+                            tab={tab}
+                            row={row}
+                            onAction={runAction}
+                            onDetail={loadPaymentDetail}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
-          {meta !== null && items.length > 0 ? (
-            <div style={{ marginTop: 8, color: '#667', fontSize: 12 }}>
-              صفحة {meta.page} من {meta.totalPages} — الإجمالي {meta.total}
-              {meta.hasNext ? (
-                <button
-                  type="button"
-                  style={{ ...actionBtn, marginInlineStart: 10 }}
-                  onClick={() => load(tab, meta.page + 1, meta.limit)}
-                >
-                  التالي ‹
-                </button>
-              ) : null}
-            </div>
+          {meta !== null ? (
+            <Pagination page={meta.page} totalPages={Math.max(meta.totalPages, 1)} total={meta.total} onGo={(page) => { setQuery(''); setRowStatus(''); load(tab, page, meta.limit); }} />
           ) : null}
-        </div>
+        </Panel>
       ) : null}
 
       {status === 'loaded' && tab === 'payments' ? (
-        <div style={{ ...panel, marginTop: 12 }}>
-          <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>تفاصيل الدفع المحدد</h2>
-          {detailStatus === 'loading' ? <div>جاري التحميل…</div> : null}
+        <Panel style={{ marginTop: spacing[3] }}>
+          <SectionTitle>تفاصيل الدفع المحدد</SectionTitle>
+          {detailStatus === 'loading' ? (
+            <div style={{ display: 'grid', gap: spacing[2] }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="skeleton" style={{ width: '60%' }} />
+              ))}
+            </div>
+          ) : null}
           {detailStatus === 'error' ? (
-            <div role="alert" style={{ color: '#c0392b' }}>
+            <div role="alert" style={{ color: color.error.DEFAULT, fontSize: 13 }}>
               تعذر تحميل تفاصيل الدفع
             </div>
           ) : null}
           {paymentDetail !== null ? (
-            <div dir="ltr" style={{ fontSize: 13, color: '#334', lineHeight: 1.9 }}>
-              <div>id: {String(paymentDetail.id)}</div>
-              <div>user: {String(paymentDetail.userId)}</div>
-              <div>plan: {String(paymentDetail.planId)}</div>
-              <div>
-                method: {String(paymentDetail.method)} — status: {String(paymentDetail.status)}
-              </div>
-              <div>transferReference: {String(paymentDetail.transferReference)}</div>
-              <div>proofStorageKey: {String(paymentDetail.proofStorageKey ?? '—')}</div>
-              <div>subscription: {String(paymentDetail.subscriptionId ?? '—')}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(120px, auto) 1fr', gap: `8px ${spacing[4]}`, fontSize: 13.5 }}>
+              <DetailLabel>المعرف</DetailLabel>
+              <DetailValue mono>{String(paymentDetail.id)}</DetailValue>
+              <DetailLabel>المستخدم</DetailLabel>
+              <DetailValue mono>{String(paymentDetail.userId)}</DetailValue>
+              <DetailLabel>الخطة</DetailLabel>
+              <DetailValue mono>{String(paymentDetail.planId)}</DetailValue>
+              <DetailLabel>الطريقة</DetailLabel>
+              <DetailValue>
+                <StatusBadge label={String(paymentDetail.method)} />
+              </DetailValue>
+              <DetailLabel>الحالة</DetailLabel>
+              <DetailValue>
+                <StatusBadge label={STATUS_AR[String(paymentDetail.status)] ?? String(paymentDetail.status)} />
+              </DetailValue>
+              <DetailLabel>مرجع التحويل</DetailLabel>
+              <DetailValue mono>{String(paymentDetail.transferReference)}</DetailValue>
+              <DetailLabel>إثبات الدفع</DetailLabel>
+              <DetailValue mono>{String(paymentDetail.proofStorageKey ?? '—')}</DetailValue>
+              <DetailLabel>الاشتراك</DetailLabel>
+              <DetailValue mono>{String(paymentDetail.subscriptionId ?? '—')}</DetailValue>
             </div>
           ) : detailStatus === 'idle' ? (
-            <div style={{ color: '#667', fontSize: 13 }}>اختر «تفاصيل» من أي صف لعرض بيانات الدفع قبل المراجعة.</div>
+            <HintText>اختر «تفاصيل» من أي صف لعرض بيانات الدفع قبل المراجعة.</HintText>
           ) : null}
-        </div>
+        </Panel>
       ) : null}
 
       {status === 'loaded' && tab === 'grants' ? <GrantsPanel onAction={runAction} /> : null}
       {status === 'loaded' && tab === 'notify' ? <NotifyPanel onAction={runAction} /> : null}
-    </main>
-  );
-}
-
-function MetricsView({ data }: { data: Record<string, unknown> }) {
-  const usersCount = typeof data.usersCount === 'number' ? data.usersCount : 0;
-  const techniciansCount = typeof data.techniciansCount === 'number' ? data.techniciansCount : 0;
-  const merchantsCount = typeof data.merchantsCount === 'number' ? data.merchantsCount : 0;
-  const activeSubscriptions =
-    typeof data.activeSubscriptions === 'number' ? data.activeSubscriptions : 0;
-  const sr = data.serviceRequests as
-    | { pending?: number; active?: number; completed?: number; cancelled?: number }
-    | undefined;
-  const verified = data.verified as
-    | { technicians?: number; merchants?: number }
-    | undefined;
-  return (
-    <div>
-      <Section title="المستخدمون">
-        <Cell label="إجمالي" value={usersCount} />
-        <Cell label="الفنيون" value={techniciansCount} />
-        <Cell label="التجار" value={merchantsCount} />
-        <Cell label="اشتراكات نشطة" value={activeSubscriptions} />
-      </Section>
-      <Section title="طلبات الصيانة">
-        <Cell label="بانتظار" value={sr?.pending ?? 0} />
-        <Cell label="نشطة" value={sr?.active ?? 0} />
-        <Cell label="مكتملة" value={sr?.completed ?? 0} />
-        <Cell label="ملغاة" value={sr?.cancelled ?? 0} />
-      </Section>
-      <Section title="التوثيق">
-        <Cell label="فنيون موثقون" value={verified?.technicians ?? 0} />
-        <Cell label="تجار موثقون" value={verified?.merchants ?? 0} />
-      </Section>
+          <footer className="workspace-footer"><span>الخبير · مساحة الإدارة</span><span>الخدمة تبدأ بقرار مدروس</span></footer>
+        </main>
+      </div>
+      <ConfirmDialog
+        open={confirmation !== null}
+        title="تأكيد الإجراء"
+        description={confirmation?.message ?? ''}
+        busy={actionBusy}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => {
+          if (confirmation) executeAction(confirmation.path, confirmation.body, confirmation.success);
+        }}
+      />
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function DetailLabel({ children }: { children: React.ReactNode }) {
+  return <div style={{ color: color.text.secondary }}>{children}</div>;
+}
+
+function DetailValue({
+  children,
+  mono: isMono,
+}: {
+  children: React.ReactNode;
+  mono?: boolean;
+}) {
   return (
-    <div style={{ marginBottom: 16 }}>
-      <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>{title}</h2>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>{children}</div>
+    <div style={isMono === true ? { ...mono, wordBreak: 'break-all' } : undefined}>{children}</div>
+  );
+}
+
+function MetricCard({ label, value, Icon, context }: {
+  label: string;
+  value: number | null;
+  Icon: typeof IconDashboard;
+  context: string;
+}) {
+  return (
+    <div className="card-enter metric-card">
+      <div className="metric-top"><span>{label}</span><span className="metric-icon"><Icon size={20} /></span></div>
+      <strong className="metric-value tabular">{formatCount(value)}</strong>
+      <span className="metric-context">{context}</span>
     </div>
   );
 }
 
-function Cell({ label, value }: { label: string; value: number }) {
+function formatCount(value: number | null | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? new Intl.NumberFormat('ar-EG', { numberingSystem: 'latn' }).format(value) : '—';
+}
+
+function MetricsView({ data, onNavigate }: { data: Record<string, unknown>; onNavigate: (tab: Tab) => void }) {
+  const count = (value: unknown) => typeof value === 'number' && Number.isFinite(value) ? value : null;
+  const sr = (data.serviceRequests ?? {}) as Record<string, unknown>;
+  const verified = (data.verified ?? {}) as Record<string, unknown>;
+  const states = [
+    { label: 'بانتظار', value: count(sr.pending), tone: color.brand.gold, Icon: IconClipboard },
+    { label: 'نشطة', value: count(sr.active), tone: color.brand.navy, Icon: IconWrench },
+    { label: 'مكتملة', value: count(sr.completed), tone: color.success.DEFAULT, Icon: IconShieldCheck },
+    { label: 'ملغاة', value: count(sr.cancelled), tone: color.error.DEFAULT, Icon: IconCancel },
+  ];
+  const total = states.every((state) => state.value !== null) ? states.reduce((sum, state) => sum + (state.value ?? 0), 0) : null;
   return (
-    <div
-      style={{
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        padding: '10px 16px',
-        minWidth: 130,
-        border: '1px solid #dde3ec',
-      }}
-    >
-      <div style={{ fontSize: 12, color: '#667' }}>{label}</div>
-      <div style={{ fontSize: 22, color: '#12284a', fontWeight: 600 }}>{value}</div>
+    <div className="dashboard-overview">
+      <div className="overview-intro"><div><span className="eyebrow">متابعة دقيقة. خدمة أفضل.</span><h2>كل ما تحتاجه لاتخاذ الخطوة التالية</h2><p>راقب نشاط المنصة، راجع الطلبات، وابدأ بالأعمال التي تحتاج اهتمامك.</p></div><div className="intro-seal" aria-hidden="true"><IconShieldCheck size={52} /></div></div>
+      <div className="metrics-grid">
+        <MetricCard label="المستخدمون" value={count(data.usersCount)} Icon={IconUsers} context="إجمالي حسابات المنصة" />
+        <MetricCard label="الفنيون" value={count(data.techniciansCount)} Icon={IconWrench} context="حسابات مقدّمي الخدمة" />
+        <MetricCard label="التجار" value={count(data.merchantsCount)} Icon={IconStore} context="حسابات المتاجر" />
+        <MetricCard label="اشتراكات نشطة" value={count(data.activeSubscriptions)} Icon={IconGift} context="الاشتراكات المفعّلة حاليًا" />
+      </div>
+      <div className="operations-grid">
+        <Panel>
+          <div className="panel-heading"><div><SectionTitle>حركة طلبات الصيانة</SectionTitle><HintText>توزيع الحالات الحالية · جميع الطلبات</HintText></div><GhostBtn onClick={() => onNavigate('requests')}>عرض الطلبات<IconChevronLeft size={14} /></GhostBtn></div>
+          <div className="request-total"><strong className="tabular">{formatCount(total)}</strong><span>إجمالي الطلبات</span></div>
+          {total !== null && total > 0 ? <div className="status-distribution" aria-hidden="true">{states.map((state) => <span key={state.label} style={{ width: `${((state.value ?? 0) / total) * 100}%`, backgroundColor: state.tone }} />)}</div> : <HintText>{total === 0 ? 'لا توجد طلبات مسجلة بعد.' : 'بعض مؤشرات الطلبات غير متاحة.'}</HintText>}
+          <div className="request-breakdown">{states.map(({ label, value, tone, Icon }) => <div key={label}><span className="state-dot" style={{ backgroundColor: tone }} /><span>{label}</span><Icon size={15} /><strong className="tabular">{formatCount(value)}</strong></div>)}</div>
+        </Panel>
+        <Panel>
+          <div className="panel-heading"><div><SectionTitle>أولوية المتابعة</SectionTitle><HintText>ابدأ من هنا</HintText></div><span className="table-icon"><IconClipboard size={22} /></span></div>
+          <button className="attention-card" type="button" onClick={() => onNavigate('requests')}><span><strong>طلبات بانتظار المتابعة</strong><small>انتقل لمراجعة الطلبات وحالاتها</small></span><b className="tabular">{formatCount(count(sr.pending))}</b><IconChevronLeft size={18} /></button>
+          <button className="operation-link" type="button" onClick={() => onNavigate('payments')}><IconCreditCard size={21} /><span><strong>مراجعة المدفوعات</strong><small>التحويلات وإثباتات الدفع والاشتراكات</small></span><IconChevronLeft size={16} /></button>
+          <button className="operation-link" type="button" onClick={() => onNavigate('merchants')}><IconStore size={21} /><span><strong>توثيق التجار</strong><small>مراجعة الحسابات وتحديث حالة التوثيق</small></span><IconChevronLeft size={16} /></button>
+        </Panel>
+      </div>
+      <div className="operations-grid secondary-grid">
+        <Panel><div className="panel-heading"><div><SectionTitle>شبكة مقدّمي الخدمة</SectionTitle><HintText>الحسابات الموثقة على المنصة</HintText></div><IconShieldCheck size={24} /></div><div className="verification-grid"><button type="button" onClick={() => onNavigate('technicians')}><IconWrench size={22} /><strong className="tabular">{formatCount(count(verified.technicians))}</strong><span>فنيون موثقون</span><small>عرض الفنيين</small></button><button type="button" onClick={() => onNavigate('merchants')}><IconStore size={22} /><strong className="tabular">{formatCount(count(verified.merchants))}</strong><span>تجار موثقون</span><small>عرض التجار</small></button></div></Panel>
+        <Panel><SectionTitle>أدوات التشغيل</SectionTitle><HintText>إجراءات مباشرة مع الاحتفاظ بسياق المراجعة</HintText><div className="quick-actions"><button type="button" onClick={() => onNavigate('audit')}><IconScrollText size={22} /><strong>سجل التدقيق</strong><span>من نفّذ الإجراء ومتى؟</span></button><button type="button" onClick={() => onNavigate('notify')}><IconBell size={22} /><strong>إرسال إشعار</strong><span>تواصل مع مستخدم محدد</span></button><button type="button" onClick={() => onNavigate('grants')}><IconGift size={22} /><strong>المنح اليدوية</strong><span>اشتراكات ومزايا</span></button></div></Panel>
+      </div>
     </div>
   );
 }
 
-const STATUS_AR: Readonly<Record<string, string>> = {
-  pending: 'بانتظار',
-  accepted: 'مقبول',
-  on_the_way: 'في الطريق',
-  in_progress: 'قيد التنفيذ',
-  completed: 'مكتمل',
-  cancelled: 'ملغي',
-  active: 'نشط',
-  suspended: 'موقوف',
-  verified: 'موثق',
-  rejected: 'مرفوض',
-  approved: 'مقبول',
-  rejected_payment: 'مرفوض',
-  deleted: 'محذوف',
-};
+function statusLabel(value: unknown): string {
+  if (typeof value !== 'string' || value.length === 0) return '—';
+  return STATUS_AR[value] ?? value;
+}
 
 function RowSummary({ row }: { row: Row }) {
-  if (typeof row.email === 'string') {
+  // Users endpoint returns flat rows: { id, role, status, phone, email,
+  // phoneVerified, emailVerified, createdAt, lastLoginAt }. Either contact
+  // channel may be null (phone and/or email identity) — the primary line
+  // prefers email, the secondary line carries the phone when both exist.
+  if (
+    typeof row.email === 'string' ||
+    typeof row.phone === 'string' ||
+    typeof row.role === 'string'
+  ) {
+    const hasEmail = typeof row.email === 'string' && row.email.length > 0;
+    const hasPhone = typeof row.phone === 'string' && row.phone.length > 0;
+    const primary = hasEmail ? row.email : hasPhone ? row.phone : '—';
+    const secondary = hasEmail && hasPhone ? String(row.phone) : null;
+    const role = typeof row.role === 'string' && row.role.length > 0 ? row.role : null;
     return (
-      <span dir="ltr">
-        {row.email} — {STATUS_AR[String(row.status)] ?? String(row.status)}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span dir="ltr">{String(primary)}</span>
+        {secondary !== null ? (
+          <span dir="ltr" style={{ color: color.text.secondary, fontSize: 12 }}>
+            {secondary}
+          </span>
+        ) : null}
+        {role !== null ? <StatusBadge label={ROLE_AR[role] ?? role} /> : null}
       </span>
     );
   }
   if (typeof row.status === 'string' && typeof row.problemDescription === 'string') {
     return (
-      <span>
-       طلب صيانة — {STATUS_AR[row.status] ?? row.status}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span>
+          طلب صيانة — <span style={{ color: color.text.secondary }}>{String(row.problemDescription).slice(0, 40)}</span>
+        </span>
+        <StatusBadge label={statusLabel(row.status)} />
       </span>
     );
   }
   if (typeof row.rating === 'number') {
     return (
-      <span>
-        تقييم {row.rating}/5 {typeof row.comment === 'string' && row.comment.length > 0 ? `— ${row.comment.slice(0, 40)}` : ''}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span className="tabular" style={{ color: color.brand.gold }}>
+          ★ {row.rating}/5
+        </span>
+        {typeof row.comment === 'string' && row.comment.length > 0 ? (
+          <span style={{ color: color.text.secondary }}>{row.comment.slice(0, 40)}</span>
+        ) : null}
       </span>
     );
   }
   if (typeof row.method === 'string') {
     return (
-      <span>
-        دفع — {row.method} — {STATUS_AR[String(row.status)] ?? String(row.status)}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span>دفع — {row.method}</span>
+        <StatusBadge label={statusLabel(row.status)} />
       </span>
     );
   }
   if (typeof row.displayName === 'string') {
     return (
-      <span>
-        فني — {row.displayName} — توثيق: {STATUS_AR[String(row.verificationStatus)] ?? '—'}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span>
+          فني — {row.displayName}
+        </span>
+        <StatusBadge label={STATUS_AR[String(row.verificationStatus)] ?? '—'} />
       </span>
     );
   }
   if (typeof row.businessName === 'string') {
     return (
-      <span>
-        تاجر — {row.businessName} — توثيق: {STATUS_AR[String(row.verificationStatus)] ?? '—'}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span>
+          تاجر — {row.businessName}
+        </span>
+        <StatusBadge label={STATUS_AR[String(row.verificationStatus)] ?? '—'} />
       </span>
     );
   }
   if (typeof row.action === 'string') {
+    const when = typeof row.createdAt === 'string' ? row.createdAt.slice(0, 10) : null;
+    const actor =
+      typeof row.actorAdminId === 'string' && row.actorAdminId.length > 0
+        ? row.actorAdminId.slice(0, 8)
+        : 'النظام';
     return (
-      <span dir="ltr">
-        {row.action} — {String(row.entityType)}/{String(row.entityId).slice(0, 8)}
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: spacing[2] }}>
+        <span dir="ltr" style={mono}>
+          {row.action}
+        </span>
+        <span style={mono}>
+          {String(row.entityType)}/{String(row.entityId).slice(0, 8)}
+        </span>
+        <span style={{ color: color.text.secondary, fontSize: 12 }}>
+          {actor}
+          {when !== null ? ` · ${when}` : ''}
+        </span>
       </span>
     );
   }
-  return <span>سجل</span>;
+  return <span style={{ color: color.text.secondary }}>سجل</span>;
 }
 
 function Actions({
@@ -444,16 +691,18 @@ function Actions({
   onAction: (path: string, body: unknown, successAr: string, confirmAr?: string) => void;
   onDetail: (id: string) => void;
 }) {
+  if (tab === 'users') {
+    return <StatusBadge label={statusLabel(row.status)} />;
+  }
   if (tab === 'technicians' || tab === 'merchants') {
     const current = String(row.verificationStatus ?? row.status ?? '');
     return (
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ display: 'flex', gap: spacing[2] }}>
         {(['verified', 'rejected', 'suspended'] as const).map((s) => (
-          <button
+          <GhostBtn
             key={s}
-            type="button"
             disabled={current === s}
-            style={{ ...actionBtn, opacity: current === s ? 0.4 : 1 }}
+            danger={s !== 'verified'}
             onClick={() => {
               const kind = tab === 'technicians' ? 'technicians' : 'merchants';
               onAction(
@@ -465,16 +714,15 @@ function Actions({
             }}
           >
             {STATUS_AR[s]}
-          </button>
+          </GhostBtn>
         ))}
       </div>
     );
   }
   if (tab === 'reviews') {
     return (
-      <button
-        type="button"
-        style={{ ...actionBtn, borderColor: '#c0392b', color: '#c0392b' }}
+      <GhostBtn
+        danger
         onClick={() =>
           onAction(
             `/admin/reviews/${String(row.id)}/remove`,
@@ -485,19 +733,18 @@ function Actions({
         }
       >
         حذف
-      </button>
+      </GhostBtn>
     );
   }
   if (tab === 'requests') {
     const current = String(row.status);
     return (
-      <div style={{ display: 'flex', gap: 4 }}>
+      <div style={{ display: 'flex', gap: spacing[2] }}>
         {(['in_progress', 'completed', 'cancelled'] as const).map((s) => (
-          <button
+          <GhostBtn
             key={s}
-            type="button"
             disabled={current === s}
-            style={{ ...actionBtn, opacity: current === s ? 0.4 : 1 }}
+            danger={s === 'cancelled'}
             onClick={() =>
               onAction(
                 `/admin/service-requests/${String(row.id)}/status`,
@@ -508,7 +755,7 @@ function Actions({
             }
           >
             {STATUS_AR[s]}
-          </button>
+          </GhostBtn>
         ))}
       </div>
     );
@@ -517,14 +764,10 @@ function Actions({
     const status = String(row.status);
     const decided = status === 'approved' || status === 'rejected';
     return (
-      <div style={{ display: 'flex', gap: 4 }}>
-        <button type="button" style={actionBtn} onClick={() => onDetail(String(row.id))}>
-          تفاصيل
-        </button>
-        <button
-          type="button"
+      <div style={{ display: 'flex', gap: spacing[2] }}>
+        <GhostBtn onClick={() => onDetail(String(row.id))}>تفاصيل</GhostBtn>
+        <GhostBtn
           disabled={decided}
-          style={{ ...actionBtn, opacity: decided ? 0.4 : 1 }}
           onClick={() =>
             onAction(
               `/admin/payments/submissions/${String(row.id)}/approve`,
@@ -535,11 +778,10 @@ function Actions({
           }
         >
           قبول
-        </button>
-        <button
-          type="button"
+        </GhostBtn>
+        <GhostBtn
+          danger
           disabled={decided}
-          style={{ ...actionBtn, borderColor: '#c0392b', color: '#c0392b', opacity: decided ? 0.4 : 1 }}
           onClick={() =>
             onAction(
               `/admin/payments/submissions/${String(row.id)}/reject`,
@@ -550,11 +792,11 @@ function Actions({
           }
         >
           رفض
-        </button>
+        </GhostBtn>
       </div>
     );
   }
-  return <span />;
+  return <span style={{ color: color.text.secondary }}>—</span>;
 }
 
 function GrantsPanel({
@@ -567,11 +809,9 @@ function GrantsPanel({
   const [entUserId, setEntUserId] = useState('');
   const [entitlementId, setEntitlementId] = useState('');
   return (
-    <div style={panel}>
-      <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>منح اشتراك يدوي</h2>
-      <div style={{ color: '#667', fontSize: 12, marginBottom: 8 }}>
-        ينشئ اشتراكًا نشطًا دون سجل دفع. الصق المعرفات من جداول المستخدمين والخطط.
-      </div>
+    <Panel style={{ maxWidth: 560 }}>
+      <SectionTitle>منح اشتراك يدوي</SectionTitle>
+      <HintText>ينشئ اشتراكًا نشطًا دون سجل دفع. الصق المعرفات من جداول المستخدمين والخطط.</HintText>
       <label style={formLabel} htmlFor="grant-sub-user">معرف المستخدم (user_id)</label>
       <input
         id="grant-sub-user"
@@ -590,21 +830,23 @@ function GrantsPanel({
         onChange={(e) => setPlanId(e.target.value)}
         placeholder="00000000-0000-0000-0000-000000000000"
       />
-      <button
-        type="button"
-        style={actionBtn}
-        onClick={() =>
-          onAction(
-            '/admin/subscriptions/grant',
-            { user_id: subUserId.trim(), plan_id: planId.trim() },
-            'تم منح الاشتراك',
-          )
-        }
-      >
-        منح الاشتراك
-      </button>
+      <div style={{ marginTop: spacing[3] }}>
+        <SolidBtn
+          onClick={() =>
+            onAction(
+              '/admin/subscriptions/grant',
+              { user_id: subUserId.trim(), plan_id: planId.trim() },
+              'تم منح الاشتراك',
+            )
+          }
+        >
+          منح الاشتراك
+        </SolidBtn>
+      </div>
 
-      <h2 style={{ fontSize: 15, color: '#12284a', margin: '20px 0 8px' }}>منح ميزة يدويًا</h2>
+      <div style={{ height: 1, backgroundColor: color.border.default, margin: `${spacing[5]}px 0` }} />
+
+      <SectionTitle>منح ميزة يدويًا</SectionTitle>
       <label style={formLabel} htmlFor="grant-ent-user">معرف المستخدم (user_id)</label>
       <input
         id="grant-ent-user"
@@ -623,20 +865,20 @@ function GrantsPanel({
         onChange={(e) => setEntitlementId(e.target.value)}
         placeholder="00000000-0000-0000-0000-000000000000"
       />
-      <button
-        type="button"
-        style={actionBtn}
-        onClick={() =>
-          onAction(
-            '/admin/entitlements/grant',
-            { user_id: entUserId.trim(), entitlement_id: entitlementId.trim() },
-            'تم منح الميزة',
-          )
-        }
-      >
-        منح الميزة
-      </button>
-    </div>
+      <div style={{ marginTop: spacing[3] }}>
+        <SolidBtn
+          onClick={() =>
+            onAction(
+              '/admin/entitlements/grant',
+              { user_id: entUserId.trim(), entitlement_id: entitlementId.trim() },
+              'تم منح الميزة',
+            )
+          }
+        >
+          منح الميزة
+        </SolidBtn>
+      </div>
+    </Panel>
   );
 }
 
@@ -650,11 +892,9 @@ function NotifyPanel({
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   return (
-    <div style={panel}>
-      <h2 style={{ fontSize: 15, color: '#12284a', margin: '0 0 8px' }}>إرسال إشعار تشغيلي</h2>
-      <div style={{ color: '#667', fontSize: 12, marginBottom: 8 }}>
-        إشعار لمستلم واحد محدد — لا يوجد إرسال جماعي.
-      </div>
+    <Panel style={{ maxWidth: 560 }}>
+      <SectionTitle>إرسال إشعار تشغيلي</SectionTitle>
+      <HintText>إشعار لمستلم واحد محدد — لا يوجد إرسال جماعي.</HintText>
       <label style={formLabel} htmlFor="notify-user">معرف المستخدم (user_id)</label>
       <input
         id="notify-user"
@@ -684,96 +924,49 @@ function NotifyPanel({
       <label style={formLabel} htmlFor="notify-body">المحتوى</label>
       <textarea
         id="notify-body"
-        style={{ ...formInput, minHeight: 80 }}
+        style={{ ...formInput, minHeight: 90, resize: 'vertical' }}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="نص الإشعار"
       />
-      <button
-        type="button"
-        style={actionBtn}
-        onClick={() =>
-          onAction(
-            '/admin/notifications',
-            { user_id: userId.trim(), type: type.trim(), title_ar: title, body_ar: body },
-            'تم إرسال الإشعار',
-          )
-        }
-      >
-        إرسال
-      </button>
-    </div>
+      <div style={{ marginTop: spacing[3] }}>
+        <SolidBtn
+          onClick={() =>
+            onAction(
+              '/admin/notifications',
+              { user_id: userId.trim(), type: type.trim(), title_ar: title, body_ar: body },
+              'تم إرسال الإشعار',
+            )
+          }
+        >
+          إرسال
+        </SolidBtn>
+      </div>
+    </Panel>
   );
 }
 
+const table: React.CSSProperties = {
+  width: '100%',
+  borderCollapse: 'collapse',
+};
+
 const formLabel: React.CSSProperties = {
   display: 'block',
-  fontSize: 12,
-  color: '#334',
-  margin: '10px 0 4px',
+  fontSize: 12.5,
+  color: color.text.primary,
+  margin: `10px 0 4px`,
+  fontWeight: 500,
 };
 
 const formInput: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
-  padding: '8px 10px',
-  border: '1px solid #ccd3dd',
-  borderRadius: 8,
-  fontSize: 13,
-};
-
-const headerBtn: React.CSSProperties = {
-  padding: '8px 14px',
-  borderRadius: 8,
-  border: '1px solid #12284a',
-  backgroundColor: '#fff',
-  color: '#12284a',
-  cursor: 'pointer',
-  fontSize: 13,
-};
-
-const tabBtn: React.CSSProperties = {
-  padding: '8px 14px',
-  borderRadius: 8,
-  cursor: 'pointer',
-  fontSize: 13,
-};
-
-const actionBtn: React.CSSProperties = {
-  padding: '4px 10px',
-  borderRadius: 6,
-  border: '1px solid #12284a',
-  backgroundColor: '#fff',
-  color: '#12284a',
-  cursor: 'pointer',
-  fontSize: 12,
-};
-
-const notice: React.CSSProperties = {
-  backgroundColor: '#e7f1ff',
-  border: '1px solid #7db4ff',
-  borderRadius: 8,
-  padding: '8px 14px',
-  marginBottom: 12,
-  color: '#12284a',
-  fontSize: 13,
-};
-
-const panel: React.CSSProperties = {
-  backgroundColor: '#fff',
-  borderRadius: 12,
-  padding: 16,
-  border: '1px solid #dde3ec',
-};
-
-const table: React.CSSProperties = {
-  width: '100%',
-  borderCollapse: 'collapse',
-  fontSize: 13,
-};
-
-const td: React.CSSProperties = {
-  padding: '10px 8px',
-  textAlign: 'right',
-  verticalAlign: 'top',
+  padding: '10px 12px',
+  border: `1px solid ${color.border.default}`,
+  borderRadius: radius.sm,
+  fontSize: 13.5,
+  fontFamily: 'inherit',
+  backgroundColor: color.surface.base,
+  transition: 'border-color 0.15s ease',
 };
