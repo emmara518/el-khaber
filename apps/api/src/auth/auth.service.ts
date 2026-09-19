@@ -52,6 +52,30 @@ export interface AuthMetadata {
   ipAddress?: string;
 }
 
+/**
+ * Canonicalize a phone to `+<digits>` so that common user variants of the
+ * same number resolve to a single stored identity:
+ *   "+201001112233", "201001112233", "01001112233" (Egyptian local)
+ *   all canonicalize to "+201001112233".
+ * Spaces, dashes and parentheses are stripped; a leading `00` (international
+ * dial-out) is dropped. No country is invented: only 11-digit `0`-prefixed
+ * numbers are treated as Egyptian local form (docs/01_PROJECT.md).
+ */
+export function canonicalizePhone(phone: string): string {
+  let digits = phone.trim().replace(/[\s\-().]/g, '');
+  if (digits.startsWith('+')) digits = digits.slice(1);
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (/^0\d{10}$/u.test(digits)) digits = `20${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
+/** Candidate stored forms to match for a given user-typed phone. */
+export function phoneVariants(phone: string): string[] {
+  const canonical = canonicalizePhone(phone);
+  const raw = phone.trim();
+  return raw === canonical ? [canonical] : [...new Set([canonical, raw])];
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -65,12 +89,14 @@ export class AuthService {
       throw new ConflictException('Unsupported role');
     }
 
+    const storedPhone = input.phone !== undefined ? canonicalizePhone(input.phone) : undefined;
     const existing = await this.prisma.user.findFirst({
       where: {
         // Only provided identifiers participate; Prisma validates UUID
         // parameters client-side, so no dummy-id sentinel may be used.
         OR: [
-          ...(input.phone !== undefined ? [{ phone: input.phone }] : []),
+          ...(storedPhone !== undefined ? [{ phone: storedPhone }] : []),
+          ...(input.phone !== undefined ? [{ phone: input.phone.trim() }] : []),
           ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },
@@ -83,7 +109,7 @@ export class AuthService {
     const passwordHash = await hashPassword(input.password);
     const user = await this.prisma.user.create({
       data: {
-        phone: input.phone,
+        phone: storedPhone,
         email: input.email,
         passwordHash,
         role: input.role as UserRole,
@@ -114,7 +140,7 @@ export class AuthService {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          ...(input.phone !== undefined ? [{ phone: input.phone }] : []),
+          ...(input.phone !== undefined ? phoneVariants(input.phone).map((p) => ({ phone: p })) : []),
           ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },

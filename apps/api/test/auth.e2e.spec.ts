@@ -143,6 +143,34 @@ describe('auth e2e', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('register stores phone in canonical +<digits> form and every variant logs in', async () => {
+    const reg = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', phone: '01001112233', password: 'sup3rsecretP4ss' })
+      .expect(201);
+    expect(reg.body.data.user.phone).toBe('+201001112233');
+
+    for (const variant of ['+201001112233', '201001112233', '01001112233']) {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ phone: variant, password: 'sup3rsecretP4ss' })
+        .expect(200);
+      expect(res.body.data.user.phone).toBe('+201001112233');
+    }
+  });
+
+  it('register rejects a duplicate number typed in a different variant', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', phone: '01002223344', password: 'sup3rsecretP4ss' })
+      .expect(201);
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', phone: '+201002223344', password: 'sup3rsecretP4ss' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+  });
+
   it('POST /auth/login with valid credentials returns a session', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')

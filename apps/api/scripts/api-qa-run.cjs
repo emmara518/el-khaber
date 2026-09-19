@@ -10,7 +10,6 @@ const results = [];
 let customerToken = '';
 let technicianToken = '';
 let merchantToken = '';
-let merchantId = '';
 
 function log(name, ok, extra = '') {
   results.push({ name, ok, extra });
