@@ -1,7 +1,7 @@
 # الخبير — Production Readiness
 
 **Path:** `docs/11_PRODUCTION.md`
-**Version:** 1.0 (Task 11E — prepared, NOT deployed)
+**Version:** 1.1 (2026-09-19 — topology decision OPTION A recorded: single-instance; §7.2)
 **Status:** Deployment preparation baseline
 
 ---
@@ -96,17 +96,23 @@ Rules:
 1. **Payment proof storage provider** — BLOCKED (Task 10L). No provider is
    approved; Supabase Storage is explicitly out of scope per ADR. Image
    proof cannot ship until a provider is chosen.
-2. **Multi-instance rate limiting / login lockout** — the current throttler
-   (`@nestjs/throttler`) and failed-login lockout (`LoginAttemptGuard`) are
-   **in-memory per instance**. They are only safe when the API runs as a
-   **single instance**. The production topology is **not yet approved**
-   (CTO decision). Until it is:
-   - the API logs a `topology-notice` warning at startup under
-     `NODE_ENV=production` making the constraint explicit;
-   - horizontal scaling MUST NOT be enabled while relying on in-memory
-     state;
-   - a production-safe multi-instance design requires a CTO-approved shared
-     store (e.g. Redis).
+2. **API instance topology — DECIDED: single-instance (OPTION A,
+   2026-09-19).** The throttler (`@nestjs/throttler`) and failed-login
+   lockout (`LoginAttemptGuard`) are **in-memory per instance**, no Redis
+   exists in this environment, and no deploy target is selected yet — so
+   production runs a **SINGLE API instance (`REPLICAS=1`)**. Enforced
+   where code can, documented everywhere else:
+    - the API logs a `topology-notice` warning at every production boot;
+    - booting with `MULTI_INSTANCE=true` and no `SHARED_STORE_URL` logs
+      `topology-fatal` and exits (fail-closed against accidental
+      scale-out; default boots normally);
+    - `REPLICAS=1` is required in `apps/api/.env.example` and by the
+      deployment configuration (no in-process replica count exists to
+      enforce — the orchestrator must not scale past 1).
+    **What changes this decision:** a CTO-approved shared store
+    (e.g. Redis) wired into the throttler + lockout, with
+    `SHARED_STORE_URL` set and `MULTI_INSTANCE=true` booting cleanly —
+    only then may `REPLICAS` exceed 1.
 3. **Notification delivery provider** (push/email/SMS) — out of scope;
    notifications are persisted only.
 4. **Payment gateway** — MVP is manual transfer + Admin review; no gateway.

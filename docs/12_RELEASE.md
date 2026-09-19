@@ -1,24 +1,58 @@
 # الخبير — Release Candidate Manifest
 
 **Path:** `docs/12_RELEASE.md`
-**Status:** Final production-readiness run — strongest achievable candidate
+**Status:** RC5 closure run (2026-09-19) — strongest achievable candidate
 given the environment. **NOT deployed. NOT merged to main.**
+Supersedes the RC4 notes below where they conflict (migrations 6→7,
+release build fixed, payment storage code-complete).
 
 ---
 
+## 0. RC5 closure run — 2026-09-19 (this session)
+
+- **Payment proof storage implemented** (code-complete, fail-closed):
+  provider-abstracted `StoragePort` + S3-compatible presigned PUT/GET,
+  owner-only upload URL, HEAD + magic-byte confirm, admin presigned view,
+  MIME allowlist (jpeg/png/webp), 5 MB default cap, audit entries, openapi
+  regenerated, 27 new tests green. Only real S3-compatible credentials are
+  missing (`PROOF_S3_*`); endpoints 500 naming the missing var until then.
+- **Android release pipeline fixed:** root cause isolated to the RN Gradle
+  plugin relativizing `--entry-file` on Windows + `@expo/cli@0.22` forwarding
+  it verbatim to Metro (upstream expo/expo#39738, backport of #40563 as
+  `apps/mobile/scripts/expo-export-embed-cli.js`). Durable via committed
+  config plugin `apps/mobile/plugins/with-android-release-hardening.js`
+  (re-applies the bundling fix, env-based release signing, and release
+  cleartext policy on every prebuild). **Release APK + AAB built, installed
+  clean, launched, and smoke-tested on the emulator** (onboarding →
+  account-type → merchant registration, RTL verified, zero FATAL logs,
+  embedded 2.41 MB Hermes bundle, no Metro dependency).
+- **Production topology decided (single-instance):** boot-time fail-closed
+  guard against accidental scale-out (`MULTI_INSTANCE=true` without
+  `SHARED_STORE_URL` refuses to boot); release manifest pins
+  cleartext=false; `docs/11_PRODUCTION.md` §7.2 updated; deploy runbook in
+  `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md`.
+- **Mobile API client hardened:** production builds fail fast without
+  `EXPO_PUBLIC_API_URL` (no silent emulator fallback) and warn on http.
+- **Database:** migration `20260915000000_payment_proof_metadata` (additive,
+  3 nullable columns) applied to dev; chain now 7/7.
+- **Verification:** typecheck 11/11, lint 0 errors, API 27 files/216 tests,
+  mobile 29/274, admin 27, landing build PASS.
+- **Still external (unchanged):** no deployed HTTPS API (no cloud accounts in
+  env), no S3-compatible credentials, no production upload keystore.
+
 ## 1. Release identity
 
-| Field | Value |
-|---|---|
-| Branch | `review/final-production-release` |
-| Base branch | `review/final-production-readiness` |
-| Previous RC | `review/release-candidate-v3` @ `48bfcaaf5a6b109c0de1abb4ea81a422eacf7faa` |
-| Release version | `0.0.1-rc.4` |
-| API version | `0.0.1` (contract in `docs/api/openapi.yaml`) |
-| Mobile version | `0.0.1` (Expo SDK 52, `ai.khabir.app`) |
-| Admin web | `0.0.1` (Next.js) |
-| Landing web | `0.0.1` (Next.js) |
-| Database | managed PostgreSQL + PostGIS; **6 migrations** |
+| Field           | Value                                                                      |
+| --------------- | -------------------------------------------------------------------------- |
+| Branch          | `review/final-production-release`                                          |
+| Base branch     | `review/final-production-readiness`                                        |
+| Previous RC     | `review/release-candidate-v3` @ `48bfcaaf5a6b109c0de1abb4ea81a422eacf7faa` |
+| Release version | `0.0.1-rc.5`                                                               |
+| API version     | `0.0.1` (contract in `docs/api/openapi.yaml`)                              |
+| Mobile version  | `0.0.1` (Expo SDK 52, `ai.khabir.app`)                                     |
+| Admin web       | `0.0.1` (Next.js)                                                          |
+| Landing web     | `0.0.1` (Next.js)                                                          |
+| Database        | managed PostgreSQL + PostGIS; **7 migrations**                             |
 
 ---
 
@@ -41,6 +75,7 @@ given the environment. **NOT deployed. NOT merged to main.**
   mismatch, documented in-file).
 
 ### Deliberately NOT done
+
 - No storage provider invented — payment proof stays blocked.
 - No Android runtime installed — native QA stays unverified.
 - No Redis/shared store installed — topology stays a CTO decision.
@@ -51,22 +86,22 @@ given the environment. **NOT deployed. NOT merged to main.**
 
 ## 3. Verification summary
 
-| Gate | Result | Evidence |
-|---|---|---|
-| Repo typecheck | PASS (11/11 packages) | `pnpm typecheck` |
-| Repo lint | PASS (0 errors) | `pnpm lint` |
-| API unit + e2e (in-memory) | PASS — 24 files / 187 tests | `pnpm --filter @khabir/api test` |
-| Mobile tests | PASS — 27 files / 249 tests | `pnpm --filter @khabir/mobile test` |
-| Real HTTP E2E (isolated `khabir_test`) | PASS — 3 files / 18 tests, RUN 1 + RUN 2 | `pnpm --filter @khabir/api test:http-e2e` |
-| OpenAPI + generated types | deterministic | `pnpm gen:openapi`, `pnpm gen:types` |
-| Migrations | additive, non-destructive (6 total) | `prisma/migrations` |
-| khabir-dev residue | ZERO (all probe prefixes 0/0/0) | probe query |
-| Android QA APK | BUILT (debug) — see §4 | `assembleDebug` + aapt2 badging |
-| Live QA execution (API journeys, 42/42) | PASS | `scripts/api-qa-run.cjs` (§6a) |
-| Admin console surfaces QA | PASS — 4 actions verified + audited | browser run (§6a) |
-| Android emulator QA (login/browse/product) | PASS — happy paths | `khabir_qa` AVD (§6a) |
-| Native QA execution | PASS on emulator (see §6a) | — |
-| Payment proof | BLOCKED — no approved provider | — |
+| Gate                                       | Result                                   | Evidence                                  |
+| ------------------------------------------ | ---------------------------------------- | ----------------------------------------- |
+| Repo typecheck                             | PASS (11/11 packages)                    | `pnpm typecheck`                          |
+| Repo lint                                  | PASS (0 errors)                          | `pnpm lint`                               |
+| API unit + e2e (in-memory)                 | PASS — 24 files / 187 tests              | `pnpm --filter @khabir/api test`          |
+| Mobile tests                               | PASS — 27 files / 249 tests              | `pnpm --filter @khabir/mobile test`       |
+| Real HTTP E2E (isolated `khabir_test`)     | PASS — 3 files / 18 tests, RUN 1 + RUN 2 | `pnpm --filter @khabir/api test:http-e2e` |
+| OpenAPI + generated types                  | deterministic                            | `pnpm gen:openapi`, `pnpm gen:types`      |
+| Migrations                                 | additive, non-destructive (6 total)      | `prisma/migrations`                       |
+| khabir-dev residue                         | ZERO (all probe prefixes 0/0/0)          | probe query                               |
+| Android QA APK                             | BUILT (debug) — see §4                   | `assembleDebug` + aapt2 badging           |
+| Live QA execution (API journeys, 42/42)    | PASS                                     | `scripts/api-qa-run.cjs` (§6a)            |
+| Admin console surfaces QA                  | PASS — 4 actions verified + audited      | browser run (§6a)                         |
+| Android emulator QA (login/browse/product) | PASS — happy paths                       | `khabir_qa` AVD (§6a)                     |
+| Native QA execution                        | PASS on emulator (see §6a)               | —                                         |
+| Payment proof                              | BLOCKED — no approved provider           | —                                         |
 
 ---
 
@@ -147,8 +182,8 @@ real HTTP API:
   customer profile with live order counts → merchant home shows account
   status «قيد المراجعة» (seeded pending) → product creation form submits
   and the product appears in «إدارة المنتجات» (active, 1450 SAR).
-  *(Description text artifacts during typing came from the QA typing
-  tool, not the app; the record was corrected via API afterwards.)*
+  _(Description text artifacts during typing came from the QA typing
+  tool, not the app; the record was corrected via API afterwards.)_
 - Admin console (browser-driven): dashboard metrics render live data
   (6 users, request counts by status); merchant verification approve
   works with confirm dialog and reflected state; payment submission

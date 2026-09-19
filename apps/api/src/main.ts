@@ -32,6 +32,30 @@ async function bootstrap(): Promise<void> {
   const config = getConfig();
   const logger = new Logger('Bootstrap');
 
+  // Topology guard (OPTION A — single-instance production, docs/11 §7.2):
+  // rate limiting and failed-login lockout are PROCESS-LOCAL (in-memory).
+  // Booting with MULTI_INSTANCE=true and no CTO-approved shared store is a
+  // misconfiguration: log FATAL and refuse to start (fail-closed against
+  // accidental scale-out). Default (unset/false) boots normally as a single
+  // instance. No Redis client, no new dependencies — REPLICAS=1 is enforced
+  // by deployment configuration, this guard only closes the explicit
+  // opt-in to multi-instance.
+  const multiInstance = (process.env['MULTI_INSTANCE'] ?? '').trim().toLowerCase() === 'true';
+  const sharedStore = (process.env['SHARED_STORE_URL'] ?? '').trim();
+  if (multiInstance && sharedStore.length === 0) {
+    logger.error(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: 'fatal',
+        event: 'topology-fatal',
+        message:
+          'MULTI_INSTANCE=true requires a CTO-approved shared store (SHARED_STORE_URL). ' +
+          'Rate limiting and failed-login lockout are in-memory; refusing to boot rather than run unsafe.',
+      }),
+    );
+    process.exit(1);
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
   app.setGlobalPrefix(config.globalPrefix);
@@ -81,18 +105,23 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Topology notice (Task REM-004): rate limiting and failed-login lockout
-  // are PROCESS-LOCAL (in-memory). They are only safe when the API runs as a
-  // single instance. This does not resolve the topology (a CTO decision) but
-  // makes the constraint impossible to miss in production logs.
+  // Topology notice (OPTION A — single-instance production, docs/11 §7.2):
+  // rate limiting and failed-login lockout are PROCESS-LOCAL (in-memory).
+  // Production MUST run a SINGLE API instance (REPLICAS=1) until the CTO
+  // approves a shared store. The MULTI_INSTANCE guard above fails closed
+  // against accidental scale-out; this notice keeps the constraint visible
+  // in production logs on every boot.
   if (config.env === 'production') {
     logger.warn(
       JSON.stringify({
         ts: new Date().toISOString(),
         level: 'warn',
         event: 'topology-notice',
+        topology: 'single-instance',
+        replicas: (process.env['REPLICAS'] ?? '1').trim(),
+        multiInstance,
         message:
-          'Rate limiting and failed-login lockout are in-memory (process-local). Run a SINGLE API instance, or provide a CTO-approved shared store, before scaling horizontally.',
+          'Rate limiting and failed-login lockout are in-memory (process-local). Run a SINGLE API instance (REPLICAS=1), or provide a CTO-approved shared store (SHARED_STORE_URL) before scaling horizontally.',
       }),
     );
   }

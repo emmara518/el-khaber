@@ -42,6 +42,9 @@ coverage/
 **/prisma/migrations/dev.db*
 **/prisma/dev.db*
 
+# Payment proof local adapter (dev/test double data, server-side only)
+.proof-storage/
+
 # Expo / React Native
 .expo-shared/
 ios/Pods/
@@ -54,6 +57,7 @@ ios/Podfile.lock
 *.jks
 *.p12
 *.key
+*.keystore
 *.mobileprovision
 
 # Temporary scratch
@@ -62,6 +66,13 @@ temp/
 *.tmp
 *.bak
 *.swp
+
+# Local QA / tooling dumps (never commit)
+.playwright-mcp/
+workspace/
+ui-dump.xml
+admin-login-before.png
+release-smoke*.png
 
 # Generated Prisma client (re-generated on install)
 packages/*/node_modules/.prisma/

@@ -16,6 +16,7 @@
   "dependencies": {
     "@babel/runtime": "7.26.10",
     "@expo/metro-runtime": "~4.0.1",
+    "@expo/vector-icons": "14.0.4",
     "@khabir/shared-types": "workspace:*",
     "@khabir/shared-validation": "workspace:*",
     "@khabir/ui-tokens": "workspace:*",
@@ -37,6 +38,7 @@
     "zustand": "5.0.1"
   },
   "devDependencies": {
+    "@expo/config-plugins": "9.0.17",
     "@khabir/config": "workspace:*",
     "@types/node": "20.14.10",
     "@types/react": "~18.3.12",
