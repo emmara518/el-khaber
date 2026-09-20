@@ -58,6 +58,15 @@ Expected migration chain (additive, non-destructive):
 20260915000000_payment_proof_metadata
 ```
 
+**BOOTSTRAPPED 2026-09-20:** `khabir-prod` exists (ref `gvobmjqxpacpmemvjbvw`,
+eu-west-1, PostgreSQL 17.6, PostGIS 3.3.7, uuid-ossp 1.1, pgcrypto 1.3) with
+the full 7/7 chain applied and `migrate status` clean. Platform notes learned
+during bootstrap: direct `db.<ref>.supabase.co:5432` is IPv6-only from most
+networks — run all DDL through the session-mode pooler
+`aws-1-eu-west-1.pooler.supabase.com:5432` (transaction pooler `:6543` is
+runtime-only); new projects install extensions into the `extensions` schema,
+so the migration role needs `search_path = public, extensions` plus
+`USAGE ON SCHEMA extensions` (in addition to the §3 user/grants pattern).
 Seed: do NOT run dev/QA seeds against prod. Create the admin operator via the
 documented admin-bootstrap path only.
 
