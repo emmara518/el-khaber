@@ -88,6 +88,8 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
       rating: 4.8,
       reviewCount: 127,
       specialtyAr: 'تكيفات',
+      verified: true,
+      availabilityAr: 'متاح اليوم',
     },
     {
       id: 'tech-2',
@@ -96,6 +98,8 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
       rating: 4.9,
       reviewCount: 213,
       specialtyAr: 'ثلاجات',
+      verified: true,
+      availabilityAr: 'متاح اليوم',
     },
     {
       id: 'tech-3',
@@ -104,6 +108,8 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
       rating: 4.9,
       reviewCount: 198,
       specialtyAr: 'غسالات',
+      verified: true,
+      availabilityAr: 'مشغول حاليًا',
     },
     {
       id: 'tech-4',
@@ -112,6 +118,8 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
       rating: 4.9,
       reviewCount: 156,
       specialtyAr: 'غسالات',
+      verified: true,
+      availabilityAr: 'متاح اليوم',
     },
   ],
   role: 'customer',

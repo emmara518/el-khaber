@@ -10,6 +10,7 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
 
 export function VerificationBadge({ verified }: { verified: boolean }) {
@@ -20,7 +21,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
         accessibilityLabel="موثّق من الخبير: تم التحقق من الهوية والخبرة"
         style={[styles.badge, styles.verified]}
       >
-        <Icon name="check-circle" size={13} color={color.success.DEFAULT} accessibilityLabel="موثّق" />
+        <BrandImage name="verified" size={16} accessibilityLabel="موثّق" />
         <Text style={[styles.label, styles.verifiedText]}>موثّق من الخبير</Text>
       </View>
     );

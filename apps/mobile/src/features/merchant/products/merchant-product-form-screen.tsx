@@ -10,7 +10,7 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { sharedMerchantProductsSource } from './api-merchant-products-data-source';
 import {
@@ -24,8 +24,8 @@ import { useMerchantProductFormViewModel } from './use-merchant-product-form-vie
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card, Icon } from '@/ui';
+import { BrandImage } from '@/ui/brand-image';
 import { SceneHero } from '@/ui/cinematic';
-import { sceneAssets } from '@/ui/scene-assets';
 
 export default function MerchantProductFormScreen({
   mode,
@@ -71,13 +71,9 @@ export default function MerchantProductFormScreen({
 
       {vm.status === 'success' && savedProduct !== null ? (
         <View style={styles.form}>
-          <Image
-            source={sceneAssets.merchant_success}
-            accessible={false}
-            importantForAccessibility="no"
-            resizeMode="cover"
-            style={styles.successScene}
-          />
+          <View style={styles.successScene}>
+            <BrandImage name="success" size={116} />
+          </View>
           <Card
             background={color.success.soft}
             borderColor={color.success.DEFAULT}
@@ -279,7 +275,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 150,
     borderRadius: radius.lg,
-    backgroundColor: color.brand.navyDeep,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   form: {
     gap: spacing[2],

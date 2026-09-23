@@ -55,6 +55,10 @@ export interface TechnicianCardItem {
   readonly rating: number;
   readonly reviewCount: number;
   readonly specialtyAr: string;
+  /** Platform verification (identity + experience checked by الخبير). */
+  readonly verified: boolean;
+  /** Real server availability status, already localized. */
+  readonly availabilityAr: string;
 }
 
 export interface CustomerContext {

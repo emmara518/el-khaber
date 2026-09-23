@@ -16,7 +16,7 @@ import type { ChatDataSource } from '../chat/chat-types';
 import type { RatingDataSource } from '../rating/rating-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, StatusBadge } from '@/ui';
+import { Avatar, StatusBadge, statusBrandAsset } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function OrderTrackingScreen({ requestId, orderSource, chatSource, ratingSource }: {
@@ -65,7 +65,7 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
       <View style={styles.sections}>
         <SceneSection eyebrow={detail.applianceAr} title={detail.taskAr} body={detail.locationAr}>
           {detail.appointmentAr !== null ? <Text style={styles.detail}>الموعد: {detail.appointmentAr}</Text> : null}
-          <StatusBadge status={detail.status} label={detail.statusLabelAr} />
+          <StatusBadge status={detail.status} label={detail.statusLabelAr} icon={statusBrandAsset(detail.status)} />
           {detail.technicianId !== null ? (
             <View style={styles.identity}>
               <Avatar initials={detail.technicianInitialsAr} size={52} accessibilityLabel={detail.technicianNameAr} />

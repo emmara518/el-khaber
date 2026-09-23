@@ -22,7 +22,7 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, Icon, IconText, StatusBadge } from '@/ui';
+import { Avatar, Card, Icon, IconText, StatusBadge, statusBrandAsset } from '@/ui';
 import { SceneHero } from '@/ui/cinematic';
 
 export default function CustomerRequestsScreen() {
@@ -96,7 +96,7 @@ export default function CustomerRequestsScreen() {
     if (requests.length === 0) {
       return (
         <ListEmpty
-          asset="customer_onboarding_diagnosis"
+          brandAsset="no-requests"
           icon="clipboard"
           iconLabel="لا توجد طلبات"
           title={translate('requests.empty.title')}
@@ -141,7 +141,7 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
           <Text style={styles.tech}>{item.technicianNameAr}</Text>
         </View>
         <View style={styles.side}>
-          <StatusBadge status={item.status} label={item.statusLabelAr} />
+          <StatusBadge status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
         </View>
       </View>
       <View style={styles.footer}>

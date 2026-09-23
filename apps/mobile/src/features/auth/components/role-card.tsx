@@ -17,7 +17,7 @@ import { ROLE_OPTIONS, type RoleOption } from '../roles';
 
 import type { Role } from '@khabir/shared-types';
 
-import { Icon } from '@/ui/icon';
+import { BrandImage } from '@/ui/brand-image';
 
 export { ROLE_OPTIONS };
 export type { RoleOption };
@@ -44,7 +44,7 @@ export function RoleCard({
       ]}
     >
       <View style={styles.iconWrap}>
-        <Icon name={option.icon} size={22} color={selected ? color.brand.navy : color.text.secondary} />
+        <BrandImage name={option.brandAsset} size={36} />
       </View>
       <View style={styles.textWrap}>
         <Text style={styles.title}>{option.titleAr}</Text>

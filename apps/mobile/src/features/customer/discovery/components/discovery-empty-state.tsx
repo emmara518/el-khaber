@@ -12,7 +12,7 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Reanimated, {
   Easing,
   ReduceMotion,
@@ -23,8 +23,8 @@ import Reanimated, {
 } from 'react-native-reanimated';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
-import { sceneAssets } from '@/ui/scene-assets';
 
 
 export function DiscoveryEmptyState({
@@ -59,13 +59,11 @@ export function DiscoveryEmptyState({
 
   return (
     <Reanimated.View accessibilityRole="alert" accessibilityLabel={title} style={[styles.root, enterStyle]}>
-      <View style={styles.sceneWrap}>
-        <Image
-          accessible
-          accessibilityRole="image"
-          accessibilityLabel={catalogEmpty ? 'صورة توضيحية لفني معتمد' : 'لا توجد نتائج مطابقة للبحث الحالي'}
-          source={sceneAssets[catalogEmpty ? 'technician_placeholder_male' : 'fault_empty']}
-          style={styles.scene}
+      <View style={styles.art}>
+        <BrandImage
+          name={catalogEmpty ? 'no-requests' : 'no-results'}
+          size={132}
+          accessibilityLabel={catalogEmpty ? 'لا يوجد فنيون متاحون' : 'لا توجد نتائج مطابقة للبحث الحالي'}
         />
       </View>
 
@@ -127,17 +125,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: color.border.default,
   },
-  sceneWrap: {
-    width: 150,
-    height: 200,
+  art: {
+    width: 156,
+    height: 156,
     borderRadius: radius.lg,
-    overflow: 'hidden',
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing[2],
-  },
-  scene: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
   },
   title: {
     color: color.text.primary,

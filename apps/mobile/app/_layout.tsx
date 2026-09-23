@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { groupForSegments, resolveRouteForSession } from '../src/features/auth/role-routing';
 import { useI18n } from '../src/i18n/use-i18n';
 import { useAuthStore } from '../src/lib/auth-store';
+import { useAppFonts } from '../src/ui/fonts';
 
 /**
  * Root layout — single multi-role app (docs/01_PROJECT.md §2).
@@ -23,11 +24,18 @@ import { useAuthStore } from '../src/lib/auth-store';
  * The guard trusts ONLY `user.role` from the authenticated session.
  */
 export default function RootLayout() {
+  const { loaded: fontsLoaded, error: fontError } = useAppFonts();
   if (I18nManager.isRTL === false) {
     I18nManager.allowRTL(true);
     I18nManager.forceRTL(true);
   }
   useI18n();
+  // Hold first paint only while the fonts are still loading. If the load
+  // fails, `fontError` is set and we render anyway (platform fallback)
+  // rather than getting stuck on a blank screen.
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>

@@ -125,6 +125,8 @@ export class ApiCustomerHomeDataSource implements CustomerHomeDataSource {
           rating: card.rating,
           reviewCount: card.reviewCount,
           specialtyAr: card.specialtiesAr[0] ?? '',
+          verified: card.verified,
+          availabilityAr: card.availabilityLabelAr,
         };
       }),
     );

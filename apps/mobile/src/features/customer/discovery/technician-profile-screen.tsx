@@ -55,7 +55,7 @@ export default function TechnicianProfileScreen() {
       ) : null}
       {status === 'loaded' ? (
         technician === null ? (
-          <ListEmpty asset="technician_placeholder_female" icon="user" iconLabel="فني غير موجود" title={t('discovery.profile.missing')} body={t('discovery.profile.missingBody')} actionLabel={t('fault.back')} onAction={safeBack} />
+          <ListEmpty brandAsset="no-results" icon="user" iconLabel="فني غير موجود" title={t('discovery.profile.missing')} body={t('discovery.profile.missingBody')} actionLabel={t('fault.back')} onAction={safeBack} />
         ) : (
           <ProfileBody
             technician={technician}

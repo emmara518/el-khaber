@@ -1,12 +1,12 @@
 import { color, radius, typography } from '@khabir/ui-tokens';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
-import { sceneAssets } from '@/ui/scene-assets';
+import { BrandImage } from '@/ui/brand-image';
 
 export function ProductImagePlaceholder({ nameAr, size = 96, hasImage }: { nameAr: string; size?: number; hasImage: boolean }) {
   return (
     <View accessibilityRole="image" accessibilityLabel={`رسم توضيحي، ليس صورة المنتج: ${nameAr}${hasImage ? '، صورة المنتج المسجلة غير متاحة للعرض' : ''}`} style={styles.tile}>
-      <Image source={sceneAssets.merchant_products} accessible={false} resizeMode="contain" style={{ width: size, height: size }} />
+      <BrandImage name="spare-parts" size={size} />
       <Text style={styles.label}>رسم توضيحي</Text>
     </View>
   );

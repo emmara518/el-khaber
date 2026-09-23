@@ -1,30 +1,32 @@
 import { color } from '@khabir/ui-tokens';
-import { StyleSheet, View } from 'react-native';
+import { Image, StyleSheet, View } from 'react-native';
 
-import { Icon, type IconName } from './icon';
+import { brandAssets, type BrandAssetName } from './brand-assets';
 
 import type { ApplianceSlug } from '../features/customer/home/data/customer-home-types';
 
 interface ApplianceIconProps {
   slug: ApplianceSlug;
-  /** Card background; defaults to surface.subtle. */
+  /** Tile background; defaults to surface.subtle. */
   background?: string;
   size?: number;
 }
 
 /**
- * Vector appliance illustration: a soft tile with a navy glyph
- * (droplet for washers, snowflake for fridges, wind for ACs).
- * Consistent stroke and optical weight across the set — no letters,
- * no emoji.
+ * Appliance category emblem — the approved 512×512 brand WebP rendered
+ * `contain` inside a neutral tile. No tint, no crop, no cover: the
+ * transparent asset keeps its authored proportions on every card.
+ *
+ * The tile keeps the app's subtle surface + hairline border so the icon
+ * stays legible on both light and navy cards.
  */
+const BRAND_BY_SLUG: Record<ApplianceSlug, BrandAssetName> = {
+  air_conditioner: 'air-conditioner',
+  refrigerator: 'refrigerator',
+  washing_machine: 'washing-machine',
+};
+
 export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProps) {
-  const ICONS: Record<ApplianceSlug, { icon: IconName; tint: string }> = {
-    air_conditioner: { icon: 'wind', tint: color.brand.navy },
-    refrigerator: { icon: 'thermometer', tint: color.brand.navy },
-    washing_machine: { icon: 'droplet', tint: color.brand.navy },
-  };
-  const { icon, tint } = ICONS[slug];
   return (
     <View
       style={[
@@ -38,7 +40,13 @@ export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProp
         },
       ]}
     >
-      <Icon name={icon} size={Math.round(size * 0.4)} color={tint} />
+      <Image
+        source={brandAssets[BRAND_BY_SLUG[slug]]}
+        accessible={false}
+        importantForAccessibility="no"
+        resizeMode="contain"
+        style={{ width: size * 0.72, height: size * 0.72 }}
+      />
     </View>
   );
 }

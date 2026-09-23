@@ -1,0 +1,1322 @@
+{
+  "phase": 0,
+  "canvas": 512,
+  "format": "webp",
+  "webp_quality": 90,
+  "webp_method": 6,
+  "count": 68,
+  "total_source_bytes": 82823861,
+  "total_output_bytes": 2776382,
+  "delta_bytes": 80047479,
+  "reduction_pct": 96.65,
+  "flagged": [
+    "illustration assets\\service-location.png",
+    "status icons\\completed.png",
+    "status icons\\in-progress.png",
+    "success  feedback\\booked.png"
+  ],
+  "assets": [
+    {
+      "name": "call",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/call.png",
+      "output": "brand/action-navigation-icons/call.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 936559,
+      "output_bytes": 43342,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "favorites",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/favorites.png",
+      "output": "brand/action-navigation-icons/favorites.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 919861,
+      "output_bytes": 29534,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "filter",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/filter.png",
+      "output": "brand/action-navigation-icons/filter.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 779542,
+      "output_bytes": 29968,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "home",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/home.png",
+      "output": "brand/action-navigation-icons/home.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 915221,
+      "output_bytes": 24316,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "location",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/location.png",
+      "output": "brand/action-navigation-icons/location.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1030406,
+      "output_bytes": 40260,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "messages",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/messages.png",
+      "output": "brand/action-navigation-icons/messages.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 960762,
+      "output_bytes": 33326,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "my-requests",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/my-requests.png",
+      "output": "brand/action-navigation-icons/my-requests.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 860416,
+      "output_bytes": 23426,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "notifications",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/notifications.png",
+      "output": "brand/action-navigation-icons/notifications.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 911280,
+      "output_bytes": 34222,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "profile",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/profile.png",
+      "output": "brand/action-navigation-icons/profile.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1100094,
+      "output_bytes": 40456,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "search",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/search.png",
+      "output": "brand/action-navigation-icons/search.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 783074,
+      "output_bytes": 27256,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "settings",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/settings.png",
+      "output": "brand/action-navigation-icons/settings.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1179791,
+      "output_bytes": 44330,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "share",
+      "category": "action-navigation-icons",
+      "source": "action  navigation icons/share.png",
+      "output": "brand/action-navigation-icons/share.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 870225,
+      "output_bytes": 26888,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "app-icon",
+      "category": "app-icon",
+      "source": "app-icon/app-icon.png",
+      "output": "brand/app-icon/app-icon.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 557167,
+      "output_bytes": 16626,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "air-conditioner",
+      "category": "appliance-categories",
+      "source": "appliance categories/air-conditioner.png",
+      "output": "brand/appliance-categories/air-conditioner.webp",
+      "source_size": "1774x887",
+      "output_size": "512x512",
+      "placed_size": "512x256",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1014129,
+      "output_bytes": 15620,
+      "verified": true,
+      "issues": [
+        "source canvas 1774x887 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "coffee-machine",
+      "category": "appliance-categories",
+      "source": "appliance categories/coffee-machine.png",
+      "output": "brand/appliance-categories/coffee-machine.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1405138,
+      "output_bytes": 46706,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "dishwasher",
+      "category": "appliance-categories",
+      "source": "appliance categories/dishwasher.png",
+      "output": "brand/appliance-categories/dishwasher.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1336785,
+      "output_bytes": 36800,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "microwave",
+      "category": "appliance-categories",
+      "source": "appliance categories/microwave.png",
+      "output": "brand/appliance-categories/microwave.webp",
+      "source_size": "1536x1024",
+      "output_size": "512x512",
+      "placed_size": "512x341",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1684307,
+      "output_bytes": 32526,
+      "verified": true,
+      "issues": [
+        "source canvas 1536x1024 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "oven",
+      "category": "appliance-categories",
+      "source": "appliance categories/oven.png",
+      "output": "brand/appliance-categories/oven.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1407861,
+      "output_bytes": 40506,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "refrigerator",
+      "category": "appliance-categories",
+      "source": "appliance categories/refrigerator.png",
+      "output": "brand/appliance-categories/refrigerator.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 905827,
+      "output_bytes": 15032,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "tv-screen",
+      "category": "appliance-categories",
+      "source": "appliance categories/tv-screen.png",
+      "output": "brand/appliance-categories/tv-screen.webp",
+      "source_size": "1536x1024",
+      "output_size": "512x512",
+      "placed_size": "512x341",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1370094,
+      "output_bytes": 17748,
+      "verified": true,
+      "issues": [
+        "source canvas 1536x1024 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "vacuum-cleaner",
+      "category": "appliance-categories",
+      "source": "appliance categories/vacuum-cleaner.png",
+      "output": "brand/appliance-categories/vacuum-cleaner.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1105194,
+      "output_bytes": 43720,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "washing-machine",
+      "category": "appliance-categories",
+      "source": "appliance categories/washing-machine .png",
+      "output": "brand/appliance-categories/washing-machine.webp",
+      "source_size": "1278x1230",
+      "output_size": "512x512",
+      "placed_size": "512x493",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1431966,
+      "output_bytes": 41082,
+      "verified": true,
+      "issues": [
+        "source canvas 1278x1230 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "water-heater",
+      "category": "appliance-categories",
+      "source": "appliance categories/water-heater.png",
+      "output": "brand/appliance-categories/water-heater.webp",
+      "source_size": "1145x1374",
+      "output_size": "512x512",
+      "placed_size": "427x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1156633,
+      "output_bytes": 24534,
+      "verified": true,
+      "issues": [
+        "source canvas 1145x1374 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "water-heater1",
+      "category": "appliance-categories",
+      "source": "appliance categories/water-heater1.png",
+      "output": "brand/appliance-categories/water-heater1.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1158316,
+      "output_bytes": 37920,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "eco-friendly",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/eco-friendly.png",
+      "output": "brand/badge-tag-icons/eco-friendly.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1143321,
+      "output_bytes": 44316,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "fast",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/fast.png",
+      "output": "brand/badge-tag-icons/fast.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 959336,
+      "output_bytes": 40938,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "featured",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/featured.png",
+      "output": "brand/badge-tag-icons/featured.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 885489,
+      "output_bytes": 35466,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "premium",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/premium.png",
+      "output": "brand/badge-tag-icons/premium.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1485221,
+      "output_bytes": 67046,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "top-rated",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/top-rated.png",
+      "output": "brand/badge-tag-icons/top-rated.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1325085,
+      "output_bytes": 59782,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "verified",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/verified.png",
+      "output": "brand/badge-tag-icons/verified.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1083416,
+      "output_bytes": 43992,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "warranty",
+      "category": "badge-tag-icons",
+      "source": "badge  tag icons/warranty.png",
+      "output": "brand/badge-tag-icons/warranty.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1203416,
+      "output_bytes": 51800,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "no-connection",
+      "category": "empty-state-icons",
+      "source": "empty state icons/no-connection.png",
+      "output": "brand/empty-state-icons/no-connection.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 906945,
+      "output_bytes": 35710,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "no-requests",
+      "category": "empty-state-icons",
+      "source": "empty state icons/no-requests.png",
+      "output": "brand/empty-state-icons/no-requests.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1098706,
+      "output_bytes": 33980,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "no-results",
+      "category": "empty-state-icons",
+      "source": "empty state icons/no-results.png",
+      "output": "brand/empty-state-icons/no-results.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 880540,
+      "output_bytes": 28442,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "something-wrong",
+      "category": "empty-state-icons",
+      "source": "empty state icons/something-wrong.png",
+      "output": "brand/empty-state-icons/something-wrong.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1023200,
+      "output_bytes": 35956,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "book-service",
+      "category": "feature-icons",
+      "source": "feature icons/book-service.png",
+      "output": "brand/feature-icons/book-service.webp",
+      "source_size": "1325x1187",
+      "output_size": "512x512",
+      "placed_size": "512x459",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1401493,
+      "output_bytes": 43558,
+      "verified": true,
+      "issues": [
+        "source canvas 1325x1187 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "certified-technician",
+      "category": "feature-icons",
+      "source": "feature icons/certified-technician.png",
+      "output": "brand/feature-icons/certified-technician.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1600241,
+      "output_bytes": 47246,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "diagnostics",
+      "category": "feature-icons",
+      "source": "feature icons/diagnostics.png",
+      "output": "brand/feature-icons/diagnostics.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1581041,
+      "output_bytes": 53992,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "emergency",
+      "category": "feature-icons",
+      "source": "feature icons/emergency.png",
+      "output": "brand/feature-icons/emergency.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1405963,
+      "output_bytes": 52442,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "home-service",
+      "category": "feature-icons",
+      "source": "feature icons/home-service.png",
+      "output": "brand/feature-icons/home-service.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1725757,
+      "output_bytes": 63664,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "maintenance",
+      "category": "feature-icons",
+      "source": "feature icons/maintenance.png",
+      "output": "brand/feature-icons/maintenance.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1477186,
+      "output_bytes": 53230,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "pending",
+      "category": "feature-icons",
+      "source": "feature icons/pending.png",
+      "output": "brand/feature-icons/pending.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1699313,
+      "output_bytes": 58366,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "repair",
+      "category": "feature-icons",
+      "source": "feature icons/repair.png",
+      "output": "brand/feature-icons/repair.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1224951,
+      "output_bytes": 40852,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "spare-parts",
+      "category": "feature-icons",
+      "source": "feature icons/spare-parts.png",
+      "output": "brand/feature-icons/spare-parts.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1725682,
+      "output_bytes": 52892,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "support",
+      "category": "feature-icons",
+      "source": "feature icons/support.png",
+      "output": "brand/feature-icons/support.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1526181,
+      "output_bytes": 52182,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "communication",
+      "category": "illustration-assets",
+      "source": "illustration assets/communication.png",
+      "output": "brand/illustration-assets/communication.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1065700,
+      "output_bytes": 29944,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "home-service-illustration",
+      "category": "illustration-assets",
+      "source": "illustration assets/home-service-illustration.png",
+      "output": "brand/illustration-assets/home-service-illustration.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 2262516,
+      "output_bytes": 76046,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "secure-trusted",
+      "category": "illustration-assets",
+      "source": "illustration assets/secure-trusted.png",
+      "output": "brand/illustration-assets/secure-trusted.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 986539,
+      "output_bytes": 27972,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "service-appointment",
+      "category": "illustration-assets",
+      "source": "illustration assets/service-appointment.png",
+      "output": "brand/illustration-assets/service-appointment.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1163896,
+      "output_bytes": 27204,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "service-location",
+      "category": "illustration-assets",
+      "source": "illustration assets/service-location.png",
+      "output": "brand/illustration-assets/service-location.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGB",
+      "alpha_status": "still-opaque",
+      "has_transparency": false,
+      "source_bytes": 1781289,
+      "output_bytes": 77948,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512",
+        "no alpha channel in master",
+        "border not uniform (max dev 39 > 8); kept opaque"
+      ]
+    },
+    {
+      "name": "service-report",
+      "category": "illustration-assets",
+      "source": "illustration assets/service-report.png",
+      "output": "brand/illustration-assets/service-report.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 2229269,
+      "output_bytes": 81148,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "toolbox",
+      "category": "illustration-assets",
+      "source": "illustration assets/toolbox.png",
+      "output": "brand/illustration-assets/toolbox.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1362747,
+      "output_bytes": 46198,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "accepted",
+      "category": "status-icons",
+      "source": "status icons/accepted.png",
+      "output": "brand/status-icons/accepted.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1193466,
+      "output_bytes": 35024,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "cancelled",
+      "category": "status-icons",
+      "source": "status icons/cancelled.png",
+      "output": "brand/status-icons/cancelled.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1194147,
+      "output_bytes": 39632,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "completed",
+      "category": "status-icons",
+      "source": "status icons/completed.png",
+      "output": "brand/status-icons/completed.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "still-opaque",
+      "has_transparency": true,
+      "source_bytes": 1591527,
+      "output_bytes": 66892,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512",
+        "no alpha channel in master",
+        "border not uniform (max dev 36 > 8); kept opaque"
+      ]
+    },
+    {
+      "name": "in-progress",
+      "category": "status-icons",
+      "source": "status icons/in-progress.png",
+      "output": "brand/status-icons/in-progress.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "still-opaque",
+      "has_transparency": true,
+      "source_bytes": 1721021,
+      "output_bytes": 75008,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512",
+        "no alpha channel in master",
+        "border not uniform (max dev 39 > 8); kept opaque"
+      ]
+    },
+    {
+      "name": "on-the-way",
+      "category": "status-icons",
+      "source": "status icons/on-the-way.png",
+      "output": "brand/status-icons/on-the-way.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 919200,
+      "output_bytes": 26492,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "scheduled",
+      "category": "status-icons",
+      "source": "status icons/scheduled.png",
+      "output": "brand/status-icons/scheduled.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1143468,
+      "output_bytes": 36614,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "booked",
+      "category": "success-feedback",
+      "source": "success  feedback/booked.png",
+      "output": "brand/success-feedback/booked.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGB",
+      "alpha_status": "still-opaque",
+      "has_transparency": false,
+      "source_bytes": 1885631,
+      "output_bytes": 84190,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512",
+        "no alpha channel in master",
+        "border not uniform (max dev 65 > 8); kept opaque"
+      ]
+    },
+    {
+      "name": "error",
+      "category": "success-feedback",
+      "source": "success  feedback/error.png",
+      "output": "brand/success-feedback/error.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 1010184,
+      "output_bytes": 33410,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "info",
+      "category": "success-feedback",
+      "source": "success  feedback/info.png",
+      "output": "brand/success-feedback/info.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 894345,
+      "output_bytes": 31296,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "rate-us",
+      "category": "success-feedback",
+      "source": "success  feedback/rate-us.png",
+      "output": "brand/success-feedback/rate-us.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "recovered",
+      "has_transparency": true,
+      "source_bytes": 1297904,
+      "output_bytes": 40018,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512",
+        "flat bg (254, 254, 254), removed 42.9%"
+      ]
+    },
+    {
+      "name": "success",
+      "category": "success-feedback",
+      "source": "success  feedback/success.png",
+      "output": "brand/success-feedback/success.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 940595,
+      "output_bytes": 31686,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "thank-you",
+      "category": "success-feedback",
+      "source": "success  feedback/thank-you.png",
+      "output": "brand/success-feedback/thank-you.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "recovered",
+      "has_transparency": true,
+      "source_bytes": 1333123,
+      "output_bytes": 33628,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512",
+        "flat bg (254, 254, 254), removed 34.5%"
+      ]
+    },
+    {
+      "name": "warning",
+      "category": "success-feedback",
+      "source": "success  feedback/warning.png",
+      "output": "brand/success-feedback/warning.webp",
+      "source_size": "1254x1254",
+      "output_size": "512x512",
+      "placed_size": "512x512",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 932840,
+      "output_bytes": 27674,
+      "verified": true,
+      "issues": [
+        "source canvas 1254x1254 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "customer",
+      "category": "user-type-icons",
+      "source": "user type icons/customer.png",
+      "output": "brand/user-type-icons/customer.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 837697,
+      "output_bytes": 26012,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "merchant",
+      "category": "user-type-icons",
+      "source": "user type icons/merchant.png",
+      "output": "brand/user-type-icons/merchant.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 952498,
+      "output_bytes": 28132,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    },
+    {
+      "name": "technician",
+      "category": "user-type-icons",
+      "source": "user type icons/technician.png",
+      "output": "brand/user-type-icons/technician.webp",
+      "source_size": "1312x1199",
+      "output_size": "512x512",
+      "placed_size": "512x468",
+      "format": "WEBP",
+      "mode": "RGBA",
+      "alpha_status": "kept",
+      "has_transparency": true,
+      "source_bytes": 981128,
+      "output_bytes": 32218,
+      "verified": true,
+      "issues": [
+        "source canvas 1312x1199 letterboxed into 512x512"
+      ]
+    }
+  ]
+}

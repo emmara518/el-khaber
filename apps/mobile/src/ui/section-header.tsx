@@ -1,7 +1,9 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '../i18n/use-i18n';
+
+import { type } from './typography';
 
 import type { TranslationKey } from '../i18n/use-i18n';
 
@@ -57,9 +59,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing[3],
   },
   title: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.semibold,
   },
   action: {
     paddingVertical: spacing[1],
@@ -69,8 +70,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   actionText: {
+    ...type.label,
     color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
 });

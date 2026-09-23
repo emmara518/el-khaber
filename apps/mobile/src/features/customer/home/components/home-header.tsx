@@ -1,26 +1,25 @@
 /**
- * Home header — the dark navy hero bar that contains the notification
- * bell, the Al-Khabir wordmark, and the customer avatar. Matches
- * the reference design.
- *
- * The notification bell is a premium interactive element. When a handler
- * is provided it receives the press; when none is provided the bell shows
- * a modest "Coming soon" affordance that remains truthful to the product
- * state (docs/09_PRODUCT.md §2).
+ * Home header — the navy identity bar. The El-Khabir wordmark is the
+ * visual centre of the screen: equal-width side slots keep "الخبير"
+ * exactly centred, with only the notification action and the user
+ * context flanking it (no LTR-style left-aligned logo).
  */
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useI18n } from '../../../../i18n/use-i18n';
-import { Icon } from '../../../../ui';
+import { useI18n } from '@/i18n/use-i18n';
+import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 interface HomeHeaderProps {
   avatarInitials: string;
   onPressNotifications?: () => void;
   onPressAvatar?: () => void;
 }
+
+const SLOT = 44;
 
 export function HomeHeader({
   avatarInitials,
@@ -31,33 +30,38 @@ export function HomeHeader({
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
       <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('home.notifications')}
-          onPress={onPressNotifications}
-          hitSlop={8}
-          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-        >
-          <View style={styles.bellBadge}>
-            <Icon
-              name="bell"
-              size={18}
-              color={color.brand.navy}
-              accessibilityLabel={t('home.notifications')}
-            />
-          </View>
-        </Pressable>
-        <Text style={styles.wordmark}>الخبير</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onPressAvatar}
-          hitSlop={8}
-          style={({ pressed }) => [pressed && styles.pressed]}
-        >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatarInitials}</Text>
-          </View>
-        </Pressable>
+        <View style={styles.slot}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('home.notifications')}
+            onPress={onPressNotifications}
+            hitSlop={8}
+            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          >
+            <Icon name="bell" size={18} color={color.brand.navy} />
+          </Pressable>
+        </View>
+
+        <View style={styles.brandSlot}>
+          <Text accessibilityRole="header" accessibilityLabel="الخبير" style={styles.wordmark}>
+            الخبير
+          </Text>
+          <Text style={styles.tagline}>صيانة • فنيين • متجر</Text>
+        </View>
+
+        <View style={[styles.slot, styles.slotEnd]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="الملف الشخصي"
+            onPress={onPressAvatar}
+            hitSlop={8}
+            style={({ pressed }) => [pressed && styles.pressed]}
+          >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarInitials}</Text>
+            </View>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -69,15 +73,38 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing[5],
+    paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
   },
+  slot: {
+    width: SLOT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  slotEnd: {
+    alignItems: 'center',
+  },
+  brandSlot: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   wordmark: {
+    ...type.display,
+    fontSize: 24,
+    lineHeight: 34,
     color: color.surface.base,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+  },
+  tagline: {
+    ...type.caption,
+    color: color.brand.goldSoft,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    marginTop: 2,
   },
   avatar: {
     width: 40,
@@ -90,17 +117,10 @@ const styles = StyleSheet.create({
     borderColor: color.brand.gold,
   },
   avatarText: {
+    ...type.label,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
   },
   iconButton: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellBadge: {
     width: 36,
     height: 36,
     borderRadius: 18,

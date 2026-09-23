@@ -2,6 +2,7 @@ import { color, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from './icon';
+import { fontFamily } from './typography';
 
 interface RatingStarsProps {
   rating: number;
@@ -39,9 +40,9 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   rating: {
-    fontWeight: typography.weight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   count: {
-    fontWeight: typography.weight.regular,
+    fontFamily: fontFamily.regular,
   },
 });

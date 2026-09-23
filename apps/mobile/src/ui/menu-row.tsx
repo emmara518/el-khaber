@@ -7,11 +7,12 @@
  * emoji-icon menus with the unified vector icon system.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 
 import { Icon, type IconName } from './icon';
+import { type } from './typography';
 
 interface MenuRowProps {
   icon: IconName;
@@ -95,15 +96,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   rowLabel: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   rowHint: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1] + 1,
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -115,8 +115,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[1],
   },
   soonText: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'center',
   },
   divider: {

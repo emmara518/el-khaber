@@ -2,6 +2,7 @@ import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { brandAssets, type BrandAssetName } from './brand-assets';
 import { Icon } from './icon';
 import { sceneAssets, type SceneAssetName } from './scene-assets';
 
@@ -45,7 +46,10 @@ export type SceneSectionProps = {
 };
 
 export type SceneObjectProps = {
+  /** Scene (webp) artwork. Ignored when `brandAsset` is provided. */
   asset?: SceneAssetName;
+  /** Approved brand WebP emblem (appliance categories). */
+  brandAsset?: BrandAssetName;
   title: string;
   body?: string;
   selected?: boolean;
@@ -71,6 +75,20 @@ export function applianceSceneAsset(slug: string): SceneAssetName | undefined {
     case 'washing_machine': return 'appliance_washing_machine';
     case 'refrigerator': return 'appliance_refrigerator';
     case 'air_conditioner': return 'appliance_air_conditioner';
+    default: return undefined;
+  }
+}
+
+/**
+ * Appliance category emblem from the approved brand WebP set. Same slug
+ * vocabulary as `applianceSceneAsset`; only the three shipping categories
+ * map (fan / other-appliance are intentionally not wired).
+ */
+export function applianceBrandAsset(slug: string): BrandAssetName | undefined {
+  switch (slug) {
+    case 'washing_machine': return 'washing-machine';
+    case 'refrigerator': return 'refrigerator';
+    case 'air_conditioner': return 'air-conditioner';
     default: return undefined;
   }
 }
@@ -143,7 +161,7 @@ export function SceneSection({ title, eyebrow, body, asset, children, action, st
   );
 }
 
-export function SceneObject({ asset, title, body, selected = false, onPress, accessibilityLabel, style }: SceneObjectProps) {
+export function SceneObject({ asset, brandAsset, title, body, selected = false, onPress, accessibilityLabel, style }: SceneObjectProps) {
   const press = useScenePress();
   return (
     <Animated.View style={[styles.objectWrap, style, press.style]}>
@@ -156,7 +174,13 @@ export function SceneObject({ asset, title, body, selected = false, onPress, acc
         onPressOut={press.onPressOut}
         style={({ pressed }) => [styles.object, selected && styles.objectSelected, pressed && styles.pressed]}
       >
-        {asset ? <Image source={sceneAssets[asset]} accessible={false} resizeMode="contain" style={styles.objectImage} /> : <View style={styles.objectImage}><Icon name="search" size={32} color={color.brand.navy} /></View>}
+        {brandAsset ? (
+          <Image source={brandAssets[brandAsset]} accessible={false} resizeMode="contain" style={styles.objectImage} />
+        ) : asset ? (
+          <Image source={sceneAssets[asset]} accessible={false} resizeMode="contain" style={styles.objectImage} />
+        ) : (
+          <View style={styles.objectImage}><Icon name="search" size={32} color={color.brand.navy} /></View>
+        )}
         <View style={styles.objectLabel}>
           <Text style={styles.objectTitle}>{title}</Text>
           {selected ? <Icon name="check" size={18} color={color.brand.navy} /> : null}

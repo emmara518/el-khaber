@@ -9,7 +9,7 @@
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   MERCHANT_CITY_OPTIONS,
@@ -25,8 +25,8 @@ import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-m
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card, Icon, SectionHeader } from '@/ui';
+import { BrandImage } from '@/ui/brand-image';
 import { SceneHero } from '@/ui/cinematic';
-import { sceneAssets } from '@/ui/scene-assets';
 
 const STEP_TITLES: Record<MerchantOnboardingStep, string> = {
   identity: 'هوية المتجر',
@@ -50,13 +50,9 @@ export default function MerchantOnboardingScreen({
   if (vm.submitStatus === 'submitted' && vm.submitted !== null) {
     return (
       <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
-        <Image
-          source={sceneAssets.merchant_success}
-          accessible={false}
-          importantForAccessibility="no"
-          resizeMode="cover"
-          style={styles.successScene}
-        />
+        <View style={styles.successScene}>
+          <BrandImage name="success" size={124} />
+        </View>
         <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
           <View style={styles.successBadge}><Icon name="clock" size={26} color={color.brand.navy} accessibilityLabel="قيد المراجعة" /></View>
           <Text accessibilityRole="header" style={styles.successTitle}>
@@ -336,7 +332,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 160,
     borderRadius: radius.lg,
-    backgroundColor: color.brand.navyDeep,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing[4],
   },
   title: {

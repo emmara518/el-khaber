@@ -25,7 +25,7 @@ import { useTechnicianRequestsViewModel } from './use-technician-requests-view-m
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Icon, StatusBadge } from '@/ui';
+import { Icon, StatusBadge, statusBrandAsset } from '@/ui';
 import { SceneHero } from '@/ui/cinematic';
 
 
@@ -120,7 +120,7 @@ export default function TechnicianRequestsScreen({
                     {item.applianceAr} · {item.problemAr}
                   </Text>
                 </View>
-                <StatusBadge status={item.status} label={item.statusLabelAr} />
+                <StatusBadge status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
               </View>
               <View style={styles.meta}>
                 <View style={styles.metaRow}>

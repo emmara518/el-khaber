@@ -1,4 +1,4 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
@@ -13,8 +13,8 @@ import { useFaultGuideViewModel } from './use-fault-guide-view-model';
 import type { SceneAssetName } from '@/ui/scene-assets';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Icon } from '@/ui';
-import { applianceSceneAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
+import { Icon, type } from '@/ui';
+import { applianceBrandAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
 
 const arrival = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
 const faultScenes: Record<string, SceneAssetName> = {
@@ -80,7 +80,7 @@ export default function FaultGuideScreen() {
                     {vm.data.appliances.map((item) => (
                       <SceneObject
                         key={item.slug}
-                        asset={applianceSceneAsset(item.slug)}
+                        brandAsset={applianceBrandAsset(item.slug)}
                         title={item.titleAr}
                         body={item.taglineAr}
                         onPress={() => vm.selectAppliance(item.slug)}
@@ -88,7 +88,7 @@ export default function FaultGuideScreen() {
                     ))}
                   </View>
                   {vm.data.appliances.length === 0 ? (
-                    <ListEmpty icon="search" iconLabel={t('fault.noAppliances.title')} title={t('fault.noAppliances.title')} body={t('fault.noAppliances.body')} actionLabel={t('fault.noAppliances.action')} onAction={vm.reload} />
+                    <ListEmpty icon="search" iconLabel={t('fault.noAppliances.title')} brandAsset="no-results" title={t('fault.noAppliances.title')} body={t('fault.noAppliances.body')} actionLabel={t('fault.noAppliances.action')} onAction={vm.reload} />
                   ) : null}
                 </SceneSection>
               ) : null}
@@ -123,7 +123,7 @@ export default function FaultGuideScreen() {
                 <ResultStep detail={vm.detail} symptomTitle={symptom?.titleAr ?? ''} onFindTechnician={findTechnician} />
               ) : null}
               {vm.step === 'NO_MATCH' ? (
-                <ListEmpty icon="search" iconLabel="لا توجد نتيجة مطابقة" title={t('fault.noMatch.title')} body={t('fault.noMatch.body')} actionLabel={t('fault.findTechnician')} onAction={findTechnician} />
+                <ListEmpty icon="search" iconLabel="لا توجد نتيجة مطابقة" brandAsset="no-results" title={t('fault.noMatch.title')} body={t('fault.noMatch.body')} actionLabel={t('fault.findTechnician')} onAction={findTechnician} />
               ) : null}
               {vm.step === 'ERROR' ? (
                 <ListError title={t('fault.error.title')} message={t('fault.error.body')} retryLabel={t('state.retry')} onRetry={vm.retryResolve} />
@@ -179,19 +179,19 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, backgroundColor: color.surface.subtle, paddingBottom: spacing[8] },
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
   stage: { marginTop: spacing[2] },
-  stageText: { flex: 1, color: color.surface.base, fontSize: typography.size.body, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
+  stageText: { flex: 1, ...type.body, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
   disclaimer: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[3] },
-  disclaimerText: { flex: 1, color: color.brand.navy, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right', writingDirection: 'rtl' },
+  disclaimerText: { flex: 1, ...type.caption, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   appliances: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
   symptoms: { gap: spacing[2] },
   symptom: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[4], borderBottomWidth: 1, borderBottomColor: color.border.default, minHeight: 72 },
-  symptomIndex: { color: color.brand.navy, fontSize: typography.size.h3, fontWeight: typography.weight.bold, lineHeight: 30, minWidth: 28, textAlign: 'center' },
+  symptomIndex: { ...type.number, color: color.brand.navy, minWidth: 28, textAlign: 'center' },
   symptomCopy: { flex: 1, gap: spacing[1] },
-  symptomTitle: { color: color.brand.navy, fontSize: typography.size.h3, fontWeight: typography.weight.bold, textAlign: 'right', writingDirection: 'rtl', lineHeight: 30 },
-  body: { color: color.text.secondary, fontSize: typography.size.body, textAlign: 'right', writingDirection: 'rtl', lineHeight: 28 },
+  symptomTitle: { ...type.h3, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  body: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   pressed: { opacity: 0.75 },
   warning: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: color.error.soft, padding: spacing[4], gap: spacing[3], borderRadius: radius.md, marginBottom: spacing[4] },
-  warningText: { flex: 1, color: color.error.DEFAULT, fontSize: typography.size.body, fontWeight: typography.weight.semibold, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
+  warningText: { flex: 1, ...type.bodyMedium, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
   safeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
   safeText: { flex: 1 },
   nav: { gap: spacing[3], marginTop: spacing[4] },

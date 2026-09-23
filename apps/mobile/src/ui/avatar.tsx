@@ -1,5 +1,7 @@
-import { color, radius, typography } from '@khabir/ui-tokens';
+import { color, radius } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View, type ViewStyle } from 'react-native';
+
+import { fontFamily } from './typography';
 
 interface AvatarProps {
   /** Display initials (Arabic letters render correctly with the
@@ -82,7 +84,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initials: {
-    fontWeight: typography.weight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   status: {
     position: 'absolute',

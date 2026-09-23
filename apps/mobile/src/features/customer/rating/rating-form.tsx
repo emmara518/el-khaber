@@ -8,14 +8,14 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 
 import { RATING_LABELS_AR, RATING_TAGS_AR, type RatingDataSource } from './rating-types';
 import { useRatingViewModel } from './use-rating-view-model';
 
+import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
-import { sceneAssets } from '@/ui/scene-assets';
 
 export function RatingForm({
   requestId,
@@ -37,13 +37,9 @@ export function RatingForm({
         accessibilityLabel="تم إرسال تقييمك بنجاح. شكرًا لك."
         style={styles.done}
       >
-        <Image
-          source={sceneAssets.tracking_success}
-          accessible={false}
-          importantForAccessibility="no"
-          resizeMode="cover"
-          style={styles.doneScene}
-        />
+        <View style={styles.doneScene}>
+          <BrandImage name="rate-us" size={116} />
+        </View>
         <Text style={styles.doneTitle}>تم إرسال تقييمك بنجاح</Text>
         <Text style={styles.doneBody}>شكرًا لك — تقييمك يساعد عملاء آخرين على الاختيار بثقة.</Text>
       </View>
@@ -290,7 +286,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 140,
     borderRadius: radius.lg,
-    backgroundColor: color.brand.navyDeep,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   doneTitle: {
     color: color.text.primary,

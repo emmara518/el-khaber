@@ -1,4 +1,4 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -25,9 +25,10 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card } from '@/ui';
-import { applianceSceneAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
+import { Card, type } from '@/ui';
+import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
+import { fontFamily } from '@/ui/typography';
 
 export default function TechnicianSearchScreen() {
   const { t } = useI18n();
@@ -185,7 +186,7 @@ export default function TechnicianSearchScreen() {
               <SceneObject
                 key={option.value ?? 'all'}
                 title={option.labelAr}
-                asset={option.value ? applianceSceneAsset(option.value) : undefined}
+                brandAsset={option.value ? applianceBrandAsset(option.value) : undefined}
                 selected={filters.appliance === option.value}
                 accessibilityLabel={`تصفية حسب الجهاز: ${option.labelAr}`}
                 onPress={() => {
@@ -394,9 +395,8 @@ const styles = StyleSheet.create({
   },
   navigationTitle: {
     flex: 1,
+    ...type.h3,
     color: color.surface.base,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -432,8 +432,8 @@ const styles = StyleSheet.create({
   },
   contextText: {
     flex: 1,
+    ...type.caption,
     color: color.brand.navy,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -441,9 +441,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[5],
   },
   sectionTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -462,8 +461,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 54,
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     paddingVertical: spacing[3],
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -496,15 +495,14 @@ const styles = StyleSheet.create({
   },
   chipText: {
     flexShrink: 1,
+    ...type.bodyMedium,
     color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   chipTextSelected: {
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
+    fontFamily: fontFamily.bold,
   },
   filterToggle: {
     flexDirection: 'row',
@@ -519,9 +517,8 @@ const styles = StyleSheet.create({
   },
   filterToggleText: {
     flex: 1,
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -530,8 +527,8 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   summaryText: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -551,9 +548,8 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   groupLabel: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -577,9 +573,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   applyText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -595,9 +590,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   resetText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

@@ -1,7 +1,8 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, Card, StatusBadge } from '../../../../ui';
+import { Avatar, Card, StatusBadge, statusBrandAsset } from '../../../../ui';
+import { type } from '../../../../ui/typography';
 
 import type { CurrentOrderItem } from '../data/customer-home-types';
 
@@ -31,7 +32,7 @@ export function CurrentOrderCard({ order }: CurrentOrderCardProps) {
           <Text style={styles.techLine}>{order.technicianName}</Text>
         </View>
         <View style={styles.right}>
-          <StatusBadge status={order.status} label={order.statusLabelAr} />
+          <StatusBadge status={order.status} label={order.statusLabelAr} icon={statusBrandAsset(order.status)} />
           <Text style={styles.time}>{scheduled}</Text>
         </View>
       </View>
@@ -92,23 +93,22 @@ const styles = StyleSheet.create({
     marginStart: spacing[3],
   },
   task: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
   },
   model: {
     marginTop: spacing[1],
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
   },
   techLine: {
     marginTop: spacing[1],
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
   },
   time: {
     marginTop: spacing[2],
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
   },
 });
