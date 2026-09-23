@@ -8,7 +8,7 @@
  * route params; the request handoff destination is unchanged.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Icon, RatingStars } from '@/ui';
+import { Avatar, Icon, RatingStars, type } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function TechnicianProfileScreen() {
@@ -143,15 +143,15 @@ const styles = StyleSheet.create({
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[2] },
   identityCopy: { gap: spacing[2] },
-  body: { color: color.text.primary, fontSize: typography.size.body, textAlign: 'right', writingDirection: 'rtl', lineHeight: 28 },
+  body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   services: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   serviceTag: { backgroundColor: color.brand.goldSoft, borderRadius: radius.pill, paddingHorizontal: spacing[4], paddingVertical: spacing[2], minHeight: 44, justifyContent: 'center' },
-  serviceText: { color: color.brand.navy, fontSize: typography.size.body, fontWeight: typography.weight.semibold, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
+  serviceText: { ...type.bodyMedium, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   reviews: { gap: spacing[3] },
   review: { borderWidth: 1, borderColor: color.border.default, borderRadius: radius.lg, backgroundColor: color.surface.base, padding: spacing[4], gap: spacing[2] },
   reviewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  reviewAuthor: { color: color.text.primary, fontSize: typography.size.body, fontWeight: typography.weight.bold, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
-  reviewDate: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
+  reviewAuthor: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  reviewDate: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   areaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   ctaFooter: { gap: spacing[3], marginTop: spacing[5] },
 });

@@ -1,4 +1,4 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   ReduceMotion,
@@ -18,6 +18,7 @@ import { applianceSceneAsset } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
 import { RatingStars } from '@/ui/rating-stars';
 import { sceneAssets } from '@/ui/scene-assets';
+import { type } from '@/ui/typography';
 
 export function TechnicianResultCard({
   technician,
@@ -129,8 +130,8 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   visualContext: { flex: 1, gap: spacing[1] },
-  visualLabel: { color: color.surface.base, fontSize: typography.size.body, fontWeight: typography.weight.bold, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
-  visualCaption: { color: color.border.default, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
+  visualLabel: { ...type.bodyMedium, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
+  visualCaption: { ...type.caption, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
   serviceImage: { width: 72, height: 80, borderRadius: radius.md },
   body: {
     padding: spacing[5],
@@ -140,15 +141,14 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   name: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   specialties: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -167,9 +167,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing[2],
   },
   serviceText: {
+    ...type.label,
     color: color.brand.navy,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -189,8 +188,8 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   detailText: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
     flexShrink: 1,
@@ -215,9 +214,8 @@ const styles = StyleSheet.create({
   },
   actionText: {
     flex: 1,
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

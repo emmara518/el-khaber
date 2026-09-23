@@ -5,6 +5,7 @@ import Animated, { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withT
 import { brandAssets, type BrandAssetName } from './brand-assets';
 import { Icon } from './icon';
 import { sceneAssets, type SceneAssetName } from './scene-assets';
+import { type } from './typography';
 
 import type { ReactNode } from 'react';
 
@@ -198,13 +199,13 @@ const styles = StyleSheet.create({
   heroContent: { backgroundColor: color.brand.navy, paddingHorizontal: spacing[6], paddingBottom: spacing[6], gap: spacing[2] },
   scrim: { position: 'absolute', top: -80, height: 80, left: 0, right: 0 },
   band: { flex: 1, backgroundColor: color.brand.navy },
-  eyebrow: { color: color.brand.gold, fontSize: typography.size.caption, fontWeight: typography.weight.semibold, textAlign: 'right', writingDirection: 'rtl', lineHeight: 22 },
-  heroTitle: { color: color.surface.base, fontSize: 32, fontWeight: typography.weight.bold, lineHeight: 46, textAlign: 'right', writingDirection: 'rtl' },
+  eyebrow: { ...type.label, color: color.brand.gold, textAlign: 'right', writingDirection: 'rtl' },
+  heroTitle: { ...type.h1, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
   compactTitle: { fontSize: typography.size.h2, lineHeight: 36 },
-  heroBody: { color: color.border.default, fontSize: typography.size.body, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
+  heroBody: { ...type.body, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
   heroAction: { marginTop: spacing[3] },
   action: { minHeight: 56, paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: color.brand.gold, borderRadius: radius.md, flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
-  actionText: { flexShrink: 1, color: color.brand.navy, fontSize: typography.size.button, fontWeight: typography.weight.bold, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
+  actionText: { flexShrink: 1, ...type.button, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   secondary: { backgroundColor: color.surface.base, borderWidth: 1, borderColor: color.border.default },
   success: { backgroundColor: color.success.soft },
   disabled: { opacity: 0.5 },
@@ -212,15 +213,15 @@ const styles = StyleSheet.create({
   section: { paddingVertical: spacing[5], borderTopWidth: 1, borderTopColor: color.border.default, gap: spacing[4], direction: 'rtl' },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   sectionCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
-  sectionEyebrow: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
-  sectionTitle: { color: color.brand.navy, fontSize: typography.size.h2, fontWeight: typography.weight.bold, lineHeight: 34, textAlign: 'right', writingDirection: 'rtl' },
-  sectionBody: { color: color.text.secondary, fontSize: typography.size.body, lineHeight: 27, textAlign: 'right', writingDirection: 'rtl' },
+  sectionEyebrow: { ...type.label, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  sectionTitle: { ...type.h2, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  sectionBody: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   sectionImage: { width: 84, height: 84, borderRadius: radius.md },
   objectWrap: { flexGrow: 1, flexBasis: 140 },
   object: { flex: 1, minHeight: 176, borderWidth: 1, borderColor: color.border.default, borderRadius: radius.lg, padding: spacing[3], gap: spacing[2], backgroundColor: color.surface.base, alignItems: 'center' },
   objectSelected: { borderColor: color.brand.navy, backgroundColor: color.brand.goldSoft },
   objectImage: { width: 88, height: 88, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
   objectLabel: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
-  objectTitle: { flexShrink: 1, color: color.brand.navy, fontSize: typography.size.body, fontWeight: typography.weight.bold, lineHeight: 26, textAlign: 'center', writingDirection: 'rtl' },
-  objectBody: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'center', writingDirection: 'rtl' },
+  objectTitle: { flexShrink: 1, ...type.cardTitle, color: color.brand.navy, textAlign: 'center', writingDirection: 'rtl' },
+  objectBody: { ...type.caption, color: color.text.secondary, textAlign: 'center', writingDirection: 'rtl' },
 });

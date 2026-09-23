@@ -1,9 +1,10 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { type ReactNode } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Card } from '@/ui/card';
+import { type } from '@/ui/typography';
 
 /**
  * Reusable placeholder screen for the Customer tabs that are not
@@ -47,13 +48,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
   },
   body: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     marginTop: spacing[3],
     textAlign: 'center',
   },

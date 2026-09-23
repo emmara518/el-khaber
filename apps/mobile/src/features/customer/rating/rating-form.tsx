@@ -7,7 +7,7 @@
  * retry with input preserved.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 
@@ -16,6 +16,7 @@ import { useRatingViewModel } from './use-rating-view-model';
 
 import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
+import { fontFamily, type } from '@/ui/typography';
 
 export function RatingForm({
   requestId,
@@ -157,9 +158,8 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   heading: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -178,21 +178,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   ratingLabel: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'center',
   },
   error: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   groupLabel: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
   },
   tags: {
@@ -219,12 +217,12 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.base,
   },
   tagText: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
   },
   tagTextOn: {
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
+    fontFamily: fontFamily.bold,
   },
   input: {
     borderWidth: 1,
@@ -232,7 +230,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
     color: color.text.primary,
-    fontSize: typography.size.body,
+    ...type.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
   },
@@ -251,9 +249,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   retry: {
     borderWidth: 1,
@@ -265,9 +262,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   done: {
     alignItems: 'center',
@@ -291,13 +287,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   doneTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
   },
   doneBody: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
   },
 });

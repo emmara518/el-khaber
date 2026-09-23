@@ -7,7 +7,7 @@
  * business logic is explicitly out of scope (Phase-2 brief §16).
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -17,7 +17,7 @@ import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { useAuthStore } from '@/lib/auth-store';
-import { Avatar, Card, Icon, MenuDivider, MenuRow, Pill } from '@/ui';
+import { Avatar, Card, Icon, MenuDivider, MenuRow, Pill, type } from '@/ui';
 import { SceneHero } from '@/ui/cinematic';
 
 export default function CustomerProfileScreen() {
@@ -135,9 +135,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
   },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginBottom: spacing[4],
@@ -148,13 +147,12 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   name: {
+    ...type.h2,
     color: color.surface.base,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
   },
   meta: {
+    ...type.body,
     color: color.brand.goldSoft,
-    fontSize: typography.size.body,
   },
   stats: {
     flexDirection: 'row',
@@ -166,13 +164,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
+    ...type.h1,
     color: color.text.primary,
-    fontSize: typography.size.h1,
-    fontWeight: typography.weight.bold,
   },
   statLabel: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
   },
   menu: {
@@ -195,9 +192,8 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   logoutText: {
+    ...type.button,
     color: color.error.DEFAULT,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   bottomSpacer: {
     height: spacing[6],

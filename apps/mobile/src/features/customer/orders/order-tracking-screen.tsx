@@ -1,4 +1,4 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,7 +16,7 @@ import type { ChatDataSource } from '../chat/chat-types';
 import type { RatingDataSource } from '../rating/rating-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, StatusBadge, statusBrandAsset } from '@/ui';
+import { Avatar, StatusBadge, statusBrandAsset, type } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function OrderTrackingScreen({ requestId, orderSource, chatSource, ratingSource }: {
@@ -96,10 +96,10 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
 const styles = StyleSheet.create({
   content: { paddingTop: spacing[6], paddingBottom: spacing[8], direction: 'rtl' },
   sections: { paddingHorizontal: spacing[5], gap: spacing[3] },
-  reference: { color: color.brand.goldSoft, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right', writingDirection: 'rtl', marginTop: spacing[2] },
+  reference: { ...type.caption, color: color.brand.goldSoft, textAlign: 'right', writingDirection: 'rtl', marginTop: spacing[2] },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[3] },
   identityCopy: { flex: 1, gap: spacing[1] },
-  name: { color: color.brand.navy, fontSize: typography.size.h3, lineHeight: 30, fontWeight: typography.weight.bold, textAlign: 'right', writingDirection: 'rtl' },
-  label: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right', writingDirection: 'rtl' },
-  detail: { color: color.text.primary, fontSize: typography.size.body, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
+  name: { ...type.h3, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  label: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  detail: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
 });

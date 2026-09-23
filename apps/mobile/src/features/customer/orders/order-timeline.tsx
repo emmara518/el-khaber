@@ -6,12 +6,13 @@
  * timestamps render only when fixture data provides them.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { TimelineStep } from './order-detail-types';
 
 import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 
 export function OrderTimeline({ steps }: { steps: ReadonlyArray<TimelineStep> }) {
@@ -117,23 +118,21 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   title: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   explanation: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   time: {
+    ...type.label,
     color: color.brand.navy,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
     marginTop: spacing[2],
     textAlign: 'right',
   },

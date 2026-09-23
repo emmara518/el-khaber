@@ -6,7 +6,7 @@
  * Empty (per filter), error+retry, and loading states included.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -22,7 +22,7 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, Icon, IconText, StatusBadge, statusBrandAsset } from '@/ui';
+import { Avatar, Card, fontFamily, Icon, IconText, StatusBadge, statusBrandAsset, type } from '@/ui';
 import { SceneHero } from '@/ui/cinematic';
 
 export default function CustomerRequestsScreen() {
@@ -164,15 +164,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
   },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   subtitle: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -201,13 +200,12 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   chipText: {
+    ...type.bodyMedium,
     color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   chipTextSelected: {
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
+    fontFamily: fontFamily.bold,
   },
   list: {
     gap: spacing[3],
@@ -224,21 +222,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   task: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   model: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
   tech: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },

@@ -7,10 +7,11 @@
  * color alone.
  */
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/ui/icon';
+import { fontFamily, type } from '@/ui/typography';
 
 const STEPS_AR = ['الجهاز', 'العرض', 'النتيجة'] as const;
 
@@ -100,13 +101,13 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.navy,
   },
   label: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'center',
   },
   labelActive: {
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
+    fontFamily: fontFamily.bold,
   },
 });

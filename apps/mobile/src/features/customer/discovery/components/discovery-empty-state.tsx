@@ -11,7 +11,7 @@
  * Fault Guide). No fake cards, no emoji.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Reanimated, {
   Easing,
@@ -25,6 +25,7 @@ import Reanimated, {
 import { useI18n } from '@/i18n/use-i18n';
 import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 
 export function DiscoveryEmptyState({
@@ -135,15 +136,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
   },
   title: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
     writingDirection: 'rtl',
   },
   body: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
     writingDirection: 'rtl',
   },
@@ -159,8 +159,8 @@ const styles = StyleSheet.create({
   },
   hintText: {
     flex: 1,
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -202,16 +202,14 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   btnPrimaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   btnGhostText: {
+    ...type.button,
     color: color.brand.navy,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

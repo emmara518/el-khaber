@@ -1,8 +1,10 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { REQUEST_GROUPS, requestGroupIndex } from './service-request-scenes';
 import { SERVICE_REQUEST_STEPS } from './service-request-types';
+
+import { fontFamily, type } from '@/ui/typography';
 
 const STEPS_AR = ['الجهاز', 'المشكلة', 'الوصف', 'الصور', 'الموقع', 'الموعد', 'المراجعة'];
 
@@ -29,7 +31,7 @@ const styles = StyleSheet.create({
   group: { flex: 1, gap: spacing[2] },
   line: { height: 4, borderRadius: 2, backgroundColor: color.border.default },
   active: { backgroundColor: color.brand.gold },
-  groupLabel: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 22, textAlign: 'right', writingDirection: 'rtl' },
-  current: { color: color.brand.navy, fontWeight: typography.weight.bold },
-  label: { color: color.text.primary, fontSize: typography.size.body, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
+  groupLabel: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  current: { color: color.brand.navy, fontFamily: fontFamily.bold },
+  label: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
 });

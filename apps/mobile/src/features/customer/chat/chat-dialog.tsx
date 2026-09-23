@@ -5,7 +5,7 @@
  * and send button. Closing never leaves the tracking screen.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRef } from 'react';
 import {
   ActivityIndicator,
@@ -27,6 +27,7 @@ import type { ChatMessage } from './chat-types';
 
 import { Icon } from '@/ui/icon';
 import { sceneAssets } from '@/ui/scene-assets';
+import { type } from '@/ui/typography';
 
 export function ChatDialog({
   visible,
@@ -296,22 +297,20 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.navyDeep,
   },
   emptyTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
     writingDirection: 'rtl',
     marginTop: spacing[2],
   },
   headerTitle: {
+    ...type.h3,
     color: color.surface.base,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
   headerSub: {
+    ...type.caption,
     color: color.brand.goldSoft,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
@@ -359,10 +358,9 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.navy,
   },
   bubbleText: {
-    fontSize: typography.size.body,
+    ...type.body,
     textAlign: 'right',
     writingDirection: 'rtl',
-    lineHeight: 24,
   },
   incomingText: {
     color: color.text.primary,
@@ -371,7 +369,7 @@ const styles = StyleSheet.create({
     color: color.surface.base,
   },
   bubbleTime: {
-    fontSize: typography.size.caption,
+    ...type.caption,
     marginTop: spacing[1],
     textAlign: 'right',
     opacity: 0.8,
@@ -385,23 +383,21 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   bubbleRetryText: {
+    ...type.label,
     color: color.brand.gold,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
   },
   sendError: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     textAlign: 'right',
   },
   errorText: {
+    ...type.bodyMedium,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
   },
   retry: {
@@ -413,9 +409,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryText: {
+    ...type.bodyMedium,
     color: color.surface.base,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
   },
   composer: {
     flexDirection: 'row',
@@ -429,7 +424,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: color.surface.base,
     color: color.text.primary,
-    fontSize: typography.size.body,
+    ...type.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,

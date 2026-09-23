@@ -11,7 +11,7 @@
  * `ServiceRequestDataSource.submitRequest()` (mock adapter).
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -48,7 +48,7 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ApplianceIcon, Avatar, Card, Icon, SectionHeader } from '@/ui';
+import { ApplianceIcon, Avatar, Card, Icon, SectionHeader, type } from '@/ui';
 import { applianceSceneAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
 
 
@@ -726,9 +726,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -742,9 +741,8 @@ const styles = StyleSheet.create({
     gap: spacing[1] + 2,
   },
   exitText: {
+    ...type.bodyMedium,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   techCard: {
     flexDirection: 'row',
@@ -756,9 +754,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   techName: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
   techMetaRow: {
@@ -769,8 +766,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
   },
   techMeta: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
   },
   inlineError: {
@@ -782,8 +779,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -810,9 +807,8 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   optionTitle: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     marginTop: spacing[2],
   },
   listOption: {
@@ -828,9 +824,8 @@ const styles = StyleSheet.create({
   },
   listOptionText: {
     flex: 1,
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -846,20 +841,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationDetail: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
   unavailable: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
   emptyHint: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginTop: spacing[2],
@@ -869,9 +864,8 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   addLocationTitle: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
   addBtn: {
@@ -888,23 +882,21 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   addBtnText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
   },
   contextCard: {
     marginBottom: spacing[3],
     gap: spacing[1],
   },
   contextLabel: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
   },
   contextValue: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -914,7 +906,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
     color: color.text.primary,
-    fontSize: typography.size.body,
+    ...type.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,
@@ -925,8 +917,8 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   counter: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'left',
   },
@@ -953,8 +945,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing[1],
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
     writingDirection: 'rtl',
   },
@@ -974,8 +966,8 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   photoLabel: {
+    ...type.caption,
     color: color.text.primary,
-    fontSize: typography.size.caption,
   },
   photoRemove: {
     minHeight: 44,
@@ -996,9 +988,8 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   secondaryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   review: {
     gap: 0,
@@ -1015,14 +1006,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reviewLabel: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
   },
   reviewValue: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -1035,9 +1025,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
   },
   reviewEditText: {
+    ...type.label,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
   },
   primary: {
     backgroundColor: color.brand.navy,
@@ -1048,9 +1037,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   nav: {
     flexDirection: 'row',
@@ -1070,9 +1058,8 @@ const styles = StyleSheet.create({
     gap: spacing[1] + 2,
   },
   navBtnText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   navPrimary: {
     flex: 2,
@@ -1085,27 +1072,23 @@ const styles = StyleSheet.create({
     gap: spacing[1] + 2,
   },
   navPrimaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   successTitle: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
   },
   successBody: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
     writingDirection: 'rtl',
-    lineHeight: 26,
   },
   successMeta: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'center',
   },
   bottomSpacer: {

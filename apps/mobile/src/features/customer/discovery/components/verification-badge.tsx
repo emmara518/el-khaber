@@ -7,11 +7,12 @@
  * unverified states differ in icon + text, never color alone.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 export function VerificationBadge({ verified }: { verified: boolean }) {
   if (verified) {
@@ -57,8 +58,7 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
   },
   label: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
+    ...type.label,
   },
   verifiedText: {
     color: color.success.DEFAULT,

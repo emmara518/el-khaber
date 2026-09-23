@@ -7,7 +7,7 @@
  * ids, so no dead navigation is shipped in this batch.
  */
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
@@ -17,7 +17,7 @@ import { useConversationsViewModel } from './use-conversations-view-model';
 import type { ConversationItem } from './conversations-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card } from '@/ui';
+import { Avatar, Card, fontFamily, type } from '@/ui';
 import { SceneHero, SceneSection } from '@/ui/cinematic';
 
 export default function ConversationsScreen() {
@@ -134,24 +134,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   name: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
   time: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
   },
   specialty: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
   snippet: {
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -166,9 +165,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
   },
   badgeText: {
+    ...type.caption,
     color: color.surface.base,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
+    fontFamily: fontFamily.bold,
   },
   bottomSpacer: {
     height: spacing[6],
