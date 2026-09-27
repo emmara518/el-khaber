@@ -34,6 +34,12 @@ export default defineConfig({
     exclude: ['**/node_modules/**', '**/dist/**', 'test/http-e2e/**'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // The "real khabir-dev" integration specs share one managed Supabase
+    // connection whose SESSION mode caps concurrent clients at pool_size (15).
+    // Running spec files in parallel opens one Prisma pool per file and
+    // exhausts that cap (EMAXCONNSESSION). Spec files run sequentially here;
+    // per-client pools are additionally bounded in test/real-db-url.ts.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

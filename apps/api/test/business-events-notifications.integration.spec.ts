@@ -24,6 +24,8 @@ import { PrismaClient } from '@prisma/client';
 import { parse } from 'dotenv';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
+import { withTestPoolLimit } from './real-db-url';
+
 import { NotificationsService } from '../dist/notifications/notifications.service';
 import { ServiceRequestsService } from '../dist/service-requests/service-requests.service';
 import { SubscriptionsService } from '../dist/subscriptions/subscriptions.service';
@@ -32,7 +34,7 @@ const envPath = join(__dirname, '..', '.env');
 let realDbUrl = '';
 try {
   const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = parsed['DATABASE_URL'] ?? '';
+  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
 } catch {
   realDbUrl = '';
 }

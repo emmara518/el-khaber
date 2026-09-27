@@ -23,6 +23,8 @@ import { PrismaClient } from '@prisma/client';
 import { parse } from 'dotenv';
 import { beforeAll, describe, expect, it } from 'vitest';
 
+import { withTestPoolLimit } from './real-db-url';
+
 // Parse .env WITHOUT touching process.env (dotenv.parse only): the
 // FakePrisma e2e DB-safety guard pins process.env.DATABASE_URL at config
 // level; mutating it here would leak across worker-shared spec files.
@@ -30,7 +32,7 @@ const envPath = join(__dirname, '..', '.env');
 let realDbUrl = '';
 try {
   const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = parsed['DATABASE_URL'] ?? '';
+  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
 } catch {
   realDbUrl = '';
 }
@@ -138,18 +140,20 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
         expect(bAreas[0]?.n).toBe(0);
 
         throw new Error('ROLLBACK_PROBE');
-      })
+      }, { timeout: 20000, maxWait: 10000 })
       .catch((error: unknown) => {
         probeError = error;
       });
 
     expect(
       probeError instanceof Error ? probeError.message : String(probeError),
-    ).toContain('ROLLBACK_PROBE');
+).toContain('ROLLBACK_PROBE');
 
-    // Zero persistent residue.
+    // Zero persistent residue, scoped to this probe's deterministic rows:
+    // the shared dev database may legitimately contain unrelated service
+    // areas created through the real technician onboarding flow.
     const residue = (await prisma.$queryRawUnsafe(
-      'SELECT COUNT(*)::int AS n FROM technician_service_areas',
+      "SELECT COUNT(*)::int AS n FROM technician_service_areas a JOIN technician_profiles p ON p.id = a.technician_id WHERE p.display_name LIKE 't10er1-%'",
     )) as Array<{ n: number }>;
     expect(residue[0]?.n).toBe(0);
     const profiles = (await prisma.$queryRawUnsafe(
