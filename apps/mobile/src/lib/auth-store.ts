@@ -13,7 +13,7 @@
 import { create } from 'zustand';
 
 
-import { getApi } from './api-client';
+import { getApi, setSessionLostHandler } from './api-client';
 import { clearStoredSession, loadStoredSession, storeSession } from './secure-store';
 import { clearAccessToken, setAccessToken } from './token-store';
 
@@ -28,10 +28,12 @@ export interface AuthState {
   login: (input: { phone?: string; email?: string; password: string }) => Promise<void>;
   register: (input: { role: Role; phone?: string; email?: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
+  /** Central, local-only session invalidation (WP-1A). Idempotent. */
+  handleSessionLost: () => Promise<void>;
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'unknown',
   user: null,
   expiresAt: null,
@@ -115,4 +117,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearError(): void {
     set({ error: null });
   },
+
+  async handleSessionLost(): Promise<void> {
+    // Invoked by the API client when a refresh definitively fails. It is
+    // LOCAL-ONLY (the refresh already failed; no server round-trip is
+    // attempted) and idempotent: parallel 401s must not re-run or loop.
+    // The root AuthGate sees `anonymous` and redirects to /login.
+    if (get().status === 'anonymous' && get().user === null) {
+      return;
+    }
+    await clearStoredSession();
+    clearAccessToken();
+    set({ status: 'anonymous', user: null, expiresAt: null, error: null });
+  },
 }));
+
+// Central session-loss wiring (WP-1A). One registration covers all three
+// roles: the store invalidates the session and the root guard reroutes.
+setSessionLostHandler(() => {
+  void useAuthStore.getState().handleSessionLost();
+});

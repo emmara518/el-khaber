@@ -27,6 +27,18 @@ export interface ApiClientConfig {
   onSessionLost?: () => void;
 }
 
+/**
+ * Session-loss registry (WP-1A). The auth layer registers exactly ONE
+ * handler here; the client invokes it when a refresh definitively fails.
+ * This keeps a single central invalidation path for customer, technician
+ * and merchant without coupling the transport layer to the store.
+ */
+let sessionLostHandler: (() => void) | null = null;
+
+export function setSessionLostHandler(handler: (() => void) | null): void {
+  sessionLostHandler = handler;
+}
+
 export class ApiClientError extends Error {
   public readonly status: number;
   public readonly code: string;
@@ -88,7 +100,11 @@ export class ApiClient {
       if (refreshed) {
         response = await doFetch();
       } else {
+        // Refresh definitively failed: the session is gone. Both hooks fire
+        // so the config hook (tests/embedders) and the central registry
+        // (auth store) invalidate through one path.
         this.config.onSessionLost?.();
+        sessionLostHandler?.();
       }
     }
 
