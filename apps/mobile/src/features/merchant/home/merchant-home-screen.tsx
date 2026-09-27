@@ -1,92 +1,164 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { useRouter } from 'expo-router';
-import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+/**
+ * Merchant Home (M-A recomposition).
+ *
+ * A premium operational card-stack, faithful to the approved Merchant
+ * reference: identity header → welcome card → verification status →
+ * product summary → recent products rail → marketplace/store context.
+ *
+ * Truthfulness rules enforced here:
+ * - Only REAL metrics are shown (published / suspended). Draft, review
+ *   and rejected product counts do NOT exist in the backend and are not
+ *   invented.
+ * - The marketplace-visibility surface states the honest current truth
+ *   (the public marketplace read path does not exist yet); it never
+ *   claims the store is publicly browsable.
+ * - No views, likes, sales, revenue or activity feed are fabricated.
+ */
 
-import { merchantVerificationCopy } from './merchant-home-types';
+import { color, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { MerchantMetricCard } from './components/merchant-metric-card';
+import { MerchantProductRail } from './components/merchant-product-rail';
+import { MerchantVerificationCard } from './components/merchant-verification-card';
+import { MerchantWelcomeCard } from './components/merchant-welcome-card';
 import { useMerchantHomeViewModel } from './use-merchant-home-view-model';
 
+import { HomeHeader } from '@/features/customer/home/components/home-header';
+import { HomeSection } from '@/features/customer/home/components/home-section';
+import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Icon } from '@/ui';
-import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
-import { sceneAssets } from '@/ui/scene-assets';
+import { ListError, ListLoading } from '@/ui';
+import { Card, Icon, type } from '@/ui';
 
 export default function MerchantHomeScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { status, data, error, retry } = useMerchantHomeViewModel();
+  const notifications = useNotificationsViewModel('merchant');
 
-  if (status === 'loading' || status === 'error' || data === null) {
-    return (
-      <SafeAreaView edges={['top']} style={styles.root}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-          <SceneHero
-            compact
-            asset="merchant_dashboard_hero"
-            eyebrow="مساحة التاجر"
-            title={t('merchant.home.catalog')}
-            body={status === 'loading' ? t('state.loading') : error?.message ?? t('merchant.home.error')}
-            action={status !== 'loading' ? <SceneAction label={t('state.retry')} onPress={retry} /> : undefined}
-          />
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
-  const verification = merchantVerificationCopy(data.profile.verification);
+  const openAddProduct = () => router.push('/(merchant)/products/new');
+  const openProducts = () => router.push('/(merchant)/products');
+  const openProfile = () => router.push('/(merchant)/profile');
 
   return (
-    <SafeAreaView edges={['top']} style={styles.root}>
+    <View style={styles.root}>
+      <HomeHeader
+        avatarInitials={data?.profile.initialsAr || '·'}
+        notificationCount={notifications.unreadCount}
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={openProfile}
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.identity}>
-          <Avatar initials={data.profile.initialsAr} size={44} accessibilityLabel={`رمز ${data.profile.businessNameAr}`} />
-          <View style={styles.copy}>
-            <Text style={styles.eyebrow}>مساحة التاجر</Text>
-            <Text accessibilityRole="header" style={styles.title}>{data.profile.businessNameAr}</Text>
-            <Text style={styles.body}>{data.profile.cityAr}</Text>
-          </View>
-        </View>
-        <View style={styles.catalogDesk}>
-          <View style={styles.catalogHeading}>
-            <View style={styles.copy}>
-              <Text style={styles.gold}>الكتالوج · مركز التحكم</Text>
-              <Text style={styles.total}>{data.catalog.totalProducts}</Text>
-              <Text style={styles.light}>{t('merchant.home.total')}</Text>
+        {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+        {status === 'error' ? (
+          <ListError
+            title={t('merchant.home.error')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        ) : null}
+
+        {status === 'loaded' && data !== null ? (
+          <>
+            <MerchantWelcomeCard
+              businessNameAr={data.profile.businessNameAr}
+              onAddProduct={openAddProduct}
+            />
+
+            <MerchantVerificationCard
+              verification={data.profile.verification}
+              headlineAr={data.profile.verificationTitleAr}
+              noteAr={data.profile.verificationNoteAr}
+              onPressDetails={openProfile}
+            />
+
+            <View style={styles.metrics}>
+              <MerchantMetricCard
+                value={data.catalog.activeProducts}
+                label="منتج منشور"
+                asset="verified"
+                tone="success"
+              />
+              <MerchantMetricCard
+                value={data.catalog.inactiveProducts}
+                label="منتج موقوف"
+                asset="error"
+                tone="neutral"
+              />
             </View>
-            <Image accessible={false} source={sceneAssets.merchant_dashboard_hero} style={styles.deskArt} resizeMode="cover" />
-          </View>
-          <SceneAction label={t('merchant.home.addProduct')} onPress={() => router.push('/(merchant)/products/new')} />
-          <SceneAction variant="secondary" label={t('merchant.home.products')} onPress={() => router.push('/(merchant)/products')} />
-        </View>
-        <View style={styles.inventory}>
-          <View style={styles.inventoryMetric}><Icon name="package" size={22} color={color.brand.navy} /><Text style={styles.number}>{data.catalog.activeProducts}</Text><Text style={styles.body}>{t('merchant.home.active')}</Text></View>
-          <View style={styles.inventoryMetric}><Icon name="pause-circle" size={22} color={color.brand.navy} /><Text style={styles.number}>{data.catalog.inactiveProducts}</Text><Text style={styles.body}>{t('merchant.home.inactive')}</Text></View>
-        </View>
-        <SceneSection asset="merchant_products" title="منتجات واضحة وسهلة الإدارة" body="راجع تفاصيل منتجاتك وأسعارها وحالة ظهورها من الكتالوج." action={<SceneAction variant="secondary" label="تصفّح وإدارة المنتجات" onPress={() => router.push('/(merchant)/products')} />} />
-        <SceneSection asset="merchant_sales" eyebrow="إدارة المتجر" title={data.subscription?.planNameAr ?? 'الاشتراك'} body={data.subscription?.statusAr ?? 'لا توجد بيانات اشتراك متاحة.'} action={<SceneAction variant="secondary" label="إعدادات المتجر والاشتراك" onPress={() => router.push('/(merchant)/settings')} />} />
-        <SceneSection title={`${t('merchant.home.verification')}: ${verification.titleAr}`} body={data.profile.verificationNoteAr}>
-          <SceneAction variant="secondary" label="ملف المتجر" onPress={() => router.push('/(merchant)/profile')} />
-        </SceneSection>
+
+            {data.recentProducts.length > 0 ? (
+              <HomeSection
+                eyebrow="كتالوج متجرك"
+                title="منتجاتك الأخيرة"
+                actionLabel="عرض الكل"
+                actionAccessibilityLabel="عرض كل المنتجات"
+                onPressAction={openProducts}
+              >
+                <MerchantProductRail
+                  products={data.recentProducts}
+                  onPressProduct={(product) =>
+                    router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })
+                  }
+                />
+              </HomeSection>
+            ) : (
+              <HomeSection eyebrow="كتالوج متجرك" title="منتجاتك الأخيرة">
+                <Card background={color.surface.base} padded style={styles.emptyCard}>
+                  <Icon name="package" size={26} color={color.text.secondary} />
+                  <Text style={styles.emptyTitle}>لا توجد منتجات بعد</Text>
+                  <Text style={styles.emptyBody}>
+                    ابدأ ببناء كتالوج متجرك بإضافة أول منتج.
+                  </Text>
+                </Card>
+              </HomeSection>
+            )}
+
+            <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.storeCard}>
+              <Icon name="shopping-bag" size={22} color={color.brand.gold} />
+              <View style={styles.storeCopy}>
+                <Text style={styles.storeTitle}>متجر الخبير</Text>
+                <Text style={styles.storeBody}>
+                  {data.catalog.activeProducts > 0
+                    ? 'منتجاتك جاهزة في متجرك، وسيتم عرضها للمتسوقين عند تفعيل المتجر العام.'
+                    : 'أضف منتجاتك لتظهر في متجر الخبير عند تفعيل المتجر العام.'}
+                </Text>
+              </View>
+            </Card>
+          </>
+        ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle },
-  content: { padding: spacing[5], paddingBottom: spacing[8], direction: 'rtl', gap: spacing[4] },
-  identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  copy: { flex: 1, minWidth: 0 },
-  eyebrow: { color: color.text.secondary, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right' },
-  title: { color: color.brand.navy, fontSize: typography.size.h2, fontWeight: typography.weight.bold, lineHeight: 36, textAlign: 'right', writingDirection: 'rtl' },
-  body: { color: color.text.secondary, fontSize: typography.size.body, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
-  catalogDesk: { backgroundColor: color.brand.navy, borderRadius: radius.xl, padding: spacing[4], gap: spacing[3] },
-  catalogHeading: { flexDirection: 'row', gap: spacing[3], alignItems: 'center', paddingBottom: spacing[3] },
-  deskArt: { width: 120, height: 144, borderRadius: radius.lg },
-  gold: { color: color.brand.gold, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right' },
-  light: { color: color.surface.base, fontSize: typography.size.body, lineHeight: 28, textAlign: 'right' },
-  total: { color: color.surface.base, fontSize: 48, fontWeight: typography.weight.bold, lineHeight: 64, textAlign: 'right' },
-  inventory: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },
-  inventoryMetric: { flexGrow: 1, flexBasis: 120, gap: spacing[1], padding: spacing[4], backgroundColor: color.brand.goldSoft, borderRadius: radius.lg },
-  number: { color: color.brand.navy, fontSize: 28, lineHeight: 40, fontWeight: typography.weight.bold, textAlign: 'right' },
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  content: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[8],
+    gap: spacing[4],
+  },
+  metrics: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+  },
+  emptyCard: { alignItems: 'center', gap: spacing[2] },
+  emptyTitle: { ...type.h3, color: color.text.primary, textAlign: 'center', writingDirection: 'rtl' },
+  emptyBody: { ...type.body, color: color.text.secondary, textAlign: 'center', writingDirection: 'rtl' },
+  storeCard: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  storeCopy: { flex: 1, minWidth: 0, gap: 2 },
+  storeTitle: { ...type.cardTitle, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
+  storeBody: { ...type.body, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
 });

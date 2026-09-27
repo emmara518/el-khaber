@@ -56,6 +56,13 @@ const APPLIANCE_TITLES: Record<ApplianceSlug, string> = {
   washing_machine: 'غسالات',
   refrigerator: 'ثلاجات',
   air_conditioner: 'تكييفات',
+  dishwasher: 'غسالات الأطباق',
+  coffee_machine: 'ماكينات القهوة',
+  microwave: 'ميكروويف',
+  oven: 'أفران',
+  tv_screen: 'شاشات',
+  vacuum_cleaner: 'مكانس كهربائية',
+  water_heater: 'سخانات المياه',
 };
 
 export default function ServiceRequestScreen({

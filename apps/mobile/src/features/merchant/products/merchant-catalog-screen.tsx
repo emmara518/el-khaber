@@ -7,12 +7,10 @@
  * منتج" CTA opens the product form screen.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
 import {
   EMPTY_PRODUCT_FILTERS,
@@ -28,8 +26,7 @@ import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Icon, StatusBadge } from '@/ui';
-import { SceneAction, SceneHero } from '@/ui/cinematic';
+import { ActionButton, Icon, ListEmpty, ListError, ListLoading, PageTitle, StatusBadge, type } from '@/ui';
 
 
 export default function MerchantCatalogScreen({
@@ -44,14 +41,18 @@ export default function MerchantCatalogScreen({
 
   return (
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="merchant_products"
-        eyebrow="المتجر · الكتالوج"
-        title={t('merchant.catalog.title')}
-        body={t('merchant.catalog.subtitle')}
-        action={<SceneAction label={t('merchant.catalog.add')} onPress={() => router.push('/(merchant)/products/new')} />}
-      />
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="المتجر · الكتالوج"
+          title={t('merchant.catalog.title')}
+          body={t('merchant.catalog.subtitle')}
+        />
+        <ActionButton
+          label={t('merchant.catalog.add')}
+          icon="plus-circle"
+          onPress={() => router.push('/(merchant)/products/new')}
+        />
+      </View>
 
       <View style={styles.editorial}>
       {status === 'loading' ? <ListLoading label={t('state.loading')} asset="merchant_products" /> : null}
@@ -156,8 +157,8 @@ export default function MerchantCatalogScreen({
             key={product.id}
             accessibilityRole="button"
             accessibilityLabel={`عرض تفاصيل ${product.nameAr}، القسم: ${product.categoryAr}، الحالة: ${product.statusLabelAr}${
-              product.priceSar !== null ? `، السعر: ${product.priceSar} ريال` : ''
-            }`}
+              product.priceSar !== null ? `، السعر: ${product.priceSar} جنيه` : ''
+            }${product.stockQuantity !== null ? `، المخزون: ${product.stockQuantity}` : ''}`}
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
@@ -173,10 +174,15 @@ export default function MerchantCatalogScreen({
                     {product.descriptionAr}
                   </Text>
                   {product.priceSar !== null ? (
-                    <Text style={styles.price}>{product.priceSar} ريال</Text>
+                    <Text style={styles.price}>{product.priceSar} جنيه</Text>
                   ) : (
                     <Text style={styles.noPrice}>{t('merchant.catalog.noPrice')}</Text>
                   )}
+                  {product.stockQuantity !== null ? (
+                    <Text style={styles.stock}>
+                      {t('merchant.catalog.stock')}: {product.stockQuantity}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={styles.side}>
                   <StatusBadge status={product.status} label={product.statusLabelAr} />
@@ -195,6 +201,12 @@ const styles = StyleSheet.create({
     direction: 'rtl',
     paddingBottom: spacing[8],
   },
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[2],
+    gap: spacing[3],
+  },
   editorial: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[2],
@@ -204,12 +216,14 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,
     marginTop: spacing[4],
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   chips: {
     flexDirection: 'row',
@@ -253,17 +267,15 @@ const styles = StyleSheet.create({
     opacity: 0.75,
   },
   chipText: {
+    ...type.bodyMedium,
     color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   chipTextSelected: {
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
   },
   count: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginVertical: spacing[3],
     textAlign: 'right',
   },
@@ -280,46 +292,56 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'flex-start',
     gap: spacing[3],
   },
   middle: {
     flex: 1,
+    minWidth: 0,
   },
   name: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   category: {
+    ...type.caption,
     color: color.brand.navy,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  description: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
-    lineHeight: 20,
+  },
+  description: {
+    ...type.caption,
+    color: color.text.secondary,
+    marginTop: spacing[1],
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   price: {
+    ...type.number,
+    fontSize: 16,
+    lineHeight: 24,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     marginTop: spacing[2],
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   noPrice: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[2],
     textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  stock: {
+    ...type.caption,
+    color: color.text.secondary,
+    marginTop: spacing[1],
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   side: {
     alignItems: 'flex-end',

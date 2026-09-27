@@ -8,7 +8,7 @@
  * and derives the current request + next documented action.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { ApiTechnicianRequestsDataSource } from './api-technician-requests-data-source';
 import { advanceActionLabelAr } from './request-policy';
@@ -48,9 +48,11 @@ export function useTechnicianActiveServiceViewModel(
   // a fresh `new Api…()` per render would retrigger loading endlessly).
   void source;
   const vm = useTechnicianRequestsViewModel(stableSource);
-  const [stableId] = useState(() => requestId);
-  const request = findTechnicianRequest(vm.requests, stableId);
-  const advanceForRequest = useCallback(() => vm.advance(stableId), [vm, stableId]);
+  // Resolve the request from the live `requestId` so navigating to a
+  // different active-service id updates in place (no stale latch). The
+  // loaded list is the shared session source, so no extra fetch occurs.
+  const request = findTechnicianRequest(vm.requests, requestId);
+  const advanceForRequest = useCallback(() => vm.advance(requestId), [vm, requestId]);
 
   return {
     loadStatus: vm.listStatus,

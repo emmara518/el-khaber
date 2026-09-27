@@ -93,11 +93,11 @@ export function useChatViewModel(
   const send = useCallback(() => {
     const textAr = draft.trim();
     if (textAr.length === 0 || sending) return;
-    const { next, pendingId } = withPendingMessage(messages, conversationId, textAr);
+    const { next, pendingId } = withPendingMessage(messages, conversationId, textAr, role);
     setMessages(next);
     setDraft('');
     deliver(pendingId, textAr);
-  }, [draft, sending, messages, conversationId, deliver]);
+  }, [draft, sending, messages, conversationId, role, deliver]);
 
   const retryFailed = useCallback(
     (id: string) => {

@@ -2,17 +2,18 @@ import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import type { CustomerTabId } from './customer-tab-routing';
 import type { BrandAssetName } from '@/ui/brand-assets';
 
 import { useI18n, type TranslationKey } from '@/i18n/use-i18n';
 import { BrandImage } from '@/ui/brand-image';
 import { fontFamily, type } from '@/ui/typography';
 
-
-export type CustomerTabId = 'home' | 'requests' | 'maintenance' | 'messages' | 'profile';
+export type { CustomerTabId };
 
 interface CustomerTabBarProps {
-  active: CustomerTabId;
+  /** Active tab, or `null` when the current route is not a tab route. */
+  active: CustomerTabId | null;
   onChange: (id: CustomerTabId) => void;
   style?: ViewStyle;
 }
@@ -117,7 +118,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: spacing[2],
     paddingBottom: spacing[2],
-    paddingHorizontal: spacing[2],
+    paddingHorizontal: 0,
     backgroundColor: color.brand.navy,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
@@ -129,11 +130,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing[1],
     paddingVertical: spacing[1],
+    paddingHorizontal: 1,
     minHeight: 56,
     justifyContent: 'center',
   },
   iconPill: {
-    width: 56,
+    width: 52,
     height: 36,
     borderRadius: radius.pill,
     alignItems: 'center',
@@ -144,6 +146,10 @@ const styles = StyleSheet.create({
   },
   label: {
     ...type.navigation,
+    fontSize: 10,
+    lineHeight: 14,
+    width: '100%',
+    textAlign: 'center',
     writingDirection: 'rtl',
   },
   labelActive: {

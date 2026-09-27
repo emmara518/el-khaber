@@ -46,6 +46,7 @@ export function mapProduct(dto: MerchantProductDto): MerchantProduct {
     // No category field exists in the backend product model (gap).
     categoryAr: '',
     priceSar: dto.price,
+    stockQuantity: dto.stockQuantity,
     hasImage: dto.imageUrl !== null,
     status: dto.status,
     statusLabelAr: PRODUCT_STATUS_LABELS[dto.status],
@@ -75,6 +76,7 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
         nameAr: draft.nameAr.trim(),
         descriptionAr: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : undefined,
         price: draft.priceSar ?? undefined,
+        stockQuantity: draft.stockQuantity ?? undefined,
         // imageUrl: no storage path exists (gap) — never fabricated.
         // category: no backend field exists (gap).
       });
@@ -98,6 +100,7 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
           nameAr: draft.nameAr.trim(),
           descriptionAr: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : undefined,
           price: draft.priceSar ?? undefined,
+          stockQuantity: draft.stockQuantity ?? undefined,
         },
       );
       return mapProduct(res.data);

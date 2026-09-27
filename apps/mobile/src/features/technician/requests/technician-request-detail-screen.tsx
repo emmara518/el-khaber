@@ -1,41 +1,42 @@
 /**
- * Technician Request Details screen (T-C).
+ * Technician Request Details screen (T-C) — Customer visual language.
  *
- * Reference + customer + appliance/problem/description + location +
- * appointment + status. Accept (primary) and Reject (separated
- * destructive → confirmation dialog) render ONLY when the documented
- * policy allows them; otherwise the state speaks for itself.
- * Outcomes: idle → submitting → success | stale/error, all with
- * back-to-list exits and context-preserving retry.
+ * AppHeader → PageTitle → request context card → logistics card →
+ * lifecycle timeline → documented actions. Accept (accent) and Reject
+ * (destructive → confirmation dialog) render ONLY when the policy
+ * allows them. No cinematic header.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { canAccept, canReject } from './request-policy';
-import { findTechnicianRequest } from './technician-request-types';
-import { TechnicianWorkScene } from './technician-work-scene';
+import { buildTechnicianTimeline, findTechnicianRequest, TECHNICIAN_STATUS_LABELS } from './technician-request-types';
 import { useTechnicianRequestsViewModel } from './use-technician-requests-view-model';
 
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon } from '@/ui';
-import { SceneAction, SceneSection } from '@/ui/cinematic';
+import {
+  ActionButton,
+  AppHeader,
+  ApplianceThumb,
+  Card,
+  Icon,
+  LifecycleTimeline,
+  ListEmpty,
+  ListError,
+  ListLoading,
+  PageTitle,
+  SectionHeading,
+  StatusBadge,
+  statusBrandAsset,
+} from '@/ui';
+import { fontFamily, type } from '@/ui/typography';
 
 const ACTIVE_STATES = ['accepted', 'on_the_way', 'in_progress'] as const;
-
 
 export default function TechnicianRequestDetailScreen({
   requestId,
@@ -49,160 +50,188 @@ export default function TechnicianRequestDetailScreen({
   const vm = useTechnicianRequestsViewModel(source);
   const [confirmingReject, setConfirmingReject] = useState(false);
 
+  const header = (
+    <AppHeader
+      onPressNotifications={() => router.push('/(technician)/notifications')}
+      onPressAvatar={() => router.push('/(technician)/profile')}
+    />
+  );
+
   if (vm.listStatus === 'loading') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.request.title')}
-        </Text>
-        <ListLoading label={t('state.loading')} />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="الطلبات" title={t('tech.request.title')} />
+          <ListLoading label={t('state.loading')} brandAsset="toolbox" />
+        </ScrollView>
+      </View>
     );
   }
 
   if (vm.listStatus === 'error') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.request.title')}
-        </Text>
-        <ListError
-          title={t('tech.request.loadError')}
-          message={vm.listError?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={vm.reload}
-        />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="الطلبات" title={t('tech.request.title')} />
+          <ListError
+            title={t('tech.request.loadError')}
+            message={vm.listError?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={vm.reload}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
   const request = findTechnicianRequest(vm.requests, requestId);
   if (!request) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <ListEmpty
-          icon="clipboard"
-          iconLabel="طلب غير موجود"
-          title={t('tech.request.missing')}
-          body={t('tech.request.missingBody')}
-          actionLabel={t('tech.request.backToList')}
-          onAction={() => router.replace('/(technician)/orders')}
-        />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="الطلبات" title={t('tech.request.title')} />
+          <ListEmpty
+            icon="clipboard"
+            iconLabel="طلب غير موجود"
+            brandAsset="no-results"
+            title={t('tech.request.missing')}
+            body={t('tech.request.missingBody')}
+            actionLabel={t('tech.request.backToList')}
+            onAction={() => router.replace('/(technician)/orders')}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
   const showAccept = canAccept(request.status) && vm.actionStatus !== 'success';
   const showReject = canReject(request.status) && vm.actionStatus !== 'success';
   const submitting = vm.actionStatus === 'submitting';
+  const isActive = ACTIVE_STATES.includes(request.status as (typeof ACTIVE_STATES)[number]);
+  const steps = buildTechnicianTimeline(request.status).map((s) => ({
+    key: s.status,
+    label: TECHNICIAN_STATUS_LABELS[s.status],
+    state: s.state,
+  }));
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <TechnicianWorkScene request={request} action={showAccept ? <SceneAction label={t('tech.request.accept')} loading={submitting} loadingLabel="جارٍ قبول الطلب" onPress={() => vm.accept(request.id)} /> : undefined} />
-      <SceneSection title={request.customerNameAr} eyebrow={request.applianceAr} body={request.descriptionAr}>
-        <Text style={styles.sectionLabel}>{t('tech.request.logistics')}</Text>
-        <View style={styles.valueRow}>
-          <Icon name="map-pin" size={15} color={color.text.secondary} accessibilityLabel="الموقع" />
-          <Text style={styles.value}>{request.locationAr}</Text>
-        </View>
-        <View style={styles.valueRow}>
-          <Icon name="clock" size={15} color={color.text.secondary} accessibilityLabel="الوقت" />
-          <Text style={styles.value}>{request.timeAr}</Text>
-        </View>
-        <Text style={styles.meta}>
-          {t('tech.request.created')}: {request.createdAr}
-        </Text>
-        {request.appointmentAr !== null ? (
-          <Text style={styles.meta}>
-            {t('tech.request.appointment')}: {request.appointmentAr}
-          </Text>
-        ) : null}
-      </SceneSection>
+    <View style={styles.root}>
+      {header}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <PageTitle
+          eyebrow="تفاصيل الطلب"
+          title={`${request.applianceAr} · ${request.problemAr}`}
+          body={request.descriptionAr}
+        />
 
-      {vm.actionStatus === 'success' && vm.actionResult !== null ? (
-        <Card
-          background={color.success.soft}
-          borderColor={color.success.DEFAULT}
-          padded
-          style={styles.card}
-        >
-          <Text accessibilityRole="alert" style={styles.successTitle}>
-            {vm.actionResult.status === 'accepted'
-              ? t('tech.request.accepted')
-              : t('tech.request.rejected')}
-          </Text>
-          <Text style={styles.body}>
-            {vm.actionResult.status === 'accepted'
-              ? t('tech.request.acceptedBody')
-              : t('tech.request.rejectedBody')}
-          </Text>
-          {vm.actionResult.status === 'accepted' ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('tech.active.goAfterAccept')}
-              onPress={() =>
-                router.push({ pathname: '/(technician)/active-service', params: { id: request.id } })
-              }
-              style={({ pressed }) => [styles.accept, pressed && styles.pressed, styles.entryGap]}
-            >
-              <Text style={styles.acceptText}>{t('tech.active.goAfterAccept')}</Text>
-            </Pressable>
-          ) : null}
+        <Card background={color.surface.base} padded style={styles.card}>
+          <View style={styles.headRow}>
+            <ApplianceThumb slug={request.applianceSlug} size={72} />
+            <View style={styles.headCopy}>
+              <StatusBadge status={request.status} label={request.statusLabelAr} icon={statusBrandAsset(request.status)} />
+              <Text style={styles.headTitle}>{request.customerNameAr}</Text>
+              <Text style={styles.meta}>{request.applianceAr}</Text>
+            </View>
+          </View>
         </Card>
-      ) : null}
 
-      {!showAccept && ACTIVE_STATES.includes(request.status as (typeof ACTIVE_STATES)[number]) ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.active.openFromDetail')}
-          onPress={() =>
-            router.push({ pathname: '/(technician)/active-service', params: { id: request.id } })
-          }
-          style={({ pressed }) => [styles.accept, pressed && styles.pressed]}
-        >
-          <Text style={styles.acceptText}>{t('tech.active.openFromDetail')}</Text>
-        </Pressable>
-      ) : null}
-
-      {vm.actionStatus === 'error' ? (
-        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${vm.actionError ?? ''}`} style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{vm.actionError}</Text>
+        <View style={styles.section}>
+          <SectionHeading title={t('tech.request.logistics')} />
+          <Card background={color.surface.base} padded style={styles.card}>
+            <View style={styles.valueRow}>
+              <Icon name="map-pin" size={16} color={color.text.secondary} accessibilityLabel="الموقع" />
+              <Text style={styles.value}>{request.locationAr || '—'}</Text>
+            </View>
+            <View style={styles.valueRow}>
+              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel="الموعد" />
+              <Text style={styles.value}>{request.appointmentAr ?? '—'}</Text>
+            </View>
+            <View style={styles.valueRow}>
+              <Icon name="clock" size={16} color={color.text.secondary} accessibilityLabel="الوقت" />
+              <Text style={styles.value}>{request.timeAr || '—'}</Text>
+            </View>
+            <Text style={styles.meta}>
+              {t('tech.request.created')}: {request.createdAr}
+            </Text>
+          </Card>
         </View>
-      ) : null}
 
-      {showReject ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.request.reject')}
-          onPress={() => setConfirmingReject(true)}
-          disabled={submitting}
-          style={({ pressed }) => [styles.reject, pressed && styles.pressed]}
-        >
-          <Text style={styles.rejectText}>{t('tech.request.reject')}</Text>
-        </Pressable>
-      ) : null}
+        <View style={styles.section}>
+          <SectionHeading title="مسار الخدمة" eyebrow="الحالة المسجلة للطلب" />
+          <Card background={color.surface.base} padded style={styles.card}>
+            <LifecycleTimeline steps={steps} />
+          </Card>
+        </View>
 
-      {vm.actionStatus === 'error' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.request.retryAction')}
-          onPress={() => {
-            vm.resetAction();
-          }}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>{t('tech.request.retryAction')}</Text>
-        </Pressable>
-      ) : null}
+        {vm.actionStatus === 'success' && vm.actionResult !== null ? (
+          <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.card}>
+            <Text accessibilityRole="alert" style={styles.successTitle}>
+              {vm.actionResult.status === 'accepted' ? t('tech.request.accepted') : t('tech.request.rejected')}
+            </Text>
+            <Text style={styles.body}>
+              {vm.actionResult.status === 'accepted' ? t('tech.request.acceptedBody') : t('tech.request.rejectedBody')}
+            </Text>
+            {vm.actionResult.status === 'accepted' ? (
+              <ActionButton
+                variant="primary"
+                icon="arrow-left"
+                label={t('tech.active.goAfterAccept')}
+                onPress={() => router.push({ pathname: '/(technician)/active-service', params: { id: request.id } })}
+                style={styles.entryGap}
+              />
+            ) : null}
+          </Card>
+        ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('tech.request.backToList')}
-        onPress={() => router.replace('/(technician)/orders')}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Text style={styles.secondaryText}>{t('tech.request.backToList')}</Text>
-      </Pressable>
+        {vm.actionStatus === 'error' ? (
+          <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${vm.actionError ?? ''}`} style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{vm.actionError}</Text>
+          </View>
+        ) : null}
+
+        {!showAccept && isActive ? (
+          <ActionButton
+            variant="primary"
+            icon="arrow-left"
+            label={t('tech.active.openFromDetail')}
+            onPress={() => router.push({ pathname: '/(technician)/active-service', params: { id: request.id } })}
+          />
+        ) : null}
+
+        {showAccept ? (
+          <ActionButton
+            variant="accent"
+            icon="check"
+            label={t('tech.request.accept')}
+            loading={submitting}
+            loadingLabel="جارٍ قبول الطلب"
+            onPress={() => vm.accept(request.id)}
+          />
+        ) : null}
+
+        {showReject ? (
+          <ActionButton
+            variant="destructive"
+            label={t('tech.request.reject')}
+            disabled={submitting}
+            onPress={() => setConfirmingReject(true)}
+          />
+        ) : null}
+
+        {vm.actionStatus === 'error' ? (
+          <ActionButton variant="secondary" label={t('tech.request.retryAction')} onPress={() => vm.resetAction()} />
+        ) : null}
+
+        <ActionButton
+          variant="secondary"
+          label={t('tech.request.backToList')}
+          onPress={() => router.replace('/(technician)/orders')}
+        />
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
 
       <Modal
         visible={confirmingReject}
@@ -218,190 +247,53 @@ export default function TechnicianRequestDetailScreen({
             </Text>
             <Text style={styles.body}>{t('tech.request.confirmRejectBody')}</Text>
             <View style={styles.dialogActions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('tech.request.confirmRejectYes')}
-                accessibilityState={{ disabled: submitting, busy: submitting }}
+              <ActionButton
+                variant="destructiveSolid"
+                label={t('tech.request.confirmRejectYes')}
+                loading={submitting}
+                loadingLabel="جارٍ رفض الطلب"
                 onPress={() => {
                   setConfirmingReject(false);
                   vm.reject(request.id);
                 }}
-                disabled={submitting}
-                style={({ pressed }) => [styles.rejectSolid, pressed && styles.pressed]}
-              >
-                <Text style={styles.acceptText}>{t('tech.request.confirmRejectYes')}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('tech.request.confirmRejectNo')}
+                style={styles.dialogAction}
+              />
+              <ActionButton
+                variant="secondary"
+                label={t('tech.request.confirmRejectNo')}
                 onPress={() => setConfirmingReject(false)}
-                style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
-              >
-                <Text style={styles.secondaryText}>{t('tech.request.confirmRejectNo')}</Text>
-              </Pressable>
+                style={styles.dialogAction}
+              />
             </View>
           </Card>
         </View>
       </Modal>
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    direction: 'rtl',
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    paddingBottom: spacing[8],
-  },
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing[3],
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  ref: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  card: {
-    marginTop: spacing[3],
-    gap: spacing[1],
-  },
-  sectionLabel: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  value: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  valueRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1] + 2,
-    marginTop: spacing[1],
-  },
-  body: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  meta: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  successTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  section: { gap: spacing[3] },
+  card: { gap: spacing[3] },
+  headRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  headCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  headTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  valueRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  value: { ...type.bodyMedium, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
+  meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  successTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
+  entryGap: { marginTop: spacing[2] },
   inlineError: {
     backgroundColor: color.error.soft,
     borderWidth: 1,
     borderColor: color.error.DEFAULT,
     borderRadius: radius.md,
     padding: spacing[3],
-    marginTop: spacing[3],
   },
-  inlineErrorText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  accept: {
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[4],
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  entryGap: {
-    marginTop: spacing[2],
-  },
-  acceptText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  reject: {
-    borderWidth: 1,
-    borderColor: color.error.DEFAULT,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[5],
-  },
-  rejectText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  rejectSolid: {
-    flex: 1,
-    backgroundColor: color.error.DEFAULT,
-    borderRadius: radius.md,
-    minHeight: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondary: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[3],
-  },
-  secondaryInline: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: color.border.default,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryText: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  pressed: {
-    opacity: 0.8,
-  },
+  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
   scrim: {
     flex: 1,
     backgroundColor: color.overlay.scrim,
@@ -409,23 +301,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
   },
-  dialog: {
-    width: '100%',
-    maxWidth: 420,
-    gap: spacing[2],
-  },
-  dialogTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  dialogActions: {
-    flexDirection: 'row',
-    gap: spacing[3],
-    marginTop: spacing[2],
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  dialog: { width: '100%', maxWidth: 420, gap: spacing[2] },
+  dialogTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
+  dialogActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[2] },
+  dialogAction: { flex: 1 },
+  bottomSpacer: { height: spacing[2] },
 });

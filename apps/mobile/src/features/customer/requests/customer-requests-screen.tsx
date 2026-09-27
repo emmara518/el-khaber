@@ -11,7 +11,9 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CustomerHeader } from '../components/customer-header';
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
+import { requestTrackingRoute } from '../orders/request-routes';
 
 import {
   REQUEST_FILTERS,
@@ -22,8 +24,7 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, fontFamily, Icon, IconText, StatusBadge, statusBrandAsset, type } from '@/ui';
-import { SceneHero } from '@/ui/cinematic';
+import { Avatar, Card, fontFamily, Icon, IconText, statusBrandAsset, StatusUnit, type } from '@/ui';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
@@ -33,16 +34,14 @@ export default function CustomerRequestsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="customer_home_hero"
+      <CustomerHeader
         eyebrow="طلباتي"
         title={t('requests.title')}
         body={t('requests.subtitle')}
       />
 
       <View style={styles.editorial}>
-        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_availability" /> : null}
+        {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
         {status === 'error' ? (
           <ListError
             asset="fault_empty"
@@ -110,7 +109,7 @@ export default function CustomerRequestsScreen() {
           <RequestCard
             key={item.id}
             item={item}
-            onPress={() => router.push({ pathname: '/(customer)/requests/[id]', params: { id: item.id } })}
+            onPress={() => router.push(requestTrackingRoute(item.id))}
           />
         ))}
       </View>
@@ -141,7 +140,7 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
           <Text style={styles.tech}>{item.technicianNameAr}</Text>
         </View>
         <View style={styles.side}>
-          <StatusBadge status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
+          <StatusUnit status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
         </View>
       </View>
       <View style={styles.footer}>

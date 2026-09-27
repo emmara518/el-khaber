@@ -3,7 +3,8 @@ import { Slot, usePathname, useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CustomerTabBar, type CustomerTabId } from '@/features/customer/customer-tab-bar';
+import { CustomerTabBar } from '@/features/customer/customer-tab-bar';
+import { tabIdForPathname } from '@/features/customer/customer-tab-routing';
 
 /**
  * Customer route group layout.
@@ -40,14 +41,6 @@ export default function CustomerTabsLayout() {
       </SafeAreaView>
     </View>
   );
-}
-
-function tabIdForPathname(pathname: string): CustomerTabId {
-  if (pathname === '/requests' || pathname.startsWith('/requests/')) return 'requests';
-  if (pathname === '/maintenance' || pathname.startsWith('/maintenance/')) return 'maintenance';
-  if (pathname === '/messages' || pathname.startsWith('/messages/')) return 'messages';
-  if (pathname === '/profile' || pathname.startsWith('/profile/')) return 'profile';
-  return 'home';
 }
 
 const styles = StyleSheet.create({

@@ -1,27 +1,26 @@
 /**
- * Real API `TechnicianHomeDataSource` (Task 10J).
+ * Real API `TechnicianHomeDataSource` (Task 10J; revised for 10J-R1).
  *
- * Composed from documented reads only (docs/07 §5/§7/§6):
- * - GET /me — identity,
+ * Composed from documented, role-scoped reads only:
+ * - GET /me — account identity (phone),
+ * - GET /technician/profile — the technician's OWN profile (identity,
+ *   verification, availability, rating, services, service areas),
  * - GET /service-requests (technician scope) — the real incoming and
- *   active previews plus the operational counters,
- * - GET /technicians/:id — the technician's real public profile
- *   (resolved through the role-scoped request list — see
- *   lib/self-technician; no self-profile endpoint exists yet),
- * - GET /appliance-categories — appliance labels.
+ *   active previews,
+ * - GET /technician/stats — server-derived request counters,
+ * - GET /appliance-categories — appliance labels + slugs.
  *
- * DISCOVERED CONTRACT GAP (reported): docs/07 §16 documents
- * GET /technician/stats, but it is not implemented; the "today"
- * counters are derived CLIENT-SIDE from the real bounded request
- * list (pending count, in_progress count, completed-with-today-
- * updatedAt count). No ranking/earnings/availability logic is
- * invented anywhere.
+ * The earlier indirect self-profile resolution (id discovered through
+ * the request list) and the derived "areasAr: []" gap are both gone:
+ * the self-profile endpoint is authoritative. The daily completed
+ * counter is the only client-derived value because the documented stats
+ * DTO exposes no per-day count.
  */
 
 import { getApi } from '../../../lib/api-client';
 import { formatArDateTime, isToday } from '../../../lib/api-format';
 import { buildQuery, drainPages } from '../../../lib/api-query';
-import { categoryNameAr, getTechnicianPublic } from '../../../lib/catalog-reference';
+import { categoryNameAr, categorySlugById } from '../../../lib/catalog-reference';
 import {
   CUSTOMER_NAME_FALLBACK_AR,
   initialsOf,
@@ -36,11 +35,12 @@ import type {
 import type {
   MeDto,
   ServiceRequestSummaryDto,
-  TechnicianPublicDto,
+  TechnicianSelfProfileDto,
+  TechnicianStatsDto,
 } from '@khabir/shared-types';
 
 /** Backend verification → the screen's 3-state model. */
-function mapVerification(status: TechnicianPublicDto['verificationStatus']): TechnicianVerification {
+function mapVerification(status: TechnicianSelfProfileDto['verificationStatus']): TechnicianVerification {
   switch (status) {
     case 'verified':
       return 'verified';
@@ -57,8 +57,9 @@ function mapVerification(status: TechnicianPublicDto['verificationStatus']): Tec
 export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
   async getHome(_input: { role: 'technician' }): Promise<TechnicianHomeViewModel> {
     const api = getApi();
-    const [me, summaries] = await Promise.all([
+    const [me, self, summaries, stats] = await Promise.all([
       api.request<MeDto>('GET', '/me').then((res) => res.data),
+      api.request<TechnicianSelfProfileDto>('GET', '/technician/profile').then((res) => res.data),
       drainPages<ServiceRequestSummaryDto>((page, limit) =>
         api
           .request<ServiceRequestSummaryDto[]>(
@@ -67,11 +68,8 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
           )
           .then((res) => ({ items: res.data, meta: res.meta })),
       ),
+      api.request<TechnicianStatsDto>('GET', '/technician/stats').then((res) => res.data),
     ]);
-
-    // Real public profile when any request reveals the profile id.
-    const selfId = summaries.find((s) => s.technicianId !== null)?.technicianId ?? null;
-    const tech = selfId !== null ? await getTechnicianPublic(selfId) : null;
 
     const incomingPreviews = await Promise.all(
       summaries
@@ -80,6 +78,7 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
           id: s.id,
           customerNameAr: CUSTOMER_NAME_FALLBACK_AR, // privacy by contract
           applianceAr: await categoryNameAr(s.applianceCategoryId),
+          applianceSlug: await categorySlugById(s.applianceCategoryId),
           problemAr: s.problemTitle ?? s.problemDescription,
           timeAr: s.scheduledAt !== null ? formatArDateTime(s.scheduledAt) : formatArDateTime(s.createdAt),
         })),
@@ -95,17 +94,18 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
             id: activeSummary.id,
             customerNameAr: CUSTOMER_NAME_FALLBACK_AR,
             applianceAr: await categoryNameAr(activeSummary.applianceCategoryId),
+            applianceSlug: await categorySlugById(activeSummary.applianceCategoryId),
             taskAr: activeSummary.problemTitle ?? activeSummary.problemDescription,
             statusLabelAr: REQUEST_STATUS_LABELS_AR[activeSummary.status],
             startedAr: formatArDateTime(activeSummary.updatedAt),
           }
         : null;
 
-    const name = tech?.displayName ?? (me.phone ?? 'فني');
+    const name = self.displayName ?? me.phone ?? 'فني';
     const availabilityLabel =
-      tech?.availabilityStatus === 'available'
+      self.availabilityStatus === 'available'
         ? 'متاح اليوم'
-        : tech?.availabilityStatus === 'busy'
+        : self.availabilityStatus === 'busy'
           ? 'مشغول حاليًا'
           : 'غير متاح';
 
@@ -113,23 +113,25 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
       profile: {
         nameAr: name,
         initialsAr: initialsOf(name),
-        specialtyAr: tech?.services[0]?.service.nameAr ?? '',
-        areasAr: [], // service areas not publicly exposed (reported gap)
-        rating: tech?.ratingAverage ?? 0,
-        reviewCount: tech?.ratingCount ?? 0,
-        verification: tech !== null ? mapVerification(tech.verificationStatus) : 'pending',
-        verificationNoteAr: tech !== null && tech.verificationStatus === 'verified'
-          ? 'تم التحقق من الهوية والخبرة من قبل فريق الخبير.'
-          : '',
+        specialtyAr: self.services[0]?.nameAr ?? '',
+        areasAr: self.areas.map((a) => a.labelAr),
+        rating: self.ratingAverage ?? 0,
+        reviewCount: self.ratingCount,
+        verification: mapVerification(self.verificationStatus),
+        verificationNoteAr:
+          self.verificationStatus === 'verified'
+            ? 'تم التحقق من الهوية والخبرة من قبل فريق الخبير.'
+            : '',
         availabilityLabelAr: availabilityLabel,
-        available: tech?.availabilityStatus === 'available',
+        available: self.availabilityStatus === 'available',
       },
       today: {
-        newRequests: summaries.filter((s) => s.status === 'pending').length,
-        inProgress: summaries.filter((s) => s.status === 'in_progress').length,
-        completedToday: summaries.filter(
-          (s) => s.status === 'completed' && isToday(s.updatedAt),
-        ).length,
+        newRequests: stats.pendingCount,
+        inProgress: stats.inProgressCount,
+        onTheWay: stats.onTheWayCount,
+        // No per-day counter exists in the stats DTO — derived from the
+        // real bounded list, never invented.
+        completedToday: summaries.filter((s) => s.status === 'completed' && isToday(s.updatedAt)).length,
       },
       incoming: incomingPreviews,
       active,

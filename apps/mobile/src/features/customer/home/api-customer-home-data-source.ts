@@ -160,7 +160,9 @@ export class ApiCustomerHomeDataSource implements CustomerHomeDataSource {
     const cards: ApplianceCardItem[] = [];
     for (const category of categories) {
       if (!(KNOWN_SLUGS as ReadonlyArray<string>).includes(category.slug)) continue;
-      let availableTechnicians = 0;
+      // `null` = count unknown (request failed or no total) — never a
+      // fabricated zero (ISSUE-008 / TASK-040).
+      let availableTechnicians: number | null = null;
       try {
         const res = await api.request<TechnicianPublicDto[]>(
           'GET',
@@ -168,9 +170,9 @@ export class ApiCustomerHomeDataSource implements CustomerHomeDataSource {
           undefined,
           { auth: false },
         );
-        availableTechnicians = res.meta?.total ?? 0;
+        availableTechnicians = res.meta?.total ?? null;
       } catch {
-        availableTechnicians = 0; // reference count stays honest (0)
+        availableTechnicians = null; // count stays unknown, not zero
       }
       cards.push({
         slug: category.slug as ApplianceSlug,
@@ -178,7 +180,8 @@ export class ApiCustomerHomeDataSource implements CustomerHomeDataSource {
         availableTechnicians,
         // No per-appliance warranty copy exists in the API (gap).
         captionAr: '',
-        techniciansAr: availableTechnicians > 0 ? 'فني متاح' : 'لا يوجد فني',
+        // Suffix used only when the count is known and positive.
+        techniciansAr: 'فني متاح',
         accent: 'soft',
       });
     }

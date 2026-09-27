@@ -35,7 +35,7 @@ const APPROVED_SEED: TechnicianProfile = {
   specialtiesAr: ['تبريد وتكييف'],
   appliances: ['air_conditioner'],
   servicesAr: ['صيانة المكيفات', 'تنظيف فلاتر المكيف', 'فحص غاز التبريد'],
-  areasAr: ['العليا', 'الملز'],
+  areasAr: ['القاهرة – مدينة نصر', 'الجيزة – الدقي'],
   verification: 'approved',
   verificationNoteAr: 'تم التحقق من بياناتك.',
   rating: 4.9,

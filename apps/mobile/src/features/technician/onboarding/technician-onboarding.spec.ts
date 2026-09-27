@@ -37,7 +37,7 @@ function validDraft(): TechnicianProfileDraft {
     specialtiesAr: ['تبريد وتكييف'],
     appliances: ['air_conditioner' as const],
     servicesAr: ['صيانة المكيفات'],
-    areasAr: ['العليا'],
+    areasAr: ['القاهرة – مدينة نصر'],
   };
 }
 
@@ -62,14 +62,14 @@ describe('onboarding draft + progression', () => {
   it('preserves the draft across BACK', () => {
     let state: OnboardingState = { ...INITIAL_ONBOARDING_STATE, draft: validDraft() };
     state = onboardingReducer(state, { type: 'NEXT' });
-    state = onboardingReducer(state, { type: 'TOGGLE_AREA', value: 'الشفا' });
+    state = onboardingReducer(state, { type: 'TOGGLE_AREA', value: 'الإسكندرية – سموحة' });
     state = onboardingReducer(state, { type: 'BACK' });
     expect(state.step).toBe('info');
     expect(state.draft.displayNameAr).toBe('سامي محيور');
     state = onboardingReducer(state, { type: 'GOTO', step: 'areas' });
     // Forward jump validates intermediate steps (all valid here).
     expect(state.step).toBe('areas');
-    expect(state.draft.areasAr).toContain('الشفا');
+    expect(state.draft.areasAr).toContain('الإسكندرية – سموحة');
   });
 
   it('validates each step independently', () => {

@@ -29,7 +29,7 @@ describe('technician home fixture (deterministic)', () => {
     expect(home.profile.rating).toBe(4.9);
     expect(home.profile.reviewCount).toBe(213);
     expect(home.profile.specialtyAr).toBe('تبريد وتكييف');
-    expect(home.profile.areasAr).toEqual(['العليا', 'الملز']);
+    expect(home.profile.areasAr).toEqual(['القاهرة – مدينة نصر', 'الجيزة – الدقي']);
   });
 
   it('exposes the view-model hook', () => {

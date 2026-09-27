@@ -10,7 +10,7 @@
  * completed / cancelled, accept from accepted) is rejected.
  */
 
-import type { CustomerRequestStatus } from '../../customer/requests/customer-requests-types';
+import type { CustomerRequestStatus } from './technician-request-types';
 
 export type TechnicianRequestAction = 'accept' | 'reject';
 

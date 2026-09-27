@@ -59,10 +59,11 @@ describe('product fixture (deterministic, documented scope)', () => {
   it('carries no invented ecommerce fields', async () => {
     const products = await loadProducts();
     for (const p of products) {
-      expect(JSON.stringify(p)).not.toContain('stock');
+      // `stockQuantity` IS a documented backend field (docs/06 §21) — allowed.
       expect(JSON.stringify(p)).not.toContain('sku');
       expect(JSON.stringify(p)).not.toContain('sales');
       expect(JSON.stringify(p)).not.toContain('views');
+      expect(JSON.stringify(p)).not.toContain('likes');
       expect(JSON.stringify(p)).not.toContain('revenue');
     }
   });

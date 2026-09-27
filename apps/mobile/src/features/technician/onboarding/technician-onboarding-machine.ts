@@ -12,10 +12,9 @@ import {
   EMPTY_PROFILE_DRAFT,
   toggleStringList,
   validateProfileDraft,
+  type TechnicianApplianceSlug,
   type TechnicianProfileDraft,
 } from '../profile/technician-profile-types';
-
-import type { ApplianceSlug } from '../../customer/home/data/customer-home-types';
 
 export const ONBOARDING_STEPS = [
   'info',
@@ -39,7 +38,7 @@ export type OnboardingEvent =
   | { readonly type: 'SET_TEXT'; readonly field: 'displayNameAr' | 'phoneAr' | 'bioAr'; readonly text: string }
   | { readonly type: 'SET_EXPERIENCE'; readonly years: number | null }
   | { readonly type: 'TOGGLE_SPECIALTY'; readonly value: string }
-  | { readonly type: 'TOGGLE_APPLIANCE'; readonly value: ApplianceSlug }
+  | { readonly type: 'TOGGLE_APPLIANCE'; readonly value: TechnicianApplianceSlug }
   | { readonly type: 'TOGGLE_SERVICE'; readonly value: string }
   | { readonly type: 'TOGGLE_AREA'; readonly value: string }
   | { readonly type: 'NEXT' }

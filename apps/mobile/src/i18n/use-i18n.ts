@@ -119,6 +119,9 @@ const ARABIC: Record<string, string> = {
   'fault.noMatch.body': 'هذا العرض يحتاج وصفًا مباشرًا من فني متخصص. يمكنك متابعة البحث عن فني أو البدء من جديد.',
   'fault.error.title': 'تعذر تجهيز الإرشاد',
   'fault.error.body': 'حدث خطأ أثناء تجهيز النتيجة. حاول مجددًا أو ارجع خطوة.',
+  'fault.noAppliances.title': 'لا توجد أجهزة متاحة',
+  'fault.noAppliances.body': 'لم نتمكن من تحميل قائمة الأجهزة الآن. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.',
+  'fault.noAppliances.action': 'إعادة المحاولة',
   'fault.deferred.title': 'البحث عن فني',
   'fault.deferred.body': 'البحث عن فنيين متخصصين سيتوفر في الخطوة القادمة. تم حفظ العرض الذي اخترته وسيُستخدم تلقائيًا عند توفر البحث.',
   'fault.deferred.context': 'العرض المختار',
@@ -356,6 +359,7 @@ const ARABIC: Record<string, string> = {
   'merchant.settings.onboarding': 'بيانات المتجر',
   'merchant.settings.onboardingHint': 'إكمال أو تحديث بيانات المتجر',
   'merchant.settings.notifications': 'الإشعارات',
+  'merchant.settings.notificationsHint': 'متابعة تحديثات متجرك ومنتجاتك',
   // Merchant — catalog (M-C)
   'merchant.catalog.title': 'إدارة المنتجات',
   'merchant.catalog.subtitle': 'منتجات متجرك وحالاتها',
@@ -402,9 +406,23 @@ const ARABIC: Record<string, string> = {
   'merchant.product.confirmSuspendBody': 'سيصبح المنتج غير ظاهر للعملاء كمنتج نشط. يمكنك تنشيطه لاحقًا في أي وقت.',
   'merchant.product.confirmSuspendYes': 'نعم، إيقاف المنتج',
   'merchant.product.confirmSuspendNo': 'تراجع',
+  'merchant.catalog.stock': 'المخزون',
+  'merchant.productForm.stock': 'الكمية في المخزون',
+  'merchant.productForm.stockPlaceholder': 'مثال: 12',
+  'merchant.productForm.stockOptional': 'اختياري — اتركه فارغًا إذا كانت الكمية غير محددة',
+  'merchant.product.stock': 'المخزون',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
+
+/**
+ * Pure lookup used by the hook and by tests. A key that is not defined
+ * falls back to the key itself — the i18n closure policy forbids any
+ * customer-facing key from ever reaching this fallback.
+ */
+export function translate(key: string): string {
+  return ARABIC[key] ?? key;
+}
 
 export interface I18nContext {
   locale: Locale;
@@ -418,7 +436,7 @@ export function useI18n(): I18nContext {
     () => ({
       locale: 'ar',
       rtl: true,
-      t: (key) => ARABIC[key] ?? String(key),
+      t: (key) => translate(key),
     }),
     [],
   );

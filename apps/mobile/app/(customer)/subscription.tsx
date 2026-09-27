@@ -1,13 +1,15 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CustomerHeader } from '../../src/features/customer/components/customer-header';
 import { ListError, ListLoading } from '../../src/features/customer/components/list-state-view';
 import { canCancelRenewal, subscribeNextAction } from '../../src/features/subscriptions/subscription-types';
 import { useSubscriptionViewModel } from '../../src/features/subscriptions/use-subscription-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
+import { SceneAction, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 export default function SubscriptionScreen() {
   const vm = useSubscriptionViewModel('customer');
@@ -21,7 +23,7 @@ export default function SubscriptionScreen() {
       ) : null}
       {vm.status === 'loaded' ? (
         <>
-          <SceneHero compact asset="subscription_hero" eyebrow="الاشتراكات · قراءة فقط" title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'} body={current === null
+          <CustomerHeader eyebrow="الاشتراكات · قراءة فقط" title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'} body={current === null
             ? 'تعرض هذه الشاشة باقاتك المتاحة وحالة اشتراكك. الشراء الإلكتروني غير متاح بعد؛ للأكثر أمانًا لا نعد بتفعيل قبل تأكيد الإدارة.'
             : `حالة الاشتراك: ${current.statusAr}.`} />
           <View style={styles.sections}>
@@ -83,16 +85,16 @@ const styles = StyleSheet.create({
   content: { paddingTop: spacing[6], paddingBottom: spacing[8], direction: 'rtl' },
   sections: { paddingHorizontal: spacing[5], gap: spacing[3] },
   meta: { gap: spacing[1] },
-  metaText: { color: color.text.secondary, fontSize: typography.size.body, lineHeight: 28, textAlign: 'right', writingDirection: 'rtl' },
+  metaText: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   planHead: { gap: spacing[1] },
   entitlements: { gap: spacing[2], paddingVertical: spacing[2] },
   entitlement: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
-  entitlementText: { color: color.text.primary, fontSize: typography.size.body, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
+  entitlementText: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   plans: { gap: spacing[3] },
   plan: { borderWidth: 1, borderColor: color.border.default, borderRadius: radius.lg, padding: spacing[4], gap: spacing[2], backgroundColor: color.surface.base },
   planCurrent: { borderColor: color.brand.gold, backgroundColor: color.brand.goldSoft },
-  planName: { color: color.brand.navy, fontSize: typography.size.h3, lineHeight: 30, fontWeight: typography.weight.bold, textAlign: 'right', writingDirection: 'rtl' },
-  planPrice: { color: color.text.secondary, fontSize: typography.size.body, textAlign: 'right', writingDirection: 'rtl' },
-  muted: { color: color.text.secondary, fontSize: typography.size.body, lineHeight: 26, textAlign: 'right', writingDirection: 'rtl' },
-  error: { color: color.error.DEFAULT, fontSize: typography.size.body, textAlign: 'right', writingDirection: 'rtl' },
+  planName: { ...type.h3, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  planPrice: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  muted: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  error: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
 });

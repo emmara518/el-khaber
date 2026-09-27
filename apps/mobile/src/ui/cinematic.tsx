@@ -90,6 +90,13 @@ export function applianceBrandAsset(slug: string): BrandAssetName | undefined {
     case 'washing_machine': return 'washing-machine';
     case 'refrigerator': return 'refrigerator';
     case 'air_conditioner': return 'air-conditioner';
+    case 'dishwasher': return 'dishwasher';
+    case 'coffee_machine': return 'coffee-machine';
+    case 'microwave': return 'microwave';
+    case 'oven': return 'oven';
+    case 'tv_screen': return 'tv-screen';
+    case 'vacuum_cleaner': return 'vacuum-cleaner';
+    case 'water_heater': return 'water-heater';
     default: return undefined;
   }
 }

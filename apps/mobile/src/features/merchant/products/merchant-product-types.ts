@@ -18,6 +18,7 @@ export interface MerchantProduct {
   readonly descriptionAr: string;
   readonly categoryAr: string;
   readonly priceSar: number | null;
+  readonly stockQuantity: number | null;
   readonly hasImage: boolean;
   readonly status: MerchantProductStatus;
   readonly statusLabelAr: string;
@@ -83,6 +84,8 @@ export interface MerchantProductDraft {
   readonly descriptionAr: string;
   readonly categoryAr: string;
   readonly priceSar: number | null;
+  /** Persisted inventory count. Null = unspecified (nullable server field). */
+  readonly stockQuantity: number | null;
   /** Typed image INTENT (M-C placeholder system) — no upload pipeline. */
   readonly imageSelected: boolean;
 }
@@ -92,6 +95,7 @@ export const EMPTY_PRODUCT_DRAFT: MerchantProductDraft = {
   descriptionAr: '',
   categoryAr: '',
   priceSar: null,
+  stockQuantity: null,
   imageSelected: false,
 };
 
@@ -101,14 +105,17 @@ export function draftFromProduct(product: MerchantProduct): MerchantProductDraft
     descriptionAr: product.descriptionAr,
     categoryAr: product.categoryAr,
     priceSar: product.priceSar,
+    stockQuantity: product.stockQuantity,
     imageSelected: product.hasImage,
   };
 }
 
 export function validateProductDraft(
   draft: MerchantProductDraft,
-): Partial<Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar', string>> {
-  const errors: Partial<Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar', string>> = {};
+): Partial<Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar' | 'stockQuantity', string>> {
+  const errors: Partial<
+    Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar' | 'stockQuantity', string>
+  > = {};
   if (draft.nameAr.trim().length < 3) errors.nameAr = 'أدخل اسم المنتج (٣ أحرف على الأقل)';
   if (draft.descriptionAr.trim().length < 10) {
     errors.descriptionAr = 'أدخل وصف المنتج (١٠ أحرف على الأقل)';
@@ -116,6 +123,14 @@ export function validateProductDraft(
   if (draft.categoryAr.trim().length === 0) errors.categoryAr = 'اختر قسم المنتج';
   if (draft.priceSar !== null && (draft.priceSar < 0 || draft.priceSar > 1_000_000)) {
     errors.priceSar = 'أدخل سعرًا صحيحًا بين ٠ و ١٠٠٠٠٠٠';
+  }
+  if (
+    draft.stockQuantity !== null &&
+    (!Number.isInteger(draft.stockQuantity) ||
+      draft.stockQuantity < 0 ||
+      draft.stockQuantity > 1_000_000)
+  ) {
+    errors.stockQuantity = 'أدخل كمية صحيحة بين ٠ و ١٠٠٠٠٠٠';
   }
   return errors;
 }

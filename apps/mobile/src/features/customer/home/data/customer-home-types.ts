@@ -10,19 +10,47 @@
 
 import type { Role } from '@khabir/shared-types';
 
-/** Arabic display name for a primary appliance category. */
-export type ApplianceSlug = 'air_conditioner' | 'refrigerator' | 'washing_machine';
+/** Arabic display name for a primary appliance category (server-owned slugs). */
+export type ApplianceSlug =
+  | 'air_conditioner'
+  | 'refrigerator'
+  | 'washing_machine'
+  | 'dishwasher'
+  | 'coffee_machine'
+  | 'microwave'
+  | 'oven'
+  | 'tv_screen'
+  | 'vacuum_cleaner'
+  | 'water_heater';
 
 export interface ApplianceCardItem {
   readonly slug: ApplianceSlug;
   readonly titleAr: string;
-  readonly availableTechnicians: number;
+  /**
+   * Real per-appliance technician total. `null` means the server total
+   * could not be read (unknown) — the card must not assert a false zero.
+   */
+  readonly availableTechnicians: number | null;
   /** Short warranty / availability line shown below the count. */
   readonly captionAr: string;
   /** Optional technician-availability line shown on the card. */
   readonly techniciansAr: string;
   /** Stable color key from the design tokens (e.g. "brand.navy"). */
   readonly accent: 'navy' | 'gold' | 'soft';
+}
+
+/**
+ * Arabic availability line for an appliance card. Returns `null` when the
+ * count is unknown so the caller omits the line rather than presenting an
+ * unverified "no technicians" claim (ISSUE-008 / TASK-040).
+ */
+export function availabilityLineAr(
+  availableTechnicians: number | null,
+  techniciansAr: string,
+): string | null {
+  if (availableTechnicians === null) return null;
+  if (availableTechnicians <= 0) return 'لا يوجد فنيون';
+  return `${String(availableTechnicians)} ${techniciansAr}`;
 }
 
 export interface QuickServiceItem {

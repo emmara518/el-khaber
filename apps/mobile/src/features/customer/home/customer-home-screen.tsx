@@ -1,8 +1,11 @@
 import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ListEmpty, ListError } from '../components/list-state-view';
+import { TechnicalDataDialog } from '../components/technical-data-dialog';
+import { requestTrackingRoute } from '../orders/request-routes';
 
 import { ApplianceCard } from './components/appliance-card';
 import { CurrentOrderCard } from './components/current-order-card';
@@ -14,12 +17,14 @@ import { HomeSkeleton } from './components/home-skeleton';
 import { RecommendedTechnicianCard } from './components/recommended-technician-card';
 import { ServiceCard } from './components/service-card';
 import { StorePreviewCard } from './components/store-preview-card';
+import { SubscriptionCard } from './components/subscription-card';
 import { TrustSection } from './components/trust-section';
 import { useCustomerHomeViewModel } from './use-customer-home-view-model';
 
 import type { QuickServiceItem } from './data/customer-home-types';
 import type { BrandAssetName } from '@/ui/brand-assets';
 
+import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
 
 /** Service icon → approved brand mark (same vocabulary as the tiles). */
@@ -42,6 +47,8 @@ export default function CustomerHomeScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { status, data, error, reload } = useCustomerHomeViewModel();
+  const notifications = useNotificationsViewModel('customer');
+  const [technicalOpen, setTechnicalOpen] = useState(false);
 
   const go = (route: 'maintenance' | 'find-technician' | 'requests') =>
     router.replace(
@@ -56,7 +63,8 @@ export default function CustomerHomeScreen() {
     <View style={styles.root}>
       <HomeHeader
         avatarInitials={data?.context.avatarInitialsAr ?? '·'}
-        onPressNotifications={() => Alert.alert('الإشعارات', 'ستتوفر الإشعارات في تحديث قادم.')}
+        notificationCount={notifications.unreadCount}
+        onPressNotifications={() => router.push('/(customer)/notifications')}
         onPressAvatar={() => router.replace('/(customer)/profile')}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -97,7 +105,12 @@ export default function CustomerHomeScreen() {
               >
                 <View style={styles.applianceRow}>
                   {data.appliances.map((item) => (
-                    <ApplianceCard key={item.slug} item={item} onPress={() => go('maintenance')} />
+                    <ApplianceCard
+                      key={item.slug}
+                      item={item}
+                      onPress={() => go('maintenance')}
+                      onPressInfo={() => setTechnicalOpen(true)}
+                    />
                   ))}
                 </View>
               </HomeSection>
@@ -132,6 +145,10 @@ export default function CustomerHomeScreen() {
             <HomeSection title="ليه الخبير؟" eyebrow="ثقة مبنية على الواقع">
               <TrustSection />
             </HomeSection>
+
+            <View style={styles.subscriptionWrap}>
+              <SubscriptionCard onPress={() => router.push('/(customer)/subscription')} />
+            </View>
 
             <HomeSection
               title={t('home.recommendedTechnicians')}
@@ -178,7 +195,11 @@ export default function CustomerHomeScreen() {
               >
                 <View style={styles.stack}>
                   {data.currentOrders.map((order) => (
-                    <CurrentOrderCard key={order.id} order={order} />
+                    <CurrentOrderCard
+                      key={order.id}
+                      order={order}
+                      onPress={() => router.push(requestTrackingRoute(order.id))}
+                    />
                   ))}
                 </View>
               </HomeSection>
@@ -186,6 +207,7 @@ export default function CustomerHomeScreen() {
           </>
         ) : null}
       </ScrollView>
+      <TechnicalDataDialog visible={technicalOpen} onClose={() => setTechnicalOpen(false)} />
     </View>
   );
 }
@@ -201,5 +223,6 @@ const styles = StyleSheet.create({
   applianceRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] + 2 },
   serviceRail: { flexDirection: 'row', direction: 'rtl', gap: spacing[3] },
   storeWrap: { marginTop: spacing[6] },
+  subscriptionWrap: { marginTop: spacing[6] },
   stack: { gap: spacing[3] },
 });

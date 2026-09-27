@@ -22,8 +22,7 @@ import {
 
 import { useChatViewModel } from './use-chat-view-model';
 
-import type { ChatDataSource } from './chat-types';
-import type { ChatMessage } from './chat-types';
+import type { ChatDataSource, ChatMessage, ChatRole } from './chat-types';
 
 import { Icon } from '@/ui/icon';
 import { sceneAssets } from '@/ui/scene-assets';
@@ -37,6 +36,8 @@ export function ChatDialog({
   serviceTitle,
   requestId,
   source,
+  role = 'customer',
+  peerNameAr,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -45,24 +46,30 @@ export function ChatDialog({
   serviceTitle?: string;
   requestId?: string;
   source?: ChatDataSource;
+  /** Signed-in side of the 1:1 conversation. Defaults to `customer`. */
+  role?: ChatRole;
+  /** Display name of the other participant; falls back to `technicianNameAr`. */
+  peerNameAr?: string;
 }) {
+  const peer = peerNameAr ?? technicianNameAr;
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      accessibilityLabel={`محادثة مع ${technicianNameAr}`}
+      accessibilityLabel={`محادثة مع ${peer}`}
       onRequestClose={onClose}
     >
       <View style={styles.scrim}>
         <View style={styles.sheet}>
           <ChatBody
             conversationId={conversationId}
-            technicianNameAr={technicianNameAr}
+            technicianNameAr={peer}
             serviceTitle={serviceTitle}
             requestId={requestId}
             onClose={onClose}
             source={source}
+            role={role}
           />
         </View>
       </View>
@@ -77,6 +84,7 @@ export function ChatBody({
   requestId,
   onClose,
   source,
+  role = 'customer',
 }: {
   conversationId: string;
   technicianNameAr: string;
@@ -84,8 +92,9 @@ export function ChatBody({
   requestId?: string;
   onClose: () => void;
   source?: ChatDataSource;
+  role?: ChatRole;
 }) {
-  const vm = useChatViewModel(conversationId, 'customer', source);
+  const vm = useChatViewModel(conversationId, role, source);
   const scrollRef = useRef<ScrollView>(null);
 
   return (
@@ -145,7 +154,11 @@ export function ChatBody({
                 style={styles.emptyScene}
               />
               <Text style={styles.emptyTitle}>ابدأ المحادثة</Text>
-              <Text style={styles.muted}>لا توجد رسائل بعد. اسأل الفني عن موعد الوصول أو تفاصيل الخدمة.</Text>
+              <Text style={styles.muted}>
+                {role === 'technician'
+                  ? 'لا توجد رسائل بعد. تواصل مع العميل لتأكيد الوصول أو تفاصيل الخدمة.'
+                  : 'لا توجد رسائل بعد. اسأل الفني عن موعد الوصول أو تفاصيل الخدمة.'}
+              </Text>
             </View>
           ) : (
             <ScrollView
@@ -158,6 +171,7 @@ export function ChatBody({
                 <MessageBubble
                   key={message.id}
                   message={message}
+                  role={role}
                   onRetry={() => vm.retryFailed(message.id)}
                 />
               ))}
@@ -215,12 +229,20 @@ export function ChatBody({
   );
 }
 
-function MessageBubble({ message, onRetry }: { message: ChatMessage; onRetry: () => void }) {
-  const outgoing = message.sender === 'customer';
+function MessageBubble({
+  message,
+  role,
+  onRetry,
+}: {
+  message: ChatMessage;
+  role: ChatRole;
+  onRetry: () => void;
+}) {
+  const outgoing = message.sender === role;
   return (
     <View style={[styles.bubbleRow, outgoing ? styles.outgoingRow : styles.incomingRow]}>
       <View
-        accessibilityLabel={`${outgoing ? 'رسالتك' : 'رسالة الفني'}: ${message.textAr}، ${message.timeAr}${
+        accessibilityLabel={`${outgoing ? 'رسالتك' : role === 'technician' ? 'رسالة العميل' : 'رسالة الفني'}: ${message.textAr}، ${message.timeAr}${
           message.status === 'error' ? '، فشل الإرسال' : message.status === 'sending' ? '، جارٍ الإرسال' : ''
         }`}
         style={[styles.bubble, outgoing ? styles.outgoing : styles.incoming]}

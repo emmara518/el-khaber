@@ -7,7 +7,7 @@
  * Status is system-owned and never editable here.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -23,9 +23,9 @@ import {
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon } from '@/ui';
+import { Card, Icon, PageTitle } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
-import { SceneHero } from '@/ui/cinematic';
+import { type } from '@/ui/typography';
 
 export default function MerchantProductFormScreen({
   mode,
@@ -61,13 +61,13 @@ export default function MerchantProductFormScreen({
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="merchant_products"
-        eyebrow="المتجر · المنتجات"
-        title={mode === 'create' ? t('merchant.productForm.createTitle') : t('merchant.productForm.editTitle')}
-        body={mode === 'create' ? 'أضف منتجًا جديدًا ليظهر داخل كتالوج متجرك.' : 'حدّث بيانات المنتج مع الحفاظ على حالة الظهور الحالية.'}
-      />
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="المتجر · المنتجات"
+          title={mode === 'create' ? t('merchant.productForm.createTitle') : t('merchant.productForm.editTitle')}
+          body={mode === 'create' ? 'أضف منتجًا جديدًا ليظهر داخل كتالوج متجرك.' : 'حدّث بيانات المنتج مع الحفاظ على حالة الظهور الحالية.'}
+        />
+      </View>
 
       {vm.status === 'success' && savedProduct !== null ? (
         <View style={styles.form}>
@@ -202,6 +202,28 @@ export default function MerchantProductFormScreen({
             </Text>
           ) : null}
 
+          <Text style={styles.label}>{t('merchant.productForm.stock')}</Text>
+          <TextInput
+            accessibilityLabel={errors.stockQuantity ? `${t('merchant.productForm.stock')}. خطأ: ${errors.stockQuantity}` : t('merchant.productForm.stock')}
+            placeholder={t('merchant.productForm.stockPlaceholder')}
+            placeholderTextColor={color.text.secondary}
+            value={draft.stockQuantity === null ? '' : String(draft.stockQuantity)}
+            onChangeText={(text) => {
+              const n = Number(text.replace(/[^0-9]/g, ''));
+              patch({ stockQuantity: text.trim().length === 0 ? null : n });
+            }}
+            keyboardType="numeric"
+            style={[styles.input, errors.stockQuantity ? styles.inputError : null]}
+            textAlign="right"
+            editable={!submitting}
+          />
+          <Text style={styles.optional}>{t('merchant.productForm.stockOptional')}</Text>
+          {errors.stockQuantity ? (
+            <Text accessibilityRole="alert" style={styles.fieldError}>
+              {errors.stockQuantity}
+            </Text>
+          ) : null}
+
           <Text style={styles.label}>{t('merchant.productForm.image')}</Text>
           <Pressable
             accessibilityRole="switch"
@@ -271,6 +293,11 @@ const styles = StyleSheet.create({
     direction: 'rtl',
     paddingBottom: spacing[8],
   },
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+  },
   successScene: {
     width: '100%',
     height: 150,
@@ -285,9 +312,8 @@ const styles = StyleSheet.create({
     paddingTop: spacing[2],
   },
   label: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginTop: spacing[2],
@@ -297,11 +323,13 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   multiline: {
     minHeight: 110,
@@ -311,13 +339,14 @@ const styles = StyleSheet.create({
     borderColor: color.error.DEFAULT,
   },
   fieldError: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   chips: {
     flexDirection: 'row',
+    direction: 'rtl',
     flexWrap: 'wrap',
     gap: spacing[2],
   },
@@ -340,12 +369,13 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.base,
   },
   chipText: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
+    writingDirection: 'rtl',
   },
   chipTextSelected: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
   },
   imageToggle: {
     borderWidth: 1,
@@ -361,9 +391,10 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   optional: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   inlineError: {
     backgroundColor: color.error.soft,
@@ -374,8 +405,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -396,9 +427,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   secondary: {
     borderWidth: 1,
@@ -411,24 +441,23 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   secondaryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   center: {
     alignItems: 'center',
     gap: spacing[2],
   },
   successTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   bottomSpacer: {
     height: spacing[6],

@@ -8,7 +8,7 @@
  * action_required, settings entry, onboarding CTA when incomplete.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -24,8 +24,8 @@ import {
 import { useMerchantProfileViewModel } from './use-merchant-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, Icon, SectionHeader } from '@/ui';
-import { SceneHero } from '@/ui/cinematic';
+import { Avatar, Card, Icon, PageTitle, SectionHeader } from '@/ui';
+import { type } from '@/ui/typography';
 
 export default function MerchantProfileScreen({
   source,
@@ -94,13 +94,13 @@ export default function MerchantProfileScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="merchant_dashboard_hero"
-        eyebrow="ملف المتجر"
-        title={t('merchant.profile.title')}
-        body="هويتك التجارية وحالة التوثيق وبيانات التواصل."
-      />
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="ملف المتجر"
+          title={t('merchant.profile.title')}
+          body="هويتك التجارية وحالة التوثيق وبيانات التواصل."
+        />
+      </View>
 
       <View style={styles.editorial}>
       <Card
@@ -360,10 +360,14 @@ const styles = StyleSheet.create({
   editorial: {
     paddingHorizontal: spacing[5],
   },
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+  },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginBottom: spacing[4],
@@ -387,14 +391,14 @@ const styles = StyleSheet.create({
     gap: spacing[1],
   },
   statusTitle: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -403,45 +407,51 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   name: {
+    ...type.h2,
     color: color.surface.base,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   heroMeta: {
+    ...type.body,
     color: color.brand.goldSoft,
-    fontSize: typography.size.body,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   heroBadge: {
+    ...type.caption,
     color: color.surface.base,
     backgroundColor: color.brand.navyDeep,
     borderRadius: radius.pill,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    fontSize: typography.size.caption,
     overflow: 'hidden',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   body: {
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
     lineHeight: 26,
   },
   meta: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     marginTop: spacing[2],
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   center: {
     alignItems: 'center',
     gap: spacing[2],
   },
   stateTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   primary: {
     backgroundColor: color.brand.navy,
@@ -458,9 +468,10 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   secondary: {
     borderWidth: 1,
@@ -475,9 +486,10 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   secondaryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   form: {
     gap: spacing[2],
@@ -486,9 +498,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   label: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginTop: spacing[2],
@@ -498,11 +509,13 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   multiline: {
     minHeight: 110,
@@ -512,8 +525,8 @@ const styles = StyleSheet.create({
     borderColor: color.error.DEFAULT,
   },
   fieldError: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -541,12 +554,14 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.base,
   },
   cityText: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   cityTextSelected: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
   },
   inlineError: {
     backgroundColor: color.error.soft,
@@ -557,8 +572,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -571,10 +586,10 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   savedText: {
+    ...type.bodyMedium,
     color: color.success.DEFAULT,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   bottomSpacer: {
     height: spacing[6],

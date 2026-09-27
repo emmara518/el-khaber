@@ -1,13 +1,14 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Avatar, Card, StatusBadge, statusBrandAsset } from '../../../../ui';
+import { Avatar, Card, statusBrandAsset, StatusUnit } from '../../../../ui';
 import { type } from '../../../../ui/typography';
 
 import type { CurrentOrderItem } from '../data/customer-home-types';
 
 interface CurrentOrderCardProps {
   order: CurrentOrderItem;
+  onPress: () => void;
 }
 
 /**
@@ -15,28 +16,35 @@ interface CurrentOrderCardProps {
  * appliance image tile (left), title + model + status badge (center),
  * technician avatar + task + scheduled time (right).
  */
-export function CurrentOrderCard({ order }: CurrentOrderCardProps) {
+export function CurrentOrderCard({ order, onPress }: CurrentOrderCardProps) {
   // Format the ISO time as "غداً 2:00 م" or "اليوم 2:00 م" for
   // friendliness. We avoid a heavy date library; the format is
   // sufficient for the Home screen presentation.
   const scheduled = formatScheduleAr(order.scheduledAtIso);
   return (
-    <Card background={color.surface.base} padded style={styles.card}>
-      <View style={styles.row}>
-        <View style={styles.iconSlot}>
-          <Avatar initials={initialFor(order.applianceAr)} size={56} />
-        </View>
-        <View style={styles.middle}>
-          <Text style={styles.task}>{order.taskAr}</Text>
-          <Text style={styles.model}>{order.brandAndModel} {order.modelCode}</Text>
-          <Text style={styles.techLine}>{order.technicianName}</Text>
-        </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`تتبع الطلب: ${order.taskAr}، الحالة: ${order.statusLabelAr}`}
+      onPress={onPress}
+      style={({ pressed }) => [pressed && styles.pressed]}
+    >
+      <Card background={color.surface.base} padded style={styles.card}>
+        <View style={styles.row}>
+          <View style={styles.iconSlot}>
+            <Avatar initials={initialFor(order.applianceAr)} size={56} />
+          </View>
+          <View style={styles.middle}>
+            <Text style={styles.task}>{order.taskAr}</Text>
+            <Text style={styles.model}>{order.brandAndModel} {order.modelCode}</Text>
+            <Text style={styles.techLine}>{order.technicianName}</Text>
+          </View>
         <View style={styles.right}>
-          <StatusBadge status={order.status} label={order.statusLabelAr} icon={statusBrandAsset(order.status)} />
+          <StatusUnit status={order.status} label={order.statusLabelAr} icon={statusBrandAsset(order.status)} />
           <Text style={styles.time}>{scheduled}</Text>
         </View>
-      </View>
-    </Card>
+        </View>
+      </Card>
+    </Pressable>
   );
 }
 
@@ -110,5 +118,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[2],
     ...type.caption,
     color: color.text.secondary,
+  },
+  pressed: {
+    opacity: 0.9,
   },
 });

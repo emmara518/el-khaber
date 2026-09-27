@@ -1,7 +1,7 @@
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { ApplianceCardItem } from '../data/customer-home-types';
+import { availabilityLineAr, type ApplianceCardItem } from '../data/customer-home-types';
 
 import { BrandImage } from '@/ui/brand-image';
 import { applianceBrandAsset } from '@/ui/cinematic';
@@ -12,6 +12,8 @@ import { type } from '@/ui/typography';
 interface ApplianceCardProps {
   item: ApplianceCardItem;
   onPress: () => void;
+  /** Optional information action (e.g. technical data dialog). */
+  onPressInfo?: () => void;
 }
 
 /**
@@ -19,16 +21,13 @@ interface ApplianceCardProps {
  * large warm stage (asset-first), with the name, the real technician
  * count, and a clear forward affordance below. Contained, untinted.
  */
-export function ApplianceCard({ item, onPress }: ApplianceCardProps) {
-  const hasTechnicians = item.availableTechnicians > 0;
-  const availability = hasTechnicians
-    ? `${String(item.availableTechnicians)} ${item.techniciansAr}`
-    : 'لا يوجد فنيون';
+export function ApplianceCard({ item, onPress, onPressInfo }: ApplianceCardProps) {
+  const availability = availabilityLineAr(item.availableTechnicians, item.techniciansAr);
   const asset = applianceBrandAsset(item.slug);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${item.titleAr}، ${availability}`}
+      accessibilityLabel={availability !== null ? `${item.titleAr}، ${availability}` : item.titleAr}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
@@ -40,10 +39,23 @@ export function ApplianceCard({ item, onPress }: ApplianceCardProps) {
           <Text style={styles.title} numberOfLines={1}>
             {item.titleAr}
           </Text>
-          <Text style={styles.availability} numberOfLines={2}>
-            {availability}
-          </Text>
+          {availability !== null ? (
+            <Text style={styles.availability} numberOfLines={2}>
+              {availability}
+            </Text>
+          ) : null}
         </View>
+        {onPressInfo !== undefined ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`البيانات الفنية: ${item.titleAr}`}
+            onPress={onPressInfo}
+            hitSlop={8}
+            style={({ pressed }) => [styles.infoBtn, pressed && styles.pressed]}
+          >
+            <Icon name="info" size={16} color={color.text.secondary} />
+          </Pressable>
+        ) : null}
         <View style={styles.arrow}>
           <Icon name="chevron-left" size={15} color={color.surface.base} />
         </View>
@@ -101,6 +113,13 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     backgroundColor: color.brand.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },

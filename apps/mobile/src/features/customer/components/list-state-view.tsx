@@ -154,45 +154,6 @@ export function ListError({
   );
 }
 
-/**
- * Success / confirmation state. Uses the approved `success` brand mark by
- * default so booking, rating and submission confirmations share one visual
- * language. Never fabricates content — the caller supplies the copy.
- */
-export function ListSuccess({
-  title,
-  body,
-  actionLabel,
-  onAction,
-  brandAsset = 'success',
-}: {
-  title: string;
-  body: string;
-  actionLabel?: string;
-  onAction?: () => void;
-  brandAsset?: BrandAssetName;
-}) {
-  return (
-    <Card background={color.surface.base} padded style={styles.center}>
-      <StateBrand name={brandAsset} />
-      <Text accessibilityRole="header" style={styles.title}>
-        {title}
-      </Text>
-      <Text style={styles.muted}>{body}</Text>
-      {actionLabel && onAction ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          onPress={onAction}
-          style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
-        >
-          <Text style={styles.ctaText}>{actionLabel}</Text>
-        </Pressable>
-      ) : null}
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
   scene: {
     width: '100%',

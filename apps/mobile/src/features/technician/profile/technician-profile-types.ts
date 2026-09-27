@@ -10,7 +10,8 @@
  * 4-state status with user-safe copy — never invented paperwork.
  */
 
-import type { ApplianceSlug } from '../../customer/home/data/customer-home-types';
+/** The three supported home-appliance slugs (server-seeded categories). */
+export type TechnicianApplianceSlug = 'washing_machine' | 'refrigerator' | 'air_conditioner';
 
 export type TechnicianVerificationStatus =
   | 'pending'
@@ -25,7 +26,7 @@ export interface TechnicianProfile {
   readonly bioAr: string;
   readonly experienceYears: number | null;
   readonly specialtiesAr: ReadonlyArray<string>;
-  readonly appliances: ReadonlyArray<ApplianceSlug>;
+  readonly appliances: ReadonlyArray<TechnicianApplianceSlug>;
   readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
   readonly verification: TechnicianVerificationStatus;
@@ -48,7 +49,7 @@ export interface TechnicianProfileDraft {
   readonly bioAr: string;
   readonly experienceYears: number | null;
   readonly specialtiesAr: ReadonlyArray<string>;
-  readonly appliances: ReadonlyArray<ApplianceSlug>;
+  readonly appliances: ReadonlyArray<TechnicianApplianceSlug>;
   readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
 }
@@ -95,15 +96,16 @@ export const SERVICE_OPTIONS: ReadonlyArray<string> = [
   'فحص غاز التبريد',
 ];
 
+// Egyptian service areas (governorate – district). Egypt-market demo data.
 export const AREA_OPTIONS: ReadonlyArray<string> = [
-  'النزهة',
-  'الملز',
-  'العليا',
-  'الشفا',
-  'جدة – الروضة',
+  'القاهرة – مدينة نصر',
+  'القاهرة – المعادي',
+  'الجيزة – الدقي',
+  'الإسكندرية – سموحة',
+  'المنوفية – شبين الكوم',
 ];
 
-export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: ApplianceSlug; titleAr: string }> = [
+export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: TechnicianApplianceSlug; titleAr: string }> = [
   { slug: 'washing_machine', titleAr: 'غسالات' },
   { slug: 'refrigerator', titleAr: 'ثلاجات' },
   { slug: 'air_conditioner', titleAr: 'تكييفات' },

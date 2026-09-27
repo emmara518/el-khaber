@@ -30,7 +30,7 @@ const APPROVED_SEED: MerchantProfile = {
   initialsAr: 'م',
   phoneAr: '0512345678',
   bioAr: 'متجر متخصص في الأجهزة المنزلية ولوازم الصيانة بضمان معتمد من المتجر.',
-  cityAr: 'الرياض',
+  cityAr: 'الجيزة — الدقي',
   verification: 'approved',
   verificationNoteAr: 'تم التحقق من بيانات متجرك.',
 };

@@ -2,10 +2,16 @@
  * Merchant Home — view-model and data-source contracts (M-A).
  *
  * Fields mirror docs/06_DATABASE.md §5 (business_name, verification)
- * and §21 (products.status → active/inactive counts) plus the
+ * and §21 (products.status → active/suspended counts) plus the
  * documented subscription context (docs/08 — presentation-only plan
  * name/status). No revenue, no orders, no commissions, no turnover.
+ *
+ * Product lifecycle: ONLY the backend-supported `active | suspended`
+ * states exist. Draft / pending-review / rejected product states are
+ * NOT modelled here because the backend does not persist them.
  */
+
+import type { MerchantProduct } from '../products/merchant-product-types';
 
 export type MerchantVerification = 'verified' | 'pending' | 'action_required';
 
@@ -15,6 +21,10 @@ export interface MerchantHomeProfile {
   readonly cityAr: string;
   readonly verification: MerchantVerification;
   readonly verificationNoteAr: string;
+  /** Title of the verification state (icon + text, never colour alone). */
+  readonly verificationTitleAr: string;
+  /** True until the merchant has persisted a profile (404 onboarding state). */
+  readonly profileIncomplete: boolean;
 }
 
 export interface MerchantCatalogSummary {
@@ -32,6 +42,8 @@ export interface MerchantSubscriptionSummary {
 export interface MerchantHomeViewModel {
   readonly profile: MerchantHomeProfile;
   readonly catalog: MerchantCatalogSummary;
+  /** Newest products (bounded) for the Home rail. Real records only. */
+  readonly recentProducts: ReadonlyArray<MerchantProduct>;
   readonly subscription: MerchantSubscriptionSummary | null;
   readonly role: 'merchant';
 }
@@ -40,7 +52,7 @@ export interface MerchantHomeDataSource {
   getHome(input: { role: 'merchant' }): Promise<MerchantHomeViewModel>;
 }
 
-/** Verification copy — icon + text, never color alone (unit-tested). */
+/** Verification copy — icon + text, never colour alone (unit-tested). */
 export function merchantVerificationCopy(state: MerchantVerification): {
   icon: 'check-circle' | 'clock' | 'alert-circle';
   titleAr: string;

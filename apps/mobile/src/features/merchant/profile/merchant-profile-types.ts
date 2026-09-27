@@ -57,12 +57,14 @@ export interface MerchantProfileDataSource {
   }): Promise<MerchantProfile>;
 }
 
+/** Egyptian seller locations (EL-KHABIR is an Egyptian product). */
 export const MERCHANT_CITY_OPTIONS: ReadonlyArray<string> = [
-  'الرياض',
-  'جدة',
-  'الدمام',
-  'مكة المكرمة',
-  'المدينة المنورة',
+  'القاهرة — مدينة نصر',
+  'القاهرة — المعادي',
+  'الجيزة — الدقي',
+  'الجيزة — المهندسين',
+  'الإسكندرية — سموحة',
+  'المنوفية — شبين الكوم',
 ];
 
 /** Mirrors shared-validation phoneSchema (7–15 digits, optional +). */

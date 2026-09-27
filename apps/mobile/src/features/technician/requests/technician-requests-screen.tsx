@@ -1,18 +1,15 @@
 /**
- * Technician Requests list screen (T-C).
+ * Technician Requests list screen (T-C) — Customer visual language.
  *
- * Lifecycle filter chips (documented states only) + request cards
- * (customer, appliance, problem, time, status — no earnings, no
- * prices, no scores). Cards navigate to the detail route; list
- * actions are intentionally absent (accept/reject live on details).
+ * AppHeader → PageTitle → filter pills → request cards. Each card uses
+ * the shared Card + approved appliance asset + lifecycle status asset,
+ * with the documented accept/reject actions. No cinematic header.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
+import { useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   TECHNICIAN_REQUEST_FILTERS,
@@ -23,11 +20,33 @@ import {
 import { useTechnicianRequestsViewModel } from './use-technician-requests-view-model';
 
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
+import type { IconName } from '@/ui';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Icon, StatusBadge, statusBrandAsset } from '@/ui';
-import { SceneHero } from '@/ui/cinematic';
+import {
+  ActionButton,
+  AppHeader,
+  ApplianceThumb,
+  Card,
+  Icon,
+  ListEmpty,
+  ListError,
+  ListLoading,
+  PageTitle,
+  StatusBadge,
+  statusBrandAsset,
+} from '@/ui';
+import { fontFamily, type } from '@/ui/typography';
 
+const FILTER_ICON: Record<TechnicianRequestFilter, IconName> = {
+  all: 'list',
+  pending: 'clock',
+  accepted: 'check',
+  on_the_way: 'navigation',
+  in_progress: 'tool',
+  completed: 'check-circle',
+  cancelled: 'x-circle',
+};
 
 export default function TechnicianRequestsScreen({
   source,
@@ -38,30 +57,45 @@ export default function TechnicianRequestsScreen({
   const router = useRouter();
   const vm = useTechnicianRequestsViewModel(source);
   const [filter, setFilter] = useState<TechnicianRequestFilter>('all');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<TechnicianRequest | null>(null);
+
+  useEffect(() => {
+    if (vm.actionStatus !== 'submitting') setBusyId(null);
+  }, [vm.actionStatus]);
+
+  const submitReject = () => {
+    if (rejectTarget !== null) setBusyId(rejectTarget.id);
+    setRejectTarget(null);
+  };
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="technician_requests"
-        eyebrow="تنظيم العمل"
-        title={t('tech.requests.title')}
-        body={t('tech.requests.subtitle')}
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(technician)/notifications')}
+        onPressAvatar={() => router.push('/(technician)/profile')}
       />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <PageTitle eyebrow="الطلبات" title="طلبات جديدة" body="الاطلاع على الطلبات وتقبّل المناسب لك" />
 
-      <View style={styles.editorial}>
-        {vm.listStatus === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_availability" /> : null}
+        {vm.listStatus === 'loading' ? <ListLoading label={t('state.loading')} brandAsset="toolbox" /> : null}
         {vm.listStatus === 'error' ? (
           <ListError
-            asset="fault_empty"
             title={t('tech.requests.error')}
             message={vm.listError?.message ?? ''}
             retryLabel={t('state.retry')}
             onRetry={vm.reload}
           />
         ) : null}
+
         {vm.listStatus === 'loaded' ? (
           <>
+            {vm.actionStatus === 'error' && vm.actionError !== null ? (
+              <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${vm.actionError}`} style={styles.inlineError}>
+                <Text style={styles.inlineErrorText}>{vm.actionError}</Text>
+              </View>
+            ) : null}
+
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
               {TECHNICIAN_REQUEST_FILTERS.map((option) => {
                 const selected = filter === option.id;
@@ -74,17 +108,54 @@ export default function TechnicianRequestsScreen({
                     onPress={() => setFilter(option.id)}
                     style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
                   >
+                    <Icon
+                      name={FILTER_ICON[option.id]}
+                      size={16}
+                      color={selected ? color.surface.base : color.text.secondary}
+                    />
                     <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.labelAr}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
+
             {renderList(filterTechnicianRequests(vm.requests, filter), t)}
           </>
         ) : null}
         <View style={styles.bottomSpacer} />
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      <Modal
+        visible={rejectTarget !== null}
+        transparent
+        animationType="fade"
+        accessibilityLabel="تأكيد رفض الطلب"
+        onRequestClose={() => setRejectTarget(null)}
+      >
+        <View style={styles.scrim}>
+          <Card background={color.surface.base} padded style={styles.dialog}>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>
+              {t('tech.request.confirmReject')}
+            </Text>
+            <Text style={styles.body}>{t('tech.request.confirmRejectBody')}</Text>
+            <View style={styles.dialogActions}>
+              <ActionButton
+                variant="destructiveSolid"
+                label={t('tech.request.confirmRejectYes')}
+                onPress={submitReject}
+                style={styles.dialogAction}
+              />
+              <ActionButton
+                variant="secondary"
+                label={t('tech.request.confirmRejectNo')}
+                onPress={() => setRejectTarget(null)}
+                style={styles.dialogAction}
+              />
+            </View>
+          </Card>
+        </View>
+      </Modal>
+    </View>
   );
 
   function renderList(
@@ -94,7 +165,7 @@ export default function TechnicianRequestsScreen({
     if (requests.length === 0) {
       return (
         <ListEmpty
-          asset="technician_requests"
+          brandAsset="no-requests"
           icon="clipboard"
           iconLabel="لا توجد طلبات"
           title={translate('tech.requests.empty')}
@@ -104,73 +175,82 @@ export default function TechnicianRequestsScreen({
     }
     return (
       <View style={styles.list}>
-        {requests.map((item) => (
-          <Pressable
-            key={item.id}
-            accessibilityRole="button"
-            accessibilityLabel={`فتح الطلب: ${item.problemAr} لـ ${item.customerNameAr}، الحالة: ${item.statusLabelAr}`}
-            onPress={() => router.push({ pathname: '/(technician)/orders/[id]', params: { id: item.id } })}
-            style={({ pressed }) => [pressed && styles.pressed]}
-          >
-            <View style={styles.card}>
-              <View style={styles.top}>
-                <View style={styles.topText}>
-                  <Text style={styles.customer}>{item.customerNameAr}</Text>
-                  <Text style={styles.problem}>
-                    {item.applianceAr} · {item.problemAr}
-                  </Text>
+        {requests.map((item) => {
+          const busy = busyId === item.id && vm.actionStatus === 'submitting';
+          const canAct = item.status === 'pending';
+          return (
+            <Card key={item.id} background={color.surface.base} padded style={styles.card}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`فتح الطلب: ${item.problemAr} لـ ${item.customerNameAr}، الحالة: ${item.statusLabelAr}`}
+                onPress={() => router.push({ pathname: '/(technician)/orders/[id]', params: { id: item.id } })}
+                style={({ pressed }) => [pressed && styles.pressed]}
+              >
+                <View style={styles.cardRow}>
+                  <ApplianceThumb slug={item.applianceSlug} size={72} />
+                  <View style={styles.cardCopy}>
+                    <StatusBadge status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
+                    <Text style={styles.cardTitle} numberOfLines={2}>
+                      {item.applianceAr} · {item.problemAr}
+                    </Text>
+                    <View style={styles.metaRow}>
+                      <Icon name="map-pin" size={13} color={color.text.secondary} accessibilityLabel="الموقع" />
+                      <Text style={styles.meta} numberOfLines={1}>
+                        {item.locationAr || '—'}
+                      </Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                      <Icon name="clock" size={13} color={color.text.secondary} accessibilityLabel="الوقت" />
+                      <Text style={styles.meta} numberOfLines={1}>
+                        {item.timeAr || '—'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Icon name="chevron-left" size={20} color={color.brand.navy} />
                 </View>
-                <StatusBadge status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
-              </View>
-              <View style={styles.meta}>
-                <View style={styles.metaRow}>
-                  <Icon name="map-pin" size={13} color={color.text.secondary} accessibilityLabel="الموقع" />
-                  <Text style={styles.metaText}>{item.locationAr}</Text>
+              </Pressable>
+
+              {canAct ? (
+                <View style={styles.actions}>
+                  <ActionButton
+                    variant="accent"
+                    icon="arrow-left"
+                    label={t('tech.request.accept')}
+                    loading={busy && vm.actionStatus === 'submitting'}
+                    loadingLabel="جارٍ قبول الطلب"
+                    disabled={vm.actionStatus === 'submitting'}
+                    onPress={() => {
+                      setBusyId(item.id);
+                      vm.accept(item.id);
+                    }}
+                    style={styles.acceptAction}
+                  />
+                  <ActionButton
+                    variant="destructive"
+                    label={t('tech.request.reject')}
+                    disabled={vm.actionStatus === 'submitting'}
+                    onPress={() => setRejectTarget(item)}
+                    style={styles.rejectAction}
+                  />
                 </View>
-                <View style={styles.metaRow}>
-                  <Icon name="clock" size={13} color={color.text.secondary} accessibilityLabel="الوقت" />
-                  <Text style={styles.metaText}>{item.timeAr}</Text>
-                </View>
-              </View>
-              <View style={styles.openRow}><Text style={styles.openText}>تفاصيل الطلب والخطوة التالية</Text><Icon name="arrow-left" size={18} color={color.brand.navy} /></View>
-            </View>
-          </Pressable>
-        ))}
+              ) : null}
+            </Card>
+          );
+        })}
       </View>
     );
   }
 }
 
 const styles = StyleSheet.create({
-  openRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[2], paddingTop: spacing[2] },
-  openText: { flex: 1, color: color.brand.navy, fontSize: typography.size.caption, lineHeight: 24, textAlign: 'right' },
-  content: {
-    direction: 'rtl',
-    paddingBottom: spacing[8],
-  },
-  editorial: {
-    paddingHorizontal: spacing[5],
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  filters: {
-    flexDirection: 'row',
-    gap: spacing[2],
-    paddingVertical: spacing[4],
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  filters: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
   chip: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    alignItems: 'center',
+    gap: spacing[1] + 2,
     borderWidth: 1,
     borderColor: color.border.default,
     borderRadius: radius.pill,
@@ -180,73 +260,39 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
-  chipSelected: {
-    borderColor: color.brand.navy,
-    borderWidth: 2,
-    backgroundColor: color.surface.base,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1] + 2,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  chipText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  chipTextSelected: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
-  },
-  list: {
-    gap: spacing[3],
-  },
-  card: {
-    gap: spacing[3],
-    borderStartWidth: 3,
-    borderStartColor: color.brand.gold,
-    backgroundColor: color.surface.base,
-    padding: spacing[4],
+  chipSelected: { borderColor: color.brand.navy, backgroundColor: color.brand.navy },
+  chipText: { ...type.bodyMedium, color: color.text.secondary },
+  chipTextSelected: { ...type.bodyMedium, fontFamily: fontFamily.bold, color: color.surface.base },
+  list: { gap: spacing[3] },
+  card: { gap: spacing[3] },
+  cardRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  cardCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  cardTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  metaRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[1] },
+  meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
+  actions: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  acceptAction: { flex: 2 },
+  rejectAction: { flex: 1 },
+  inlineError: {
+    backgroundColor: color.error.soft,
+    borderWidth: 1,
+    borderColor: color.error.DEFAULT,
     borderRadius: radius.md,
+    padding: spacing[3],
   },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing[2],
-  },
-  topText: {
+  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  scrim: {
     flex: 1,
+    backgroundColor: color.overlay.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[6],
   },
-  customer: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  problem: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  meta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: color.border.default,
-    paddingTop: spacing[2],
-  },
-  metaText: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  dialog: { width: '100%', maxWidth: 420, gap: spacing[2] },
+  dialogTitle: { ...type.h3, color: color.text.primary, textAlign: 'right' },
+  dialogActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[2] },
+  dialogAction: { flex: 1 },
+  bottomSpacer: { height: spacing[2] },
+  pressed: { opacity: 0.85 },
 });

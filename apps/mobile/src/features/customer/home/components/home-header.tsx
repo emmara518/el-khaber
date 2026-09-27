@@ -11,10 +11,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Icon } from '@/ui/icon';
-import { type } from '@/ui/typography';
+import { fontFamily, type } from '@/ui/typography';
 
 interface HomeHeaderProps {
   avatarInitials: string;
+  /** Unread notification count; a badge shows when > 0. */
+  notificationCount?: number;
   onPressNotifications?: () => void;
   onPressAvatar?: () => void;
 }
@@ -23,6 +25,7 @@ const SLOT = 44;
 
 export function HomeHeader({
   avatarInitials,
+  notificationCount = 0,
   onPressNotifications,
   onPressAvatar,
 }: HomeHeaderProps) {
@@ -33,12 +36,23 @@ export function HomeHeader({
         <View style={styles.slot}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={t('home.notifications')}
+            accessibilityLabel={
+              notificationCount > 0
+                ? `${t('home.notifications')}، ${notificationCount} غير مقروء`
+                : t('home.notifications')
+            }
             onPress={onPressNotifications}
             hitSlop={8}
             style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
           >
             <Icon name="bell" size={18} color={color.brand.navy} />
+            {notificationCount > 0 ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText} numberOfLines={1}>
+                  {notificationCount > 9 ? '٩+' : notificationCount.toLocaleString('ar-EG')}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
         </View>
 
@@ -127,6 +141,23 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.base,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    end: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: color.error.DEFAULT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    ...type.navigation,
+    color: color.surface.base,
+    fontFamily: fontFamily.bold,
   },
   pressed: {
     opacity: 0.7,

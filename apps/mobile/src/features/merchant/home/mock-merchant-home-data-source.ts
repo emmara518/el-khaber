@@ -16,15 +16,18 @@ const HOME_FIXTURE: MerchantHomeViewModel = {
   profile: {
     businessNameAr: 'مكتبة الخبير للأجهزة',
     initialsAr: 'م',
-    cityAr: 'الرياض',
+    cityAr: 'القاهرة — مدينة نصر',
     verification: 'verified',
     verificationNoteAr: 'تم التحقق من بيانات المتجر من قبل فريق الخبير.',
+    verificationTitleAr: 'حسابك موثق',
+    profileIncomplete: false,
   },
   catalog: {
     totalProducts: 14,
     activeProducts: 11,
     inactiveProducts: 3,
   },
+  recentProducts: [],
   subscription: {
     planNameAr: 'الباقة العادية',
     statusAr: 'نشطة',

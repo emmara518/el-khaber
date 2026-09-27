@@ -38,6 +38,7 @@
 import home from '../assets/brand/action-navigation-icons/home.webp';
 import messages from '../assets/brand/action-navigation-icons/messages.webp';
 import myRequests from '../assets/brand/action-navigation-icons/my-requests.webp';
+import notifications from '../assets/brand/action-navigation-icons/notifications.webp';
 import profile from '../assets/brand/action-navigation-icons/profile.webp';
 import airConditioner from '../assets/brand/appliance-categories/air-conditioner.webp';
 import coffeeMachine from '../assets/brand/appliance-categories/coffee-machine.webp';
@@ -72,6 +73,8 @@ import repair from '../assets/brand/feature-icons/repair.webp';
 import spareParts from '../assets/brand/feature-icons/spare-parts.webp';
 import support from '../assets/brand/feature-icons/support.webp';
 import homeServiceIllustration from '../assets/brand/illustration-assets/home-service-illustration.webp';
+import merchantWelcomeStore from '../assets/brand/illustration-assets/merchant-welcome-store.webp';
+import toolbox from '../assets/brand/illustration-assets/toolbox.webp';
 import accepted from '../assets/brand/status-icons/accepted.webp';
 import cancelled from '../assets/brand/status-icons/cancelled.webp';
 import completed from '../assets/brand/status-icons/completed.webp';
@@ -100,6 +103,7 @@ export const brandAssets = {
   home,
   messages,
   'my-requests': myRequests,
+  notifications,
   profile,
 
   // appliance categories
@@ -129,6 +133,10 @@ export const brandAssets = {
 
   // illustration assets (selectively wired)
   'home-service-illustration': homeServiceIllustration,
+  // Approved Merchant-only storefront illustration (Merchant Home welcome card).
+  'merchant-welcome-store': merchantWelcomeStore,
+  // Approved Technician welcome illustration (Technician Home role hero).
+  toolbox,
 
   // status icons
   accepted,
@@ -189,7 +197,7 @@ export type BrandAssetCategory =
  * Listing only — it holds no asset modules of its own.
  */
 export const brandAssetsByCategory = {
-  'action-navigation-icons': ['home', 'messages', 'my-requests', 'profile'],
+  'action-navigation-icons': ['home', 'messages', 'my-requests', 'notifications', 'profile'],
   'appliance-categories': [
     'air-conditioner',
     'coffee-machine',
@@ -215,7 +223,7 @@ export const brandAssetsByCategory = {
     'spare-parts',
     'support',
   ],
-  'illustration-assets': ['home-service-illustration'],
+  'illustration-assets': ['home-service-illustration', 'merchant-welcome-store', 'toolbox'],
   'status-icons': ['accepted', 'cancelled', 'completed', 'in-progress', 'on-the-way', 'scheduled'],
   'user-type-icons': ['customer', 'merchant', 'technician'],
   'badge-tag-icons': ['eco-friendly', 'fast', 'featured', 'premium', 'top-rated', 'verified', 'warranty'],

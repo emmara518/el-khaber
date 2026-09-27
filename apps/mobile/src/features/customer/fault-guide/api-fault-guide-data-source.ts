@@ -48,6 +48,13 @@ const KNOWN_SLUGS: ReadonlyArray<ApplianceSlug> = [
   'washing_machine',
   'refrigerator',
   'air_conditioner',
+  'dishwasher',
+  'coffee_machine',
+  'microwave',
+  'oven',
+  'tv_screen',
+  'vacuum_cleaner',
+  'water_heater',
 ];
 
 function isKnownSlug(value: string | null | undefined): value is ApplianceSlug {

@@ -1,22 +1,29 @@
 /**
- * Technician Reviews screen (T-E) — received ratings presentation.
- * Overall summary (RatingStars + count) + individual review cards
- * + honest empty state + error/retry. No scores, no ranking.
+ * Technician Reviews screen (T-E) — Customer visual language.
+ *
+ * AppHeader → PageTitle → rating summary card → review cards +
+ * empty/error/loading. No cinematic header.
  */
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
 import { useTechnicianReviewsViewModel } from './use-technician-reviews-view-model';
 
 import type { TechnicianReviewsDataSource } from './technician-reviews-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, RatingStars } from '@/ui';
-import { SceneHero } from '@/ui/cinematic';
-
+import {
+  AppHeader,
+  Card,
+  ListEmpty,
+  ListError,
+  ListLoading,
+  PageTitle,
+  RatingStars,
+} from '@/ui';
+import { fontFamily, type } from '@/ui/typography';
 
 export default function TechnicianReviewsScreen({
   source,
@@ -24,23 +31,21 @@ export default function TechnicianReviewsScreen({
   source?: TechnicianReviewsDataSource;
 }) {
   const { t } = useI18n();
+  const router = useRouter();
   const { status, data, error, retry } = useTechnicianReviewsViewModel(source);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="technician_profile_reviews"
-        eyebrow="سمعتك المهنية"
-        title={t('tech.reviews.title')}
-        body={t('tech.reviews.subtitle')}
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(technician)/notifications')}
+        onPressAvatar={() => router.push('/(technician)/profile')}
       />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <PageTitle eyebrow="سمعتك المهنية" title={t('tech.reviews.title')} body={t('tech.reviews.subtitle')} />
 
-      <View style={styles.editorial}>
-        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_profile_reviews" /> : null}
+        {status === 'loading' ? <ListLoading label={t('state.loading')} brandAsset="toolbox" /> : null}
         {status === 'error' ? (
           <ListError
-            asset="fault_empty"
             title={t('tech.reviews.error')}
             message={error?.message ?? ''}
             retryLabel={t('state.retry')}
@@ -58,7 +63,7 @@ export default function TechnicianReviewsScreen({
 
             {data.reviews.length === 0 ? (
               <ListEmpty
-                asset="technician_trust"
+                brandAsset="no-requests"
                 icon="star"
                 iconLabel="لا توجد تقييمات"
                 title={t('tech.reviews.empty')}
@@ -81,69 +86,21 @@ export default function TechnicianReviewsScreen({
           </>
         ) : null}
         <View style={styles.bottomSpacer} />
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing[8],
-  },
-  editorial: {
-    paddingHorizontal: spacing[5],
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  summary: {
-    alignItems: 'center',
-    gap: spacing[2],
-    marginTop: spacing[4],
-  },
-  summaryText: {
-    color: color.brand.goldSoft,
-    fontSize: typography.size.body,
-  },
-  list: {
-    gap: spacing[3],
-  },
-  review: {
-    gap: spacing[1],
-  },
-  reviewTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  reviewAuthor: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-  },
-  reviewDate: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-  },
-  reviewText: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  summary: { alignItems: 'center', gap: spacing[2] },
+  summaryText: { ...type.body, color: color.brand.goldSoft },
+  list: { gap: spacing[3] },
+  review: { gap: spacing[1] },
+  reviewTop: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between' },
+  reviewAuthor: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
+  reviewDate: { ...type.caption, color: color.text.secondary },
+  reviewText: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  bottomSpacer: { height: spacing[2] },
 });

@@ -2,26 +2,20 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { CustomerHeader } from '../components/customer-header';
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
+import { StepProgress } from '../components/step-progress';
 
 import { symptomsForAppliance, type FaultDetail } from './fault-guide-types';
-import { FaultProgressIndicator } from './fault-progress-indicator';
 import { useFaultGuideViewModel } from './use-fault-guide-view-model';
-
-import type { SceneAssetName } from '@/ui/scene-assets';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { Icon, type } from '@/ui';
-import { applianceBrandAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
+import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 
 const arrival = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
-const faultScenes: Record<string, SceneAssetName> = {
-  washing_machine: 'fault_washing_machine',
-  refrigerator: 'fault_refrigerator',
-  air_conditioner: 'fault_air_conditioner',
-};
+const STEPS_AR = ['الجهاز', 'العرض', 'النتيجة'] as const;
 
 export default function FaultGuideScreen() {
   const { t } = useI18n();
@@ -29,39 +23,20 @@ export default function FaultGuideScreen() {
   const vm = useFaultGuideViewModel();
   const appliance = vm.data?.appliances.find((item) => item.slug === vm.appliance);
   const symptom = vm.data?.symptoms.find((item) => item.id === vm.symptomId);
-  const stageAsset: SceneAssetName = vm.step === 'RESULT'
-    ? 'fault_success'
-    : vm.step === 'NO_MATCH' || vm.step === 'ERROR'
-      ? 'fault_empty'
-      : vm.step === 'LOADING'
-        ? 'fault_diagnosis_visual'
-        : (vm.appliance ? faultScenes[vm.appliance] : undefined) ?? 'fault_diagnosis_visual';
-  const stageTitle = vm.step === 'APPLIANCE' ? 'ابدأ بجهازك'
-    : vm.step === 'SYMPTOM' ? 'ما الذي لاحظته؟'
-      : vm.step === 'LOADING' ? t('fault.resolving')
-        : vm.step === 'RESULT' ? 'إرشاداتك والخطوة التالية'
-          : vm.step === 'NO_MATCH' ? t('fault.noMatch.title') : t('fault.error.title');
+  const stepIndex = vm.step === 'APPLIANCE' ? 0 : vm.step === 'SYMPTOM' ? 1 : 2;
   const findTechnician = () => router.push({
     pathname: '/(customer)/find-technician',
     params: { symptomId: vm.symptomId ?? '' },
   });
 
   return (
-    <SafeAreaView edges={['top']} style={styles.root}>
+    <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <SceneHero
-          asset={stageAsset}
-          compact={vm.step !== 'APPLIANCE'}
+        <CustomerHeader
           eyebrow={t('maintenance.title')}
-          title={stageTitle}
-          body={vm.step === 'APPLIANCE' ? t('maintenance.subtitle') : appliance?.titleAr}
-        >
-          {vm.step !== 'APPLIANCE' ? (
-            <Animated.View key={`${vm.step}-${vm.appliance}`} entering={arrival} style={styles.stage} accessibilityLiveRegion="polite">
-              <Text style={styles.stageText}>{symptom?.titleAr ?? 'اختر العرض الذي يصف حالة جهازك.'}</Text>
-            </Animated.View>
-          ) : null}
-        </SceneHero>
+          title="دليل الأعطال"
+          body={t('maintenance.subtitle')}
+        />
         <View style={styles.editorial}>
           <View style={styles.disclaimer}>
             <Icon name="info" size={20} color={color.brand.navy} />
@@ -73,7 +48,17 @@ export default function FaultGuideScreen() {
           ) : null}
           {vm.loadStatus !== 'loading' && vm.loadStatus !== 'error' && vm.data !== null ? (
             <>
-              <FaultProgressIndicator position={vm.step === 'APPLIANCE' ? 0 : vm.step === 'SYMPTOM' ? 1 : 2} />
+              <StepProgress steps={STEPS_AR} current={stepIndex} />
+              {vm.step !== 'APPLIANCE' ? (
+                <Animated.View
+                  key={`${vm.step}-${vm.appliance}`}
+                  entering={arrival}
+                  style={styles.stage}
+                  accessibilityLiveRegion="polite"
+                >
+                  <Text style={styles.stageText}>{symptom?.titleAr ?? 'اختر العرض الذي يصف حالة جهازك.'}</Text>
+                </Animated.View>
+              ) : null}
               {vm.step === 'APPLIANCE' ? (
                 <SceneSection title={t('fault.chooseAppliance')} eyebrow="الخطوة الأولى">
                   <View accessibilityRole="radiogroup" accessibilityLabel={t('fault.chooseAppliance')} style={styles.appliances}>
@@ -133,7 +118,7 @@ export default function FaultGuideScreen() {
           ) : null}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -175,11 +160,11 @@ function StepNav({ onBack, onRestart }: { onBack: () => void; onRestart: () => v
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.brand.navy, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: { flexGrow: 1, backgroundColor: color.surface.subtle, paddingBottom: spacing[8] },
-  editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
-  stage: { marginTop: spacing[2] },
-  stageText: { flex: 1, ...type.body, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
+  editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[2] },
+  stage: { marginTop: spacing[1], marginBottom: spacing[1], paddingVertical: spacing[3], paddingHorizontal: spacing[4], backgroundColor: color.brand.goldSoft, borderRadius: radius.md },
+  stageText: { ...type.bodyMedium, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   disclaimer: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], paddingVertical: spacing[3] },
   disclaimerText: { flex: 1, ...type.caption, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   appliances: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3] },

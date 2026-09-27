@@ -33,7 +33,7 @@ function validDraft(): MerchantProfileDraft {
     businessNameAr: 'مكتبة الخبير للأجهزة',
     phoneAr: '0512345678',
     bioAr: 'متجر أجهزة منزلية',
-    cityAr: 'الرياض',
+    cityAr: 'القاهرة — مدينة نصر',
   };
 }
 

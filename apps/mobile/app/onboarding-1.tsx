@@ -1,17 +1,18 @@
 import { useRouter } from 'expo-router';
 
 import { OnboardingSlide } from '../src/features/auth/components/onboarding-slide';
-import { sceneAssets } from '../src/ui/scene-assets';
+import { onboardingAssets } from '../src/ui/onboarding-assets';
 
 export default function OnboardingOneRoute() {
   const router = useRouter();
 
   return (
     <OnboardingSlide
-      imageSource={sceneAssets.customer_onboarding_home}
-      imageLabel="مشهد سينمائي لمنزل يعتني به الخبير لصيانة الأجهزة المنزلية"
-      title="الخبير لصيانة الأجهزة المنزلية"
-      body="خدمة موثوقة لغسالاتك وثلاجاتك وتكييفاتك، بفنيين معتمدين وضمان واضح."
+      imageSource={onboardingAssets.appliances}
+      imageLabel="كل الأجهزة المنزلية المدعومة: غسالة وثلاجة وتكييف وميكروويف وماكينة قهوة على منصة واحدة"
+      imageAspectRatio={3 / 2}
+      title="كل خدمات الأجهزة المنزلية في مكان واحد"
+      body="غسالات، ثلاجات، تكييفات، ميكروويف وأكثر… صيانة موثوقة وسهولة."
       position={0}
       actionLabel="التالي"
       actionAccessibilityLabel="التالي إلى الجولة التعريفية الثانية"

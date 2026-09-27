@@ -16,6 +16,8 @@ import {
   View,
 } from 'react-native';
 
+import { Icon, type IconName } from '@/ui/icon';
+
 type AlertKind = 'error' | 'success' | 'info';
 
 export function AuthAlert({
@@ -43,11 +45,14 @@ export function AuthButton({
   onPress,
   loading = false,
   disabled = false,
+  trailingIcon,
 }: {
   label: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
+  /** Optional trailing (end / left in RTL) icon. */
+  trailingIcon?: IconName;
 }) {
   const inactive = loading || disabled;
   return (
@@ -69,7 +74,12 @@ export function AuthButton({
           color={color.surface.base}
         />
       ) : (
-        <Text style={styles.buttonText}>{label}</Text>
+        <View style={styles.buttonRow}>
+          <Text style={styles.buttonText}>{label}</Text>
+          {trailingIcon ? (
+            <Icon name={trailingIcon} size={20} color={color.surface.base} />
+          ) : null}
+        </View>
       )}
     </Pressable>
   );
@@ -135,6 +145,13 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.85,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[2],
   },
   buttonText: {
     color: color.surface.base,

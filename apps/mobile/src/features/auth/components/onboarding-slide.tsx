@@ -1,15 +1,21 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-  type ImageSourcePropType,
-} from 'react-native';
+/**
+ * Onboarding slide — the approved Customer tour composition.
+ *
+ * Composition (visual source of truth: the approved Splash + Onboarding
+ * reference): navy canvas → one large transparent brand artwork as the
+ * primary anchor → gold accent → centred title → supporting body →
+ * centred progress dots → full-width primary CTA. The Skip action sits in
+ * the top corner.
+ *
+ * It is a real, responsive React Native layout — no rasterised reference,
+ * no absolute pixel positions copied from the mock. The artwork keeps its
+ * aspect ratio (`contain`), the copy uses the semantic type ladder, and the
+ * centred block shrinks its artwork rather than clipping when a small
+ * viewport needs the space.
+ */
+
+import { color, radius, spacing } from '@khabir/ui-tokens';
+import { Image, Pressable, StatusBar, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import Animated, {
   FadeIn,
   ReduceMotion,
@@ -20,35 +26,41 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnboardingDots } from './onboarding-dots';
+import { OnboardingSkip } from './onboarding-skip';
+
+import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
+
 
 const arrival = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
-const scrimOpacity = [0.02, 0.04, 0.07, 0.11, 0.17, 0.24, 0.33, 0.43, 0.54, 0.65, 0.75, 0.83, 0.89, 0.94, 0.97, 0.99];
 
 export function OnboardingSlide({
   imageSource,
   imageLabel,
+  imageAspectRatio,
   title,
   body,
   position,
+  total = 2,
   actionLabel,
   actionAccessibilityLabel,
   onNext,
   onSkip,
-  onBack,
 }: {
   imageSource: ImageSourcePropType;
   imageLabel: string;
+  /** width / height of the artwork, so the stage reserves its true shape. */
+  imageAspectRatio: number;
   title: string;
   body: string;
   position: number;
+  total?: number;
   actionLabel: string;
   actionAccessibilityLabel: string;
   onNext: () => void;
   onSkip: () => void;
-  onBack?: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
   const scale = useSharedValue(1);
   const pressStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -64,88 +76,62 @@ export function OnboardingSlide({
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-      <Image
-        source={imageSource}
-        accessibilityLabel={imageLabel}
-        accessible={false}
-        importantForAccessibility="no"
-        resizeMode="cover"
-        style={styles.scene}
-      />
-      <View pointerEvents="none" style={styles.sceneTint} />
-      <Animated.View entering={arrival} style={styles.rootContent}>
-        <View
-          style={[
-            styles.navigation,
-            {
-              paddingTop: insets.top + spacing[2],
-              paddingLeft: insets.left + spacing[5],
-              paddingRight: insets.right + spacing[5],
-            },
-          ]}
-        >
-          {onBack ? (
+      <View
+        style={[
+          styles.navigation,
+          {
+            paddingTop: insets.top + spacing[3],
+            paddingLeft: insets.left + spacing[5],
+            paddingRight: insets.right + spacing[5],
+          },
+        ]}
+      >
+        <OnboardingSkip onPress={onSkip} />
+      </View>
+      <Animated.View
+        entering={arrival}
+        style={[
+          styles.content,
+          {
+            paddingBottom: insets.bottom + spacing[6],
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}
+      >
+        <View style={[styles.art, { aspectRatio: imageAspectRatio }]}>
+          <Image
+            source={imageSource}
+            accessible={false}
+            importantForAccessibility="no"
+            accessibilityLabel={imageLabel}
+            resizeMode="contain"
+            style={styles.artImage}
+          />
+        </View>
+        <View style={styles.footer}>
+          <View pointerEvents="none" style={styles.accent} />
+          <Text accessibilityRole="header" style={styles.title}>
+            {title}
+          </Text>
+          <Text style={styles.body}>{body}</Text>
+          <View style={styles.dots}>
+            <OnboardingDots position={position} total={total} />
+          </View>
+          <Animated.View style={pressStyle}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="رجوع إلى الجولة التعريفية الأولى"
-              onPress={onBack}
-              style={({ pressed }) => [styles.navButton, pressed && styles.pressed]}
+              accessibilityLabel={actionAccessibilityLabel}
+              onPress={onNext}
+              onPressIn={() => animatePress(true)}
+              onPressOut={() => animatePress(false)}
+              style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
             >
-              <Text style={styles.navText}>رجوع</Text>
+              <Text style={styles.primaryText}>{actionLabel}</Text>
+              <Icon name="chevron-left" size={20} color={color.brand.navy} />
             </Pressable>
-          ) : null}
-          <Pressable
-            accessibilityRole="link"
-            accessibilityLabel="تخطي الجولة التعريفية"
-            onPress={onSkip}
-            style={({ pressed }) => [styles.navButton, styles.skip, pressed && styles.pressed]}
-          >
-            <Text style={styles.navText}>تخطي</Text>
-          </Pressable>
+          </Animated.View>
         </View>
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          alwaysBounceVertical={false}
-        >
-          <View style={[styles.sceneSpace, { minHeight: Math.min(260, height * 0.3) }]} />
-          <View
-            style={[
-              styles.panel,
-              {
-                paddingBottom: insets.bottom + spacing[5],
-                paddingLeft: insets.left + spacing[6],
-                paddingRight: insets.right + spacing[6],
-              },
-            ]}
-          >
-            <View pointerEvents="none" style={styles.scrim}>
-              {scrimOpacity.map((opacity) => (
-                <View key={opacity} style={[styles.scrimBand, { opacity }]} />
-              ))}
-            </View>
-            <Text accessibilityRole="header" style={styles.title}>
-              {title}
-            </Text>
-            <Text style={styles.body}>{body}</Text>
-            <View style={styles.footer}>
-              <OnboardingDots position={position} total={2} />
-              <Animated.View style={pressStyle}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={actionAccessibilityLabel}
-                  onPress={onNext}
-                  onPressIn={() => animatePress(true)}
-                  onPressOut={() => animatePress(false)}
-                  style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-                >
-                  <Text style={styles.primaryText}>{actionLabel}</Text>
-                </Pressable>
-              </Animated.View>
-            </View>
-          </View>
-        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -156,108 +142,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: color.brand.navy,
   },
-  scene: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '82%',
-  },
-  sceneTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: color.brand.navy,
-    opacity: 0.12,
-  },
-  rootContent: {
-    flex: 1,
-  },
   navigation: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: spacing[3],
-    gap: spacing[3],
+    justifyContent: 'flex-end',
   },
-  navButton: {
-    minHeight: 48,
-    minWidth: 64,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(11, 31, 58, 0.88)',
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: spacing[6],
+    direction: 'rtl',
+  },
+  art: {
+    width: '100%',
+    flexShrink: 1,
+    paddingHorizontal: spacing[3],
     alignItems: 'center',
     justifyContent: 'center',
   },
-  skip: {
-    marginStart: 'auto',
-  },
-  navText: {
-    color: color.surface.base,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
-    textAlign: 'center',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  sceneSpace: {
-    flexGrow: 1,
-  },
-  panel: {
-    backgroundColor: color.brand.navy,
-    paddingTop: spacing[4],
-  },
-  scrim: {
-    position: 'absolute',
-    top: -96,
-    left: 0,
-    right: 0,
-    height: 96,
-  },
-  scrimBand: {
-    flex: 1,
-    backgroundColor: color.brand.navy,
-  },
-  title: {
-    color: color.surface.base,
-    fontSize: typography.size.h1,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 44,
-    marginBottom: spacing[3],
-  },
-  body: {
-    color: color.border.default,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 28,
+  artImage: {
+    width: '100%',
+    height: '100%',
   },
   footer: {
+    alignItems: 'stretch',
+    paddingHorizontal: spacing[6],
+    direction: 'rtl',
+  },
+  accent: {
+    width: 36,
+    height: 4,
+    borderRadius: radius.pill,
+    backgroundColor: color.brand.gold,
+    alignSelf: 'center',
+    marginBottom: spacing[6],
+  },
+  title: {
+    ...type.h1,
+    color: color.surface.base,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    marginBottom: spacing[4],
+  },
+  body: {
+    ...type.body,
+    color: color.border.default,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+  },
+  dots: {
     marginTop: spacing[6],
+    marginBottom: spacing[6],
   },
   primary: {
     minHeight: 56,
     paddingHorizontal: spacing[5],
     paddingVertical: spacing[3],
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: color.brand.gold,
+    flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing[2],
   },
   primaryText: {
+    ...type.button,
     color: color.brand.navy,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
     writingDirection: 'rtl',
-    lineHeight: 28,
   },
   pressed: {
     opacity: 0.9,

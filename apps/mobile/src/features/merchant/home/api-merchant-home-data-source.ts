@@ -5,7 +5,8 @@
  * - GET /merchant/profile — own profile (404 until onboarding; the
  *   documented onboarding-persistence behavior),
  * - GET /merchant/products — catalog counters (server `meta.total`
- *   plus the real active/suspended split over the bounded window),
+ *   plus the real active/suspended split over the bounded window) AND
+ *   the newest products for the Home rail,
  * - GET /merchant/subscription/current — presentation-only plan
  *   context (docs/08).
  *
@@ -21,6 +22,7 @@
 
 import { getApi } from '../../../lib/api-client';
 import { drainPages } from '../../../lib/api-query';
+import { mapProduct } from '../products/api-merchant-products-data-source';
 
 import type {
   MerchantHomeDataSource,
@@ -32,6 +34,9 @@ import type {
   MerchantProfileDto,
   MerchantProductDto,
 } from '@khabir/shared-types';
+
+/** Bounded number of products surfaced on the Home rail. */
+const RECENT_PRODUCTS_LIMIT = 8;
 
 /** Backend verification → the screen's 3-state model. */
 export function mapVerification(
@@ -99,24 +104,34 @@ export class ApiMerchantHomeDataSource implements MerchantHomeDataSource {
 
     const activeProducts = products.filter((p) => p.status === 'active').length;
     const businessName = profile?.businessName ?? '';
+    const verification = profile !== null ? mapVerification(profile.verificationStatus) : 'action_required';
     return {
       profile: {
         businessNameAr: businessName,
         initialsAr: businessName.trim().length > 0 ? businessName.trim().slice(0, 1) : '',
         cityAr: '', // location text not exposed by the merchant profile (gap)
-        verification: profile !== null ? mapVerification(profile.verificationStatus) : 'action_required',
+        verification,
+        verificationTitleAr:
+          verification === 'verified'
+            ? 'حسابك موثق'
+            : verification === 'pending'
+              ? 'حسابك قيد المراجعة'
+              : 'يحتاج حسابك إجراءً',
         verificationNoteAr:
           profile !== null
-            ? mapVerification(profile.verificationStatus) === 'verified'
-              ? 'تم التحقق من بيانات المتجر من قبل فريق الخبير.'
+            ? verification === 'verified'
+              ? 'يمكنك الآن نشر منتجاتك في متجر الخبير.'
               : ''
             : 'أكمل بيانات متجرك لعرضها للعملاء.',
+        profileIncomplete: profile === null,
       },
       catalog: {
         totalProducts: products.length,
         activeProducts,
         inactiveProducts: products.length - activeProducts,
       },
+      // Server order is newest-first (docs/07 §17); bound the rail.
+      recentProducts: products.slice(0, RECENT_PRODUCTS_LIMIT).map(mapProduct),
       subscription:
         subscription !== null && subscription.plan !== null
           ? {

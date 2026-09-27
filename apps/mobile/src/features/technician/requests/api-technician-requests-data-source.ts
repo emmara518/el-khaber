@@ -25,7 +25,7 @@
 import { getApi } from '../../../lib/api-client';
 import { formatArDateTime } from '../../../lib/api-format';
 import { buildQuery, drainPages } from '../../../lib/api-query';
-import { categoryNameAr } from '../../../lib/catalog-reference';
+import { categoryNameAr, categorySlugById } from '../../../lib/catalog-reference';
 import { CUSTOMER_NAME_FALLBACK_AR, REQUEST_STATUS_LABELS_AR } from '../../../lib/request-labels';
 
 import {
@@ -45,12 +45,14 @@ export async function mapTechnicianRequest(
   locationAr: string,
 ): Promise<TechnicianRequest> {
   const applianceAr = await categoryNameAr(summary.applianceCategoryId);
+  const applianceSlug = await categorySlugById(summary.applianceCategoryId);
   const problemAr =
     summary.problemTitle ?? summary.problemDescription.split('\n')[0]?.slice(0, 80) ?? '';
   return {
     id: summary.id,
     customerNameAr: CUSTOMER_NAME_FALLBACK_AR, // privacy by contract
     applianceAr,
+    applianceSlug,
     problemAr,
     descriptionAr: summary.problemDescription,
     locationAr,

@@ -2,7 +2,8 @@
  * Locked account-type catalogue — exactly three end-user roles.
  *
  * Pure module (no React Native imports) so the contract is
- * unit-testable. Rendered by `RoleCard`.
+ * unit-testable. Rendered by `RoleSelectionCard` (role choice) and
+ * `RoleContextCard` (registration context).
  *
  * Source: docs/01_PROJECT.md §4, docs/10_ENGINEERING_RULES.md §14.
  */
@@ -24,7 +25,7 @@ export interface RoleOption {
 
 /** The ONLY account types selectable in the mobile app. Admin is a separate boundary. */
 export const ROLE_OPTIONS: ReadonlyArray<RoleOption> = [
-  { role: 'customer', titleAr: 'عميل', descriptionAr: 'اطلب صيانة لأجهزتك وتابع طلباتك', icon: 'home', brandAsset: 'customer' },
-  { role: 'technician', titleAr: 'فني', descriptionAr: 'استقبل طلبات الصيانة وأدر خدماتك', icon: 'tool', brandAsset: 'technician' },
-  { role: 'merchant', titleAr: 'تاجر', descriptionAr: 'اعرض منتجاتك وأدر وجودك التجاري', icon: 'shopping-bag', brandAsset: 'merchant' },
+  { role: 'customer', titleAr: 'عميل', descriptionAr: 'اطلب صيانة لأجهزتك وتابع طلباتك بسهولة', icon: 'home', brandAsset: 'customer' },
+  { role: 'technician', titleAr: 'فني', descriptionAr: 'استقبل طلبات الصيانة ونفّذ خدماتك', icon: 'tool', brandAsset: 'technician' },
+  { role: 'merchant', titleAr: 'تاجر', descriptionAr: 'اعرض منتجاتك وأدر متجرك التجاري', icon: 'shopping-bag', brandAsset: 'merchant' },
 ];

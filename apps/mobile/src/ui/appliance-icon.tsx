@@ -24,6 +24,13 @@ const BRAND_BY_SLUG: Record<ApplianceSlug, BrandAssetName> = {
   air_conditioner: 'air-conditioner',
   refrigerator: 'refrigerator',
   washing_machine: 'washing-machine',
+  dishwasher: 'dishwasher',
+  coffee_machine: 'coffee-machine',
+  microwave: 'microwave',
+  oven: 'oven',
+  tv_screen: 'tv-screen',
+  vacuum_cleaner: 'vacuum-cleaner',
+  water_heater: 'water-heater',
 };
 
 export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProps) {

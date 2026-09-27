@@ -1,19 +1,17 @@
 /**
- * Technician profile screen (T-B).
+ * Technician profile screen (T-B) — Customer visual language.
  *
- * - approved → full profile view + edit mode (view/edit/cancel/
- *   save + validation + loading/error/success),
- * - pending → status card + read-only summary,
- * - rejected / action_required → status card + "تحديث البيانات"
- *   entry into the prefilled onboarding flow.
- * Edit form reuses the onboarding's shared selectors. Rating and
- * counts are server-owned display values, never editable.
+ * AppHeader → PageTitle → identity card (approved technician user-type
+ * asset) → verification card → about → services/appliances/areas →
+ * rating → actions. Approved → full profile view + edit mode; pending /
+ * rejected / action_required → status + update-data entry into the
+ * prefilled onboarding flow. Rating and counts are server-owned.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { LabeledInput, MultiSelectChips } from './components/profile-selectors';
 import {
@@ -30,8 +28,20 @@ import {
 import { useTechnicianProfileViewModel } from './use-technician-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, Icon, RatingStars } from '@/ui';
-import { SceneHero, SceneSection } from '@/ui/cinematic';
+import {
+  ActionButton,
+  AppHeader,
+  Avatar,
+  BrandImage,
+  Card,
+  Icon,
+  ListError,
+  ListLoading,
+  PageTitle,
+  RatingStars,
+  SectionHeading,
+} from '@/ui';
+import { type } from '@/ui/typography';
 
 export default function TechnicianProfileScreen({
   source,
@@ -42,38 +52,39 @@ export default function TechnicianProfileScreen({
   const router = useRouter();
   const vm = useTechnicianProfileViewModel(source);
 
+  const header = (
+    <AppHeader
+      onPressNotifications={() => router.push('/(technician)/notifications')}
+      onPressAvatar={() => router.push('/(technician)/profile')}
+    />
+  );
+
   if (vm.loadStatus === 'loading') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.profile.title')}
-        </Text>
-        <Text style={styles.muted}>{t('state.loading')}</Text>
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="ملفك المهني" title={t('tech.profile.title')} />
+          <ListLoading label={t('state.loading')} brandAsset="toolbox" />
+        </ScrollView>
+      </View>
     );
   }
 
   if (vm.loadStatus === 'error' || vm.profile === null) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.profile.title')}
-        </Text>
-        <Card background={color.surface.base} padded style={styles.center}>
-          <Text accessibilityRole="alert" style={styles.stateTitle}>
-            {t('tech.profile.loadError')}
-          </Text>
-          <Text style={styles.muted}>{vm.loadError?.message ?? ''}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('state.retry')}
-            onPress={vm.reload}
-            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-          >
-            <Text style={styles.primaryText}>{t('state.retry')}</Text>
-          </Pressable>
-        </Card>
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="ملفك المهني" title={t('tech.profile.title')} />
+          <ListError
+            title={t('tech.profile.loadError')}
+            message={vm.loadError?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={vm.reload}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
@@ -96,91 +107,113 @@ export default function TechnicianProfileScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero compact asset="technician_profile_hero" eyebrow="ملفك المهني · مشهد توضيحي" title={profile.displayNameAr} body={profile.specialtiesAr.join(' · ') || 'لم تُضف تخصصات بعد'}>
-        <Avatar initials={profile.initialsAr} size={48} accessibilityLabel={`الصورة الرمزية لـ ${profile.displayNameAr}`} />
-      </SceneHero>
+    <View style={styles.root}>
+      {header}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <PageTitle
+          eyebrow="ملفك المهني"
+          title={profile.displayNameAr}
+          body={profile.specialtiesAr.join(' · ') || 'أكمل تخصصاتك ليظهر ملفك للعملاء.'}
+        />
 
-      <Card
-        background={profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft}
-        borderColor={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold}
-        padded
-        style={styles.statusCard}
-      >
-        <View style={styles.statusIconWrap}>
-          <Icon
-            name={status.icon}
-            size={22}
-            color={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.navy}
-            accessibilityLabel={status.titleAr}
+        <Card background={color.surface.base} padded style={styles.identity}>
+          <View style={styles.identityRow}>
+            <Avatar initials={profile.initialsAr} size={56} accessibilityLabel={`الصورة الرمزية لـ ${profile.displayNameAr}`} />
+            <View style={styles.identityCopy}>
+              <Text style={styles.name}>{profile.displayNameAr}</Text>
+              <Text style={styles.meta} numberOfLines={1}>
+                {[profile.specialtiesAr[0], profile.areasAr.join('، ')].filter((p) => p).join(' · ') || '—'}
+              </Text>
+            </View>
+            <View style={styles.roleArt} accessibilityRole="image" accessibilityLabel="فني">
+              <BrandImage name="technician" size={44} />
+            </View>
+          </View>
+        </Card>
+
+        <Card
+          background={profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft}
+          borderColor={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold}
+          padded
+          style={styles.statusCard}
+        >
+          <View style={styles.statusIconWrap}>
+            <Icon
+              name={status.icon}
+              size={22}
+              color={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.navy}
+              accessibilityLabel={status.titleAr}
+            />
+          </View>
+          <View style={styles.statusText}>
+            <Text accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`} style={styles.statusTitle}>
+              {status.titleAr}
+            </Text>
+            <Text style={styles.muted}>{profile.verificationNoteAr || status.bodyAr}</Text>
+          </View>
+        </Card>
+
+        {(profile.verification === 'rejected' || profile.verification === 'action_required') && (
+          <ActionButton
+            label={t('tech.profile.updateData')}
+            onPress={() => router.push({ pathname: '/(technician)/onboarding', params: { resume: '1' } })}
+          />
+        )}
+
+        <View style={styles.section}>
+          <SectionHeading title={t('tech.profile.about')} />
+          <Card background={color.surface.base} padded style={styles.card}>
+            <Text style={styles.body}>{profile.bioAr || 'لم تُضف نبذة مهنية بعد'}</Text>
+            <View style={styles.valueRow}>
+              <Icon name="phone" size={16} color={color.text.secondary} accessibilityLabel="الهاتف" />
+              <Text style={styles.value}>{profile.phoneAr || '—'}</Text>
+            </View>
+            <View style={styles.valueRow}>
+              <Icon name="award" size={16} color={color.text.secondary} accessibilityLabel="الخبرة" />
+              <Text style={styles.value}>
+                {profile.experienceYears === null ? '—' : `${profile.experienceYears} سنوات خبرة`}
+              </Text>
+            </View>
+          </Card>
+        </View>
+
+        <View style={styles.section}>
+          <SectionHeading title={t('tech.profile.services')} eyebrow="ما تقدّمه للعملاء" />
+          <ChipRow items={profile.servicesAr} emptyLabel={t('tech.profile.emptyServices')} />
+          <Text style={styles.chipGroupLabel}>{t('tech.profile.appliances')}</Text>
+          <ChipRow
+            items={profile.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)}
+            emptyLabel="—"
           />
         </View>
-        <View style={styles.statusText}>
-          <Text
-            accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`}
-            style={styles.statusTitle}
-          >
-            {status.titleAr}
-          </Text>
-          <Text style={styles.muted}>{profile.verificationNoteAr || status.bodyAr}</Text>
+
+        <View style={styles.section}>
+          <SectionHeading title={t('tech.profile.areas')} />
+          <ChipRow items={profile.areasAr} emptyLabel={t('tech.profile.emptyAreas')} />
         </View>
-      </Card>
 
-      {(profile.verification === 'rejected' || profile.verification === 'action_required') && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.profile.updateData')}
-          onPress={() =>
-            router.push({
-              pathname: '/(technician)/onboarding',
-              params: { resume: '1' },
-            })
-          }
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>{t('tech.profile.updateData')}</Text>
-        </Pressable>
-      )}
+        <View style={styles.section}>
+          <SectionHeading title="تقييم العملاء" eyebrow="سجل الخدمة الفعلي" />
+          <Card background={color.surface.base} padded style={styles.card}>
+            <RatingStars rating={profile.rating} reviewCount={profile.reviewCount} />
+            <Text style={styles.meta}>
+              {t('tech.profile.completed')}: {profile.completedCount}
+            </Text>
+          </Card>
+        </View>
 
-      <SceneSection title={t('tech.profile.about')} body={profile.bioAr || 'لم تُضف نبذة مهنية بعد'}>
-        <Text style={styles.meta}>{t('tech.profile.phone')}: {profile.phoneAr || '—'}</Text>
-        <Text style={styles.meta}>{t('tech.profile.experience')}: {profile.experienceYears === null ? '—' : `${profile.experienceYears} سنوات`}</Text>
-      </SceneSection>
-      <SceneSection asset="technician_profile_services" title={t('tech.profile.services')} eyebrow="ما تقدّمه للعملاء">
-        <ChipRow items={profile.servicesAr} emptyLabel={t('tech.profile.emptyServices')} />
-        <Text style={styles.statusTitle}>{t('tech.profile.appliances')}</Text>
-        <ChipRow items={profile.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)} emptyLabel="—" />
-      </SceneSection>
-      <SceneSection asset="technician_profile_location" title={t('tech.profile.areas')}>
-        <ChipRow items={profile.areasAr} emptyLabel={t('tech.profile.emptyAreas')} />
-      </SceneSection>
-      <SceneSection asset="technician_profile_reviews" title="خبرة يقيّمها العملاء" eyebrow="سجل الخدمة الفعلي">
-        <Text style={styles.statusTitle}>{t('tech.profile.completed')}: {profile.completedCount}</Text>
-        <RatingStars rating={profile.rating} reviewCount={profile.reviewCount} />
-      </SceneSection>
-      <SceneSection asset="technician_trust" title="الثقة والتوثيق" eyebrow="حالة ملفك" body={profile.verificationNoteAr || 'حالة التوثيق من سجل المنصة.'} />
-
-      {profile.verification === 'approved' && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.profile.edit')}
-          onPress={vm.startEdit}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>{t('tech.profile.edit')}</Text>
-        </Pressable>
-      )}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('tech.settings.title')}
-        onPress={() => router.push('/(technician)/settings')}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Icon name="settings" size={18} color={color.brand.navy} />
-        <Text style={styles.secondaryText}>{t('tech.settings.title')}</Text>
-      </Pressable>
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        {profile.verification === 'approved' && (
+          <ActionButton variant="primary" icon="edit-2" label={t('tech.profile.edit')} onPress={vm.startEdit} />
+        )}
+        <ActionButton
+          variant="secondary"
+          icon="settings"
+          label={t('tech.settings.title')}
+          onPress={() => router.push('/(technician)/settings')}
+        />
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -238,171 +271,147 @@ function ProfileEditForm({
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('tech.profile.editTitle')}
-      </Text>
-      <View style={styles.form}>
-        <LabeledInput
-          label={t('tech.profile.name')}
-          value={draft.displayNameAr}
-          onChange={(text) => patch({ displayNameAr: text })}
-          error={errors.displayNameAr}
-        />
-        <LabeledInput
-          label={t('tech.profile.phone')}
-          value={draft.phoneAr}
-          onChange={(text) => patch({ phoneAr: text })}
-          error={errors.phoneAr}
-          keyboardType="phone-pad"
-        />
-        <LabeledInput
-          label={t('tech.profile.bio')}
-          value={draft.bioAr}
-          onChange={(text) => patch({ bioAr: text })}
-          multiline
-        />
-        <LabeledInput
-          label={t('tech.profile.experience')}
-          value={draft.experienceYears === null ? '' : String(draft.experienceYears)}
-          onChange={(text) => {
-            const n = Number(text.replace(/[^0-9]/g, ''));
-            patch({ experienceYears: text.trim().length === 0 ? null : n });
-          }}
-          error={errors.experienceYears}
-          keyboardType="numeric"
-        />
-        <MultiSelectChips
-          label={t('tech.profile.specialties')}
-          options={SPECIALTY_OPTIONS}
-          selected={draft.specialtiesAr}
-          onToggle={(value) =>
-            patch({
-              specialtiesAr: draft.specialtiesAr.includes(value)
-                ? draft.specialtiesAr.filter((v) => v !== value)
-                : [...draft.specialtiesAr, value],
-            })
-          }
-          error={errors.specialtiesAr}
-        />
-        <MultiSelectChips
-          label={t('tech.profile.appliances')}
-          options={APPLIANCE_OPTIONS.map((a) => a.titleAr)}
-          selected={draft.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)}
-          onToggle={(title) => {
-            const found = APPLIANCE_OPTIONS.find((a) => a.titleAr === title);
-            if (!found) return;
-            patch({
-              appliances: draft.appliances.includes(found.slug)
-                ? draft.appliances.filter((v) => v !== found.slug)
-                : [...draft.appliances, found.slug],
-            });
-          }}
-          error={errors.appliances}
-        />
-        <MultiSelectChips
-          label={t('tech.profile.services')}
-          options={SERVICE_OPTIONS}
-          selected={draft.servicesAr}
-          onToggle={(value) =>
-            patch({
-              servicesAr: draft.servicesAr.includes(value)
-                ? draft.servicesAr.filter((v) => v !== value)
-                : [...draft.servicesAr, value],
-            })
-          }
-          error={errors.servicesAr}
-        />
-        <MultiSelectChips
-          label={t('tech.profile.areas')}
-          options={AREA_OPTIONS}
-          selected={draft.areasAr}
-          onToggle={(value) =>
-            patch({
-              areasAr: draft.areasAr.includes(value)
-                ? draft.areasAr.filter((v) => v !== value)
-                : [...draft.areasAr, value],
-            })
-          }
-          error={errors.areasAr}
-        />
-      </View>
-      {saveStatus === 'error' ? (
-        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${saveError ?? ''}`} style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{saveError}</Text>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <PageTitle eyebrow="الملف الشخصي" title={t('tech.profile.editTitle')} />
+        <View style={styles.form}>
+          <LabeledInput
+            label={t('tech.profile.name')}
+            value={draft.displayNameAr}
+            onChange={(text) => patch({ displayNameAr: text })}
+            error={errors.displayNameAr}
+          />
+          <LabeledInput
+            label={t('tech.profile.phone')}
+            value={draft.phoneAr}
+            onChange={(text) => patch({ phoneAr: text })}
+            error={errors.phoneAr}
+            keyboardType="phone-pad"
+          />
+          <LabeledInput
+            label={t('tech.profile.bio')}
+            value={draft.bioAr}
+            onChange={(text) => patch({ bioAr: text })}
+            multiline
+          />
+          <LabeledInput
+            label={t('tech.profile.experience')}
+            value={draft.experienceYears === null ? '' : String(draft.experienceYears)}
+            onChange={(text) => {
+              const n = Number(text.replace(/[^0-9]/g, ''));
+              patch({ experienceYears: text.trim().length === 0 ? null : n });
+            }}
+            error={errors.experienceYears}
+            keyboardType="numeric"
+          />
+          <MultiSelectChips
+            label={t('tech.profile.specialties')}
+            options={SPECIALTY_OPTIONS}
+            selected={draft.specialtiesAr}
+            onToggle={(value) =>
+              patch({
+                specialtiesAr: draft.specialtiesAr.includes(value)
+                  ? draft.specialtiesAr.filter((v) => v !== value)
+                  : [...draft.specialtiesAr, value],
+              })
+            }
+            error={errors.specialtiesAr}
+          />
+          <MultiSelectChips
+            label={t('tech.profile.appliances')}
+            options={APPLIANCE_OPTIONS.map((a) => a.titleAr)}
+            selected={draft.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)}
+            onToggle={(title) => {
+              const found = APPLIANCE_OPTIONS.find((a) => a.titleAr === title);
+              if (!found) return;
+              patch({
+                appliances: draft.appliances.includes(found.slug)
+                  ? draft.appliances.filter((v) => v !== found.slug)
+                  : [...draft.appliances, found.slug],
+              });
+            }}
+            error={errors.appliances}
+          />
+          <MultiSelectChips
+            label={t('tech.profile.services')}
+            options={SERVICE_OPTIONS}
+            selected={draft.servicesAr}
+            onToggle={(value) =>
+              patch({
+                servicesAr: draft.servicesAr.includes(value)
+                  ? draft.servicesAr.filter((v) => v !== value)
+                  : [...draft.servicesAr, value],
+              })
+            }
+            error={errors.servicesAr}
+          />
+          <MultiSelectChips
+            label={t('tech.profile.areas')}
+            options={AREA_OPTIONS}
+            selected={draft.areasAr}
+            onToggle={(value) =>
+              patch({
+                areasAr: draft.areasAr.includes(value)
+                  ? draft.areasAr.filter((v) => v !== value)
+                  : [...draft.areasAr, value],
+              })
+            }
+            error={errors.areasAr}
+          />
         </View>
-      ) : null}
-      {saveStatus === 'saved' ? (
-        <View accessibilityRole="alert" style={styles.savedBanner}>
-          <Text style={styles.savedText}>{t('tech.profile.saved')}</Text>
-        </View>
-      ) : null}
-      {saveStatus === 'saved' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.profile.backToProfile')}
-          onPress={onDone}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>{t('tech.profile.backToProfile')}</Text>
-        </Pressable>
-      ) : (
-      <View style={styles.formActions}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.profile.save')}
-          accessibilityState={{ disabled: saving, busy: saving }}
-          onPress={saveStatus === 'error' ? () => onRetry(draft) : handleSave}
-          disabled={saving}
-          style={({ pressed }) => [styles.primary, saving && styles.disabled, pressed && !saving && styles.pressed]}
-        >
-          {saving ? (
-            <ActivityIndicator accessibilityLabel="جارٍ الحفظ" color={color.surface.base} />
-          ) : (
-            <Text style={styles.primaryText}>
-              {saveStatus === 'error' ? t('tech.profile.retrySave') : t('tech.profile.save')}
-            </Text>
-          )}
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('tech.profile.cancel')}
-          onPress={onCancel}
-          disabled={saving}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>{t('tech.profile.cancel')}</Text>
-        </Pressable>
-      </View>
-      )}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        {saveStatus === 'error' ? (
+          <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${saveError ?? ''}`} style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{saveError}</Text>
+          </View>
+        ) : null}
+        {saveStatus === 'saved' ? (
+          <View accessibilityRole="alert" style={styles.savedBanner}>
+            <Text style={styles.savedText}>{t('tech.profile.saved')}</Text>
+          </View>
+        ) : null}
+        {saveStatus === 'saved' ? (
+          <ActionButton label={t('tech.profile.backToProfile')} onPress={onDone} style={styles.blockGap} />
+        ) : (
+          <View style={styles.formActions}>
+            <ActionButton
+              label={saveStatus === 'error' ? t('tech.profile.retrySave') : t('tech.profile.save')}
+              loading={saving}
+              loadingLabel="جارٍ الحفظ"
+              onPress={saveStatus === 'error' ? () => onRetry(draft) : handleSave}
+            />
+            <ActionButton variant="secondary" label={t('tech.profile.cancel')} disabled={saving} onPress={onCancel} />
+          </View>
+        )}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    direction: 'rtl',
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    paddingBottom: spacing[8],
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginBottom: spacing[4],
-  },
-  statusCard: {
-    flexDirection: 'row',
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  flex: { flex: 1 },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  section: { gap: spacing[3] },
+  card: { gap: spacing[2] },
+  identity: { gap: spacing[2] },
+  identityRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  identityCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  name: { ...type.h3, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  roleArt: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.lg,
+    backgroundColor: color.brand.goldSoft,
     alignItems: 'center',
-    gap: spacing[3],
-    paddingVertical: spacing[4],
+    justifyContent: 'center',
   },
+  statusCard: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
   statusIconWrap: {
     width: 44,
     height: 44,
@@ -411,53 +420,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusText: {
-    flex: 1,
-    gap: spacing[1],
-  },
-  statusTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  muted: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  hero: {
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  name: {
-    color: color.surface.base,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-  },
-  heroMeta: {
-    color: color.brand.goldSoft,
-    fontSize: typography.size.body,
-  },
-  body: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  meta: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[2],
-    textAlign: 'right',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
-  },
+  statusText: { flex: 1, gap: spacing[1] },
+  statusTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  muted: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  valueRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  value: { ...type.bodyMedium, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
+  meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  chipGroupLabel: { ...type.label, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl', marginTop: spacing[1] },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   chip: {
     backgroundColor: color.surface.base,
     borderWidth: 1,
@@ -465,64 +436,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[2],
-    minHeight: 44,
+    minHeight: 40,
     justifyContent: 'center',
   },
-  chipText: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-  },
-  center: {
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  stateTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-  },
-  primary: {
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[4],
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  primaryText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  secondary: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[3],
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  secondaryText: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  form: {
-    gap: spacing[4],
-  },
-  formActions: {
-    marginTop: spacing[4],
-  },
+  chipText: { ...type.body, color: color.text.primary, writingDirection: 'rtl' },
+  form: { gap: spacing[4] },
+  formActions: { marginTop: spacing[4], gap: spacing[3] },
+  blockGap: { marginTop: spacing[3] },
   inlineError: {
     backgroundColor: color.error.soft,
     borderWidth: 1,
@@ -531,12 +451,7 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     marginTop: spacing[3],
   },
-  inlineErrorText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
+  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
   savedBanner: {
     backgroundColor: color.success.soft,
     borderWidth: 1,
@@ -545,13 +460,6 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     marginTop: spacing[3],
   },
-  savedText: {
-    color: color.success.DEFAULT,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
-    textAlign: 'right',
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  savedText: { ...type.bodyMedium, color: color.success.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  bottomSpacer: { height: spacing[2] },
 });

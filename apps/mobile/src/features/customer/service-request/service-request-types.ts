@@ -101,7 +101,18 @@ export interface ServiceRequestHandoff {
 }
 
 export function isApplianceSlug(value: unknown): value is ApplianceSlug {
-  return value === 'washing_machine' || value === 'refrigerator' || value === 'air_conditioner';
+  return (
+    value === 'washing_machine' ||
+    value === 'refrigerator' ||
+    value === 'air_conditioner' ||
+    value === 'dishwasher' ||
+    value === 'coffee_machine' ||
+    value === 'microwave' ||
+    value === 'oven' ||
+    value === 'tv_screen' ||
+    value === 'vacuum_cleaner' ||
+    value === 'water_heater'
+  );
 }
 
 /** Initialize the draft from the handoff — never invents values. */

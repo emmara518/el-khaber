@@ -6,7 +6,7 @@
  * with confirmation — no delete (not in the docs).
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -19,8 +19,6 @@ import {
   View,
 } from 'react-native';
 
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
-
 import { findMerchantProduct } from './merchant-product-types';
 import { ProductImagePlaceholder } from './product-image-placeholder';
 import { useMerchantProductsViewModel } from './use-merchant-products-view-model';
@@ -29,8 +27,17 @@ import type { MerchantProductStatus } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
-import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
+import {
+  ActionButton,
+  Card,
+  ListEmpty,
+  ListError,
+  ListLoading,
+  PageTitle,
+  SectionHeading,
+  StatusBadge,
+  type,
+} from '@/ui';
 
 export default function MerchantProductDetailScreen({
   productId,
@@ -94,25 +101,42 @@ export default function MerchantProductDetailScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="merchant_success"
-        eyebrow={`منتج ${product.id} · ${product.statusLabelAr}`}
-        title={product.nameAr}
-        body={product.categoryAr !== '' ? product.categoryAr : `${t('merchant.product.ref')}: ${product.id}`}
-        action={editEnabled && shared ? (
-          <SceneAction label={t('merchant.product.edit')} onPress={() => router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })} />
-        ) : undefined}
-      >
-        {product.priceSar !== null ? <Text style={styles.heroPrice}>{product.priceSar} ريال</Text> : null}
-      </SceneHero>
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow={`منتج ${product.id} · ${product.statusLabelAr}`}
+          title={product.nameAr}
+          body={product.categoryAr !== '' ? product.categoryAr : `${t('merchant.product.ref')}: ${product.id}`}
+        />
+        <View style={styles.heroMetaRow}>
+          {product.priceSar !== null ? (
+            <Text style={styles.heroPrice}>{product.priceSar} جنيه</Text>
+          ) : (
+            <Text style={styles.heroNoPrice}>{t('merchant.catalog.noPrice')}</Text>
+          )}
+        </View>
+        {editEnabled && shared ? (
+          <ActionButton
+            label={t('merchant.product.edit')}
+            icon="edit-3"
+            onPress={() => router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })}
+          />
+        ) : null}
+      </View>
 
-      <SceneSection title={t('merchant.product.description')} body={product.descriptionAr}>
+      <View style={styles.section}>
+        <SectionHeading title={t('merchant.product.description')} body={product.descriptionAr} />
         <View style={styles.showcase}>
           <ProductImagePlaceholder nameAr={product.nameAr} hasImage={product.hasImage} />
-          <StatusBadge status={product.status} label={product.statusLabelAr} />
+          <View style={styles.showcaseMeta}>
+            <StatusBadge status={product.status} label={product.statusLabelAr} />
+            {product.stockQuantity !== null ? (
+              <Text style={styles.stockLine}>
+                {t('merchant.product.stock')}: {product.stockQuantity}
+              </Text>
+            ) : null}
+          </View>
         </View>
-      </SceneSection>
+      </View>
 
       {editEnabled && shared ? (
         <ProductActions
@@ -282,16 +306,26 @@ const styles = StyleSheet.create({
     direction: 'rtl',
     paddingBottom: spacing[8],
   },
-  detailTitle: { color: color.text.primary, fontSize: typography.size.h2, fontWeight: typography.weight.bold, textAlign: 'right', writingDirection: 'rtl', padding: spacing[5] },
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+    gap: spacing[3],
+  },
+  heroMetaRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center' },
+  section: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[3] },
+  detailTitle: { ...type.h2, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', padding: spacing[5] },
   successCard: { marginHorizontal: spacing[5], gap: spacing[2] },
-  heroPrice: { color: color.brand.gold, fontSize: typography.size.h2, fontWeight: typography.weight.bold, lineHeight: 36, textAlign: 'right', writingDirection: 'rtl' },
-  showcase: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3], padding: spacing[3], backgroundColor: color.surface.base, borderRadius: radius.md, borderWidth: 1, borderColor: color.border.default },
+  heroPrice: { ...type.h2, color: color.brand.gold, textAlign: 'right', writingDirection: 'rtl' },
+  heroNoPrice: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  showcase: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3], padding: spacing[3], backgroundColor: color.surface.base, borderRadius: radius.md, borderWidth: 1, borderColor: color.border.default },
+  showcaseMeta: { alignItems: 'flex-end', gap: spacing[2] },
+  stockLine: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   body: {
+    ...type.body,
     color: color.text.primary,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
-    lineHeight: 26,
   },
   secondary: {
     borderWidth: 1,
@@ -307,9 +341,8 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   secondaryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   primary: {
     backgroundColor: color.brand.navy,
@@ -320,9 +353,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   disabled: {
     opacity: 0.6,
@@ -338,9 +370,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   warnText: {
+    ...type.button,
     color: color.brand.navy,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   warnSolid: {
     flex: 1,
@@ -351,9 +382,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   warnSolidText: {
+    ...type.button,
     color: color.brand.navy,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   secondaryInline: {
     flex: 1,
@@ -374,15 +404,14 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   statusTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
   scrim: {
@@ -398,13 +427,14 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   dialogTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   dialogActions: {
     flexDirection: 'row',
+    direction: 'rtl',
     gap: spacing[3],
     marginTop: spacing[2],
   },

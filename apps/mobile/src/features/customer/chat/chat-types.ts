@@ -24,17 +24,24 @@ export interface ChatDataSource {
   sendMessage(input: { role: ChatRole; conversationId: string; textAr: string }): Promise<ChatMessage>;
 }
 
-/** Append-local echo for the sending state (unit-tested). */
+/**
+ * Append-local echo for the sending state (unit-tested).
+ *
+ * `sender` defaults to `'customer'` so existing callers are unchanged;
+ * the Technician surface passes `'technician'` so the optimistic bubble
+ * renders on the correct side.
+ */
 export function withPendingMessage(
   messages: ReadonlyArray<ChatMessage>,
   conversationId: string,
   textAr: string,
+  sender: ChatSender = 'customer',
 ): { next: ReadonlyArray<ChatMessage>; pendingId: string } {
   const pendingId = `pending-${messages.length + 1}`;
   const pending: ChatMessage = {
     id: pendingId,
     conversationId,
-    sender: 'customer',
+    sender,
     textAr,
     timeAr: 'الآن',
     status: 'sending',

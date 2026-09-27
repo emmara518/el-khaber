@@ -25,6 +25,7 @@ function validDraft() {
     descriptionAr: 'مكيف سبليت جديد بكفاءة عالية مع ضمان المتجر لمدة سنتين.',
     categoryAr: 'تكييفات',
     priceSar: 2100,
+    stockQuantity: 15,
     imageSelected: false,
   };
 }

@@ -11,6 +11,7 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { CustomerHeader } from '../components/customer-header';
 import { ListError, ListLoading } from '../components/list-state-view';
 
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
@@ -18,7 +19,6 @@ import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 import { useI18n } from '@/i18n/use-i18n';
 import { useAuthStore } from '@/lib/auth-store';
 import { Avatar, Card, Icon, MenuDivider, MenuRow, Pill, type } from '@/ui';
-import { SceneHero } from '@/ui/cinematic';
 
 export default function CustomerProfileScreen() {
   const { t } = useI18n();
@@ -28,16 +28,14 @@ export default function CustomerProfileScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="customer_onboarding_technician"
+      <CustomerHeader
         eyebrow="حسابي"
         title={t('profile.title')}
         body="بياناتك وطلباتك واشتراكك في مكان واحد."
       />
 
       <View style={styles.editorial}>
-      {status === 'loading' ? <ListLoading label={t('state.loading')} asset="technician_trust" /> : null}
+      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
       {status === 'error' ? (
         <ListError
           asset="fault_empty"
@@ -102,7 +100,11 @@ export default function CustomerProfileScreen() {
               onPress={() => router.push('/(customer)/find-technician')}
             />
             <MenuDivider />
-            <MenuRow icon="bell" label={t('profile.menu.notifications')} soonLabel={t('profile.comingSoon')} />
+            <MenuRow
+              icon="bell"
+              label={t('profile.menu.notifications')}
+              onPress={() => router.push('/(customer)/notifications')}
+            />
             <MenuDivider />
             <MenuRow icon="award" label={t('profile.menu.subscription')} onPress={() => router.push('/(customer)/subscription')} />
             <MenuDivider />

@@ -6,6 +6,9 @@
  * reject belong to T-C), active-service preview (no controls —
  * T-D), and the rating summary from the existing data model.
  * No earnings, no rates, no percentages anywhere.
+ *
+ * `applianceSlug` is the canonical category slug used to render the
+ * approved appliance asset on Home cards.
  */
 
 export type TechnicianVerification = 'verified' | 'pending' | 'action_required';
@@ -27,6 +30,7 @@ export interface TechnicianHomeProfile {
 export interface TechnicianTodayOverview {
   readonly newRequests: number;
   readonly inProgress: number;
+  readonly onTheWay: number;
   readonly completedToday: number;
 }
 
@@ -34,6 +38,8 @@ export interface TechnicianIncomingPreview {
   readonly id: string;
   readonly customerNameAr: string;
   readonly applianceAr: string;
+  /** Canonical category slug — drives the approved appliance asset. */
+  readonly applianceSlug: string | null;
   readonly problemAr: string;
   readonly timeAr: string;
 }
@@ -42,6 +48,8 @@ export interface TechnicianActiveService {
   readonly id: string;
   readonly customerNameAr: string;
   readonly applianceAr: string;
+  /** Canonical category slug — drives the approved appliance asset. */
+  readonly applianceSlug: string | null;
   readonly taskAr: string;
   readonly statusLabelAr: string;
   readonly startedAr: string;

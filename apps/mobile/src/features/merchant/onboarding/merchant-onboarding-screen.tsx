@@ -7,7 +7,7 @@
  * KYC/tax/registration fields exist — none are collected.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -24,9 +24,9 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon, SectionHeader } from '@/ui';
+import { Card, Icon, PageTitle, SectionHeader } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
-import { SceneHero } from '@/ui/cinematic';
+import { type } from '@/ui/typography';
 
 const STEP_TITLES: Record<MerchantOnboardingStep, string> = {
   identity: 'هوية المتجر',
@@ -76,13 +76,13 @@ export default function MerchantOnboardingScreen({
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <SceneHero
-        compact
-        asset="merchant_dashboard_hero"
-        eyebrow="إعداد المتجر"
-        title="إكمال ملف المتجر"
-        body={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
-      />
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="إعداد المتجر"
+          title="إكمال ملف المتجر"
+          body={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
+        />
+      </View>
       <View style={styles.editorial}>
       <Text
         accessibilityRole="text"
@@ -324,6 +324,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
   },
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+  },
   editorial: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[2],
@@ -338,18 +343,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing[4],
   },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   stepLabel: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     marginTop: spacing[2],
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   dots: {
     flexDirection: 'row',
@@ -380,9 +384,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   label: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginTop: spacing[2],
@@ -393,7 +396,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
     color: color.text.primary,
-    fontSize: typography.size.body,
+    ...type.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,
@@ -406,15 +409,16 @@ const styles = StyleSheet.create({
     borderColor: color.error.DEFAULT,
   },
   fieldError: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   optional: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   cities: {
     flexDirection: 'row',
@@ -440,12 +444,16 @@ const styles = StyleSheet.create({
     backgroundColor: color.surface.base,
   },
   cityText: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   cityTextSelected: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontWeight: typography.weight.bold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   inlineError: {
     backgroundColor: color.error.soft,
@@ -456,8 +464,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -479,9 +487,10 @@ const styles = StyleSheet.create({
     gap: spacing[1] + 2,
   },
   navBtnText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   navPrimary: {
     flex: 2,
@@ -494,9 +503,10 @@ const styles = StyleSheet.create({
     gap: spacing[1] + 2,
   },
   navPrimaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   disabled: {
     opacity: 0.55,
@@ -519,14 +529,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reviewLabel: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   reviewValue: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -539,9 +549,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
   },
   reviewEditText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   primary: {
     backgroundColor: color.brand.navy,
@@ -552,9 +563,10 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   center: {
     alignItems: 'center',
@@ -569,14 +581,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   successTitle: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
     writingDirection: 'rtl',
     lineHeight: 26,
