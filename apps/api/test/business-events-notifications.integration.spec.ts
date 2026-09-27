@@ -144,6 +144,41 @@ describe.skipIf(!hasRealDb)('business event notifications (real khabir-dev)', ()
     return prisma.notification.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
   }
 
+  it('persists a technician notification when a request is created through the service (WP-2A)', async () => {
+    if (!hasRealDb) {
+      return;
+    }
+    const customer = await prisma.user.create({
+      data: { email: `${PROBE}-cc@example.com`, passwordHash: 'probe', role: 'customer', status: 'active' },
+    });
+    customerUserId = customer.id;
+    const technician = await prisma.user.create({
+      data: { email: `${PROBE}-tt@example.com`, passwordHash: 'probe', role: 'technician', status: 'active' },
+    });
+    techUserId = technician.id;
+    const profile = await prisma.technicianProfile.create({
+      data: { userId: technician.id, displayName: PROBE, verificationStatus: 'verified' },
+    });
+    const category = await prisma.applianceCategory.findFirstOrThrow({ select: { id: true } });
+    const location = await prisma.location.create({
+      data: { userId: customer.id, label: PROBE, latitude: 24.7, longitude: 46.7 },
+    });
+
+    await serviceRequests.create(customer.id, {
+      technician_id: profile.id,
+      appliance_category_id: category.id,
+      problem_description: PROBE,
+      location_id: location.id,
+    } as never);
+
+    const techNotes = await notesFor(technician.id);
+    expect(techNotes).toHaveLength(1);
+    expect(techNotes[0].type).toBe('request_status');
+    expect(techNotes[0].titleAr).toBe('طلب خدمة جديد');
+    // The creating customer is not the recipient of their own action.
+    expect(await notesFor(customer.id)).toHaveLength(0);
+  });
+
   it('persists a counterparty notification for each transition, and none for a stale repeat', async () => {
     if (!hasRealDb) {
       return;

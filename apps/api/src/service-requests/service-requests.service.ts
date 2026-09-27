@@ -128,7 +128,7 @@ export class ServiceRequestsService {
     // non-existent or non-owned reference is a 404 — never a raw FK error.
     const technician = await this.prisma.technicianProfile.findFirst({
       where: { id: input.technician_id, verificationStatus: 'verified' },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     if (technician === null) {
       throw new NotFoundException('Technician not found');
@@ -191,6 +191,16 @@ export class ServiceRequestsService {
           changedByUserId: customerId,
         },
       });
+      // Business event → persisted notification, same transaction (WP-2A):
+      // the targeted technician's USER account (derived from the request's
+      // own relationship, never client input) is notified of the new
+      // pending request. Reuses the existing `request_status` type and the
+      // existing `pending` content — no new taxonomy or copy is invented.
+      await this.notifications.create(
+        technician.userId,
+        requestStatusNotification('pending'),
+        tx,
+      );
       return row;
     });
 

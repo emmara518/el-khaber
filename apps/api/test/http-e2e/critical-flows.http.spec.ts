@@ -303,7 +303,11 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
       .get(`${base}/notifications`)
       .set(auth(tech.accessToken))
       .expect(200);
-    expect(techNotes.body.data).toHaveLength(1);
+    // Newest-first: the cancellation notice follows the creation notice (WP-2A).
+    expect(techNotes.body.data.map((n: { titleAr: string }) => n.titleAr)).toEqual([
+      'تم إلغاء طلب الخدمة',
+      'طلب خدمة جديد',
+    ]);
     const noteId = techNotes.body.data[0].id as string;
 
     const read = await request(ctx.app.getHttpServer())
@@ -316,7 +320,7 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
       .post(`${base}/notifications/read-all`)
       .set(auth(tech.accessToken))
       .expect(200);
-    expect(allRead.body.data.updated).toBe(0); // already read
+    expect(allRead.body.data.updated).toBe(1); // the creation notice remains unread
   });
 });
 

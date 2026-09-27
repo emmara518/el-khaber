@@ -270,6 +270,55 @@ describe('service request lifecycle e2e', () => {
     });
   });
 
+  describe('creation notification (WP-2A)', () => {
+    it('notifies the targeted technician exactly once when a request is created', async () => {
+      const customer = await register('customer', 'cust-create-notif@example.com');
+      const tech = await register('technician', 'tech-create-notif@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+
+      await createRequest(customer, techId);
+
+      const techNotes = prisma.notificationRows.filter((n) => n.userId === tech.userId);
+      expect(techNotes).toHaveLength(1);
+      expect(techNotes[0].type).toBe('request_status');
+      expect(techNotes[0].titleAr).toBe('طلب خدمة جديد');
+      expect(techNotes[0].readAt).toBeNull();
+      // Creation notifies the technician only — never the acting customer.
+      expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(0);
+    });
+
+    it('emits one notification per created request (no duplicate/aggregation)', async () => {
+      const customer = await register('customer', 'cust-create-notif2@example.com');
+      const tech = await register('technician', 'tech-create-notif2@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+
+      await createRequest(customer, techId);
+      await createRequest(customer, techId);
+
+      expect(prisma.notificationRows.filter((n) => n.userId === tech.userId)).toHaveLength(2);
+    });
+
+    it('creates NO notification when creation is rejected (unauthorized / invalid ref)', async () => {
+      const customer = await register('customer', 'cust-create-none@example.com');
+      const locationId = seedLocation(customer.userId);
+
+      // Unauthorized (anonymous) is rejected before any write.
+      const anon = await request(app.getHttpServer())
+        .post('/api/v1/service-requests')
+        .send({ technician_id: uid(), appliance_category_id: CAT_ID, problem_description: 'x', location_id: locationId });
+      expect(anon.status).toBe(401);
+
+      // Invalid reference: 404, still no notification.
+      const bad = await request(app.getHttpServer())
+        .post('/api/v1/service-requests')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({ technician_id: uid(), appliance_category_id: CAT_ID, problem_description: 'x', location_id: locationId });
+      expect(bad.status).toBe(404);
+
+      expect(prisma.notificationRows).toHaveLength(0);
+    });
+  });
+
   describe('customer list / detail / ownership', () => {
     it('lists own requests with pagination and status filter; other customers see nothing', async () => {
       const customerA = await register('customer', 'cust-a@example.com');
@@ -537,8 +586,9 @@ describe('service request lifecycle e2e', () => {
       expect(notes[0].type).toBe('request_status');
       expect(notes[0].titleAr).toBe('تم قبول طلب الخدمة');
       expect(notes[0].readAt).toBeNull();
-      // The acting technician never receives their own action.
-      expect(notesFor(tech.userId)).toHaveLength(0);
+      // The technician received only the creation notice — never their
+      // own transition actions (WP-2A).
+      expect(notesFor(tech.userId).map((n) => n.titleAr)).toEqual(['طلب خدمة جديد']);
 
       await request(app.getHttpServer()).post(`/api/v1/service-requests/${created.id}/start`).set(auth).expect(200);
       await request(app.getHttpServer()).post(`/api/v1/service-requests/${created.id}/start`).set(auth).expect(200);
@@ -567,9 +617,9 @@ describe('service request lifecycle e2e', () => {
         .expect(200);
 
       const techNotes = prisma.notificationRows.filter((n) => n.userId === tech.userId);
-      expect(techNotes).toHaveLength(1);
-      expect(techNotes[0].type).toBe('request_status');
-      expect(techNotes[0].titleAr).toBe('تم إلغاء طلب الخدمة');
+      // Creation notice (WP-2A) + the cancellation notice.
+      expect(techNotes.map((n) => n.titleAr)).toEqual(['طلب خدمة جديد', 'تم إلغاء طلب الخدمة']);
+      expect(techNotes.every((n) => n.type === 'request_status')).toBe(true);
       // The cancelling customer is not the recipient of their own action.
       expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(0);
     });
