@@ -159,6 +159,25 @@ describe('auth e2e', () => {
     }
   });
 
+  it.each(['customer', 'technician', 'merchant'] as const)(
+    'role-agnostic phone canonicalization: %s resolves every variant to one identity',
+    async (role) => {
+      const reg = await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send({ role, phone: '01234567890', password: 'sup3rsecretP4ss' })
+        .expect(201);
+      expect(reg.body.data.user.phone).toBe('+201234567890');
+      expect(reg.body.data.user.role).toBe(role);
+
+      for (const variant of ['+201234567890', '201234567890', '01234567890']) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ phone: variant, password: 'sup3rsecretP4ss' })
+          .expect(200);
+      }
+    },
+  );
+
   it('register rejects a duplicate number typed in a different variant', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')

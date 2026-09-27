@@ -263,13 +263,25 @@ export class AuthService {
       emailVerified?: boolean;
     } = {};
 
-    if (input.phone !== undefined && input.phone !== user.phone) {
-      const clash = await this.prisma.user.findUnique({ where: { phone: input.phone } });
-      if (clash !== null && clash.id !== userId) {
-        throw new ConflictException('phone already in use');
+    if (input.phone !== undefined) {
+      // Canonicalize on write (same rule as register/login) so a contact
+      // channel can never be stored in a format-variant duplicate of an
+      // existing identity. The clash search covers every stored variant of
+      // the typed number (canonical ∪ raw), mirroring `login`.
+      const canonicalPhone = canonicalizePhone(input.phone);
+      if (canonicalPhone !== user.phone) {
+        const clash = await this.prisma.user.findFirst({
+          where: {
+            OR: phoneVariants(input.phone).map((p) => ({ phone: p })),
+          },
+          select: { id: true },
+        });
+        if (clash !== null && clash.id !== userId) {
+          throw new ConflictException('phone already in use');
+        }
+        data.phone = canonicalPhone;
+        data.phoneVerified = false;
       }
-      data.phone = input.phone;
-      data.phoneVerified = false;
     }
 
     if (input.email !== undefined && input.email !== user.email) {

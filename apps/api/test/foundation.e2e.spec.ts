@@ -205,6 +205,38 @@ describe('api foundation e2e', () => {
       expect(res.body.data.email).toBe('me5@example.com');
     });
 
+    it('canonicalizes a local Egyptian phone variant on write (WP-1B)', async () => {
+      const session = await registerUser(app, { email: 'me-canon@example.com' });
+      const res = await request(app.getHttpServer())
+        .patch('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send({ phone: '01099998888' })
+        .expect(200);
+      expect(res.body.data.phone).toBe('+201099998888');
+      expect(res.body.data.phoneVerified).toBe(false);
+    });
+
+    it('treats a different variant of the same number as unchanged (no reset, no clash)', async () => {
+      const session = await registerUser(app, { phone: '+201444444444' });
+      const res = await request(app.getHttpServer())
+        .patch('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send({ phone: '01444444444' })
+        .expect(200);
+      expect(res.body.data.phone).toBe('+201444444444');
+    });
+
+    it('rejects a variant of a number already used by another account (409 CONFLICT)', async () => {
+      await registerUser(app, { phone: '+201333333333' });
+      const session = await registerUser(app, { email: 'me-variant-clash@example.com' });
+      const res = await request(app.getHttpServer())
+        .patch('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .send({ phone: '01333333333' });
+      expect(res.status).toBe(409);
+      expect(res.body.error.code).toBe('CONFLICT');
+    });
+
     it('requires authentication', async () => {
       const res = await request(app.getHttpServer())
         .patch('/api/v1/me')

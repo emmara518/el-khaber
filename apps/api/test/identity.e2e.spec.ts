@@ -150,6 +150,19 @@ describe('identity hardening e2e', () => {
       expect(delivered).toHaveLength(0);
     });
 
+    it('accepts a local/international variant of the registered phone (WP-1B)', async () => {
+      await register(app, { phone: '+201555555555' });
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ phone: '01555555555' })
+        .expect(202);
+      expect(res.body).toEqual({ data: { accepted: true } });
+      // The account was resolved through the canonical matching rule and the
+      // reset token reached the delivery port.
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]?.contact.phone).toBe('+201555555555');
+    });
+
     it('completes the loop: delivered token resets the password and invalidates every session', async () => {
       const first = await register(app, { email: 'reset2@example.com' });
       // A second session (second login) from the same account.

@@ -25,6 +25,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { AuthInvalidException, ValidationException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
+import { phoneVariants } from './auth.service';
 import { hashPassword } from './password';
 import {
   PASSWORD_RESET_DELIVERY,
@@ -80,7 +81,12 @@ export class PasswordResetService {
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          ...(input.phone !== undefined ? [{ phone: input.phone }] : []),
+          // Same canonical matching rule as login: a user who typed a
+          // local/international variant of their number must be found
+          // (canonical ∪ raw), never silently missed.
+          ...(input.phone !== undefined
+            ? phoneVariants(input.phone).map((p) => ({ phone: p }))
+            : []),
           ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },
