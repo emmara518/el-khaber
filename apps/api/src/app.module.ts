@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE, Reflector } from '@nestjs/core';
 
 
 import { AdminAuthModule } from './admin/admin-auth.module';
@@ -13,6 +13,7 @@ import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { requestIdMiddleware } from './common/request-id.middleware';
 import { securityHeaders } from './common/security-headers.middleware';
+import { UuidParamPipe } from './common/uuid-param.pipe';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
 import { LocationsModule } from './locations/locations.module';
@@ -51,6 +52,9 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     // Structured request logging. Error responses are logged by the
     // ApiExceptionFilter; this interceptor logs successful responses only.
     { provide: APP_INTERCEPTOR, useClass: HttpLoggingInterceptor },
+    // Route-param integrity (WP-1C): a malformed UUID path param must
+    // produce the controlled NOT_FOUND, never a Prisma-driven 500.
+    { provide: APP_PIPE, useClass: UuidParamPipe },
     { provide: APP_FILTER, useClass: ApiExceptionFilter },
   ],
 })

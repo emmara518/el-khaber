@@ -254,6 +254,20 @@ describe('catalog + content e2e', () => {
     });
   });
 
+  describe('route parameter integrity (WP-1C)', () => {
+    it('returns the controlled NOT_FOUND for a non-UUID fault id (never a 500)', async () => {
+      const res = await request(app.getHttpServer()).get('/api/v1/faults/not-a-uuid');
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns the controlled NOT_FOUND for a non-UUID technician id', async () => {
+      const res = await request(app.getHttpServer()).get('/api/v1/technicians/not-a-uuid');
+      expect(res.status).toBe(404);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+  });
+
   describe('GET /services', () => {
     it('lists active services only with category filter and pagination', async () => {
       const all = await request(app.getHttpServer()).get('/api/v1/services').expect(200);
