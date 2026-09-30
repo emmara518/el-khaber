@@ -1238,9 +1238,28 @@ class FakePrismaClient {
   }
 
   reviewTag = {
-    findMany: async (args: { where: { id: { in: string[] } }; select?: Record<string, unknown> }): Promise<Array<Record<string, unknown>>> => {
-      const ids = args.where.id.in;
-      return this.reviewTagRows.filter((t) => ids.includes(t.id)).map((t) => applySelect(t as unknown as Record<string, unknown>, args.select));
+    findMany: async (args: {
+      where: { id?: { in: string[] }; isActive?: boolean };
+      select?: Record<string, unknown>;
+      orderBy?: Array<Record<string, string>>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.reviewTagRows.filter(
+        (t) =>
+          (args.where.id === undefined || args.where.id.in.includes(t.id)) &&
+          (args.where.isActive === undefined || t.isActive === args.where.isActive),
+      );
+      const orderBy = args.orderBy ?? [];
+      rows = [...rows].sort((a, b) => {
+        for (const key of orderBy) {
+          const field = Object.keys(key)[0] as keyof typeof a;
+          const dir = key[field as string];
+          const av = String(a[field]);
+          const bv = String(b[field]);
+          if (av !== bv) return (av < bv ? -1 : 1) * (dir === 'desc' ? -1 : 1);
+        }
+        return 0;
+      });
+      return rows.map((t) => applySelect(t as unknown as Record<string, unknown>, args.select));
     },
   };
 

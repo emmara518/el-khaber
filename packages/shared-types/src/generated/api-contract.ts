@@ -353,6 +353,14 @@ export interface ReviewSummaryDto {
   tags: Array<string>;
 }
 
+/**
+ * Canonical review tag (docs/06 §14). The UUID is the canonical identifier; labels are configured product data, never hardcoded in clients.
+ */
+export interface ReviewTagDto {
+  id: string;
+  labelAr: string;
+}
+
 export type Role = 'customer' | 'technician' | 'merchant';
 
 /**

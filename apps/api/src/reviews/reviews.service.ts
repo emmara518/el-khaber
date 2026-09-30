@@ -131,6 +131,15 @@ export class ReviewsService {
     return toPublicDto(row);
   }
 
+  /** Canonical active review tags (docs/06 §14). Deterministic order. */
+  async listTags(): Promise<Array<{ id: string; labelAr: string }>> {
+    return this.prisma.reviewTag.findMany({
+      where: { isActive: true },
+      orderBy: [{ code: 'asc' }, { id: 'asc' }],
+      select: { id: true, labelAr: true },
+    });
+  }
+
   /** Public reviews for technician discovery (docs/07 §6). */
   async listForTechnician(
     technicianProfileId: string,

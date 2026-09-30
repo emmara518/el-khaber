@@ -43,6 +43,7 @@ export type {
   ConversationDto,
   MessageDto,
   ReviewSummaryDto,
+  ReviewTagDto,
   NotificationDto,
   SubscriptionPlanDto,
   PaymentSubmissionDto,

@@ -44,6 +44,23 @@ export class TechnicianReviewsController {
 }
 
 @ApiTags('reviews')
+@Public()
+@Controller('review-tags')
+export class ReviewTagsController {
+  constructor(private readonly reviews: ReviewsService) {}
+
+  /**
+   * Public canonical tag catalogue (WP-2C): active tags only, UUID is the
+   * canonical identifier, deterministic order. Replaces client-hardcoded tags.
+   */
+  @Get()
+  @ApiEnvelopeOk('ReviewTagDto', 200, 'Active canonical review tags (deterministic order).')
+  async list(): Promise<ApiSuccess<Array<{ id: string; labelAr: string }>>> {
+    return { data: await this.reviews.listTags() };
+  }
+}
+
+@ApiTags('reviews')
 @ApiBearerAuth('bearer')
 @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
 @ApiEnvelopeError(401, 'Missing/malformed token or non-customer role.')

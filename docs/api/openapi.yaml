@@ -910,6 +910,21 @@ components:
         - tags
         - createdAt
       type: object
+    ReviewTagDto:
+      additionalProperties: false
+      description: >-
+        Canonical review tag (docs/06 §14). The UUID is the canonical identifier; labels are configured product data,
+        never hardcoded in clients.
+      properties:
+        id:
+          format: uuid
+          type: string
+        labelAr:
+          type: string
+      required:
+        - id
+        - labelAr
+      type: object
     Role:
       enum:
         - customer
@@ -4377,6 +4392,26 @@ paths:
           description: A required dependency is unavailable (canonical error envelope).
       tags:
         - health
+  /api/v1/review-tags:
+    get:
+      operationId: ReviewTagsController_list
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ReviewTagDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active canonical review tags (deterministic order).
+      tags:
+        - reviews
   /api/v1/service-requests:
     get:
       operationId: ServiceRequestsController_list

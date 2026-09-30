@@ -509,6 +509,18 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     required: ['id', 'rating', 'comment', 'tags', 'createdAt'],
     additionalProperties: false,
   },
+  ReviewTagDto: {
+    type: 'object',
+    description:
+      'Canonical review tag (docs/06 §14). The UUID is the canonical identifier; ' +
+      'labels are configured product data, never hardcoded in clients.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      labelAr: { type: 'string' },
+    },
+    required: ['id', 'labelAr'],
+    additionalProperties: false,
+  },
   NotificationDto: {
     type: 'object',
     description:

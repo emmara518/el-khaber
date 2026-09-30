@@ -11,7 +11,7 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 
-import { RATING_LABELS_AR, RATING_TAGS_AR, type RatingDataSource } from './rating-types';
+import { RATING_LABELS_AR, type RatingDataSource } from './rating-types';
 import { useRatingViewModel } from './use-rating-view-model';
 
 import { BrandImage } from '@/ui/brand-image';
@@ -83,26 +83,30 @@ export function RatingForm({
         </Text>
       ) : null}
 
-      <Text style={styles.groupLabel}>ما الذي أعجبك؟ (اختياري)</Text>
-      <View style={styles.tags}>
-        {RATING_TAGS_AR.map((tag) => {
-          const on = vm.tags.includes(tag);
-          return (
-            <Pressable
-              key={tag}
-              accessibilityRole="checkbox"
-              accessibilityLabel={`وسم: ${tag}${on ? '، محدد' : ''}`}
-              accessibilityState={{ selected: on, checked: on }}
-              onPress={() => vm.toggle(tag)}
-              disabled={submitting}
-              style={({ pressed }) => [styles.tag, on && styles.tagOn, pressed && styles.pressed]}
-            >
-              {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
-              <Text style={[styles.tagText, on && styles.tagTextOn]}>{tag}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {vm.tagsStatus === 'loaded' && vm.availableTags.length > 0 ? (
+        <>
+          <Text style={styles.groupLabel}>ما الذي أعجبك؟ (اختياري)</Text>
+          <View style={styles.tags}>
+            {vm.availableTags.map((tag) => {
+              const on = vm.selectedTagIds.includes(tag.id);
+              return (
+                <Pressable
+                  key={tag.id}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={`وسم: ${tag.labelAr}${on ? '، محدد' : ''}`}
+                  accessibilityState={{ selected: on, checked: on }}
+                  onPress={() => vm.toggleTagId(tag.id)}
+                  disabled={submitting}
+                  style={({ pressed }) => [styles.tag, on && styles.tagOn, pressed && styles.pressed]}
+                >
+                  {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
+                  <Text style={[styles.tagText, on && styles.tagTextOn]}>{tag.labelAr}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       <TextInput
         accessibilityLabel="تعليق إضافي، اختياري"

@@ -154,7 +154,7 @@ describe('rating selection + validation + submission', () => {
       requestId: 'order-004',
       technicianId: 'tech-3',
       stars: 5,
-      tags: ['احترافية'],
+      tagIds: ['tag-1'],
       commentAr: 'ممتاز',
     });
     expect(source.submitted).toHaveLength(1);
@@ -162,7 +162,7 @@ describe('rating selection + validation + submission', () => {
       requestId: 'order-004',
       technicianId: 'tech-3',
       stars: 5,
-      tags: ['احترافية'],
+      tagIds: ['tag-1'],
       commentAr: 'ممتاز',
     });
   });
@@ -170,11 +170,11 @@ describe('rating selection + validation + submission', () => {
   it('rejects invalid payloads and failing mode without faking success', async () => {
     const source = new MockRatingDataSource();
     await expect(
-      source.submitRating({ requestId: 'order-004', technicianId: 'tech-3', stars: 0, tags: [], commentAr: '' }),
+      source.submitRating({ requestId: 'order-004', technicianId: 'tech-3', stars: 0, tagIds: [], commentAr: '' }),
     ).rejects.toBeInstanceOf(RatingSubmitError);
     await expect(
       new MockRatingDataSource('failing').submitRating({
-        requestId: 'order-004', technicianId: 'tech-3', stars: 5, tags: [], commentAr: '',
+        requestId: 'order-004', technicianId: 'tech-3', stars: 5, tagIds: [], commentAr: '',
       }),
     ).rejects.toBeInstanceOf(RatingSubmitError);
     expect(source.submitted).toHaveLength(0);

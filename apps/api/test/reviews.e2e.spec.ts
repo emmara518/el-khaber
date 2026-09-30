@@ -147,6 +147,31 @@ describe('reviews e2e', () => {
     expect(profile.ratingAverage).toBe(5);
   });
 
+  it('GET /review-tags returns active canonical tags in deterministic order (WP-2C)', async () => {
+    // An inactive tag must never appear in the public catalogue.
+    prisma.reviewTagRows.push({
+      id: 'ffffffff-1111-4111-8111-111111111111',
+      code: 'archived_tag',
+      labelAr: 'وسم غير نشط',
+      isActive: false,
+    });
+
+    const res = await request(app.getHttpServer()).get('/api/v1/review-tags').expect(200);
+    expect(res.body.data.map((t: { labelAr: string }) => t.labelAr)).toEqual([
+      'الالتزام بالموعد',
+      'جودة الإصلاح',
+    ]);
+    // UUID is the canonical identifier.
+    for (const tag of res.body.data as Array<{ id: string; labelAr: string }>) {
+      expect(tag.id).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(typeof tag.labelAr).toBe('string');
+    }
+    // Deterministic on repeat; inactive tag excluded.
+    const again = await request(app.getHttpServer()).get('/api/v1/review-tags').expect(200);
+    expect(again.body.data).toEqual(res.body.data);
+    expect(res.body.data.some((t: { labelAr: string }) => t.labelAr === 'وسم غير نشط')).toBe(false);
+  });
+
   it('blocks review before completion and duplicate reviews (canonical conflicts)', async () => {
     const customer = await register('customer', 'r-early@example.com');
     const technician = await register('technician', 'r-tech2@example.com');

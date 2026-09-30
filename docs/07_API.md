@@ -329,6 +329,12 @@ Server checks:
 - request completed
 - no duplicate review unless edit policy allows
 
+### GET `/review-tags`
+Public. Returns the canonical **active** review tags as `[{ "id", "labelAr" }]`,
+ordered deterministically by `code`. The UUID is the canonical identifier;
+clients submit `tag_ids` (UUIDs) on review creation and must not hardcode tag
+labels (docs/06 §14). Added WP-2C.
+
 ### PATCH `/reviews/:id`
 Optional, only if editing is approved. NOT IMPLEMENTED (Task 10H): no edit policy has been approved.
 

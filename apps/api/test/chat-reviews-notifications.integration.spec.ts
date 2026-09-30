@@ -14,6 +14,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { withTestPoolLimit } from './real-db-url';
 
+import { ReviewsService } from '../dist/reviews/reviews.service';
+
 const envPath = join(__dirname, '..', '.env');
 let realDbUrl = '';
 try {
@@ -181,6 +183,38 @@ describe.skipIf(!hasRealDb)('chat / reviews / notifications persistence (real kh
     const profile = await prisma.technicianProfile.findUniqueOrThrow({ where: { id: techProfileId } });
     expect(profile.ratingCount).toBe(1);
     expect(Number(profile.ratingAverage)).toBe(5);
+  });
+
+  it('listTags returns canonical ACTIVE tags only, ordered deterministically (WP-2C)', async () => {
+    if (!hasRealDb) {
+      return;
+    }
+    const active = await prisma.reviewTag.upsert({
+      where: { code: `${PROBE}-active` },
+      update: { isActive: true },
+      create: { code: `${PROBE}-active`, labelAr: 'وسم نشط', isActive: true },
+    });
+    const inactive = await prisma.reviewTag.upsert({
+      where: { code: `${PROBE}-inactive` },
+      update: { isActive: false },
+      create: { code: `${PROBE}-inactive`, labelAr: 'وسم غير نشط', isActive: false },
+    });
+
+    const reviews = new ReviewsService(prisma as never);
+    const tags = await reviews.listTags();
+
+    expect(tags.length).toBeGreaterThan(0);
+    expect(tags.some((t) => t.id === active.id && t.labelAr === 'وسم نشط')).toBe(true);
+    expect(tags.some((t) => t.id === inactive.id)).toBe(false);
+
+    // UUID is the canonical identifier and ordering follows `code` asc.
+    const rows = await prisma.reviewTag.findMany({
+      where: { id: { in: tags.map((t) => t.id) } },
+      select: { id: true, code: true },
+    });
+    const codeById = new Map(rows.map((r) => [r.id, r.code]));
+    const codesInOrder = tags.map((t) => codeById.get(t.id) ?? '');
+    expect(codesInOrder).toEqual([...codesInOrder].sort());
   });
 
   it('persists notifications with read-state ownership', async () => {
