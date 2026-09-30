@@ -24,12 +24,11 @@ import { buildQuery, drainPages } from '../../lib/api-query';
 import { mapCurrent, mapPlan } from './subscription-types';
 
 import type { CurrentSubscription, SubscriptionPlan, SubscriptionRole } from './subscription-types';
-import type { CurrentSubscriptionDto, MeEntitlementsDto, SubscriptionPlanDto } from '@khabir/shared-types';
+import type { CurrentSubscriptionDto, SubscriptionPlanDto } from '@khabir/shared-types';
 
 export interface SubscriptionsDataSource {
   getPlans(input: { role: SubscriptionRole }): Promise<ReadonlyArray<SubscriptionPlan>>;
   getCurrent(input: { role: SubscriptionRole }): Promise<CurrentSubscription | null>;
-  getEntitlements(input: { role: SubscriptionRole }): Promise<ReadonlyArray<string>>;
   cancelRenewal(input: { role: SubscriptionRole; subscriptionId: string }): Promise<CurrentSubscription | null>;
 }
 
@@ -54,26 +53,18 @@ export class ApiSubscriptionsDataSource implements SubscriptionsDataSource {
 
   async getCurrent(input: { role: SubscriptionRole }): Promise<CurrentSubscription | null> {
     try {
-      const [current, entitlements] = await Promise.all([
-        input.role === 'merchant'
-          ? getApi()
-              .request<{ subscription: CurrentSubscriptionDto | null }>('GET', currentPath(input.role))
-              .then((res) => res.data.subscription)
-          : getApi()
-              .request<CurrentSubscriptionDto | null>('GET', currentPath(input.role))
-              .then((res) => res.data),
-        this.getEntitlements(input),
-      ]);
-      return mapCurrent(current, entitlements);
+      const current = await (input.role === 'merchant'
+        ? getApi()
+            .request<{ subscription: CurrentSubscriptionDto | null }>('GET', currentPath(input.role))
+            .then((res) => res.data.subscription)
+        : getApi()
+            .request<CurrentSubscriptionDto | null>('GET', currentPath(input.role))
+            .then((res) => res.data));
+      // Entitlements are intentionally NOT fetched/transported (WP-7 D7).
+      return mapCurrent(current);
     } catch (err: unknown) {
       throw new Error(toUserMessage(err, 'تعذر تحميل الاشتراك الحالي. تحقق من الاتصال وحاول مجددًا'));
     }
-  }
-
-  async getEntitlements(input: { role: SubscriptionRole }): Promise<ReadonlyArray<string>> {
-    void input.role; // entitlement scoping is server-derived from the JWT
-    const res = await getApi().request<MeEntitlementsDto>('GET', '/me/entitlements');
-    return [...res.data.entitlements];
   }
 
   async cancelRenewal(input: {
@@ -87,8 +78,7 @@ export class ApiSubscriptionsDataSource implements SubscriptionsDataSource {
         `/subscriptions/${input.subscriptionId}/cancel`,
         {},
       );
-      const entitlements = await this.getEntitlements(input).catch(() => [] as ReadonlyArray<string>);
-      return mapCurrent(res.data, entitlements);
+      return mapCurrent(res.data);
     } catch (err: unknown) {
       throw new Error(toUserMessage(err, 'تعذر إلغاء التجديد. حاول مجددًا'));
     }

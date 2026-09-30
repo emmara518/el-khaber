@@ -59,18 +59,17 @@ describe('subscription mappers', () => {
     expect(mapped.role).toBe('technician');
   });
 
-  it('maps the current subscription with Arabic status + entitlements', () => {
-    const mapped = mapCurrent(current(), ['priority_support']);
+  it('maps the current subscription with Arabic status', () => {
+    const mapped = mapCurrent(current());
     expect(mapped?.statusAr).toBe('نشطة');
     expect(mapped?.planNameAr).toBe('باقة المحترف');
     expect(mapped?.planId).toBe('plan-1');
     expect(mapped?.price).toBe(199);
     expect(mapped?.currency).toBe('EGP');
-    expect(mapped?.entitlements).toEqual(['priority_support']);
   });
 
   it('returns null when no subscription exists', () => {
-    expect(mapCurrent(null, [])).toBeNull();
+    expect(mapCurrent(null)).toBeNull();
   });
 
   it('covers every documented subscription status in Arabic', () => {

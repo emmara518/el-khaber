@@ -377,7 +377,7 @@ describe('subscriptions + manual payments e2e', () => {
         .send({ user_id: customer.userId, entitlement_id: uid() });
       expect(unknown.status).toBe(404);
 
-      // Active-subscription grant conflict (CTO decision pending).
+      // Active-subscription grant conflict (WP-7 D3: one active per user).
       const conflict = await request(app.getHttpServer())
         .post('/api/v1/admin/subscriptions/grant')
         .set('Authorization', `Bearer ${admin.accessToken}`)
@@ -519,6 +519,127 @@ describe('subscriptions + manual payments e2e', () => {
         .send({ user_id: uid(), type: 'administrative', title_ar: 'x', body_ar: 'y' });
       expect(bad.status).toBe(404);
       expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(1);
+    });
+  });
+
+  describe('WP-7 one-active rule + expiry + no change-plan', () => {
+    async function enableInstapay(admin: Session): Promise<void> {
+      await request(app.getHttpServer())
+        .put('/api/v1/admin/payments/config/instapay')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ account_identifier: 'k@insta', display_name: 'الخبير', is_enabled: true })
+        .expect(200);
+    }
+    async function submit(customer: Session, ref: string): Promise<string> {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/subscriptions')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({ plan_id: '99999999-0000-4000-8000-000000000002', method: 'instapay', transfer_reference: ref })
+        .expect(201);
+      return res.body.data.id as string;
+    }
+    function approve(admin: Session, id: string): request.Test {
+      return request(app.getHttpServer())
+        .post(`/api/v1/admin/payments/submissions/${id}/approve`)
+        .set('Authorization', `Bearer ${admin.accessToken}`);
+    }
+
+    it('a second approval while an active subscription exists → 409 (no stacking)', async () => {
+      const customer = await register('customer', 's-stack@example.com');
+      const admin = await loginAdmin('s-stack-admin@example.com');
+      await enableInstapay(admin);
+      const first = await submit(customer, 'TRX-STACK-1');
+      const second = await submit(customer, 'TRX-STACK-2');
+
+      await approve(admin, first).expect(200);
+      const conflict = await approve(admin, second);
+      expect(conflict.status).toBe(409);
+      expect(conflict.body.error.code).toBe('CONFLICT');
+
+      // Exactly ONE active subscription exists.
+      expect(prisma.subscriptions.filter((s) => s.status === 'active')).toHaveLength(1);
+    });
+
+    it('admin grant follows the same one-active rule (409 while active)', async () => {
+      const customer = await register('customer', 's-grant-rule@example.com');
+      const admin = await loginAdmin('s-grant-rule-admin@example.com');
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/subscriptions/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, plan_id: '99999999-0000-4000-8000-000000000002' })
+        .expect(201);
+      const conflict = await request(app.getHttpServer())
+        .post('/api/v1/admin/subscriptions/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, plan_id: '99999999-0000-4000-8000-000000000002' });
+      expect(conflict.status).toBe(409);
+      expect(prisma.subscriptions.filter((s) => s.status === 'active')).toHaveLength(1);
+    });
+
+    it('an overdue subscription is PERSISTED as expired and is no longer effective', async () => {
+      const customer = await register('customer', 's-expire@example.com');
+      const admin = await loginAdmin('s-expire-admin@example.com');
+      const grant = await request(app.getHttpServer())
+        .post('/api/v1/admin/subscriptions/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, plan_id: '99999999-0000-4000-8000-000000000002' })
+        .expect(201);
+      const subscriptionId = grant.body.data.id as string;
+
+      // Force the period into the past.
+      const row = prisma.subscriptions.find((s) => s.id === subscriptionId)!;
+      row.currentPeriodEnd = new Date(Date.now() - 1000);
+
+      const current = await request(app.getHttpServer())
+        .get('/api/v1/subscriptions/current')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .expect(200);
+      expect(current.body.data.status).toBe('expired');
+      // Persisted, not merely decorated in the response.
+      expect(prisma.subscriptions.find((s) => s.id === subscriptionId)?.status).toBe('expired');
+
+      // Not effective: no entitlements.
+      const ent = await request(app.getHttpServer())
+        .get('/api/v1/me/entitlements')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .expect(200);
+      expect(ent.body.data.entitlements).toEqual([]);
+
+      // An expired subscription does not block a new activation.
+      await request(app.getHttpServer())
+        .post('/api/v1/admin/subscriptions/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, plan_id: '99999999-0000-4000-8000-000000000002' })
+        .expect(201);
+      expect(prisma.subscriptions.filter((s) => s.status === 'active')).toHaveLength(1);
+    });
+
+    it('an expired subscription never counts as an effective plan in /me/subscription', async () => {
+      const customer = await register('customer', 's-exp-ent@example.com');
+      const admin = await loginAdmin('s-exp-ent-admin@example.com');
+      const grant = await request(app.getHttpServer())
+        .post('/api/v1/admin/subscriptions/grant')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ user_id: customer.userId, plan_id: '99999999-0000-4000-8000-000000000002' })
+        .expect(201);
+      const row = prisma.subscriptions.find((s) => s.id === (grant.body.data.id as string))!;
+      row.currentPeriodEnd = new Date(Date.now() - 1000);
+
+      const me = await request(app.getHttpServer())
+        .get('/api/v1/me/subscription')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .expect(200);
+      expect(me.body.data.subscription.status).toBe('expired');
+      expect(me.body.data.entitlements).toEqual([]);
+    });
+
+    it('change-plan is NOT implemented → 404', async () => {
+      const customer = await register('customer', 's-change@example.com');
+      const res = await request(app.getHttpServer())
+        .post(`/api/v1/subscriptions/${uid()}/change-plan`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({ plan_id: '99999999-0000-4000-8000-000000000002' });
+      expect(res.status).toBe(404);
     });
   });
 });

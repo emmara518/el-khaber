@@ -353,3 +353,34 @@ Subscription functionality is complete only when:
 - failure states exist
 - admin can manage the data where intended
 - analytics can distinguish plan and conversion events
+
+---
+
+## 20. Ratified MVP subscription lifecycle (WP-7 CTO decisions)
+
+These rules are ratified for the MVP and supersede earlier "proposal"
+language where they conflict:
+
+- **Entitlements (D1):** no plan grants any entitlement in MVP. The 11
+  seeded entitlement codes are catalog placeholders only; no
+  `plan_entitlements` rows are created.
+- **Enforcement (D2):** no feature is gated by subscription in MVP.
+- **Stacking (D3):** exactly ONE effective active subscription per user +
+  role. Admin approval of another subscription returns **409**; admin
+  manual grants follow the same rule. No stacking; no replacement.
+- **Upgrade/downgrade (D4):** not an MVP capability —
+  `POST /subscriptions/:id/change-plan` is not implemented. A new plan may
+  be selected only when the user has no effective active subscription.
+- **Renewal (D5):** manual only — no auto-renewal, no scheduler, no
+  recurring billing.
+- **Expiry (D6):** a subscription is expired when `currentPeriodEnd <= now`.
+  An overdue subscription becomes **persistently `expired`** when the
+  lifecycle is evaluated (subscription reads or admin activation). No
+  scheduler and no expiry notification. Effective-entitlement calculation
+  never treats an expired subscription as active.
+- **Presentation (D7):** entitlements remain hidden from end users; raw
+  codes and invented Arabic descriptions are not exposed in the UI.
+- **Commercial data (D8):** plan activation/pricing remains blocked; the 9
+  seeded plans stay inactive.
+- **Duration (D9):** MVP subscription duration = 30 days
+  (`PROVISIONAL_PERIOD_DAYS`).

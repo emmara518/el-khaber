@@ -63,37 +63,37 @@ describe('ApiSubscriptionsDataSource (WP-6)', () => {
   });
 
   it('maps the current subscription with its plan', async () => {
-    requestMock
-      .mockResolvedValueOnce({
-        data: {
-          id: 's1',
-          status: 'active',
-          startedAt: 'x',
-          currentPeriodStart: 'x',
-          currentPeriodEnd: '2026-10-01T00:00:00.000Z',
-          renewalEnabled: true,
-          cancelledAt: null,
-          createdAt: 'x',
-          plan: {
-            id: 'p1',
-            code: 'basic',
-            nameAr: 'الباقة الأساسية',
-            nameEn: 'Basic',
-            role: 'customer',
-            price: 100,
-            currency: 'EGP',
-            billingInterval: 'monthly',
-            isActive: true,
-          },
+    requestMock.mockResolvedValueOnce({
+      data: {
+        id: 's1',
+        status: 'active',
+        startedAt: 'x',
+        currentPeriodStart: 'x',
+        currentPeriodEnd: '2026-10-01T00:00:00.000Z',
+        renewalEnabled: true,
+        cancelledAt: null,
+        createdAt: 'x',
+        plan: {
+          id: 'p1',
+          code: 'basic',
+          nameAr: 'الباقة الأساسية',
+          nameEn: 'Basic',
+          role: 'customer',
+          price: 100,
+          currency: 'EGP',
+          billingInterval: 'monthly',
+          isActive: true,
         },
-        meta: undefined,
-      })
-      .mockResolvedValueOnce({ data: { entitlements: ['priority_support'] } });
+      },
+      meta: undefined,
+    });
 
     const current = await new ApiSubscriptionsDataSource().getCurrent({ role: 'customer' });
     expect(current?.statusAr).toBe('نشطة');
     expect(current?.planNameAr).toBe('الباقة الأساسية');
     expect(current?.currency).toBe('EGP');
+    // WP-7 D7: entitlement codes are never fetched/transported.
+    expect(requestMock.mock.calls.some((c) => String(c[1]).includes('/me/entitlements'))).toBe(false);
   });
 });
 

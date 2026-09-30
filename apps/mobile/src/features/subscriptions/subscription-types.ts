@@ -38,7 +38,6 @@ export interface CurrentSubscription {
   readonly billingInterval: string;
   readonly renewalEnabled: boolean;
   readonly currentPeriodEnd: string;
-  readonly entitlements: ReadonlyArray<string>;
 }
 
 export function subscriptionStatusAr(status: CurrentSubscriptionDto['status']): string {
@@ -92,10 +91,7 @@ export function mapPlan(dto: SubscriptionPlanDto): SubscriptionPlan {
   };
 }
 
-export function mapCurrent(
-  dto: CurrentSubscriptionDto | null,
-  entitlements: ReadonlyArray<string>,
-): CurrentSubscription | null {
+export function mapCurrent(dto: CurrentSubscriptionDto | null): CurrentSubscription | null {
   if (dto === null || dto.plan === null) return null;
   return {
     id: dto.id,
@@ -108,7 +104,6 @@ export function mapCurrent(
     billingInterval: dto.plan.billingInterval,
     renewalEnabled: dto.renewalEnabled,
     currentPeriodEnd: dto.currentPeriodEnd,
-    entitlements,
   };
 }
 

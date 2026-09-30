@@ -1406,7 +1406,7 @@ class FakePrismaClient {
       return { id: row.id };
     },
     updateMany: async (args: {
-      where: { id?: string; userId?: string; status?: string };
+      where: { id?: string; userId?: string; status?: string; currentPeriodEnd?: { lte?: Date } };
       data: Record<string, unknown>;
     }): Promise<{ count: number }> => {
       let count = 0;
@@ -1414,7 +1414,9 @@ class FakePrismaClient {
         if (
           (args.where.id === undefined || s.id === args.where.id) &&
           (args.where.userId === undefined || s.userId === args.where.userId) &&
-          (args.where.status === undefined || s.status === args.where.status)
+          (args.where.status === undefined || s.status === args.where.status) &&
+          (args.where.currentPeriodEnd?.lte === undefined ||
+            s.currentPeriodEnd <= args.where.currentPeriodEnd.lte)
         ) {
           count += 1;
           return { ...s, ...args.data, updatedAt: new Date() } as SubscriptionRow;
@@ -1430,7 +1432,7 @@ class FakePrismaClient {
       id?: string;
       userId?: string;
       status?: string | { in: string[]; not?: string };
-      currentPeriodEnd?: { gt?: Date };
+      currentPeriodEnd?: { gt?: Date; lte?: Date };
       plan?: { isActive?: boolean; role?: string };
     },
   ): SubscriptionRow[] {
@@ -1446,6 +1448,9 @@ class FakePrismaClient {
         }
       }
       if (where.currentPeriodEnd?.gt !== undefined && s.currentPeriodEnd <= where.currentPeriodEnd.gt) {
+        return false;
+      }
+      if (where.currentPeriodEnd?.lte !== undefined && s.currentPeriodEnd > where.currentPeriodEnd.lte) {
         return false;
       }
       if (where.plan !== undefined) {

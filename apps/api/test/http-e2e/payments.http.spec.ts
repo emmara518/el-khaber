@@ -159,4 +159,59 @@ describe('HTTP E2E — payment flows', () => {
     });
     expect(approvals).toBe(1);
   });
+
+  it('WP-7: a second approval while an active subscription exists → 409 (no stacking)', async () => {
+    const customer = await register('customer', 'pay-stack-http@example.com');
+    const admin = await loginAdmin();
+    const first = await submitPayment(customer, 'TRX-HTTP-STACK-1');
+    const second = await submitPayment(customer, 'TRX-HTTP-STACK-2');
+
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/payments/submissions/${first}/approve`)
+      .set(auth(admin))
+      .expect(200);
+
+    const conflict = await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/payments/submissions/${second}/approve`)
+      .set(auth(admin));
+    expect(conflict.status).toBe(409);
+
+    const activeCount = await ctx.prisma.subscription.count({
+      where: { userId: customer.userId, status: 'active' },
+    });
+    expect(activeCount).toBe(1);
+  });
+
+  it('WP-7: an overdue subscription becomes persistently expired and non-effective', async () => {
+    const customer = await register('customer', 'pay-expire-http@example.com');
+    const admin = await loginAdmin();
+    const submissionId = await submitPayment(customer, 'TRX-HTTP-EXPIRE');
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/payments/submissions/${submissionId}/approve`)
+      .set(auth(admin))
+      .expect(200);
+
+    await ctx.prisma.subscription.updateMany({
+      where: { userId: customer.userId, status: 'active' },
+      data: { currentPeriodEnd: new Date(Date.now() - 1000) },
+    });
+
+    const current = await request(ctx.app.getHttpServer())
+      .get(`${base}/subscriptions/current`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(current.body.data.status).toBe('expired');
+
+    const row = await ctx.prisma.subscription.findFirst({
+      where: { userId: customer.userId },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(row?.status).toBe('expired');
+
+    const ent = await request(ctx.app.getHttpServer())
+      .get(`${base}/me/entitlements`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(ent.body.data.entitlements).toEqual([]);
+  });
 });

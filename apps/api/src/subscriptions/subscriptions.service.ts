@@ -93,8 +93,10 @@ export class SubscriptionsService {
    * review). Inactive plans can never yield an active subscription.
    */
   async getCurrent(userId: string): Promise<Record<string, unknown> | null> {
+    // WP-7 D6: persist expiry lazily when the lifecycle is evaluated.
+    await this.expireOverdue(userId);
     const row = await this.prisma.subscription.findFirst({
-      where: { userId, status: { in: ['active', 'pending'] } },
+      where: { userId, status: { in: ['active', 'pending', 'expired'] } },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: {
         id: true,
@@ -123,14 +125,9 @@ export class SubscriptionsService {
     if (row === null) {
       return null;
     }
-    // Expired period demotes an "active" subscription (docs/08 §8).
-    const effective =
-      row.status === 'active' && row.currentPeriodEnd.getTime() <= Date.now()
-        ? 'expired'
-        : row.status;
     return {
       id: row.id,
-      status: effective,
+      status: row.status,
       startedAt: row.startedAt.toISOString(),
       currentPeriodStart: row.currentPeriodStart.toISOString(),
       currentPeriodEnd: row.currentPeriodEnd.toISOString(),
@@ -151,8 +148,23 @@ export class SubscriptionsService {
     };
   }
 
+  /**
+   * WP-7 D6: persist expiry. A subscription is expired when its period has
+   * elapsed; this write-through runs whenever the lifecycle is evaluated
+   * (reads + admin activation) so an overdue subscription is never treated
+   * as active. Idempotent; no scheduler required.
+   */
+  private async expireOverdue(userId: string): Promise<void> {
+    await this.prisma.subscription.updateMany({
+      where: { userId, status: 'active', currentPeriodEnd: { lte: new Date() } },
+      data: { status: 'expired' },
+    });
+  }
+
   /** Effective entitlement codes: active-plan entitlements ∪ manual grants. */
   async effectiveEntitlementCodes(userId: string, role: UserRole): Promise<string[]> {
+    // Never count an expired subscription as active (WP-7 D1/D6).
+    await this.expireOverdue(userId);
     const codes = new Set<string>();
 
     const subscription = await this.prisma.subscription.findFirst({
@@ -247,19 +259,23 @@ export class SubscriptionsService {
     if (plan.role !== user.role) {
       throw new ConflictException('Plan role does not match the user role');
     }
-    const existingActive = await this.prisma.subscription.findFirst({
-      where: { userId, status: 'active' },
-      select: { id: true },
-    });
-    if (existingActive !== null) {
-      // MANUAL SUBSCRIPTION GRANT CONFLICT — CTO decision required
-      // (replacement/extension semantics are undefined).
-      throw new ConflictException('User already has an active subscription');
-    }
-
     const now = new Date();
     const periodEnd = provisionalPeriodEnd(now);
     const created = await this.prisma.$transaction(async (tx) => {
+      // WP-7 D3: one effective active subscription per user. Serialize on
+      // the user row, persist overdue expiry (D6), then reject stacking.
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+      await tx.subscription.updateMany({
+        where: { userId, status: 'active', currentPeriodEnd: { lte: now } },
+        data: { status: 'expired' },
+      });
+      const existingActive = await tx.subscription.findFirst({
+        where: { userId, status: 'active' },
+        select: { id: true },
+      });
+      if (existingActive !== null) {
+        return null;
+      }
       const subscription = await tx.subscription.create({
         data: {
           userId,
@@ -286,6 +302,10 @@ export class SubscriptionsService {
       await this.notifications.create(userId, subscriptionActivatedNotification(), tx);
       return subscription;
     });
+    if (created === null) {
+      // WP-7 D3: no stacking / no replacement in MVP.
+      throw new ConflictException('User already has an active subscription');
+    }
     return { id: created.id, userId, planId, status: 'active' };
   }
 

@@ -445,16 +445,26 @@ Implementation notes (Task 10I):
   `/admin/payments/submissions/:id/approve|reject`. Resubmission = a new
   submission (history immutable).
 - Approval is one transaction: submission ? approved, ACTIVE subscription
-  created (PROVISIONAL 30-day period � docs/08 defines no durations), audit
-  record, and the user notification. Rejection never activates anything.
+  created (PROVISIONAL 30-day period — docs/08 §20), audit record, and the
+  user notification. Rejection never activates anything. WP-7: approval
+  requires that the user has NO other effective active subscription, else
+  `409 CONFLICT` (no stacking / no replacement).
+- WP-7 expiry: an overdue active subscription (`currentPeriodEnd <= now`)
+  is PERSISTED as `expired` when the lifecycle is evaluated (current reads
+  or admin activation). Effective-entitlement calculation never treats an
+  expired subscription as active. No scheduler, no expiry notification.
+- `POST /subscriptions/:id/change-plan` is NOT implemented (WP-7 D4).
 - `GET /subscriptions/current` / `GET /me/subscription` / `GET /me/entitlements`:
-  identity from JWT. Effective entitlements = active plan entitlements ?
+  identity from JWT. Effective entitlements = active plan entitlements ∪
   ADMIN manual grants. Inactive plans and expired periods yield nothing.
+  WP-7 D1: no plan grants entitlements in MVP (the catalogue is placeholder
+  data); entitlements are not surfaced in the mobile UI (D7).
 - Admin payment-destination config (`/admin/payments/config/:method`) is
   backend-managed and audited; disabled methods cannot be selected by users.
 - Admin manual grants (`/admin/subscriptions/grant`, `/admin/entitlements/grant`)
-  are audited and NEVER create payment records. An existing ACTIVE
-  subscription blocks a new grant (409) � semantics pending CTO decision.
+  are audited and NEVER create payment records. WP-7 D3: exactly one
+  effective active subscription per user — a new subscription grant while
+  one is active returns `409 CONFLICT` (the same rule as approval).
 
 ---
 

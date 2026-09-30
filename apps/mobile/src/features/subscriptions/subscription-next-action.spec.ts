@@ -12,7 +12,7 @@ function current(overrides: Partial<CurrentSubscription> = {}): CurrentSubscript
   return {
     id: 'sub-1', status: 'active', statusAr: 'نشطة', planNameAr: 'باقة المحترف', planId: 'plan-pro',
     price: 199, currency: 'EGP', billingInterval: 'monthly', renewalEnabled: true,
-    currentPeriodEnd: '2026-10-01T00:00:00.000Z', entitlements: [],
+    currentPeriodEnd: '2026-10-01T00:00:00.000Z',
     ...overrides,
   };
 }

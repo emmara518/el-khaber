@@ -279,6 +279,32 @@ export class PaymentsService {
         if (submission === null) {
           return 'not-found' as const;
         }
+
+        // One effective active subscription per user (WP-7 D3): serialize
+        // concurrent activations on the user row, then demote any overdue
+        // active subscription (WP-7 D6) so expiry never blocks a new one.
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${submission.userId}::uuid FOR UPDATE`;
+        await tx.subscription.updateMany({
+          where: {
+            userId: submission.userId,
+            status: 'active',
+            currentPeriodEnd: { lte: new Date() },
+          },
+          data: { status: 'expired' },
+        });
+        const existingActive = await tx.subscription.findFirst({
+          where: { userId: submission.userId, status: 'active' },
+          select: { id: true },
+        });
+        if (existingActive !== null) {
+          return 'already-active' as const;
+        }
+
+        // Approval requires a still-active plan matching the user role.
+        if (!submission.plan.isActive || submission.plan.role !== submission.user.role) {
+          throw new ConflictException('Plan is not available for this user');
+        }
+
         // Atomic state guard: pending → approved (no double approval).
         const claimed = await tx.paymentSubmission.updateMany({
           where: { id, status: 'pending' },
@@ -286,10 +312,6 @@ export class PaymentsService {
         });
         if (claimed.count === 0) {
           return 'stale' as const;
-        }
-        // Approval requires a still-active plan matching the user role.
-        if (!submission.plan.isActive || submission.plan.role !== submission.user.role) {
-          throw new ConflictException('Plan is not available for this user');
         }
 
         const now = new Date();
@@ -344,6 +366,10 @@ export class PaymentsService {
     }
     if (result === 'stale') {
       throw new ConflictException('Payment submission has already been reviewed');
+    }
+    if (result === 'already-active') {
+      // WP-7 D3: no stacking / no replacement in MVP.
+      throw new ConflictException('User already has an active subscription');
     }
     return { id, status: 'approved', subscriptionId: result.subscriptionId };
   }
