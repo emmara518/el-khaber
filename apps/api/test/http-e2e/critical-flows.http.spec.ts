@@ -303,10 +303,12 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
       .get(`${base}/notifications`)
       .set(auth(tech.accessToken))
       .expect(200);
-    // Newest-first: the cancellation notice follows the creation notice (WP-2A).
+    // Newest-first: cancellation, creation (WP-2A), then the admin
+    // verification decision (WP-2B).
     expect(techNotes.body.data.map((n: { titleAr: string }) => n.titleAr)).toEqual([
       'تم إلغاء طلب الخدمة',
       'طلب خدمة جديد',
+      'تم اعتماد حسابك بنجاح.',
     ]);
     const noteId = techNotes.body.data[0].id as string;
 
@@ -320,7 +322,7 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
       .post(`${base}/notifications/read-all`)
       .set(auth(tech.accessToken))
       .expect(200);
-    expect(allRead.body.data.updated).toBe(1); // the creation notice remains unread
+    expect(allRead.body.data.updated).toBe(2); // creation + verification remain unread
   });
 });
 
@@ -393,7 +395,12 @@ describe('HTTP E2E — merchant and admin operations', () => {
       .get(`${base}/notifications`)
       .set(auth(tech.accessToken))
       .expect(200);
-    expect(techNotes.body.data).toHaveLength(1);
+    // The technician was verified during setup (WP-2B) and then received the
+    // admin operational notification.
+    expect(techNotes.body.data.map((n: { titleAr: string }) => n.titleAr)).toEqual([
+      'تنبيه',
+      'تم اعتماد حسابك بنجاح.',
+    ]);
 
     const techs = await request(ctx.app.getHttpServer())
       .get(`${base}/admin/technicians`)

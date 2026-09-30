@@ -23,6 +23,7 @@ import type { ServiceRequestStatusValue } from '@khabir/shared-validation';
 export const NOTIFICATION_TYPE = {
   requestStatus: 'request_status',
   subscription: 'subscription',
+  verification: 'verification',
 } as const;
 
 const REQUEST_STATUS_COPY: Record<ServiceRequestStatusValue, { titleAr: string; bodyAr: string }> = {
@@ -68,5 +69,31 @@ export function entitlementGrantedNotification(nameAr: string): NotificationCont
     type: NOTIFICATION_TYPE.subscription,
     titleAr: 'تم منحك ميزة جديدة',
     bodyAr: `تم منحك ميزة: ${nameAr}.`,
+  };
+}
+
+/**
+ * Verification-decision states that produce a notification (WP-2B).
+ * `pending` is NOT a decision state and never notifies.
+ */
+export type VerificationDecision = 'verified' | 'rejected' | 'suspended';
+
+const VERIFICATION_COPY: Record<VerificationDecision, string> = {
+  verified: 'تم اعتماد حسابك بنجاح.',
+  rejected: 'لم يتم اعتماد طلب التحقق. راجع البيانات وأعد المحاولة.',
+  suspended: 'تم تعليق حالة التحقق لحسابك.',
+};
+
+/**
+ * Content for an admin verification decision (WP-2B). The approved Arabic
+ * copy is the only content; it fills both required fields so no additional
+ * copy is invented.
+ */
+export function verificationNotification(status: VerificationDecision): NotificationContent {
+  const copy = VERIFICATION_COPY[status];
+  return {
+    type: NOTIFICATION_TYPE.verification,
+    titleAr: copy,
+    bodyAr: copy,
   };
 }

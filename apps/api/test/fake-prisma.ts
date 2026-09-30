@@ -1049,6 +1049,14 @@ class FakePrismaClient {
       });
       return { count };
     },
+    update: async (args: { where: { id: string }; data: Partial<MerchantProfileRow> }): Promise<MerchantProfileRow> => {
+      const idx = this.merchantProfiles.findIndex((m) => m.id === args.where.id);
+      if (idx < 0) {
+        throw new Error('Merchant profile not found');
+      }
+      this.merchantProfiles[idx] = { ...this.merchantProfiles[idx], ...args.data, updatedAt: new Date() };
+      return this.merchantProfiles[idx];
+    },
   };
 
   product = {

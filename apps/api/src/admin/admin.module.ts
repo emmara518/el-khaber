@@ -10,6 +10,7 @@
 import { Module } from '@nestjs/common';
 
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 import { AdminOperationsService } from './admin-operations.service';
 import { AdminUsersService } from './admin-users.service';
@@ -18,7 +19,9 @@ import { AdminController } from './admin.controller';
 @Module({
   // AuthModule provides the JwtModule used by the JwtAuthGuard; the admin
   // authority is enforced by @AuthKind('admin') on the controller.
-  imports: [AuthModule],
+  // NotificationsModule provides the server-authoritative write path used
+  // by verification decisions (WP-2B).
+  imports: [AuthModule, NotificationsModule],
   controllers: [AdminController],
   providers: [AdminUsersService, AdminOperationsService],
 })

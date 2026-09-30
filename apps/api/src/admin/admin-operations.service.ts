@@ -14,6 +14,8 @@ import { buildPageMeta } from '@khabir/shared-types';
 
 import { PrismaService } from '../database/prisma.service';
 import { ConflictException } from '../common/errors';
+import { verificationNotification } from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import type { Prisma } from '@prisma/client';
 
@@ -31,7 +33,10 @@ const REQUEST_OVERWRITABLE: ReadonlySet<string> = new Set([
 
 @Injectable()
 export class AdminOperationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // --- Verification state machine (docs/09 §6) ------------------------------
 
@@ -104,6 +109,12 @@ export class AdminOperationsService {
             afterJson: { verificationStatus: status, userId: row.userId } as never,
           },
         });
+        // Business event → persisted notification, same transaction (WP-2B):
+        // the affected technician is notified of the decision; `pending`
+        // never notifies and a rolled-back decision leaves no phantom row.
+        if (status !== 'pending') {
+          await this.notifications.create(row.userId, verificationNotification(status), tx);
+        }
         return { id: row.id, verificationStatus: row.verificationStatus, userId: row.userId, at: now } as const;
       }
       const before = await tx.merchantProfile.findFirst({
@@ -131,6 +142,10 @@ export class AdminOperationsService {
           afterJson: { verificationStatus: status, userId: row.userId } as never,
         },
       });
+      // Business event → persisted notification, same transaction (WP-2B).
+      if (status !== 'pending') {
+        await this.notifications.create(row.userId, verificationNotification(status), tx);
+      }
       return { id: row.id, verificationStatus: row.verificationStatus, userId: row.userId, at: now } as const;
     });
     if (result === 'not-found') {
