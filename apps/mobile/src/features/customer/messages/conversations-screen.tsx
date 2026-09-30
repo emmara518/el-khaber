@@ -9,11 +9,11 @@
  */
 
 import { color, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChatDialog } from '../chat/chat-dialog';
-import { CustomerHeader } from '../components/customer-header';
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 
 import { useConversationsViewModel } from './use-conversations-view-model';
@@ -21,7 +21,7 @@ import { useConversationsViewModel } from './use-conversations-view-model';
 import type { ConversationItem } from './conversations-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, fontFamily, type } from '@/ui';
+import { AppHeader, Avatar, Card, fontFamily, PageTitle, type } from '@/ui';
 import { SceneSection } from '@/ui/cinematic';
 
 /** Chat conversation key derived from the request id (TASK-012). */
@@ -29,19 +29,20 @@ const chatKeyFor = (requestId: string) => `req-chat-${requestId}`;
 
 export default function ConversationsScreen() {
   const { t } = useI18n();
+  const router = useRouter();
   const { status, data, error, retry } = useConversationsViewModel();
   const [open, setOpen] = useState<ConversationItem | null>(null);
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <CustomerHeader
-          eyebrow={t('messages.subtitle')}
-          title={t('messages.title')}
-          body="محادثاتك مرتبطة بطلباتك الحالية، وكل رسالة تصل للفني المعني."
+      <View style={styles.root}>
+        <AppHeader
+          onPressNotifications={() => router.push('/(customer)/notifications')}
+          onPressAvatar={() => router.push('/(customer)/profile')}
         />
-
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.editorial}>
+          <PageTitle eyebrow={t('messages.subtitle')} title={t('messages.title')} body="محادثاتك مرتبطة بطلباتك الحالية، وكل رسالة تصل للفني المعني." />
           {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
           {status === 'error' ? (
             <ListError
@@ -77,7 +78,8 @@ export default function ConversationsScreen() {
           ) : null}
           <View style={styles.bottomSpacer} />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {open !== null ? (
         <ChatDialog
@@ -143,6 +145,11 @@ function ConversationRow({
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
     paddingBottom: spacing[8],
   },

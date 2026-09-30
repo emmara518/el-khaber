@@ -11,7 +11,7 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   MERCHANT_CITY_OPTIONS,
@@ -24,7 +24,17 @@ import {
 import { useMerchantProfileViewModel } from './use-merchant-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, Icon, PageTitle, SectionHeader } from '@/ui';
+import {
+  ActionButton,
+  AppHeader,
+  Avatar,
+  Card,
+  Icon,
+  ListError,
+  ListLoading,
+  PageTitle,
+  SectionHeader,
+} from '@/ui';
 import { type } from '@/ui/typography';
 
 export default function MerchantProfileScreen({
@@ -38,36 +48,36 @@ export default function MerchantProfileScreen({
 
   if (vm.loadStatus === 'loading') {
     return (
-      <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('merchant.profile.title')}
-        </Text>
-        <Text style={styles.muted}>{t('state.loading')}</Text>
-      </ScrollView>
+      <View style={styles.root}>
+        <AppHeader
+          onPressNotifications={() => router.push('/(merchant)/notifications')}
+          onPressAvatar={() => router.push('/(merchant)/profile')}
+        />
+        <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
+          <PageTitle eyebrow="ملف المتجر" title={t('merchant.profile.title')} />
+          <ListLoading label={t('state.loading')} />
+        </ScrollView>
+      </View>
     );
   }
 
   if (vm.loadStatus === 'error' || vm.profile === null) {
     return (
-      <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('merchant.profile.title')}
-        </Text>
-        <Card background={color.surface.base} padded style={styles.center}>
-          <Text accessibilityRole="alert" style={styles.stateTitle}>
-            {t('merchant.profile.loadError')}
-          </Text>
-          <Text style={styles.muted}>{vm.loadError?.message ?? ''}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('state.retry')}
-            onPress={vm.reload}
-            style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-          >
-            <Text style={styles.primaryText}>{t('state.retry')}</Text>
-          </Pressable>
-        </Card>
-      </ScrollView>
+      <View style={styles.root}>
+        <AppHeader
+          onPressNotifications={() => router.push('/(merchant)/notifications')}
+          onPressAvatar={() => router.push('/(merchant)/profile')}
+        />
+        <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
+          <PageTitle eyebrow="ملف المتجر" title={t('merchant.profile.title')} />
+          <ListError
+            title={t('merchant.profile.loadError')}
+            message={vm.loadError?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={vm.reload}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
@@ -93,7 +103,12 @@ export default function MerchantProfileScreen({
     profile.verification === 'rejected' || profile.verification === 'action_required';
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <PageTitle
           eyebrow="ملف المتجر"
@@ -129,14 +144,11 @@ export default function MerchantProfileScreen({
       </Card>
 
       {needsUpdate ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('merchant.profile.updateData')}
+        <ActionButton
+          label={t('merchant.profile.updateData')}
           onPress={() => router.push('/(merchant)/onboarding')}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>{t('merchant.profile.updateData')}</Text>
-        </Pressable>
+          style={styles.actionGap}
+        />
       ) : null}
 
       <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.hero}>
@@ -160,26 +172,24 @@ export default function MerchantProfileScreen({
         </Text>
       </Card>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('merchant.profile.edit')}
+      <ActionButton
+        variant="secondary"
+        icon="edit-2"
+        label={t('merchant.profile.edit')}
         onPress={vm.startEdit}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Text style={styles.secondaryText}>{t('merchant.profile.edit')}</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('merchant.settings.title')}
+        style={styles.actionGap}
+      />
+      <ActionButton
+        variant="secondary"
+        icon="settings"
+        label={t('merchant.settings.title')}
         onPress={() => router.push('/(merchant)/settings')}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Icon name="settings" size={18} color={color.brand.navy} />
-        <Text style={styles.secondaryText}>{t('merchant.settings.title')}</Text>
-      </Pressable>
+        style={styles.actionGap}
+      />
         <View style={styles.bottomSpacer} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -201,6 +211,7 @@ function ProfileEditForm({
   onDone: () => void;
 }) {
   const { t } = useI18n();
+  const router = useRouter();
   const [draft, setDraft] = useState<MerchantProfileDraft>(initial);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
   const saving = saveStatus === 'saving';
@@ -218,10 +229,13 @@ function ProfileEditForm({
   }
 
   return (
-    <ScrollView contentContainerStyle={[styles.content, styles.padded]} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('merchant.profile.editTitle')}
-      </Text>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={[styles.content, styles.padded]} showsVerticalScrollIndicator={false}>
+      <PageTitle eyebrow="الملف الشخصي" title={t('merchant.profile.editTitle')} />
       <View style={styles.form}>
         <Text style={styles.label}>{t('merchant.profile.name')}</Text>
         <TextInput
@@ -307,49 +321,31 @@ function ProfileEditForm({
         </View>
       ) : null}
       {saveStatus === 'saved' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('merchant.profile.backToProfile')}
-          onPress={onDone}
-          style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
-        >
-          <Text style={styles.primaryText}>{t('merchant.profile.backToProfile')}</Text>
-        </Pressable>
+        <ActionButton label={t('merchant.profile.backToProfile')} onPress={onDone} style={styles.actionGap} />
       ) : (
         <View style={styles.formActions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('merchant.profile.save')}
-            accessibilityState={{ disabled: saving, busy: saving }}
+          <ActionButton
+            label={saveStatus === 'error' ? t('merchant.profile.retrySave') : t('merchant.profile.save')}
+            loading={saving}
+            loadingLabel="جارٍ الحفظ"
             onPress={saveStatus === 'error' ? () => onRetry(draft) : handleSave}
+          />
+          <ActionButton
+            variant="secondary"
+            label={t('merchant.profile.cancel')}
             disabled={saving}
-            style={({ pressed }) => [styles.primary, saving && styles.disabled, pressed && !saving && styles.pressed]}
-          >
-            {saving ? (
-              <ActivityIndicator accessibilityLabel="جارٍ الحفظ" color={color.surface.base} />
-            ) : (
-              <Text style={styles.primaryText}>
-                {saveStatus === 'error' ? t('merchant.profile.retrySave') : t('merchant.profile.save')}
-              </Text>
-            )}
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('merchant.profile.cancel')}
             onPress={onCancel}
-            disabled={saving}
-            style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-          >
-            <Text style={styles.secondaryText}>{t('merchant.profile.cancel')}</Text>
-          </Pressable>
+          />
         </View>
       )}
       <View style={styles.bottomSpacer} />
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: {
     paddingBottom: spacing[8],
   },
@@ -495,6 +491,10 @@ const styles = StyleSheet.create({
     gap: spacing[2],
   },
   formActions: {
+    marginTop: spacing[4],
+    gap: spacing[3],
+  },
+  actionGap: {
     marginTop: spacing[4],
   },
   label: {

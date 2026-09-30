@@ -3,19 +3,18 @@
  * the public profile: store profile entry, verification entry,
  * notifications entry, support, real logout.
  *
- * Internal-screen header follows the shared Customer clean pattern
- * (`CustomerHeader`): typography and shape on the navy surface — no
- * photographic/cinematic banner.
+ * Uses the shared role-neutral header (AppHeader + PageTitle) and the
+ * shared ActionButton — identical visual language to Customer and
+ * Technician (no bespoke leaf header or one-off button styling).
  */
 
-import { color, radius, spacing } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { useAuthStore } from '@/lib/auth-store';
-import { Card, Icon, MenuDivider, MenuRow, PageTitle } from '@/ui';
-import { type } from '@/ui/typography';
+import { ActionButton, AppHeader, Card, MenuDivider, MenuRow, PageTitle } from '@/ui';
 
 export default function MerchantSettingsScreen() {
   const { t } = useI18n();
@@ -23,98 +22,73 @@ export default function MerchantSettingsScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.editorial}>
-        <PageTitle
-          eyebrow="الحساب"
-          title={t('merchant.settings.title')}
-          body={t('merchant.settings.subtitle')}
-        />
-        <Card background={color.surface.base} style={styles.menu}>
-          <MenuRow
-            icon="shopping-bag"
-            label={t('merchant.settings.profile')}
-            hint={t('merchant.settings.profileHint')}
-            onPress={() => router.push('/(merchant)/profile')}
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.editorial}>
+          <PageTitle
+            eyebrow="الحساب"
+            title={t('merchant.settings.title')}
+            body={t('merchant.settings.subtitle')}
           />
-          <MenuDivider />
-          <MenuRow
-            icon="shield"
-            label={t('merchant.settings.verification')}
-            hint={t('merchant.settings.verificationHint')}
-            onPress={() => router.push('/(merchant)/profile')}
-          />
-          <MenuDivider />
-          <MenuRow
-            icon="edit-3"
-            label={t('merchant.settings.onboarding')}
-            hint={t('merchant.settings.onboardingHint')}
-            onPress={() => router.push('/(merchant)/onboarding')}
-          />
-          <MenuDivider />
-          <MenuRow
-            icon="bell"
-            label={t('merchant.settings.notifications')}
-            hint={t('merchant.settings.notificationsHint')}
-            onPress={() => router.push('/(merchant)/notifications')}
-          />
-          <MenuDivider />
-          <MenuRow
-            icon="headphones"
-            label={t('profile.menu.support')}
-            hint={t('profile.support.body')}
-          />
-        </Card>
+          <Card background={color.surface.base} style={styles.menu}>
+            <MenuRow
+              icon="shopping-bag"
+              label={t('merchant.settings.profile')}
+              hint={t('merchant.settings.profileHint')}
+              onPress={() => router.push('/(merchant)/profile')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="shield"
+              label={t('merchant.settings.verification')}
+              hint={t('merchant.settings.verificationHint')}
+              onPress={() => router.push('/(merchant)/profile')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="edit-3"
+              label={t('merchant.settings.onboarding')}
+              hint={t('merchant.settings.onboardingHint')}
+              onPress={() => router.push('/(merchant)/onboarding')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="bell"
+              label={t('merchant.settings.notifications')}
+              hint={t('merchant.settings.notificationsHint')}
+              onPress={() => router.push('/(merchant)/notifications')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="headphones"
+              label={t('profile.menu.support')}
+              hint={t('profile.support.body')}
+            />
+          </Card>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('profile.menu.logout')}
-          onPress={() => void logout()}
-          style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-        >
-          <Icon name="log-out" size={18} color={color.error.DEFAULT} />
-          <Text style={styles.logoutText}>{t('profile.menu.logout')}</Text>
-        </Pressable>
-        <View style={styles.bottomSpacer} />
-      </View>
-    </ScrollView>
+          <ActionButton
+            variant="destructive"
+            icon="log-out"
+            label={t('profile.menu.logout')}
+            onPress={() => void logout()}
+            style={styles.logoutAction}
+          />
+          <View style={styles.bottomSpacer} />
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingBottom: spacing[8],
-  },
-  editorial: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    gap: spacing[4],
-  },
-  menu: {
-    paddingHorizontal: 0,
-    paddingVertical: spacing[2],
-  },
-  logout: {
-    marginTop: spacing[4],
-    borderWidth: 1,
-    borderColor: color.error.DEFAULT,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.surface.base,
-    flexDirection: 'row',
-    direction: 'rtl',
-    gap: spacing[2],
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  logoutText: {
-    ...type.button,
-    color: color.error.DEFAULT,
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  content: { paddingBottom: spacing[8] },
+  editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[4] },
+  menu: { paddingHorizontal: 0, paddingVertical: spacing[2] },
+  logoutAction: { marginTop: spacing[4] },
+  bottomSpacer: { height: spacing[6] },
 });

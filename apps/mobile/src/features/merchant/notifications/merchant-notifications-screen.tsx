@@ -8,28 +8,29 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { NotificationItem } from '@/features/notifications/notifications-data-source';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon, ListEmpty, ListError, ListLoading, type } from '@/ui';
+import { AppHeader, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle, type } from '@/ui';
 
 export default function MerchantNotificationsScreen() {
   const { t } = useI18n();
+  const router = useRouter();
   const vm = useNotificationsViewModel('merchant');
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.head}>
-        <Text style={styles.eyebrow}>التنبيهات</Text>
-        <Text accessibilityRole="header" style={styles.title}>
-          الإشعارات
-        </Text>
-        <Text style={styles.body}>أحدث التحديثات على متجرك ومنتجاتك.</Text>
-      </View>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.editorial}>
+        <PageTitle eyebrow="التنبيهات" title="الإشعارات" body="أحدث التحديثات على متجرك ومنتجاتك." />
         {vm.status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
         {vm.status === 'error' ? (
           <ListError
@@ -75,7 +76,8 @@ export default function MerchantNotificationsScreen() {
           )
         ) : null}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -111,11 +113,8 @@ function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: (
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: { paddingBottom: spacing[8] },
-  head: { paddingHorizontal: spacing[5], paddingTop: spacing[6], gap: 2 },
-  eyebrow: { ...type.label, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  title: { ...type.h2, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
-  body: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[3] },
   markAll: {
     flexDirection: 'row',

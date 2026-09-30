@@ -29,6 +29,7 @@ import type { MerchantProductsDataSource } from './mock-merchant-products-data-s
 import { useI18n } from '@/i18n/use-i18n';
 import {
   ActionButton,
+  AppHeader,
   Card,
   ListEmpty,
   ListError,
@@ -70,51 +71,65 @@ export default function MerchantProductDetailScreen({
   void resetMutation;
   void resetDelete;
 
+  const header = (
+    <AppHeader
+      onPressNotifications={() => router.push('/(merchant)/notifications')}
+      onPressAvatar={() => router.push('/(merchant)/profile')}
+    />
+  );
+
   if (status === 'loading') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.detailTitle}>
-          {t('merchant.product.title')}
-        </Text>
-        <ListLoading label={t('state.loading')} />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="المتجر · المنتجات" title={t('merchant.product.title')} />
+          <ListLoading label={t('state.loading')} />
+        </ScrollView>
+      </View>
     );
   }
 
   if (status === 'error') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.detailTitle}>
-          {t('merchant.product.title')}
-        </Text>
-        <ListError
-          title={t('merchant.catalog.error')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="المتجر · المنتجات" title={t('merchant.product.title')} />
+          <ListError
+            title={t('merchant.catalog.error')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
   const product = data !== null ? findMerchantProduct(data, productId) : null;
   if (!product) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <ListEmpty
-          icon="package"
-          iconLabel="منتج غير موجود"
-          title={t('merchant.product.missing')}
-          body={t('merchant.product.missingBody')}
-          actionLabel={t('merchant.product.backToCatalog')}
-          onAction={() => router.replace('/(merchant)/products')}
-        />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <ListEmpty
+            icon="package"
+            iconLabel="منتج غير موجود"
+            title={t('merchant.product.missing')}
+            body={t('merchant.product.missingBody')}
+            actionLabel={t('merchant.product.backToCatalog')}
+            onAction={() => router.replace('/(merchant)/products')}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      {header}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <PageTitle
           eyebrow={`منتج ${product.id} · ${product.statusLabelAr}`}
@@ -182,6 +197,7 @@ export default function MerchantProductDetailScreen({
       ) : null}
       <View style={styles.bottomSpacer} />
     </ScrollView>
+    </View>
   );
 }
 
@@ -391,6 +407,7 @@ function ProductActions({
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: {
     direction: 'rtl',
     paddingBottom: spacing[8],

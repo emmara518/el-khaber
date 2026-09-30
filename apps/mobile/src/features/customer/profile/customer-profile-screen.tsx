@@ -9,16 +9,15 @@
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { CustomerHeader } from '../components/customer-header';
 import { ListError, ListLoading } from '../components/list-state-view';
 
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { useAuthStore } from '@/lib/auth-store';
-import { Avatar, Card, Icon, MenuDivider, MenuRow, Pill, type } from '@/ui';
+import { ActionButton, AppHeader, Avatar, Card, Icon, MenuDivider, MenuRow, PageTitle, Pill, StatTile, type } from '@/ui';
 
 export default function CustomerProfileScreen() {
   const { t } = useI18n();
@@ -27,14 +26,14 @@ export default function CustomerProfileScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <CustomerHeader
-        eyebrow="حسابي"
-        title={t('profile.title')}
-        body="بياناتك وطلباتك واشتراكك في مكان واحد."
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
       />
-
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.editorial}>
+        <PageTitle eyebrow="حسابي" title={t('profile.title')} body="بياناتك وطلباتك واشتراكك في مكان واحد." />
       {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
       {status === 'error' ? (
         <ListError
@@ -77,14 +76,8 @@ export default function CustomerProfileScreen() {
           </Card>
 
           <View style={styles.stats}>
-            <Card background={color.surface.base} padded style={styles.stat}>
-              <Text style={styles.statNumber}>{data.activeOrdersCount}</Text>
-              <Text style={styles.statLabel}>طلبات نشطة</Text>
-            </Card>
-            <Card background={color.surface.base} padded style={styles.stat}>
-              <Text style={styles.statNumber}>{data.completedOrdersCount}</Text>
-              <Text style={styles.statLabel}>طلبات مكتملة</Text>
-            </Card>
+            <StatTile icon="clipboard" value={data.activeOrdersCount} label="طلبات نشطة" />
+            <StatTile icon="check-circle" value={data.completedOrdersCount} label="طلبات مكتملة" />
           </View>
 
           <Card background={color.surface.base} style={styles.menu}>
@@ -111,24 +104,28 @@ export default function CustomerProfileScreen() {
             <MenuRow icon="headphones" label={t('profile.menu.support')} hint={data.supportHoursAr} />
           </Card>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.menu.logout')}
+          <ActionButton
+            variant="destructive"
+            icon="log-out"
+            label={t('profile.menu.logout')}
             onPress={() => void logout()}
-            style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-          >
-            <Icon name="log-out" size={18} color={color.error.DEFAULT} />
-            <Text style={styles.logoutText}>{t('profile.menu.logout')}</Text>
-          </Pressable>
+            style={styles.logoutAction}
+          />
         </>
       ) : null}
         <View style={styles.bottomSpacer} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
     paddingBottom: spacing[8],
   },
@@ -161,41 +158,12 @@ const styles = StyleSheet.create({
     gap: spacing[3],
     marginTop: spacing[4],
   },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    ...type.h1,
-    color: color.text.primary,
-  },
-  statLabel: {
-    ...type.caption,
-    color: color.text.secondary,
-    marginTop: spacing[1],
+  logoutAction: {
+    marginTop: spacing[4],
   },
   menu: {
     marginTop: spacing[4],
     paddingHorizontal: 0,
-  },
-  logout: {
-    marginTop: spacing[4],
-    borderWidth: 1,
-    borderColor: color.error.DEFAULT,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.surface.base,
-    flexDirection: 'row',
-    gap: spacing[2],
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  logoutText: {
-    ...type.button,
-    color: color.error.DEFAULT,
   },
   bottomSpacer: {
     height: spacing[6],

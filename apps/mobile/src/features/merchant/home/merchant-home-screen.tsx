@@ -19,18 +19,14 @@ import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { MerchantMetricCard } from './components/merchant-metric-card';
 import { MerchantProductRail } from './components/merchant-product-rail';
 import { MerchantVerificationCard } from './components/merchant-verification-card';
 import { MerchantWelcomeCard } from './components/merchant-welcome-card';
 import { useMerchantHomeViewModel } from './use-merchant-home-view-model';
 
-import { HomeHeader } from '@/features/customer/home/components/home-header';
-import { HomeSection } from '@/features/customer/home/components/home-section';
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
-import { ListError, ListLoading } from '@/ui';
-import { Card, Icon, type } from '@/ui';
+import { AppHeader, Card, Icon, ListError, ListLoading, SectionHeading, StatTile, type } from '@/ui';
 
 export default function MerchantHomeScreen() {
   const { t } = useI18n();
@@ -44,7 +40,7 @@ export default function MerchantHomeScreen() {
 
   return (
     <View style={styles.root}>
-      <HomeHeader
+      <AppHeader
         avatarInitials={data?.profile.initialsAr || '·'}
         notificationCount={notifications.unreadCount}
         onPressNotifications={() => router.push('/(merchant)/notifications')}
@@ -76,37 +72,29 @@ export default function MerchantHomeScreen() {
             />
 
             <View style={styles.metrics}>
-              <MerchantMetricCard
-                value={data.catalog.activeProducts}
-                label="منتج منشور"
-                asset="verified"
-                tone="success"
-              />
-              <MerchantMetricCard
-                value={data.catalog.inactiveProducts}
-                label="منتج موقوف"
-                asset="error"
-                tone="neutral"
-              />
+              <StatTile icon="check-circle" value={data.catalog.activeProducts} label="منتج منشور" />
+              <StatTile icon="pause-circle" value={data.catalog.inactiveProducts} label="منتج موقوف" />
             </View>
 
             {data.recentProducts.length > 0 ? (
-              <HomeSection
-                eyebrow="كتالوج متجرك"
-                title="منتجاتك الأخيرة"
-                actionLabel="عرض الكل"
-                actionAccessibilityLabel="عرض كل المنتجات"
-                onPressAction={openProducts}
-              >
+              <View style={styles.section}>
+                <SectionHeading
+                  eyebrow="كتالوج متجرك"
+                  title="منتجاتك الأخيرة"
+                  actionLabel="عرض الكل"
+                  actionAccessibilityLabel="عرض كل المنتجات"
+                  onPressAction={openProducts}
+                />
                 <MerchantProductRail
                   products={data.recentProducts}
                   onPressProduct={(product) =>
                     router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })
                   }
                 />
-              </HomeSection>
+              </View>
             ) : (
-              <HomeSection eyebrow="كتالوج متجرك" title="منتجاتك الأخيرة">
+              <View style={styles.section}>
+                <SectionHeading eyebrow="كتالوج متجرك" title="منتجاتك الأخيرة" />
                 <Card background={color.surface.base} padded style={styles.emptyCard}>
                   <Icon name="package" size={26} color={color.text.secondary} />
                   <Text style={styles.emptyTitle}>لا توجد منتجات بعد</Text>
@@ -114,7 +102,7 @@ export default function MerchantHomeScreen() {
                     ابدأ ببناء كتالوج متجرك بإضافة أول منتج.
                   </Text>
                 </Card>
-              </HomeSection>
+              </View>
             )}
 
             <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.storeCard}>
@@ -148,6 +136,11 @@ const styles = StyleSheet.create({
     direction: 'rtl',
     flexWrap: 'wrap',
     gap: spacing[3],
+  },
+  section: {
+    paddingTop: spacing[6],
+    gap: spacing[4],
+    direction: 'rtl',
   },
   emptyCard: { alignItems: 'center', gap: spacing[2] },
   emptyTitle: { ...type.h3, color: color.text.primary, textAlign: 'center', writingDirection: 'rtl' },

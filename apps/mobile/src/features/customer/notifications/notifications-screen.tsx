@@ -7,29 +7,31 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { CustomerHeader } from '../components/customer-header';
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 
 import type { NotificationItem } from '@/features/notifications/notifications-data-source';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon, type } from '@/ui';
+import { AppHeader, Card, Icon, PageTitle, type } from '@/ui';
 
 export default function NotificationsScreen() {
   const { t } = useI18n();
+  const router = useRouter();
   const vm = useNotificationsViewModel('customer');
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <CustomerHeader
-        eyebrow="التنبيهات"
-        title="الإشعارات"
-        body="أحدث التحديثات على طلباتك ومحادثاتك واشتراكك."
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
       />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.editorial}>
+        <PageTitle eyebrow="التنبيهات" title="الإشعارات" body="أحدث التحديثات على طلباتك ومحادثاتك واشتراكك." />
         {vm.status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
         {vm.status === 'error' ? (
           <ListError
@@ -75,7 +77,8 @@ export default function NotificationsScreen() {
           )
         ) : null}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -111,6 +114,7 @@ function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: (
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: { paddingBottom: spacing[8] },
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[3] },
   markAll: {

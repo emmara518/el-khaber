@@ -11,7 +11,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { CustomerHeader } from '../components/customer-header';
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 import { requestTrackingRoute } from '../orders/request-routes';
 
@@ -24,7 +23,7 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, fontFamily, Icon, IconText, statusBrandAsset, StatusUnit, type } from '@/ui';
+import { AppHeader, Avatar, Card, fontFamily, Icon, IconText, PageTitle, statusBrandAsset, StatusUnit, type } from '@/ui';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
@@ -33,14 +32,14 @@ export default function CustomerRequestsScreen() {
   const [filter, setFilter] = useState<RequestsFilter>('all');
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <CustomerHeader
-        eyebrow="طلباتي"
-        title={t('requests.title')}
-        body={t('requests.subtitle')}
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
       />
-
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.editorial}>
+        <PageTitle eyebrow="طلباتي" title={t('requests.title')} body={t('requests.subtitle')} />
         {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
         {status === 'error' ? (
           <ListError
@@ -85,7 +84,8 @@ export default function CustomerRequestsScreen() {
         ) : null}
         <View style={styles.bottomSpacer} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 
   function renderList(
@@ -156,11 +156,17 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
     paddingBottom: spacing[8],
   },
   editorial: {
     paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
   },
   title: {
     ...type.h2,

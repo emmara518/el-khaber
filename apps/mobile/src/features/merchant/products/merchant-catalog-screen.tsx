@@ -10,7 +10,7 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   EMPTY_PRODUCT_FILTERS,
@@ -25,7 +25,7 @@ import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ActionButton, Icon, ListEmpty, ListError, ListLoading, PageTitle, StatusBadge, type } from '@/ui';
+import { ActionButton, AppHeader, Icon, ListEmpty, ListError, ListLoading, PageTitle, SearchField, StatusBadge, type } from '@/ui';
 
 
 export default function MerchantCatalogScreen({
@@ -39,7 +39,12 @@ export default function MerchantCatalogScreen({
   const [filters, setFilters] = useState<MerchantProductFilters>(EMPTY_PRODUCT_FILTERS);
 
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <PageTitle
           eyebrow="المتجر · الكتالوج"
@@ -66,14 +71,12 @@ export default function MerchantCatalogScreen({
       ) : null}
       {status === 'loaded' && data ? (
         <>
-          <TextInput
+          <SearchField
             accessibilityLabel="ابحث في منتجات المتجر"
             placeholder="ابحث بالاسم أو الوصف…"
-            placeholderTextColor={color.text.secondary}
             value={filters.query}
             onChangeText={(query) => setFilters((f) => ({ ...f, query }))}
-            style={styles.search}
-            textAlign="right"
+            style={styles.searchField}
           />
 
           <View style={styles.statusRow}>
@@ -108,7 +111,8 @@ export default function MerchantCatalogScreen({
       ) : null}
         <View style={styles.bottomSpacer} />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 
   function renderList(
@@ -176,13 +180,18 @@ export default function MerchantCatalogScreen({
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
     direction: 'rtl',
     paddingBottom: spacing[8],
   },
   header: {
     paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    paddingTop: spacing[4],
     paddingBottom: spacing[2],
     gap: spacing[3],
   },
@@ -190,19 +199,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     paddingTop: spacing[2],
   },
-  search: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    ...type.body,
-    color: color.text.primary,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
+  searchField: {
     marginTop: spacing[4],
-    textAlign: 'right',
-    writingDirection: 'rtl',
   },
   chips: {
     flexDirection: 'row',

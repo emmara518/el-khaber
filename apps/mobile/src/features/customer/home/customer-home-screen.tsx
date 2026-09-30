@@ -9,7 +9,6 @@ import { requestTrackingRoute } from '../orders/request-routes';
 
 import { ApplianceCard } from './components/appliance-card';
 import { CurrentOrderCard } from './components/current-order-card';
-import { HomeHeader } from './components/home-header';
 import { HomeHero } from './components/home-hero';
 import { HomeSearch } from './components/home-search';
 import { HomeSection } from './components/home-section';
@@ -26,6 +25,7 @@ import type { BrandAssetName } from '@/ui/brand-assets';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
+import { AppHeader } from '@/ui';
 
 /** Service icon → approved brand mark (same vocabulary as the tiles). */
 const SERVICE_ASSET: Record<QuickServiceItem['icon'], BrandAssetName> = {
@@ -61,7 +61,7 @@ export default function CustomerHomeScreen() {
 
   return (
     <View style={styles.root}>
-      <HomeHeader
+      <AppHeader
         avatarInitials={data?.context.avatarInitialsAr ?? '·'}
         notificationCount={notifications.unreadCount}
         onPressNotifications={() => router.push('/(customer)/notifications')}

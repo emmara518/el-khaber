@@ -24,7 +24,7 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon, PageTitle, SectionHeader } from '@/ui';
+import { AppHeader, Card, Icon, PageTitle, SectionHeader } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
 
@@ -49,7 +49,12 @@ export default function MerchantOnboardingScreen({
 
   if (vm.submitStatus === 'submitted' && vm.submitted !== null) {
     return (
-      <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
+      <View style={styles.root}>
+        <AppHeader
+          onPressNotifications={() => router.push('/(merchant)/notifications')}
+          onPressAvatar={() => router.push('/(merchant)/profile')}
+        />
+        <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
         <View style={styles.successScene}>
           <BrandImage name="success" size={124} />
         </View>
@@ -70,12 +75,18 @@ export default function MerchantOnboardingScreen({
         >
           <Text style={styles.primaryText}>الذهاب إلى ملف المتجر</Text>
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <PageTitle
           eyebrow="إعداد المتجر"
@@ -235,6 +246,7 @@ export default function MerchantOnboardingScreen({
       <View style={styles.bottomSpacer} />
       </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -317,6 +329,7 @@ function ReviewSummary({
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: {
     paddingBottom: spacing[8],
   },

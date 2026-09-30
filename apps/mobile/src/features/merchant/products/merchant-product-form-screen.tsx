@@ -22,7 +22,7 @@ import {
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, PageTitle } from '@/ui';
+import { AppHeader, Card, PageTitle } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
 
@@ -58,7 +58,11 @@ export default function MerchantProductFormScreen({
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <AppHeader
+      onPressNotifications={() => router.push('/(merchant)/notifications')}
+      onPressAvatar={() => router.push('/(merchant)/profile')}
+    />
     <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <PageTitle
@@ -252,6 +256,7 @@ export default function MerchantProductFormScreen({
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: {
     direction: 'rtl',
     paddingBottom: spacing[8],

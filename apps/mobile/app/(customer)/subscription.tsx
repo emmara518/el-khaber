@@ -1,4 +1,5 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
@@ -11,7 +12,6 @@ import {
   View,
 } from 'react-native';
 
-import { CustomerHeader } from '../../src/features/customer/components/customer-header';
 import { ListError, ListLoading } from '../../src/features/customer/components/list-state-view';
 import { priceLineAr } from '../../src/features/subscriptions/subscription-presentation';
 import {
@@ -27,11 +27,12 @@ import {
 } from '../../src/features/subscriptions/use-subscription-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon, type } from '@/ui';
+import { AppHeader, Card, Icon, PageTitle, type } from '@/ui';
 
 export default function SubscriptionScreen() {
   const vm = useSubscriptionViewModel('customer');
   const { t } = useI18n();
+  const router = useRouter();
   const current = vm.current;
 
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
@@ -69,7 +70,12 @@ export default function SubscriptionScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       {vm.status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
       {vm.status === 'error' ? (
         <ListError
@@ -81,15 +87,17 @@ export default function SubscriptionScreen() {
       ) : null}
       {vm.status === 'loaded' ? (
         <>
-          <CustomerHeader
-            eyebrow="الاشتراكات"
-            title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'}
-            body={
-              current === null
-                ? 'استعرض الباقات المتاحة. يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.'
-                : 'يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة، ويمكنك متابعة حالة طلباتك أدناه.'
-            }
-          />
+          <View style={styles.titleWrap}>
+            <PageTitle
+              eyebrow="الاشتراكات"
+              title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'}
+              body={
+                current === null
+                  ? 'استعرض الباقات المتاحة. يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.'
+                  : 'يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة، ويمكنك متابعة حالة طلباتك أدناه.'
+              }
+            />
+          </View>
           <View style={styles.sections}>
             {current !== null ? (
               <Card background={color.surface.base} padded style={styles.card}>
@@ -180,7 +188,8 @@ export default function SubscriptionScreen() {
         onSubmit={submitPayment}
         onClose={closePayment}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -380,7 +389,9 @@ function formatPeriodEnd(iso: string): string {
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: { paddingTop: spacing[6], paddingBottom: spacing[8], direction: 'rtl' },
+  titleWrap: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
   sections: { paddingHorizontal: spacing[5], gap: spacing[4] },
   section: { gap: spacing[3] },
   sectionTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },

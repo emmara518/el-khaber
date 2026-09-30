@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
-import { CustomerHeader } from '../components/customer-header';
 import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 import { StepProgress } from '../components/step-progress';
 
@@ -11,7 +10,7 @@ import { symptomsForAppliance, type FaultDetail } from './fault-guide-types';
 import { useFaultGuideViewModel } from './use-fault-guide-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Icon, type } from '@/ui';
+import { AppHeader, Icon, PageTitle, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 
 const arrival = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
@@ -31,13 +30,13 @@ export default function FaultGuideScreen() {
 
   return (
     <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <CustomerHeader
-          eyebrow={t('maintenance.title')}
-          title="دليل الأعطال"
-          body={t('maintenance.subtitle')}
-        />
         <View style={styles.editorial}>
+          <PageTitle eyebrow={t('maintenance.title')} title="دليل الأعطال" body={t('maintenance.subtitle')} />
           <View style={styles.disclaimer}>
             <Icon name="info" size={20} color={color.brand.navy} />
             <Text style={styles.disclaimerText}>دليل استرشادي فقط — وليس تشخيصًا فنيًا معتمدًا.</Text>
