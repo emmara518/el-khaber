@@ -1,35 +1,30 @@
 /**
  * Technician onboarding machine — pure reducer (unit-tested).
  *
- * Steps: info → specialty → appliances → services → areas →
- * review. One draft; Next validates the current step, Back/Goto
- * preserve everything. Submission lives in the hook (idle →
- * submitting → submitted | error) so the reducer stays synchronous
- * and fully testable.
+ * Steps: info → services → areas → review. Professional coverage
+ * (specialties/appliances) is DERIVED from the selected canonical
+ * catalog services (WP-3) — the flow collects info, service UUIDs,
+ * and service areas only. One draft; Next validates the current step,
+ * Back/Goto preserve everything. Submission lives in the hook.
  */
 
 import {
   EMPTY_PROFILE_DRAFT,
   toggleStringList,
   validateProfileDraft,
-  type TechnicianApplianceSlug,
+  validateServiceSelection,
   type TechnicianProfileDraft,
 } from '../profile/technician-profile-types';
 
-export const ONBOARDING_STEPS = [
-  'info',
-  'specialty',
-  'appliances',
-  'services',
-  'areas',
-  'review',
-] as const;
+export const ONBOARDING_STEPS = ['info', 'services', 'areas', 'review'] as const;
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
 export interface OnboardingState {
   readonly step: OnboardingStep;
   readonly draft: TechnicianProfileDraft;
+  /** Canonical catalog service UUIDs (persisted via `/technician/services`). */
+  readonly serviceIds: ReadonlyArray<string>;
   readonly stepError: string | null;
   readonly fieldErrors: Partial<Record<string, string>>;
 }
@@ -37,8 +32,6 @@ export interface OnboardingState {
 export type OnboardingEvent =
   | { readonly type: 'SET_TEXT'; readonly field: 'displayNameAr' | 'phoneAr' | 'bioAr'; readonly text: string }
   | { readonly type: 'SET_EXPERIENCE'; readonly years: number | null }
-  | { readonly type: 'TOGGLE_SPECIALTY'; readonly value: string }
-  | { readonly type: 'TOGGLE_APPLIANCE'; readonly value: TechnicianApplianceSlug }
   | { readonly type: 'TOGGLE_SERVICE'; readonly value: string }
   | { readonly type: 'TOGGLE_AREA'; readonly value: string }
   | { readonly type: 'NEXT' }
@@ -48,6 +41,7 @@ export type OnboardingEvent =
 export const INITIAL_ONBOARDING_STATE: OnboardingState = {
   step: 'info',
   draft: EMPTY_PROFILE_DRAFT,
+  serviceIds: [],
   stepError: null,
   fieldErrors: {},
 };
@@ -55,9 +49,11 @@ export const INITIAL_ONBOARDING_STATE: OnboardingState = {
 /** Step-level validation messages (Arabic, unit-tested). */
 export function validateOnboardingStep(
   draft: TechnicianProfileDraft,
+  serviceIds: ReadonlyArray<string>,
   step: OnboardingStep,
 ): Partial<Record<string, string>> {
   const all = validateProfileDraft(draft);
+  const servicesError = validateServiceSelection(serviceIds);
   switch (step) {
     case 'info': {
       const errors: Partial<Record<string, string>> = {};
@@ -66,16 +62,15 @@ export function validateOnboardingStep(
       if (all.experienceYears) errors.experienceYears = all.experienceYears;
       return errors;
     }
-    case 'specialty':
-      return all.specialtiesAr ? { specialtiesAr: all.specialtiesAr } : {};
-    case 'appliances':
-      return all.appliances ? { appliances: all.appliances } : {};
     case 'services':
-      return all.servicesAr ? { servicesAr: all.servicesAr } : {};
+      return servicesError !== null ? { serviceIds: servicesError } : {};
     case 'areas':
       return all.areasAr ? { areasAr: all.areasAr } : {};
-    case 'review':
-      return all;
+    case 'review': {
+      const errors: Partial<Record<string, string>> = { ...all };
+      if (servicesError !== null) errors.serviceIds = servicesError;
+      return errors;
+    }
   }
 }
 
@@ -98,26 +93,12 @@ export function onboardingReducer(
         stepError: null,
         draft: { ...state.draft, experienceYears: event.years },
       };
-    case 'TOGGLE_SPECIALTY':
-      return {
-        ...state,
-        fieldErrors: {},
-        stepError: null,
-        draft: { ...state.draft, specialtiesAr: toggleStringList(state.draft.specialtiesAr, event.value) },
-      };
-    case 'TOGGLE_APPLIANCE':
-      return {
-        ...state,
-        fieldErrors: {},
-        stepError: null,
-        draft: { ...state.draft, appliances: toggleStringList(state.draft.appliances, event.value) },
-      };
     case 'TOGGLE_SERVICE':
       return {
         ...state,
         fieldErrors: {},
         stepError: null,
-        draft: { ...state.draft, servicesAr: toggleStringList(state.draft.servicesAr, event.value) },
+        serviceIds: toggleStringList(state.serviceIds, event.value),
       };
     case 'TOGGLE_AREA':
       return {
@@ -127,7 +108,7 @@ export function onboardingReducer(
         draft: { ...state.draft, areasAr: toggleStringList(state.draft.areasAr, event.value) },
       };
     case 'NEXT': {
-      const errors = validateOnboardingStep(state.draft, state.step);
+      const errors = validateOnboardingStep(state.draft, state.serviceIds, state.step);
       if (Object.keys(errors).length > 0) {
         return { ...state, fieldErrors: errors, stepError: firstError(errors) };
       }
@@ -150,7 +131,7 @@ export function onboardingReducer(
       for (let i = from; i < to; i += 1) {
         const current = ONBOARDING_STEPS[i];
         if (current === undefined) return state;
-        const errors = validateOnboardingStep(state.draft, current);
+        const errors = validateOnboardingStep(state.draft, state.serviceIds, current);
         if (Object.keys(errors).length > 0) {
           return { ...state, fieldErrors: errors, stepError: firstError(errors) };
         }

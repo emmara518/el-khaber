@@ -1,6 +1,6 @@
 /**
- * T-B tests: onboarding machine, validation, submission, profile
- * persistence, verification states.
+ * T-B / WP-3 tests: onboarding machine, validation, canonical service
+ * selection, submission, profile persistence, verification states.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -34,15 +34,14 @@ function validDraft(): TechnicianProfileDraft {
     phoneAr: '0512345678',
     bioAr: 'فني تكييف',
     experienceYears: 12,
-    specialtiesAr: ['تبريد وتكييف'],
-    appliances: ['air_conditioner' as const],
-    servicesAr: ['صيانة المكيفات'],
     areasAr: ['القاهرة – مدينة نصر'],
   };
 }
 
+const VALID_SERVICES = ['svc-air-repair'];
+
 describe('onboarding draft + progression', () => {
-  it('walks all six steps with validation gates', () => {
+  it('walks all four steps with validation gates', () => {
     let state: OnboardingState = {
       ...INITIAL_ONBOARDING_STATE,
       draft: { ...validDraft(), displayNameAr: '', phoneAr: '' },
@@ -51,7 +50,7 @@ describe('onboarding draft + progression', () => {
     const blocked = onboardingReducer(state, { type: 'NEXT' });
     expect(blocked.step).toBe('info');
     expect(blocked.stepError).not.toBeNull();
-    state = { ...state, draft: validDraft() };
+    state = { ...state, draft: validDraft(), serviceIds: VALID_SERVICES };
     for (const expected of ONBOARDING_STEPS.slice(1)) {
       state = onboardingReducer(state, { type: 'NEXT' });
       expect(state.step).toBe(expected);
@@ -60,7 +59,7 @@ describe('onboarding draft + progression', () => {
   });
 
   it('preserves the draft across BACK', () => {
-    let state: OnboardingState = { ...INITIAL_ONBOARDING_STATE, draft: validDraft() };
+    let state: OnboardingState = { ...INITIAL_ONBOARDING_STATE, draft: validDraft(), serviceIds: VALID_SERVICES };
     state = onboardingReducer(state, { type: 'NEXT' });
     state = onboardingReducer(state, { type: 'TOGGLE_AREA', value: 'الإسكندرية – سموحة' });
     state = onboardingReducer(state, { type: 'BACK' });
@@ -72,16 +71,22 @@ describe('onboarding draft + progression', () => {
     expect(state.draft.areasAr).toContain('الإسكندرية – سموحة');
   });
 
-  it('validates each step independently', () => {
+  it('validates each step independently (services are canonical UUIDs)', () => {
     const empty = INITIAL_ONBOARDING_STATE.draft;
-    expect(Object.keys(validateOnboardingStep(empty, 'info')).length).toBeGreaterThan(0);
-    expect(validateOnboardingStep(empty, 'appliances')).toEqual({ appliances: expect.any(String) });
-    expect(validateOnboardingStep(empty, 'services')).toEqual({ servicesAr: expect.any(String) });
-    expect(validateOnboardingStep(empty, 'areas')).toEqual({ areasAr: expect.any(String) });
-    expect(Object.keys(validateOnboardingStep(validDraft(), 'review'))).toHaveLength(0);
+    expect(Object.keys(validateOnboardingStep(empty, [], 'info')).length).toBeGreaterThan(0);
+    expect(validateOnboardingStep(empty, [], 'services')).toEqual({ serviceIds: expect.any(String) });
+    expect(validateOnboardingStep(empty, [], 'areas')).toEqual({ areasAr: expect.any(String) });
+    expect(validateOnboardingStep(validDraft(), VALID_SERVICES, 'services')).toEqual({});
+    expect(Object.keys(validateOnboardingStep(validDraft(), VALID_SERVICES, 'review'))).toHaveLength(0);
   });
 
-  it('toggles multi-selects without duplication', () => {
+  it('toggles canonical services and areas without duplication', () => {
+    let state: OnboardingState = { ...INITIAL_ONBOARDING_STATE, draft: validDraft() };
+    state = onboardingReducer(state, { type: 'TOGGLE_SERVICE', value: 'svc-air-repair' });
+    state = onboardingReducer(state, { type: 'TOGGLE_SERVICE', value: 'svc-air-clean' });
+    expect(state.serviceIds).toEqual(['svc-air-repair', 'svc-air-clean']);
+    state = onboardingReducer(state, { type: 'TOGGLE_SERVICE', value: 'svc-air-repair' });
+    expect(state.serviceIds).toEqual(['svc-air-clean']);
     expect(toggleStringList(['a'], 'a')).toEqual([]);
     expect(toggleStringList(['a'], 'b')).toEqual(['a', 'b']);
   });
@@ -99,11 +104,19 @@ describe('onboarding draft + progression', () => {
 });
 
 describe('mock submission (pending, never approved)', () => {
-  it('submits a valid draft into pending review', async () => {
+  it('submits a valid draft and persists canonical service coverage', async () => {
     const source = new MockTechnicianProfileDataSource();
-    const result = await source.submitVerificationProfile({ role: 'technician', profile: validDraft() });
+    const result = await source.submitVerificationProfile({
+      role: 'technician',
+      profile: validDraft(),
+      serviceIds: ['svc-air-repair', 'svc-air-gas'],
+    });
     expect(result.verification).toBe('pending');
     expect(result.verificationNoteAr).toContain('مراجعة');
+    // Coverage is derived from the selected canonical services.
+    expect(result.servicesAr).toEqual(['صيانة المكيفات', 'فحص غاز التبريد']);
+    expect(result.appliances).toEqual(['air_conditioner']);
+    expect(result.specialtiesAr).toEqual(['تكييفات']);
   });
 
   it('rejects invalid drafts and failing mode without faking success', async () => {
@@ -182,11 +195,11 @@ describe('profile edit persistence', () => {
     ).rejects.toBeInstanceOf(ProfileSaveError);
   });
 
-  it('converts a profile back to an editable draft', async () => {
+  it('converts a profile back to an editable draft (coverage excluded)', async () => {
     const profile = await new MockTechnicianProfileDataSource().getProfile({ role: 'technician' });
     const draft = draftFromProfile(profile);
     expect(draft.displayNameAr).toBe(profile.displayNameAr);
-    expect(draft.appliances).toEqual(profile.appliances);
+    expect(draft.areasAr).toEqual(profile.areasAr);
     expect(Object.keys(validateProfileDraft(draft))).toHaveLength(0);
   });
 

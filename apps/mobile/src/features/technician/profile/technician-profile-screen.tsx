@@ -17,8 +17,6 @@ import { LabeledInput, MultiSelectChips } from './components/profile-selectors';
 import {
   APPLIANCE_OPTIONS,
   AREA_OPTIONS,
-  SERVICE_OPTIONS,
-  SPECIALTY_OPTIONS,
   draftFromProfile,
   validateProfileDraft,
   verificationStatusCopy,
@@ -308,47 +306,6 @@ function ProfileEditForm({
             }}
             error={errors.experienceYears}
             keyboardType="numeric"
-          />
-          <MultiSelectChips
-            label={t('tech.profile.specialties')}
-            options={SPECIALTY_OPTIONS}
-            selected={draft.specialtiesAr}
-            onToggle={(value) =>
-              patch({
-                specialtiesAr: draft.specialtiesAr.includes(value)
-                  ? draft.specialtiesAr.filter((v) => v !== value)
-                  : [...draft.specialtiesAr, value],
-              })
-            }
-            error={errors.specialtiesAr}
-          />
-          <MultiSelectChips
-            label={t('tech.profile.appliances')}
-            options={APPLIANCE_OPTIONS.map((a) => a.titleAr)}
-            selected={draft.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)}
-            onToggle={(title) => {
-              const found = APPLIANCE_OPTIONS.find((a) => a.titleAr === title);
-              if (!found) return;
-              patch({
-                appliances: draft.appliances.includes(found.slug)
-                  ? draft.appliances.filter((v) => v !== found.slug)
-                  : [...draft.appliances, found.slug],
-              });
-            }}
-            error={errors.appliances}
-          />
-          <MultiSelectChips
-            label={t('tech.profile.services')}
-            options={SERVICE_OPTIONS}
-            selected={draft.servicesAr}
-            onToggle={(value) =>
-              patch({
-                servicesAr: draft.servicesAr.includes(value)
-                  ? draft.servicesAr.filter((v) => v !== value)
-                  : [...draft.servicesAr, value],
-              })
-            }
-            error={errors.servicesAr}
           />
           <MultiSelectChips
             label={t('tech.profile.areas')}

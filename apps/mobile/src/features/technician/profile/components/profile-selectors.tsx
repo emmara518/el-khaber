@@ -101,9 +101,68 @@ export function MultiSelectChips<T extends string>({
   );
 }
 
+export function CatalogChips({
+  label,
+  groups,
+  selected,
+  onToggle,
+  error,
+}: {
+  label: string;
+  groups: ReadonlyArray<{ titleAr: string; items: ReadonlyArray<{ id: string; labelAr: string }> }>;
+  selected: ReadonlyArray<string>;
+  onToggle: (id: string) => void;
+  error?: string | null;
+}) {
+  return (
+    <View style={styles.field}>
+      <Text accessibilityRole="header" accessibilityLabel={`${label}. المحدد: ${selected.length}`} style={styles.label}>
+        {label}
+      </Text>
+      {groups.map((group) => (
+        <View key={group.titleAr} style={styles.group}>
+          <Text style={styles.groupLabel}>{group.titleAr}</Text>
+          <View style={styles.chips}>
+            {group.items.map((item) => {
+              const on = selected.includes(item.id);
+              return (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={`${item.labelAr}${on ? '، محدد' : ''}`}
+                  accessibilityState={{ selected: on, checked: on }}
+                  onPress={() => onToggle(item.id)}
+                  style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
+                >
+                  {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{item.labelAr}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      ))}
+      {error ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   field: {
     gap: spacing[2],
+  },
+  group: {
+    gap: spacing[2],
+  },
+  groupLabel: {
+    color: color.text.secondary,
+    fontSize: typography.size.caption,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   label: {
     color: color.text.primary,

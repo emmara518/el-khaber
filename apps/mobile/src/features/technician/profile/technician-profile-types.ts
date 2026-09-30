@@ -2,12 +2,14 @@
  * Technician profile domain (T-B) — the single coherent technician
  * model for this frontend area.
  *
- * Fields mirror docs/06_DATABASE.md §4 (display_name, bio,
- * avatar, verification_status, experience_years, rating_average,
- * rating_count) plus the working facets discovery already uses
- * (specialties, appliances, services, areas). No KYC/document
- * taxonomy exists in the docs, so verification stays a generic
- * 4-state status with user-safe copy — never invented paperwork.
+ * Canonical rule (WP-3, CTO): professional coverage (specialties,
+ * appliances, services) is DERIVED from the existing `TechnicianService`
+ * relation + the service catalog — never stored as free-form profile
+ * text and never duplicated into profile columns. The editable profile
+ * draft therefore carries only display_name/bio/experience_years plus the
+ * account phone and service areas. Services are selected by canonical
+ * catalog service UUID (see the onboarding machine) and persisted through
+ * `/technician/services`.
  */
 
 /** The three supported home-appliance slugs (server-seeded categories). */
@@ -25,8 +27,11 @@ export interface TechnicianProfile {
   readonly phoneAr: string;
   readonly bioAr: string;
   readonly experienceYears: number | null;
+  /** Derived from attached services' catalog categories (read-only). */
   readonly specialtiesAr: ReadonlyArray<string>;
+  /** Derived from attached services' catalog categories (read-only). */
   readonly appliances: ReadonlyArray<TechnicianApplianceSlug>;
+  /** Derived from attached services (read-only). */
   readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
   readonly verification: TechnicianVerificationStatus;
@@ -36,21 +41,29 @@ export interface TechnicianProfile {
   readonly completedCount: number;
 }
 
-export interface TechnicianProfileDataSource {
-  getProfile(input: { role: 'technician' }): Promise<TechnicianProfile>;
-  saveProfile(input: { role: 'technician'; profile: TechnicianProfileDraft }): Promise<TechnicianProfile>;
-  submitVerificationProfile(input: { role: 'technician'; profile: TechnicianProfileDraft }): Promise<TechnicianProfile>;
+/** Canonical service selection to reconcile through `/technician/services`. */
+export interface TechnicianProfileSaveInput {
+  readonly role: 'technician';
+  readonly profile: TechnicianProfileDraft;
+  /** Canonical catalog service UUIDs (empty = no services attached). */
+  readonly serviceIds?: ReadonlyArray<string>;
 }
 
-/** Editable subset — identity metrics (rating/counts) are server-owned. */
+export interface TechnicianProfileDataSource {
+  getProfile(input: { role: 'technician' }): Promise<TechnicianProfile>;
+  saveProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile>;
+  submitVerificationProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile>;
+}
+
+/**
+ * Editable profile subset. Identity metrics (rating/counts) are
+ * server-owned; coverage is derived from services.
+ */
 export interface TechnicianProfileDraft {
   readonly displayNameAr: string;
   readonly phoneAr: string;
   readonly bioAr: string;
   readonly experienceYears: number | null;
-  readonly specialtiesAr: ReadonlyArray<string>;
-  readonly appliances: ReadonlyArray<TechnicianApplianceSlug>;
-  readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
 }
 
@@ -59,9 +72,6 @@ export const EMPTY_PROFILE_DRAFT: TechnicianProfileDraft = {
   phoneAr: '',
   bioAr: '',
   experienceYears: null,
-  specialtiesAr: [],
-  appliances: [],
-  servicesAr: [],
   areasAr: [],
 };
 
@@ -71,30 +81,9 @@ export function draftFromProfile(profile: TechnicianProfile): TechnicianProfileD
     phoneAr: profile.phoneAr,
     bioAr: profile.bioAr,
     experienceYears: profile.experienceYears,
-    specialtiesAr: profile.specialtiesAr,
-    appliances: profile.appliances,
-    servicesAr: profile.servicesAr,
     areasAr: profile.areasAr,
   };
 }
-
-/** Home-appliance domain only — no generic trades, ever. */
-export const SPECIALTY_OPTIONS: ReadonlyArray<string> = [
-  'تبريد وتكييف',
-  'غسالات أوتوماتيك',
-  'ثلاجات وفريزرات',
-];
-
-export const SERVICE_OPTIONS: ReadonlyArray<string> = [
-  'إصلاح الغسالات',
-  'تنظيف الفلاتر',
-  'فحص التسرب',
-  'فحص تبريد الثلاجات',
-  'تنظيف ملفات التهوية',
-  'صيانة المكيفات',
-  'تنظيف فلاتر المكيف',
-  'فحص غاز التبريد',
-];
 
 // Egyptian service areas (governorate – district). Egypt-market demo data.
 export const AREA_OPTIONS: ReadonlyArray<string> = [
@@ -128,11 +117,13 @@ export function validateProfileDraft(draft: TechnicianProfileDraft): Partial<Rec
   if (draft.experienceYears !== null && (draft.experienceYears < 0 || draft.experienceYears > 50)) {
     errors.experienceYears = 'سنوات الخبرة يجب أن تكون بين ٠ و٥٠';
   }
-  if (draft.specialtiesAr.length === 0) errors.specialtiesAr = 'اختر تخصصًا واحدًا على الأقل';
-  if (draft.appliances.length === 0) errors.appliances = 'اختر جهازًا واحدًا على الأقل';
-  if (draft.servicesAr.length === 0) errors.servicesAr = 'اختر خدمة واحدة على الأقل';
   if (draft.areasAr.length === 0) errors.areasAr = 'اختر منطقة خدمة واحدة على الأقل';
   return errors;
+}
+
+/** Service selection validation (canonical catalog UUIDs). */
+export function validateServiceSelection(serviceIds: ReadonlyArray<string>): string | null {
+  return serviceIds.length === 0 ? 'اختر خدمة واحدة على الأقل' : null;
 }
 
 /** Pure multi-select toggle shared by every selector (unit-tested). */

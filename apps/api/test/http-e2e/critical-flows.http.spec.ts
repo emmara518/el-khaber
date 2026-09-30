@@ -500,3 +500,58 @@ describe('HTTP E2E — merchant and admin operations', () => {
       .expect(200);
   });
 });
+
+describe('HTTP E2E — technician self-service persistence (WP-3)', () => {
+  it('persists profile fields, canonical phone, and canonical service coverage, with readback', async () => {
+    const tech = await register('technician', 'http-wp3-tech@example.com');
+
+    // Editable profile fields + label-only service areas.
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({
+        display_name: 'فني الخبير',
+        bio: 'نبذة مهنية',
+        experience_years: 7,
+        areas: [{ label_ar: 'القاهرة – مدينة نصر' }],
+      })
+      .expect(200);
+
+    // Account phone persists canonically (WP-1 rule) through /me.
+    const me = await request(ctx.app.getHttpServer())
+      .patch(`${base}/me`)
+      .set(auth(tech.accessToken))
+      .send({ phone: '01011112222' })
+      .expect(200);
+    expect(me.body.data.phone).toBe('+201011112222');
+
+    // Canonical catalog service attach; duplicates are rejected (no duplication).
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/technician/services`)
+      .set(auth(tech.accessToken))
+      .send({ service_id: baseline.serviceId })
+      .expect(201);
+    const dup = await request(ctx.app.getHttpServer())
+      .post(`${base}/technician/services`)
+      .set(auth(tech.accessToken))
+      .send({ service_id: baseline.serviceId });
+    expect(dup.status).toBe(409);
+
+    // Readback: the profile exposes the attached canonical service + the area.
+    const profile = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    const services = profile.body.data.services as Array<{
+      serviceId: string;
+      applianceCategoryId: string;
+    }>;
+    expect(services.map((s) => s.serviceId)).toEqual([baseline.serviceId]);
+    expect(services[0]?.applianceCategoryId).toBe(baseline.categoryId);
+    expect((profile.body.data.areas as Array<{ labelAr: string }>).map((a) => a.labelAr)).toEqual([
+      'القاهرة – مدينة نصر',
+    ]);
+    expect(profile.body.data.displayName).toBe('فني الخبير');
+    expect(profile.body.data.experienceYears).toBe(7);
+  });
+});
