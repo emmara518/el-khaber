@@ -127,7 +127,7 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
             <Text style={styles.body}>{technician.areasAr.join('، ')}</Text>
           </View>
         </SceneSection>
-        <SceneSection title="تعامل بثقة" eyebrow="الشفافية أولاً" asset="technician_trust" body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب." />
+        <SceneSection title="تعامل بثقة" eyebrow="حلوانفية أولاً" asset="technician_trust" body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب." />
         <View style={styles.ctaFooter}>
           <SceneAction label={t('discovery.profile.requestService')} accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`} onPress={onRequestService} />
           <SceneAction label={t('fault.back')} variant="secondary" onPress={onBack} />

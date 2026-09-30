@@ -162,7 +162,7 @@ export async function seedBaseline(prisma: TestPrisma): Promise<BaselineIds> {
       nameAr: 'بلاتينيوم',
       billingInterval: 'monthly',
       price: 99,
-      currency: 'SAR',
+      currency: 'EGP',
       isActive: true,
     },
   });

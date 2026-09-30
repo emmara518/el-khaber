@@ -137,7 +137,7 @@ export default function MerchantCatalogScreen({
             key={product.id}
             accessibilityRole="button"
             accessibilityLabel={`عرض تفاصيل ${product.nameAr}، الحالة: ${product.statusLabelAr}${
-              product.priceSar !== null ? `، السعر: ${product.priceSar} جنيه` : ''
+              product.price !== null ? `، السعر: ${product.price} جنيه` : ''
             }${product.stockQuantity !== null ? `، المخزون: ${product.stockQuantity}` : ''}`}
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
@@ -152,8 +152,8 @@ export default function MerchantCatalogScreen({
                   <Text style={styles.description} numberOfLines={2}>
                     {product.descriptionAr}
                   </Text>
-                  {product.priceSar !== null ? (
-                    <Text style={styles.price}>{product.priceSar} جنيه</Text>
+                  {product.price !== null ? (
+                    <Text style={styles.price}>{product.price} جنيه</Text>
                   ) : (
                     <Text style={styles.noPrice}>{t('merchant.catalog.noPrice')}</Text>
                   )}

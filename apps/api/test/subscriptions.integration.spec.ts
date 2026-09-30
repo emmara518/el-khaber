@@ -101,7 +101,7 @@ describe.skipIf(!hasRealDb)('subscriptions + payments (real khabir-dev)', () => 
     const plan = await prisma.subscriptionPlan.create({
       data: {
         role: 'customer', code: `${PROBE}-plan`, nameAr: 'خطة تجريبية',
-        billingInterval: 'monthly', price: 49.99, currency: 'SAR', isActive: true,
+        billingInterval: 'monthly', price: 49.99, currency: 'EGP', isActive: true,
       },
     });
     _activePlanId = plan.id;

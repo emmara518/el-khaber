@@ -18,14 +18,14 @@ describe('technician home fixture (deterministic)', () => {
       id: 'x', customerNameAr: 'x', applianceAr: 'x', problemAr: 'x', timeAr: 'x',
     });
     const second = await source.getHome({ role: 'technician' });
-    expect(second.profile.nameAr).toBe('سامي محيور');
+    expect(second.profile.nameAr).toBe('سامي محمود');
     expect(second.incoming).toHaveLength(2);
     expect(second.role).toBe('technician');
   });
 
   it('keeps identity consistent with the discovery fixture', async () => {
     const home = await new MockTechnicianHomeDataSource().getHome({ role: 'technician' });
-    expect(home.profile.nameAr).toBe('سامي محيور');
+    expect(home.profile.nameAr).toBe('سامي محمود');
     expect(home.profile.rating).toBe(4.9);
     expect(home.profile.reviewCount).toBe(213);
     expect(home.profile.specialtyAr).toBe('تبريد وتكييف');

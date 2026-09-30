@@ -181,7 +181,7 @@ export default function MerchantOnboardingScreen({
           <Text style={styles.label}>رقم هاتف المتجر</Text>
           <TextInput
             accessibilityLabel={fieldErrors.phoneAr ? 'رقم هاتف المتجر. خطأ: رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا' : 'رقم هاتف المتجر'}
-            placeholder="05xxxxxxxx"
+            placeholder="01xxxxxxxxx"
             placeholderTextColor={color.text.secondary}
             value={draft.phoneAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'phoneAr', text })}

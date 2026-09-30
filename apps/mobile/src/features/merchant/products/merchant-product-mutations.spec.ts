@@ -23,7 +23,7 @@ function validDraft() {
   return {
     nameAr: 'مكيف سبليت جديد ٢ طن',
     descriptionAr: 'مكيف سبليت جديد بكفاءة عالية مع ضمان المتجر لمدة سنتين.',
-    priceSar: 2100,
+    price: 2100,
     stockQuantity: 15,
     imageUrl: '',
   };
@@ -34,7 +34,7 @@ describe('product draft validation', () => {
     const errors = validateProductDraft(EMPTY_PRODUCT_DRAFT);
     expect(errors.nameAr).toBeDefined();
     expect(errors.descriptionAr).toBeDefined();
-    expect(errors.priceSar).toBeUndefined();
+    expect(errors.price).toBeUndefined();
     expect(errors.imageUrl).toBeUndefined();
     expect(Object.keys(validateProductDraft(validDraft()))).toHaveLength(0);
   });
@@ -42,7 +42,7 @@ describe('product draft validation', () => {
   it('rejects short name/description, invalid price, and a malformed image URL', () => {
     expect(validateProductDraft({ ...validDraft(), nameAr: 'اب' }).nameAr).toBeDefined();
     expect(validateProductDraft({ ...validDraft(), descriptionAr: 'قصير' }).descriptionAr).toBeDefined();
-    expect(validateProductDraft({ ...validDraft(), priceSar: -5 }).priceSar).toBeDefined();
+    expect(validateProductDraft({ ...validDraft(), price: -5 }).price).toBeDefined();
     expect(validateProductDraft({ ...validDraft(), imageUrl: 'not-a-url' }).imageUrl).toBeDefined();
     expect(
       validateProductDraft({ ...validDraft(), imageUrl: 'https://cdn.example.com/a.jpg' }).imageUrl,
@@ -56,7 +56,7 @@ describe('product draft validation', () => {
     if (product === null) return;
     const draft = draftFromProduct(product);
     expect(draft.nameAr).toBe(product.nameAr);
-    expect(draft.priceSar).toBeNull();
+    expect(draft.price).toBeNull();
     expect(Object.keys(validateProductDraft(draft))).toHaveLength(0);
   });
 

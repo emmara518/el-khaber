@@ -1,7 +1,7 @@
 /**
  * Mock `TechnicianHomeDataSource` (T-A).
  *
- * Persona extends the discovery fixture (tech-2 سامي محيور keeps
+ * Persona extends the discovery fixture (tech-2 سامي محمود keeps
  * his name, rating, review count, specialty, and areas) so the two
  * sides of the product agree. Incoming previews are pending requests
  * matching his appliance coverage; the active service mirrors an
@@ -17,7 +17,7 @@ import {
 
 const HOME_FIXTURE: TechnicianHomeViewModel = {
   profile: {
-    nameAr: 'سامي محيور',
+    nameAr: 'سامي محمود',
     initialsAr: 'س',
     specialtyAr: 'تبريد وتكييف',
     areasAr: ['القاهرة – مدينة نصر', 'الجيزة – الدقي'],
@@ -45,7 +45,7 @@ const HOME_FIXTURE: TechnicianHomeViewModel = {
     },
     {
       id: 'tin-002',
-      customerNameAr: 'أبو فهد',
+      customerNameAr: 'أبو كريم',
       applianceAr: 'مكيف',
       applianceSlug: 'air_conditioner',
       problemAr: 'تنقيط مياه من الوحدة الداخلية',
@@ -54,7 +54,7 @@ const HOME_FIXTURE: TechnicianHomeViewModel = {
   ],
   active: {
     id: 'order-002',
-    customerNameAr: 'أبو تركي',
+    customerNameAr: 'أبو يوسف',
     applianceAr: 'مكيف',
     applianceSlug: 'air_conditioner',
     taskAr: 'صيانة مكيف سبليت',

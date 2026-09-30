@@ -149,23 +149,23 @@ export default function MerchantProductFormScreen({
 
           <Text style={styles.label}>{t('merchant.productForm.price')}</Text>
           <TextInput
-            accessibilityLabel={errors.priceSar ? `${t('merchant.productForm.price')}. خطأ: ${errors.priceSar}` : t('merchant.productForm.price')}
+            accessibilityLabel={errors.price ? `${t('merchant.productForm.price')}. خطأ: ${errors.price}` : t('merchant.productForm.price')}
             placeholder={t('merchant.productForm.pricePlaceholder')}
             placeholderTextColor={color.text.secondary}
-            value={draft.priceSar === null ? '' : String(draft.priceSar)}
+            value={draft.price === null ? '' : String(draft.price)}
             onChangeText={(text) => {
               const n = Number(text.replace(/[^0-9]/g, ''));
-              patch({ priceSar: text.trim().length === 0 ? null : n });
+              patch({ price: text.trim().length === 0 ? null : n });
             }}
             keyboardType="numeric"
-            style={[styles.input, errors.priceSar ? styles.inputError : null]}
+            style={[styles.input, errors.price ? styles.inputError : null]}
             textAlign="right"
             editable={!submitting}
           />
           <Text style={styles.optional}>{t('merchant.productForm.priceOptional')}</Text>
-          {errors.priceSar ? (
+          {errors.price ? (
             <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.priceSar}
+              {errors.price}
             </Text>
           ) : null}
 

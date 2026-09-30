@@ -80,7 +80,7 @@ describe('reviews e2e', () => {
     prisma.reviewTagRows.length = 0;
     prisma.reviewTagAssignmentRows.length = 0;
     prisma.applianceCategories.push({ id: CAT_ID, nameAr: 'غسالات', slug: 'washing_machine', iconUrl: null, imageUrl: null, isActive: true, sortOrder: 1 });
-    prisma.locations.push({ id: LOC_ID, userId: '', label: 'المنزل', addressText: 'شارع', city: 'الرياض', region: null, country: null, latitude: 24.7, longitude: 46.7 });
+    prisma.locations.push({ id: LOC_ID, userId: '', label: 'المنزل', addressText: 'شارع', city: 'القاهرة', region: null, country: null, latitude: 30.04, longitude: 31.24 });
     prisma.reviewTagRows.push(
       { id: TAG_PUNCTUAL, code: 'punctuality', labelAr: 'الالتزام بالموعد', isActive: true },
       { id: TAG_QUALITY, code: 'repair_quality', labelAr: 'جودة الإصلاح', isActive: true },

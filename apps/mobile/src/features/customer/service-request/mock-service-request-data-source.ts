@@ -57,8 +57,8 @@ const FORM_FIXTURE: ServiceRequestFormData = {
     { id: 'general-installation', applianceSlug: null, titleAr: 'تركيب أو نقل الجهاز' },
   ],
   locations: [
-    { id: 'home', labelAr: 'المنزل', detailAr: 'الرياض – حي النزهة، شارع الأمير مقرن', isDefault: true },
-    { id: 'office', labelAr: 'المكتب', detailAr: 'الرياض – حي الملز، طريق صلاح الدين', isDefault: false },
+    { id: 'home', labelAr: 'المنزل', detailAr: 'القاهرة – حي مدينة نصر، شارع عباس العقاد', isDefault: true },
+    { id: 'office', labelAr: 'المكتب', detailAr: 'القاهرة – حي المعادي، شارع التحرير', isDefault: false },
   ],
   slots: [
     { id: 'slot-today-am', dayAr: 'اليوم', timeAr: '٩:٠٠ – ١٢:٠٠ صباحًا', available: true },

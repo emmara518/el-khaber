@@ -246,7 +246,7 @@ describe.skipIf(!hasRealDb)('business event notifications (real khabir-dev)', ()
         nameAr: 'خطة تجريبية',
         billingInterval: 'monthly',
         price: 49.99,
-        currency: 'SAR',
+        currency: 'EGP',
         isActive: true,
       },
     });

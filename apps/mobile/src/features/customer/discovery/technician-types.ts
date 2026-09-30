@@ -80,11 +80,11 @@ export const RATING_OPTIONS: ReadonlyArray<{ value: number | null; labelAr: stri
 ];
 
 export const AREA_OPTIONS: ReadonlyArray<string> = [
-  'النزهة',
-  'الملز',
-  'العليا',
-  'الشفا',
-  'جدة – الروضة',
+  'مدينة نصر',
+  'المعادي',
+  'مصر الجديدة',
+  'حلوان',
+  'الإسكندرية – سموحة',
 ];
 
 /** Deterministic mock filtering — every predicate is a simple match. */

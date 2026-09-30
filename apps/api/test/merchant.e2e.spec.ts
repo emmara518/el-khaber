@@ -123,11 +123,11 @@ describe('merchant domain e2e', () => {
       const created = await request(app.getHttpServer())
         .patch('/api/v1/merchant/profile')
         .set('Authorization', `Bearer ${merchant.accessToken}`)
-        .send({ businessName: 'متجر الخبير', contactPhone: '+966501234567' })
+        .send({ businessName: 'متجر الخبير', contactPhone: '+201001234567' })
         .expect(200);
       expect(created.body.data).toMatchObject({
         businessName: 'متجر الخبير',
-        contactPhone: '+966501234567',
+        contactPhone: '+201001234567',
         verificationStatus: 'pending',
       });
 

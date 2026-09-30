@@ -56,10 +56,10 @@ async function createLocation(customer: Session, label = 'المنزل'): Promis
     .set(auth(customer.accessToken))
     .send({
       label,
-      address_text: 'حي النزهة، الرياض',
-      city: 'الرياض',
-      latitude: 24.7,
-      longitude: 46.7,
+      address_text: 'مدينة نصر، القاهرة',
+      city: 'القاهرة',
+      latitude: 30.04,
+      longitude: 31.24,
     })
     .expect(201);
   return res.body.data.id as string;
@@ -70,7 +70,7 @@ async function setupVerifiedTechnician(email: string): Promise<{ session: Sessio
   await request(ctx.app.getHttpServer())
     .patch(`${base}/technician/profile`)
     .set(auth(session.accessToken))
-    .send({ display_name: 'فني HTTP', areas: [{ label_ar: 'الرياض' }] })
+    .send({ display_name: 'فني HTTP', areas: [{ label_ar: 'القاهرة' }] })
     .expect(200);
   await request(ctx.app.getHttpServer())
     .post(`${base}/technician/services`)
@@ -144,7 +144,7 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
     const created = await request(ctx.app.getHttpServer())
       .post(`${base}/locations`)
       .set(auth(customer.accessToken))
-      .send({ label: 'المنزل', address_text: 'حي النزهة', city: 'الرياض' })
+      .send({ label: 'المنزل', address_text: 'مدينة نصر', city: 'القاهرة' })
       .expect(201);
     const id = created.body.data.id as string;
     expect(created.body.data.label).toBe('المنزل');

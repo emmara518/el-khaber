@@ -25,7 +25,7 @@ export interface MerchantProduct {
   readonly imageUrl: string | null;
   /** True when an image URL is stored (drives the placeholder copy). */
   readonly hasImage: boolean;
-  readonly priceSar: number | null;
+  readonly price: number | null;
   readonly stockQuantity: number | null;
   readonly status: MerchantProductStatus;
   readonly statusLabelAr: string;
@@ -79,7 +79,7 @@ export const PRODUCT_STATUS_LABELS: Record<MerchantProductStatus, string> = {
 export interface MerchantProductDraft {
   readonly nameAr: string;
   readonly descriptionAr: string;
-  readonly priceSar: number | null;
+  readonly price: number | null;
   /** Persisted inventory count. Null = unspecified (nullable server field). */
   readonly stockQuantity: number | null;
   /** Optional product image URL (existing `image_url` field). Empty = none. */
@@ -89,7 +89,7 @@ export interface MerchantProductDraft {
 export const EMPTY_PRODUCT_DRAFT: MerchantProductDraft = {
   nameAr: '',
   descriptionAr: '',
-  priceSar: null,
+  price: null,
   stockQuantity: null,
   imageUrl: '',
 };
@@ -98,7 +98,7 @@ export function draftFromProduct(product: MerchantProduct): MerchantProductDraft
   return {
     nameAr: product.nameAr,
     descriptionAr: product.descriptionAr,
-    priceSar: product.priceSar,
+    price: product.price,
     stockQuantity: product.stockQuantity,
     imageUrl: product.imageUrl ?? '',
   };
@@ -106,16 +106,16 @@ export function draftFromProduct(product: MerchantProduct): MerchantProductDraft
 
 export function validateProductDraft(
   draft: MerchantProductDraft,
-): Partial<Record<'nameAr' | 'descriptionAr' | 'priceSar' | 'stockQuantity' | 'imageUrl', string>> {
+): Partial<Record<'nameAr' | 'descriptionAr' | 'price' | 'stockQuantity' | 'imageUrl', string>> {
   const errors: Partial<
-    Record<'nameAr' | 'descriptionAr' | 'priceSar' | 'stockQuantity' | 'imageUrl', string>
+    Record<'nameAr' | 'descriptionAr' | 'price' | 'stockQuantity' | 'imageUrl', string>
   > = {};
   if (draft.nameAr.trim().length < 3) errors.nameAr = 'أدخل اسم المنتج (٣ أحرف على الأقل)';
   if (draft.descriptionAr.trim().length < 10) {
     errors.descriptionAr = 'أدخل وصف المنتج (١٠ أحرف على الأقل)';
   }
-  if (draft.priceSar !== null && (draft.priceSar < 0 || draft.priceSar > 1_000_000)) {
-    errors.priceSar = 'أدخل سعرًا صحيحًا بين ٠ و ١٠٠٠٠٠٠';
+  if (draft.price !== null && (draft.price < 0 || draft.price > 1_000_000)) {
+    errors.price = 'أدخل سعرًا صحيحًا بين ٠ و ١٠٠٠٠٠٠';
   }
   if (
     draft.stockQuantity !== null &&

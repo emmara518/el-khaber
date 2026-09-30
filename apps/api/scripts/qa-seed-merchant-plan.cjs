@@ -12,7 +12,7 @@ async function main() {
       nameEn: 'Merchant Basic',
       billingInterval: 'monthly',
       price: 49,
-      currency: 'SAR',
+      currency: 'EGP',
       isActive: true,
       sortOrder: 1,
     },

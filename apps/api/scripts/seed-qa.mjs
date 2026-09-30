@@ -1,7 +1,8 @@
 /**
  * QA seed for the isolated khabir_test database (native APK QA).
- * Creates baseline catalog + one account per role + admin, all with known
- * passwords, so the real Android app can be exercised end-to-end.
+ * Creates baseline catalog + one account per role + admin, all using the
+ * QA_SEED_PASSWORD environment variable, so the real Android app can be
+ * exercised end-to-end.
  * Safe: only touches the local khabir_test database (never shared/dev/prod).
  */
 import { PrismaClient } from '@prisma/client';
@@ -15,7 +16,10 @@ if (!url || !/khabir_test/.test(url)) {
   throw new Error('Refusing to seed: DATABASE_URL must point at khabir_test');
 }
 const prisma = new PrismaClient({ datasources: { db: { url } } });
-const PASSWORD = 'sup3rsecretP4ss';
+const PASSWORD = process.env.QA_SEED_PASSWORD;
+if (!PASSWORD || PASSWORD.length < 8) {
+  throw new Error('QA_SEED_PASSWORD (>=8 chars) is required — never hard-code it');
+}
 
 async function upsertUser(email, role) {
   const existing = await prisma.user.findFirst({ where: { email }, select: { id: true } });
@@ -96,7 +100,7 @@ async function main() {
       nameEn: 'Platinum',
       billingInterval: 'monthly',
       price: 99,
-      currency: 'SAR',
+      currency: 'EGP',
       isActive: true,
       sortOrder: 2,
     },
@@ -137,7 +141,7 @@ async function main() {
   const existingLoc = await prisma.location.findFirst({ where: { userId: customerId } });
   if (!existingLoc) {
     await prisma.location.create({
-      data: { userId: customerId, label: 'المنزل', addressText: 'الرياض – حي النزهة', city: 'الرياض', latitude: 24.7, longitude: 46.7 },
+      data: { userId: customerId, label: 'المنزل', addressText: 'مدينة نصر', city: 'القاهرة', latitude: 30.0444, longitude: 31.2357 },
     });
   }
 

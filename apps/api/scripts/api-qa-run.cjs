@@ -5,7 +5,11 @@
  * Read-mostly; creates a small number of marked QA rows.
  */
 const BASE = process.env.QA_API_BASE || 'http://localhost:3100/api/v1';
-const PASSWORD = 'sup3rsecretP4ss';
+const PASSWORD = process.env.QA_SEED_PASSWORD;
+if (!PASSWORD || PASSWORD.length < 8) {
+  console.error('FAIL: QA_SEED_PASSWORD (>=8 chars) is required — never hard-code it');
+  process.exit(1);
+}
 const results = [];
 let customerToken = '';
 let technicianToken = '';
@@ -87,8 +91,8 @@ async function main() {
       appliance_category_id: cat.id,
       service_id: service.id,
       fault_id: fault.id,
-      problem_title: 'QA-run: washer not spinning',
-      problem_description: 'QA automated lifecycle check - machine will not spin during cycle',
+        problem_title: 'غسالة لا تدور أثناء العصر',
+        problem_description: 'الغسالة لا تدور أثناء دورة العصر.',
       location_id: loc.id,
     },
   });
@@ -152,7 +156,7 @@ async function main() {
     body: {
       technician_id: tech.id,
       appliance_category_id: cat.id,
-      problem_description: 'QA second request for cancel path',
+      problem_description: 'طلب صيانة إضافي.',
       location_id: loc.id,
     },
   });

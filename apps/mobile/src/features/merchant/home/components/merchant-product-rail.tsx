@@ -32,7 +32,7 @@ export function MerchantProductRail({
           key={product.id}
           accessibilityRole="button"
           accessibilityLabel={`عرض تفاصيل ${product.nameAr}، الحالة: ${product.statusLabelAr}${
-            product.priceSar !== null ? `، السعر: ${product.priceSar} جنيه` : ''
+            product.price !== null ? `، السعر: ${product.price} جنيه` : ''
           }`}
           onPress={() => onPressProduct(product)}
           style={({ pressed }) => [pressed && styles.pressed]}
@@ -50,8 +50,8 @@ export function MerchantProductRail({
             <Text style={styles.name} numberOfLines={2}>
               {product.nameAr}
             </Text>
-            {product.priceSar !== null ? (
-              <Text style={styles.price}>{formatPriceAr(product.priceSar)}</Text>
+            {product.price !== null ? (
+              <Text style={styles.price}>{formatPriceAr(product.price)}</Text>
             ) : (
               <Text style={styles.noPrice}>السعر غير محدد</Text>
             )}

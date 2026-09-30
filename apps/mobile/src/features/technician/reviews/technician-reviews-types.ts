@@ -41,7 +41,7 @@ export class MockTechnicianReviewsDataSource implements TechnicianReviewsDataSou
       reviewCount: 213,
       reviews: [
         {
-          id: 'tr-1', authorAr: 'أبو تركي', rating: 5,
+          id: 'tr-1', authorAr: 'أبو يوسف', rating: 5,
           textAr: 'ممتاز، حل مشكلة التبريد من أول زيارة.', dateAr: 'قبل ٣ أيام',
         },
         {

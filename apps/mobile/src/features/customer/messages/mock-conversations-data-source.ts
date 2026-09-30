@@ -1,7 +1,7 @@
 /**
  * Mock `ConversationsDataSource` (Batch A).
  *
- * Identities match the Home + Requests fixtures (محمد العتيبي /
+ * Identities match the Home + Requests fixtures (محمد عبد الله /
  * order-001) so threads read as continuations of real orders.
  */
 
@@ -14,7 +14,7 @@ const CONVERSATIONS_FIXTURE: ConversationsViewModel = {
   conversations: [
     {
       id: 'conv-001',
-      technicianNameAr: 'محمد العتيبي',
+      technicianNameAr: 'محمد عبد الله',
       initialsAr: 'م',
       specialtyAr: 'غسالات',
       lastMessageAr: 'تم تغيير القطعة، الغسالة تعمل الآن بشكل طبيعي',
@@ -25,7 +25,7 @@ const CONVERSATIONS_FIXTURE: ConversationsViewModel = {
     },
     {
       id: 'conv-002',
-      technicianNameAr: 'سامي محيور',
+      technicianNameAr: 'سامي محمود',
       initialsAr: 'س',
       specialtyAr: 'تكييفات',
       lastMessageAr: 'سأصل خلال نصف ساعة تقريبًا',
@@ -36,7 +36,7 @@ const CONVERSATIONS_FIXTURE: ConversationsViewModel = {
     },
     {
       id: 'conv-003',
-      technicianNameAr: 'أحمد الجريسي',
+      technicianNameAr: 'أحمد الجمال',
       initialsAr: 'أ',
       specialtyAr: 'غسالات',
       lastMessageAr: 'شكرًا لك، تم إغلاق الطلب بنجاح',

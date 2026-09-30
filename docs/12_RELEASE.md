@@ -181,7 +181,7 @@ real HTTP API:
   API: onboarding → role selection → login (customer, merchant) →
   customer profile with live order counts → merchant home shows account
   status «قيد المراجعة» (seeded pending) → product creation form submits
-  and the product appears in «إدارة المنتجات» (active, 1450 SAR).
+  and the product appears in «إدارة المنتجات» (active, 1450 EGP).
   _(Description text artifacts during typing came from the QA typing
   tool, not the app; the record was corrected via API afterwards.)_
 - Admin console (browser-driven): dashboard metrics render live data

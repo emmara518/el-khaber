@@ -122,8 +122,8 @@ export default function MerchantProductDetailScreen({
           body={`${t('merchant.product.ref')}: ${product.id}`}
         />
         <View style={styles.heroMetaRow}>
-          {product.priceSar !== null ? (
-            <Text style={styles.heroPrice}>{product.priceSar} جنيه</Text>
+          {product.price !== null ? (
+            <Text style={styles.heroPrice}>{product.price} جنيه</Text>
           ) : (
             <Text style={styles.heroNoPrice}>{t('merchant.catalog.noPrice')}</Text>
           )}

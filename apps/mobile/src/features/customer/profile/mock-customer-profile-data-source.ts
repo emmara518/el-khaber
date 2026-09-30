@@ -1,7 +1,7 @@
 /**
  * Mock `CustomerProfileDataSource` (Batch A).
  *
- * Identity matches the Home fixture (أحمد / الرياض / حي النزهة);
+ * Identity matches the Home fixture (أحمد / القاهرة / حي مدينة نصر);
  * counters match the Requests fixture (3 non-final + 1 completed…
  * active counts derive from pending/accepted/on_the_way/in_progress).
  */
@@ -14,9 +14,9 @@ import {
 const PROFILE_FIXTURE: CustomerProfileSummary = {
   displayNameAr: 'أحمد',
   initialsAr: 'أ',
-  phoneAr: '05xxxxxxxx',
-  cityAr: 'الرياض',
-  districtAr: 'حي النزهة',
+  phoneAr: '01xxxxxxxxx',
+  cityAr: 'القاهرة',
+  districtAr: 'حي مدينة نصر',
   memberSinceAr: 'عضو منذ ٢٠٢٤',
   activeOrdersCount: 3,
   completedOrdersCount: 1,

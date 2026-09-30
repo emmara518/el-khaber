@@ -96,10 +96,10 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
         await tx.$executeRawUnsafe(
           'INSERT INTO technician_service_areas (technician_id, label_ar, latitude, longitude) VALUES ($1::uuid, $2, $3, $4), ($1::uuid, $5, $6, $7)',
           techA,
-          'حي الملقا',
+          'حي سموحة',
           24.79,
           46.62,
-          'حي النرجس',
+          'حي المعادي',
           24.83,
           46.65,
         );
@@ -108,10 +108,12 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
           techA,
         )) as Array<{ label_ar: string; lat: number; lng: number }>;
         expect(areas).toHaveLength(2);
-        expect(areas[0]?.label_ar).toBe('حي الملقا');
+        const byLabel = new Map(areas.map((a) => [a.label_ar, a]));
+        expect(byLabel.has('حي سموحة')).toBe(true);
+        expect(byLabel.has('حي المعادي')).toBe(true);
         // Coordinates are DERIVED from latitude/longitude (single truth).
-        expect(areas[1]?.lat).toBeCloseTo(24.83, 5);
-        expect(areas[1]?.lng).toBeCloseTo(46.65, 5);
+        expect(byLabel.get('حي المعادي')?.lat).toBeCloseTo(24.83, 5);
+        expect(byLabel.get('حي المعادي')?.lng).toBeCloseTo(46.65, 5);
 
         // Duplicate service-area prevention (same technician + label).
         // The failing INSERT aborts the transaction, so it is wrapped in
@@ -122,7 +124,7 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
           await tx.$executeRawUnsafe(
             'INSERT INTO technician_service_areas (technician_id, label_ar, latitude, longitude) VALUES ($1::uuid, $2, $3, $4)',
             techA,
-            'حي النرجس',
+            'حي المعادي',
             24.9,
             46.7,
           );

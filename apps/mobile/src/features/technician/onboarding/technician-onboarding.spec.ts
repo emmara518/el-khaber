@@ -30,7 +30,7 @@ import { useTechnicianOnboardingViewModel } from './use-technician-onboarding-vi
 
 function validDraft(): TechnicianProfileDraft {
   return {
-    displayNameAr: 'سامي محيور',
+    displayNameAr: 'سامي محمود',
     phoneAr: '0512345678',
     bioAr: 'فني تكييف',
     experienceYears: 12,
@@ -64,7 +64,7 @@ describe('onboarding draft + progression', () => {
     state = onboardingReducer(state, { type: 'TOGGLE_AREA', value: 'الإسكندرية – سموحة' });
     state = onboardingReducer(state, { type: 'BACK' });
     expect(state.step).toBe('info');
-    expect(state.draft.displayNameAr).toBe('سامي محيور');
+    expect(state.draft.displayNameAr).toBe('سامي محمود');
     state = onboardingReducer(state, { type: 'GOTO', step: 'areas' });
     // Forward jump validates intermediate steps (all valid here).
     expect(state.step).toBe('areas');
@@ -173,9 +173,9 @@ describe('profile edit persistence', () => {
     const source = new MockTechnicianProfileDataSource();
     const updated = await source.saveProfile({
       role: 'technician',
-      profile: { ...validDraft(), displayNameAr: 'خالد المطيري' },
+      profile: { ...validDraft(), displayNameAr: 'خالد المهدي' },
     });
-    expect(updated.displayNameAr).toBe('خالد المطيري');
+    expect(updated.displayNameAr).toBe('خالد المهدي');
     expect(updated.initialsAr).toBe('خ');
     // Server-owned metrics survive the edit.
     expect(updated.rating).toBe(4.9);

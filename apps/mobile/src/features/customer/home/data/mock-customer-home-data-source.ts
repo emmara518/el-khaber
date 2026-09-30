@@ -23,8 +23,8 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
   context: {
     displayNameAr: 'أحمد',
     avatarInitialsAr: 'أ',
-    cityAr: 'الرياض',
-    districtAr: 'حي النزهة',
+    cityAr: 'القاهرة',
+    districtAr: 'حي مدينة نصر',
   },
   greeting: {
     line1Ar: 'مرحبا أحمد ',
@@ -76,14 +76,14 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
       status: 'in_progress',
       statusLabelAr: 'قيد التنفيذ',
       taskAr: 'تصليح غسالة سامسونج',
-      technicianName: 'الفني: محمد العتيبي',
+      technicianName: 'الفني: محمد عبد الله',
       scheduledAtIso: '2026-09-04T02:00:00+03:00',
     },
   ],
   recommendedTechnicians: [
     {
       id: 'tech-1',
-      nameAr: 'محمد العتيبي',
+      nameAr: 'محمد عبد الله',
       initialsAr: 'م',
       rating: 4.8,
       reviewCount: 127,
@@ -93,7 +93,7 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
     },
     {
       id: 'tech-2',
-      nameAr: 'سامي محيور',
+      nameAr: 'سامي محمود',
       initialsAr: 'س',
       rating: 4.9,
       reviewCount: 213,
@@ -103,7 +103,7 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
     },
     {
       id: 'tech-3',
-      nameAr: 'أحمد الجريسي',
+      nameAr: 'أحمد الجمال',
       initialsAr: 'أ',
       rating: 4.9,
       reviewCount: 198,
@@ -113,7 +113,7 @@ const HOME_FIXTURE: CustomerHomeViewModel = {
     },
     {
       id: 'tech-4',
-      nameAr: 'فهد السبيعي',
+      nameAr: 'كريم فؤاد',
       initialsAr: 'ف',
       rating: 4.9,
       reviewCount: 156,

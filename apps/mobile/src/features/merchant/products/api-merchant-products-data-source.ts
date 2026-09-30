@@ -45,7 +45,7 @@ export function mapProduct(dto: MerchantProductDto): MerchantProduct {
     descriptionAr: dto.descriptionAr ?? '',
     imageUrl: dto.imageUrl,
     hasImage: dto.imageUrl !== null,
-    priceSar: dto.price,
+    price: dto.price,
     stockQuantity: dto.stockQuantity,
     status: dto.status,
     statusLabelAr: PRODUCT_STATUS_LABELS[dto.status],
@@ -74,7 +74,7 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
       const res = await getApi().request<MerchantProductDto>('POST', '/merchant/products', {
         nameAr: draft.nameAr.trim(),
         descriptionAr: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : undefined,
-        price: draft.priceSar ?? undefined,
+        price: draft.price ?? undefined,
         stockQuantity: draft.stockQuantity ?? undefined,
         ...(draft.imageUrl.trim().length > 0 ? { imageUrl: draft.imageUrl.trim() } : {}),
       });
@@ -97,7 +97,7 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
         {
           nameAr: draft.nameAr.trim(),
           descriptionAr: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : undefined,
-          price: draft.priceSar ?? undefined,
+          price: draft.price ?? undefined,
           stockQuantity: draft.stockQuantity ?? undefined,
           ...(draft.imageUrl.trim().length > 0 ? { imageUrl: draft.imageUrl.trim() } : {}),
         },

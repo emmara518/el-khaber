@@ -99,7 +99,7 @@ describe('rating + availability + area + query', () => {
 
   it('matches service areas', async () => {
     const techs = await loadTechnicians();
-    const result = applyTechnicianFilters(techs, { ...EMPTY_TECHNICIAN_FILTERS, area: 'جدة – الروضة' });
+    const result = applyTechnicianFilters(techs, { ...EMPTY_TECHNICIAN_FILTERS, area: 'الإسكندرية – سموحة' });
     expect(result.map((t) => t.id)).toEqual(['tech-6']);
   });
 
@@ -115,7 +115,7 @@ describe('rating + availability + area + query', () => {
     const combined = applyTechnicianFilters(techs, {
       ...EMPTY_TECHNICIAN_FILTERS,
       appliance: 'washing_machine',
-      area: 'جدة – الروضة',
+      area: 'الإسكندرية – سموحة',
     });
     expect(combined).toHaveLength(0);
   });
@@ -151,7 +151,7 @@ describe('contextual symptom handoff', () => {
 describe('technician selection + profile data', () => {
   it('finds technicians by id and misses cleanly', async () => {
     const techs = await loadTechnicians();
-    expect(findTechnician(techs, 'tech-2')?.nameAr).toBe('سامي محيور');
+    expect(findTechnician(techs, 'tech-2')?.nameAr).toBe('سامي محمود');
     expect(findTechnician(techs, 'nope')).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 /**
  * Mock `TechnicianProfileDataSource` (T-B / WP-3).
  *
- * In-memory persistence seeded from the T-A persona (سامي محيور).
+ * In-memory persistence seeded from the T-A persona (سامي محمود).
  * Coverage (specialties/appliances/services) is DERIVED from the selected
  * canonical mock catalog services — the same rule as the real adapter.
  * `seed` override reaches every verification state; `failing` mode drives
@@ -59,7 +59,7 @@ function coverageFrom(serviceIds: ReadonlyArray<string>): Pick<
 }
 
 const APPROVED_SEED: TechnicianProfile = {
-  displayNameAr: 'سامي محيور',
+  displayNameAr: 'سامي محمود',
   initialsAr: 'س',
   phoneAr: '0512345678',
   bioAr: 'متخصص تبريد وتكييف بخبرة طويلة في المكيفات المنزلية وصيانتها الدورية.',

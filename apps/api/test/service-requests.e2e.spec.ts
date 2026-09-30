@@ -136,12 +136,12 @@ describe('service request lifecycle e2e', () => {
       id,
       userId: ownerId,
       label: 'المنزل',
-      addressText: 'شارع الملك فهد',
-      city: 'الرياض',
-      region: 'منطقة الرياض',
+      addressText: 'شارع عباس العقاد',
+      city: 'القاهرة',
+      region: 'القاهرة',
       country: null,
-      latitude: 24.7,
-      longitude: 46.7,
+      latitude: 30.04,
+      longitude: 31.24,
     });
     return id;
   }
@@ -178,7 +178,7 @@ describe('service request lifecycle e2e', () => {
       expect(created.body.status).toBe('pending');
       expect(created.body.technicianId).toBe(techId);
       expect(created.body.problemTitle).toBeNull();
-      expect(created.body.location).toMatchObject({ city: 'الرياض', latitude: 24.7 });
+      expect(created.body.location).toMatchObject({ city: 'القاهرة', latitude: 30.04 });
       expect(Array.isArray(created.body.history)).toBe(true);
       expect((created.body.history as Array<{ fromStatus: string | null; toStatus: string }>)).toEqual([
         { id: expect.any(String), fromStatus: null, toStatus: 'pending', changedByUserId: customer.userId, createdAt: expect.any(String) },

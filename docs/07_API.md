@@ -106,7 +106,7 @@ Allowed fields (Task 10C contract detail):
 
 ```json
 {
-  "phone": "+966501234567",
+  "phone": "+201001234567",
   "email": "user@example.com"
 }
 ```

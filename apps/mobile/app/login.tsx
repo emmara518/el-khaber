@@ -65,7 +65,7 @@ export default function LoginRoute() {
       <AuthField
         label="رقم الهاتف أو البريد الإلكتروني"
         inputLabel="رقم الهاتف أو البريد الإلكتروني"
-        placeholder="05xxxxxxxx أو name@mail.com"
+        placeholder="01xxxxxxxxx أو name@mail.com"
         value={identity}
         onChangeText={(v) => {
           setIdentity(v);

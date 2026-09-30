@@ -86,9 +86,9 @@ describe('shared validation', () => {
   });
 
   it('updateMeSchema accepts either contact field', () => {
-    expect(updateMeSchema.parse({ phone: '+966501234567' })).toBeTruthy();
+    expect(updateMeSchema.parse({ phone: '+201001234567' })).toBeTruthy();
     expect(updateMeSchema.parse({ email: 'a@b.com' })).toBeTruthy();
-    expect(updateMeSchema.parse({ phone: '+966501234567', email: 'a@b.com' })).toBeTruthy();
+    expect(updateMeSchema.parse({ phone: '+201001234567', email: 'a@b.com' })).toBeTruthy();
   });
 
   it('updateMeSchema requires at least one field', () => {

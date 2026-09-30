@@ -43,8 +43,8 @@ describe('product fixture (deterministic, documented scope)', () => {
     expect(products.some((p) => !p.hasImage)).toBe(true);
     expect(products.some((p) => p.nameAr.length > 40)).toBe(true);
     expect(products.some((p) => p.descriptionAr.length > 100)).toBe(true);
-    expect(products.some((p) => p.priceSar === null)).toBe(true);
-    expect(products.some((p) => p.priceSar !== null)).toBe(true);
+    expect(products.some((p) => p.price === null)).toBe(true);
+    expect(products.some((p) => p.price !== null)).toBe(true);
   });
 
   it('carries no invented ecommerce fields', async () => {

@@ -73,6 +73,11 @@ workspace/
 ui-dump.xml
 admin-login-before.png
 release-smoke*.png
+web-360-onboarding.png
+web-services-360.png
+
+# QA environment handoff + credentials (never commit — contains test secrets)
+.qa/
 
 # Generated Prisma client (re-generated on install)
 packages/*/node_modules/.prisma/

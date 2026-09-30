@@ -86,8 +86,8 @@ describe('subscriptions + manual payments e2e', () => {
     prisma.notificationRows.length = 0;
 
     prisma.subscriptionPlans.push(
-      { id: PLAN_CUSTOMER_BASIC, role: 'customer', code: 'basic', nameAr: 'عادي', nameEn: 'Basic', billingInterval: 'monthly', price: 0, currency: 'SAR', isActive: false, sortOrder: 1 },
-      { id: '99999999-0000-4000-8000-000000000002', role: 'customer', code: 'platinum', nameAr: 'بلاتينيوم', nameEn: 'Platinum', billingInterval: 'monthly', price: 99, currency: 'SAR', isActive: true, sortOrder: 2 },
+      { id: PLAN_CUSTOMER_BASIC, role: 'customer', code: 'basic', nameAr: 'عادي', nameEn: 'Basic', billingInterval: 'monthly', price: 0, currency: 'EGP', isActive: false, sortOrder: 1 },
+      { id: '99999999-0000-4000-8000-000000000002', role: 'customer', code: 'platinum', nameAr: 'بلاتينيوم', nameEn: 'Platinum', billingInterval: 'monthly', price: 99, currency: 'EGP', isActive: true, sortOrder: 2 },
     );
     prisma.entitlements.push(
       { id: ENT_PRIORITY, code: 'priority_support', nameAr: 'دعم ذو أولوية', descriptionAr: null, featureGroup: 'support', isActive: true },

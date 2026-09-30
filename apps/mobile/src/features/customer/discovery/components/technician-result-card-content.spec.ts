@@ -94,15 +94,15 @@ describe('technician result card content', () => {
       ...technician,
       servicesAr: [' صيانة غسالات ', '', 'صيانة غسالات', 'تركيب غسالات'],
       specialtiesAr: ['صيانة غسالات', ' أجهزة منزلية ', ' '],
-      areasAr: [' النزهة ', ' ', 'النزهة'],
+      areasAr: [' مدينة نصر ', ' ', 'مدينة نصر'],
       experienceAr: ' خبرة ٥ سنوات ',
     };
     const content = getTechnicianCardContent(input);
     expect(content.services).toEqual(['صيانة غسالات', 'تركيب غسالات']);
     expect(content.specialties).toEqual(['أجهزة منزلية']);
-    expect(content.areas).toEqual(['النزهة']);
+    expect(content.areas).toEqual(['مدينة نصر']);
     expect(content.experience).toBe('خبرة ٥ سنوات');
-    expect(content.accessibilityLabel).toContain('مناطق الخدمة: النزهة');
+    expect(content.accessibilityLabel).toContain('مناطق الخدمة: مدينة نصر');
     expect(content.accessibilityLabel.match(/صيانة غسالات/g)).toHaveLength(1);
     expect(input.servicesAr[0]).toBe(' صيانة غسالات ');
   });

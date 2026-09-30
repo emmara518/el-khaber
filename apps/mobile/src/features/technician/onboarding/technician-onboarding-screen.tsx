@@ -138,7 +138,7 @@ export default function TechnicianOnboardingScreen({
             value={draft.displayNameAr}
             onChange={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'displayNameAr', text })}
             error={fieldErrors.displayNameAr}
-            placeholder="مثال: سامي محيور"
+            placeholder="مثال: سامي محمود"
           />
           <LabeledInput
             label="رقم الهاتف"

@@ -19,7 +19,7 @@ interface AvatarProps {
 
 /**
  * Round avatar with initials. The reference design uses initials in a
- * tinted circle (e.g. the technician "محمد العتيبي" card).
+ * tinted circle (e.g. the technician "محمد عبد الله" card).
  */
 export function Avatar({
   initials,

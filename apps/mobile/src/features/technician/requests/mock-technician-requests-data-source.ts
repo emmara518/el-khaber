@@ -58,7 +58,7 @@ const SEED: ReadonlyArray<SeedRow> = [
   },
   {
     id: 'tin-002',
-    customerNameAr: 'أبو فهد',
+    customerNameAr: 'أبو كريم',
     applianceAr: 'مكيف',
     applianceSlug: 'air_conditioner',
     problemAr: 'تنقيط مياه من الوحدة الداخلية',
@@ -97,7 +97,7 @@ const SEED: ReadonlyArray<SeedRow> = [
   },
   {
     id: 'tin-005',
-    customerNameAr: 'أبو تركي',
+    customerNameAr: 'أبو يوسف',
     applianceAr: 'مكيف',
     applianceSlug: 'air_conditioner',
     problemAr: 'صيانة مكيف سبليت',
@@ -123,7 +123,7 @@ const SEED: ReadonlyArray<SeedRow> = [
   },
   {
     id: 'tin-007',
-    customerNameAr: 'أبو راكان',
+    customerNameAr: 'أبو مروان',
     applianceAr: 'ثلاجة',
     applianceSlug: 'refrigerator',
     problemAr: 'صوت مرتفع',
