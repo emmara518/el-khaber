@@ -18,10 +18,11 @@ function current(overrides: Partial<CurrentSubscription> = {}): CurrentSubscript
 }
 
 describe('subscription plan next-action mapping', () => {
-  it('marks the current active plan with renewal state, never a purchase action', () => {
+  it('marks the current active plan with its renewal state', () => {
     const action = subscribeNextAction(plan({ id: 'plan-pro' }), current());
-    expect(action.kind).toBe('renewal_off');
+    expect(action.kind).toBe('current');
     expect(action.labelAr).toContain('باقتك الحالية');
+    expect(action.labelAr).toContain('التجديد مفعّل');
   });
 
   it('reports renewal stopped for the current plan after cancel', () => {
@@ -29,16 +30,14 @@ describe('subscription plan next-action mapping', () => {
     expect(action.labelAr).toContain('التجديد موقوف');
   });
 
-  it('keeps other plans honest: available but without a purchase promise', () => {
+  it('marks other plans as available through the manual payment flow', () => {
     const action = subscribeNextAction(plan(), current());
     expect(action.kind).toBe('available');
-    expect(action.labelAr).toContain('غير متاح');
+    expect(action.labelAr).toContain('الدفع اليدوي');
   });
 
-  it('surfaces a pending payment review instead of pretending activation', () => {
-    const action = subscribeNextAction(plan(), current({ status: 'pending', statusAr: 'بانتظار التفعيل' }));
-    expect(action.kind).toBe('current');
-    expect(action.labelAr).toContain('قيد المراجعة');
+  it('marks plans available even without a current subscription', () => {
+    const action = subscribeNextAction(plan(), null);
+    expect(action.kind).toBe('available');
   });
 });
-

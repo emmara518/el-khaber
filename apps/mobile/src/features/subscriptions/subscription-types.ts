@@ -69,6 +69,17 @@ export function paymentStatusAr(status: PaymentSubmissionDto['status']): string 
   }
 }
 
+export type PaymentSubmitStatus = 'idle' | 'submitting' | 'success' | 'error';
+
+/**
+ * Duplicate-submission guard: a new payment submission is not allowed while
+ * one is in flight, nor after a successful submission (the user may reset
+ * deliberately to resubmit). Never permits a divergent optimistic state.
+ */
+export function canSubmitPayment(status: PaymentSubmitStatus): boolean {
+  return status !== 'submitting' && status !== 'success';
+}
+
 export function mapPlan(dto: SubscriptionPlanDto): SubscriptionPlan {
   return {
     id: dto.id,
@@ -112,27 +123,25 @@ export function canSelectPlan(plan: SubscriptionPlan, current: CurrentSubscripti
 }
 
 /**
- * Honest next action for a plan given the supported endpoints (07 §14):
- * purchase/payment flows are NOT implemented, so selection always
- * resolves to reading semantics, never to a payment promise.
+ * Descriptive next-action for a plan given the supported (manual) payment
+ * flow. `current` = this is the caller's active plan; `available` = it can
+ * be requested through the existing manual-payment submission flow. This is
+ * presentation copy only — it never promises activation.
  */
 export function subscribeNextAction(
   plan: SubscriptionPlan,
   current: CurrentSubscription | null,
-): { kind: 'current' | 'renewal_off' | 'available'; labelAr: string } {
+): { kind: 'current' | 'available'; labelAr: string } {
   if (current?.status === 'active' && current.planId === plan.id) {
     return {
-      kind: 'renewal_off' as const,
+      kind: 'current' as const,
       labelAr: current.renewalEnabled
         ? 'باقتك الحالية · التجديد مفعّل'
         : 'باقتك الحالية · التجديد موقوف',
     };
   }
-  if (current?.status === 'pending') {
-    return { kind: 'current' as const, labelAr: 'لديك طلب باقة قيد المراجعة' };
-  }
   return {
     kind: 'available' as const,
-    labelAr: 'الشراء الإلكتروني غير متاح بعد',
+    labelAr: 'متاحة للاشتراك عبر الدفع اليدوي',
   };
 }

@@ -11,6 +11,7 @@ import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useSubscriptionViewModel } from '@/features/subscriptions/use-subscription-view-model';
+import { priceLineAr } from '@/features/subscriptions/subscription-presentation';
 import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
 import { type } from '@/ui/typography';
@@ -30,7 +31,7 @@ export function SubscriptionCard({ onPress }: { onPress: () => void }) {
   const body = isActive
     ? `الحالة: ${current.statusAr} · التجديد ${current.renewalEnabled ? 'مفعّل' : 'موقوف'}`
     : cheapest !== undefined
-      ? `باقات بأسعار واضحة تبدأ من ${cheapest.price} ${cheapest.currency} / ${cheapest.billingInterval}.`
+      ? `باقات بأسعار واضحة تبدأ من ${priceLineAr(cheapest.price, cheapest.currency, cheapest.billingInterval)}.`
       : 'تعرّف على باقات الخبير ومزاياها.';
   const cta = isActive ? 'إدارة الاشتراك' : 'استكشف الباقات';
 
