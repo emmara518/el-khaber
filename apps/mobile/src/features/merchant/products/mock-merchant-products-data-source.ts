@@ -1,11 +1,11 @@
 /**
- * Mock `MerchantProductsDataSource` (M-C).
+ * Mock `MerchantProductsDataSource` (M-C / WP-5B / WP-5C).
  *
- * Deterministic appliance fixtures covering: all documented
- * categories, active + suspended states, with/without image, long
- * Arabic name/description, and a nullable price (displayed only
- * when present — docs/06 §21 price nullable). Seeds for empty and
- * failing modes power the QA states. No stock/SKU/financial data.
+ * Deterministic appliance fixtures covering: active + suspended states,
+ * with/without image, long Arabic name/description, and a nullable price.
+ * Seeds for empty and failing modes power the QA states. No stock/SKU/
+ * financial-invented data. Images use example URLs only (fixture data;
+ * the shipped screens use the real API adapter).
  */
 
 import {
@@ -17,7 +17,7 @@ import {
   type MerchantProductStatus,
 } from './merchant-product-types';
 
-interface SeedRow extends Omit<MerchantProduct, 'statusLabelAr'> {
+interface SeedRow extends Omit<MerchantProduct, 'statusLabelAr' | 'hasImage'> {
   status: MerchantProduct['status'];
 }
 
@@ -26,66 +26,64 @@ const SEED: ReadonlyArray<SeedRow> = [
     id: 'mp-001',
     nameAr: 'غسالة أوتوماتيك سامسونج ١٢ كجم',
     descriptionAr: 'غسالة أوتوماتيك بسعة كبيرة وتقنية البخار، مناسبة للأسر الكبيرة مع ضمان المتجر.',
-    categoryAr: 'غسالات',
+    imageUrl: 'https://example.com/products/washer.jpg',
     priceSar: 2450,
     stockQuantity: 12,
-    hasImage: true,
     status: 'active',
   },
   {
     id: 'mp-002',
     nameAr: 'ثلاجة إل جي بابين',
     descriptionAr: 'ثلاجة بابين بتقنية التبريد الخطي وموفرة للطاقة، تشمل التركيب داخل القاهرة الكبرى.',
-    categoryAr: 'ثلاجات',
+    imageUrl: null,
     priceSar: 3890,
     stockQuantity: 5,
-    hasImage: false,
     status: 'active',
   },
   {
     id: 'mp-003',
     nameAr: 'مكيف سبليت جي ١.٥ طن',
     descriptionAr: 'مكيف سبليت مبرد سريع مع فلتر تنقية الهواء وضمان تركيب مجاني.',
-    categoryAr: 'تكييفات',
+    imageUrl: null,
     priceSar: null,
     stockQuantity: null,
-    hasImage: false,
     status: 'active',
   },
   {
     id: 'mp-004',
     nameAr: 'طقم خراطيم وفلتر مياه للغسالات الأوتوماتيكية الأصلية المتوافقة مع جميع الماركات الشائعة',
     descriptionAr: 'طقم كامل من الخراطيم المرنة عالية الجودة مع فلتر مياه داخلي يحمي الغسالة من الرواسب ويزيد من عمر المكائن، متوافق مع جميع الماركات الشائعة في السوق المحلي ويأتي بضمان استبدال لمدة ستة أشهر.',
-    categoryAr: 'لوازم وقطع غيار',
+    imageUrl: null,
     priceSar: 89,
     stockQuantity: 40,
-    hasImage: false,
     status: 'active',
   },
   {
     id: 'mp-005',
     nameAr: 'مكيف شباك زانوسي',
     descriptionAr: 'مكيف شباك اقتصادي مناسب للمكاتب والغرف الصغيرة.',
-    categoryAr: 'تكييفات',
+    imageUrl: null,
     priceSar: 1290,
     stockQuantity: 0,
-    hasImage: false,
     status: 'suspended',
   },
   {
     id: 'mp-006',
     nameAr: 'فلتر فريزر ثلاجات',
     descriptionAr: 'قطعة غيار أصلية لثلاجات الفريزر.',
-    categoryAr: 'لوازم وقطع غيار',
+    imageUrl: null,
     priceSar: null,
     stockQuantity: 7,
-    hasImage: false,
     status: 'suspended',
   },
 ];
 
 function withLabels(row: SeedRow): MerchantProduct {
-  return { ...row, statusLabelAr: PRODUCT_STATUS_LABELS[row.status] } as MerchantProduct;
+  return {
+    ...row,
+    hasImage: row.imageUrl !== null,
+    statusLabelAr: PRODUCT_STATUS_LABELS[row.status],
+  };
 }
 
 export interface MerchantProductsDataSource {
@@ -93,6 +91,7 @@ export interface MerchantProductsDataSource {
   createProduct(input: { role: 'merchant'; draft: MerchantProductDraft }): Promise<MerchantProduct>;
   updateProduct(input: { role: 'merchant'; productId: string; draft: MerchantProductDraft }): Promise<MerchantProduct>;
   setProductStatus(input: { role: 'merchant'; productId: string; status: MerchantProductStatus }): Promise<MerchantProduct>;
+  deleteProduct(input: { role: 'merchant'; productId: string }): Promise<void>;
 }
 
 export class MockMerchantProductsDataSource implements MerchantProductsDataSource {
@@ -123,14 +122,15 @@ export class MockMerchantProductsDataSource implements MerchantProductsDataSourc
       throw new ProductMutationError('بيانات المنتج غير مكتملة');
     }
     this.createCount += 1;
+    const imageUrl = input.draft.imageUrl.trim().length > 0 ? input.draft.imageUrl.trim() : null;
     const created: MerchantProduct = {
       id: `mp-new-${this.createCount}`,
       nameAr: input.draft.nameAr,
       descriptionAr: input.draft.descriptionAr,
-      categoryAr: input.draft.categoryAr,
+      imageUrl,
+      hasImage: imageUrl !== null,
       priceSar: input.draft.priceSar,
       stockQuantity: input.draft.stockQuantity,
-      hasImage: input.draft.imageSelected,
       status: 'active',
       statusLabelAr: PRODUCT_STATUS_LABELS.active,
     };
@@ -151,14 +151,15 @@ export class MockMerchantProductsDataSource implements MerchantProductsDataSourc
     if (Object.keys(errors).length > 0) {
       throw new ProductMutationError('بيانات المنتج غير مكتملة');
     }
+    const imageUrl = input.draft.imageUrl.trim().length > 0 ? input.draft.imageUrl.trim() : null;
     const updated: MerchantProduct = {
       ...current,
       nameAr: input.draft.nameAr,
       descriptionAr: input.draft.descriptionAr,
-      categoryAr: input.draft.categoryAr,
+      imageUrl,
+      hasImage: imageUrl !== null,
       priceSar: input.draft.priceSar,
       stockQuantity: input.draft.stockQuantity,
-      hasImage: input.draft.imageSelected,
     };
     this.rows.set(input.productId, updated);
     return JSON.parse(JSON.stringify(updated)) as MerchantProduct;
@@ -183,6 +184,15 @@ export class MockMerchantProductsDataSource implements MerchantProductsDataSourc
     };
     this.rows.set(input.productId, updated);
     return JSON.parse(JSON.stringify(updated)) as MerchantProduct;
+  }
+
+  async deleteProduct(input: { role: 'merchant'; productId: string }): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    if (this.mode === 'failing') throw new ProductMutationError();
+    if (!this.rows.has(input.productId)) {
+      throw new ProductMutationError('المنتج غير موجود');
+    }
+    this.rows.delete(input.productId);
   }
 }
 

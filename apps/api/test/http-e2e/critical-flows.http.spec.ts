@@ -327,26 +327,65 @@ describe('HTTP E2E — customer, technician, chat, review, notifications', () =>
 });
 
 describe('HTTP E2E — merchant and admin operations', () => {
-  it('merchant: profile → product create → update → status → delete', async () => {
+  it('merchant: profile + location → product (image) → status → delete', async () => {
     const merchant = await register('merchant', 'http-merchant@example.com');
-    await request(ctx.app.getHttpServer())
+
+    // WP-5A: an owned location persists and reads back through the profile.
+    const location = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(merchant.accessToken))
+      .send({ label: 'القاهرة — مدينة نصر' })
+      .expect(201);
+    const locationId = location.body.data.id as string;
+    const patched = await request(ctx.app.getHttpServer())
       .patch(`${base}/merchant/profile`)
       .set(auth(merchant.accessToken))
-      .send({ businessName: 'متجر الخبير' })
+      .send({ businessName: 'متجر الخبير', locationId })
       .expect(200);
+    expect(patched.body.data.locationId).toBe(locationId);
+    const profile = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/profile`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(profile.body.data.locationId).toBe(locationId);
+    const ownLocations = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(ownLocations.body.data.map((l: { id: string }) => l.id)).toContain(locationId);
 
+    // Ownership: another merchant cannot reference this location (404).
+    const otherMerchant = await register('merchant', 'http-merchant-2@example.com');
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/profile`)
+      .set(auth(otherMerchant.accessToken))
+      .send({ businessName: 'متجر آخر' })
+      .expect(200);
+    const cross = await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/profile`)
+      .set(auth(otherMerchant.accessToken))
+      .send({ locationId });
+    expect(cross.status).toBe(404);
+
+    // WP-5B: the optional product image URL persists and reads back.
     const product = await request(ctx.app.getHttpServer())
       .post(`${base}/merchant/products`)
       .set(auth(merchant.accessToken))
-      .send({ nameAr: 'فلتر غسالة', price: 49.5, stockQuantity: 10 })
+      .send({
+        nameAr: 'فلتر غسالة',
+        price: 49.5,
+        stockQuantity: 10,
+        imageUrl: 'https://cdn.example.com/filter.jpg',
+      })
       .expect(201);
     const productId = product.body.data.id as string;
+    expect(product.body.data.imageUrl).toBe('https://cdn.example.com/filter.jpg');
 
-    const listed = await request(ctx.app.getHttpServer())
-      .get(`${base}/merchant/products`)
+    const detail = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/products/${productId}`)
       .set(auth(merchant.accessToken))
       .expect(200);
-    expect(listed.body.data.map((p: { id: string }) => p.id)).toContain(productId);
+    expect(detail.body.data.imageUrl).toBe('https://cdn.example.com/filter.jpg');
 
     const updated = await request(ctx.app.getHttpServer())
       .patch(`${base}/merchant/products/${productId}`)
@@ -355,10 +394,20 @@ describe('HTTP E2E — merchant and admin operations', () => {
       .expect(200);
     expect(updated.body.data.status).toBe('suspended');
 
+    // WP-5C: delete removes it from subsequent reads.
     await request(ctx.app.getHttpServer())
       .delete(`${base}/merchant/products/${productId}`)
       .set(auth(merchant.accessToken))
       .expect(204);
+    const afterDelete = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/products`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(afterDelete.body.data.map((p: { id: string }) => p.id)).not.toContain(productId);
+    const gone = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/products/${productId}`)
+      .set(auth(merchant.accessToken));
+    expect(gone.status).toBe(404);
   });
 
   it('admin: login → metrics → users → audit → verification → operational notification', async () => {

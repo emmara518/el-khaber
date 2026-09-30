@@ -541,6 +541,20 @@ Implementation notes (Task 10G):
 - No checkout/orders/payments/settlement/inventory behavior exists beyond
   the documented `price`/`stockQuantity` fields.
 
+Implementation notes (WP-5):
+
+- The merchant's city/locality persists through the **existing** location
+  model: an owned `Location` (`label` = the selected city) is referenced by
+  `merchant_profiles.location_id` (`/locations` allows `customer | merchant`,
+  §8); the profile readback resolves the location label. No new geo model.
+- Product `imageUrl` is the existing `products.image_url` field; the client
+  now sends it (optional URL). There is **no** upload/storage path.
+- The product model has **no** category field; the client's former category
+  control was removed rather than inventing a taxonomy.
+- `DELETE /merchant/products/:id` (documented above) is exposed in the
+  merchant client: owner-only, confirmed, then removed from local state on
+  server confirmation.
+
 Marketplace order endpoints should be added only if that transaction model is explicitly approved.
 
 ---

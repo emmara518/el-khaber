@@ -21,7 +21,7 @@
  */
 
 import { getApi } from '../../../lib/api-client';
-import { drainPages } from '../../../lib/api-query';
+import { buildQuery, drainPages } from '../../../lib/api-query';
 import { mapProduct } from '../products/api-merchant-products-data-source';
 
 import type {
@@ -31,6 +31,7 @@ import type {
 } from './merchant-home-types';
 import type {
   CurrentSubscriptionDto,
+  LocationDto,
   MerchantProfileDto,
   MerchantProductDto,
 } from '@khabir/shared-types';
@@ -105,11 +106,12 @@ export class ApiMerchantHomeDataSource implements MerchantHomeDataSource {
     const activeProducts = products.filter((p) => p.status === 'active').length;
     const businessName = profile?.businessName ?? '';
     const verification = profile !== null ? mapVerification(profile.verificationStatus) : 'action_required';
+    const cityAr = await this.resolveCity(profile?.locationId ?? null);
     return {
       profile: {
         businessNameAr: businessName,
         initialsAr: businessName.trim().length > 0 ? businessName.trim().slice(0, 1) : '',
-        cityAr: '', // location text not exposed by the merchant profile (gap)
+        cityAr,
         verification,
         verificationTitleAr:
           verification === 'verified'
@@ -141,5 +143,21 @@ export class ApiMerchantHomeDataSource implements MerchantHomeDataSource {
           : null,
       role: 'merchant',
     };
+  }
+
+  /** WP-5A: resolves the merchant's city from their owned location. */
+  private async resolveCity(locationId: string | null): Promise<string> {
+    if (locationId === null) return '';
+    try {
+      const locations = await drainPages<LocationDto>((page, limit) =>
+        getApi()
+          .request<LocationDto[]>('GET', `/locations${buildQuery({ page, limit })}`)
+          .then((res) => ({ items: res.data, meta: res.meta })),
+      );
+      const match = locations.find((l) => l.id === locationId);
+      return match?.label ?? match?.city ?? '';
+    } catch {
+      return '';
+    }
   }
 }

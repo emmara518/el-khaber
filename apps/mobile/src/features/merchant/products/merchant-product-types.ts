@@ -1,13 +1,18 @@
 /**
- * Merchant products domain (M-C) — display-only catalog.
+ * Merchant products domain (M-C / WP-5B).
  *
- * Fields mirror docs/06_DATABASE.md §21 (name_ar, description_ar,
- * price nullable, image_url nullable, status) plus the approved
- * appliance-only category chips. Display rules:
- * - price shown ONLY when the fixture provides it (nullable),
+ * Fields mirror docs/06_DATABASE.md §21 exactly: name_ar, description_ar,
+ * price (nullable), stock_quantity (nullable), image_url (nullable),
+ * status. There is NO category field in the backend product model — the
+ * earlier client-only category chips silently lost their value, so they
+ * are removed here rather than invented (no new taxonomy).
+ *
+ * Display rules:
+ * - price shown ONLY when provided (nullable),
  * - stock/SKU/sales/views/revenue: NOT invented — absent entirely,
- * - image: deterministic local placeholder (no external URLs),
- * - status: active | suspended (matches M-A summary semantics).
+ * - image: an OPTIONAL `image_url` persisted through the existing
+ *   contract (no upload/storage infrastructure is introduced),
+ * - status: active | suspended.
  */
 
 export type MerchantProductStatus = 'active' | 'suspended';
@@ -16,30 +21,23 @@ export interface MerchantProduct {
   readonly id: string;
   readonly nameAr: string;
   readonly descriptionAr: string;
-  readonly categoryAr: string;
+  /** Persisted `image_url` (nullable). */
+  readonly imageUrl: string | null;
+  /** True when an image URL is stored (drives the placeholder copy). */
+  readonly hasImage: boolean;
   readonly priceSar: number | null;
   readonly stockQuantity: number | null;
-  readonly hasImage: boolean;
   readonly status: MerchantProductStatus;
   readonly statusLabelAr: string;
 }
 
-export const MERCHANT_PRODUCT_CATEGORIES: ReadonlyArray<string> = [
-  'غسالات',
-  'ثلاجات',
-  'تكييفات',
-  'لوازم وقطع غيار',
-];
-
 export interface MerchantProductFilters {
   readonly query: string;
-  readonly category: string | null;
   readonly status: MerchantProductStatus | null;
 }
 
 export const EMPTY_PRODUCT_FILTERS: MerchantProductFilters = {
   query: '',
-  category: null,
   status: null,
 };
 
@@ -52,14 +50,13 @@ export const PRODUCT_STATUS_OPTIONS: ReadonlyArray<{
   { value: 'suspended', labelAr: 'موقوف' },
 ];
 
-/** Deterministic simple text matching + facets (unit-tested). */
+/** Deterministic simple text matching + status facet (unit-tested). */
 export function filterMerchantProducts(
   products: ReadonlyArray<MerchantProduct>,
   filters: MerchantProductFilters,
 ): ReadonlyArray<MerchantProduct> {
   const q = filters.query.trim();
   return products.filter((p) => {
-    if (filters.category !== null && p.categoryAr !== filters.category) return false;
     if (filters.status !== null && p.status !== filters.status) return false;
     if (q.length > 0 && !`${p.nameAr} ${p.descriptionAr}`.includes(q)) return false;
     return true;
@@ -82,45 +79,41 @@ export const PRODUCT_STATUS_LABELS: Record<MerchantProductStatus, string> = {
 export interface MerchantProductDraft {
   readonly nameAr: string;
   readonly descriptionAr: string;
-  readonly categoryAr: string;
   readonly priceSar: number | null;
   /** Persisted inventory count. Null = unspecified (nullable server field). */
   readonly stockQuantity: number | null;
-  /** Typed image INTENT (M-C placeholder system) — no upload pipeline. */
-  readonly imageSelected: boolean;
+  /** Optional product image URL (existing `image_url` field). Empty = none. */
+  readonly imageUrl: string;
 }
 
 export const EMPTY_PRODUCT_DRAFT: MerchantProductDraft = {
   nameAr: '',
   descriptionAr: '',
-  categoryAr: '',
   priceSar: null,
   stockQuantity: null,
-  imageSelected: false,
+  imageUrl: '',
 };
 
 export function draftFromProduct(product: MerchantProduct): MerchantProductDraft {
   return {
     nameAr: product.nameAr,
     descriptionAr: product.descriptionAr,
-    categoryAr: product.categoryAr,
     priceSar: product.priceSar,
     stockQuantity: product.stockQuantity,
-    imageSelected: product.hasImage,
+    imageUrl: product.imageUrl ?? '',
   };
 }
 
 export function validateProductDraft(
   draft: MerchantProductDraft,
-): Partial<Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar' | 'stockQuantity', string>> {
+): Partial<Record<'nameAr' | 'descriptionAr' | 'priceSar' | 'stockQuantity' | 'imageUrl', string>> {
   const errors: Partial<
-    Record<'nameAr' | 'descriptionAr' | 'categoryAr' | 'priceSar' | 'stockQuantity', string>
+    Record<'nameAr' | 'descriptionAr' | 'priceSar' | 'stockQuantity' | 'imageUrl', string>
   > = {};
   if (draft.nameAr.trim().length < 3) errors.nameAr = 'أدخل اسم المنتج (٣ أحرف على الأقل)';
   if (draft.descriptionAr.trim().length < 10) {
     errors.descriptionAr = 'أدخل وصف المنتج (١٠ أحرف على الأقل)';
   }
-  if (draft.categoryAr.trim().length === 0) errors.categoryAr = 'اختر قسم المنتج';
   if (draft.priceSar !== null && (draft.priceSar < 0 || draft.priceSar > 1_000_000)) {
     errors.priceSar = 'أدخل سعرًا صحيحًا بين ٠ و ١٠٠٠٠٠٠';
   }
@@ -131,6 +124,14 @@ export function validateProductDraft(
       draft.stockQuantity > 1_000_000)
   ) {
     errors.stockQuantity = 'أدخل كمية صحيحة بين ٠ و ١٠٠٠٠٠٠';
+  }
+  const imageUrl = draft.imageUrl.trim();
+  if (imageUrl.length > 0) {
+    if (!/^https?:\/\/\S+$/u.test(imageUrl)) {
+      errors.imageUrl = 'أدخل رابط صورة صحيحًا يبدأ بـ http';
+    } else if (imageUrl.length > 512) {
+      errors.imageUrl = 'رابط الصورة طويل جدًا';
+    }
   }
   return errors;
 }
@@ -147,4 +148,6 @@ export interface MerchantProductDataSource {
   createProduct(input: { role: 'merchant'; draft: MerchantProductDraft }): Promise<MerchantProduct>;
   updateProduct(input: { role: 'merchant'; productId: string; draft: MerchantProductDraft }): Promise<MerchantProduct>;
   setProductStatus(input: { role: 'merchant'; productId: string; status: MerchantProductStatus }): Promise<MerchantProduct>;
+  /** WP-5C: permanent, ownership-scoped deletion (docs/07 §17). */
+  deleteProduct(input: { role: 'merchant'; productId: string }): Promise<void>;
 }

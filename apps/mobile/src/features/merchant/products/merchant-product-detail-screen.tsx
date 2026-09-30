@@ -8,7 +8,7 @@
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -52,9 +52,23 @@ export default function MerchantProductDetailScreen({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const { status, data, error, retry, mutationStatus, mutationError, mutationResult, setProductStatus, resetMutation } =
-    useMerchantProductsViewModel(source);
+  const {
+    status,
+    data,
+    error,
+    retry,
+    mutationStatus,
+    mutationError,
+    mutationResult,
+    setProductStatus,
+    resetMutation,
+    deleteStatus,
+    deleteError,
+    deleteProduct,
+    resetDelete,
+  } = useMerchantProductsViewModel(source);
   void resetMutation;
+  void resetDelete;
 
   if (status === 'loading') {
     return (
@@ -105,7 +119,7 @@ export default function MerchantProductDetailScreen({
         <PageTitle
           eyebrow={`منتج ${product.id} · ${product.statusLabelAr}`}
           title={product.nameAr}
-          body={product.categoryAr !== '' ? product.categoryAr : `${t('merchant.product.ref')}: ${product.id}`}
+          body={`${t('merchant.product.ref')}: ${product.id}`}
         />
         <View style={styles.heroMetaRow}>
           {product.priceSar !== null ? (
@@ -146,6 +160,9 @@ export default function MerchantProductDetailScreen({
           mutationError={mutationError}
           mutationResult={mutationResult}
           setProductStatus={setProductStatus}
+          deleteStatus={deleteStatus}
+          deleteError={deleteError}
+          onDelete={deleteProduct}
           onEdit={() =>
             router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })
           }
@@ -175,6 +192,9 @@ function ProductActions({
   mutationError,
   mutationResult,
   setProductStatus,
+  deleteStatus,
+  deleteError,
+  onDelete,
   onEdit,
   onBackToList,
 }: {
@@ -184,13 +204,25 @@ function ProductActions({
   mutationError: string | null;
   mutationResult: MerchantProductStatus extends never ? never : import('./merchant-product-types').MerchantProduct | null;
   setProductStatus: (productId: string, status: MerchantProductStatus) => void;
+  deleteStatus: 'idle' | 'submitting' | 'success' | 'error';
+  deleteError: string | null;
+  onDelete: (productId: string) => void;
   onEdit: () => void;
   onBackToList: () => void;
 }) {
   const { t } = useI18n();
   const [confirming, setConfirming] = useState(false);
-  const busy = mutationStatus === 'submitting';
+  const [deleting, setDeleting] = useState(false);
+  const busy = mutationStatus === 'submitting' || deleteStatus === 'submitting';
   const nextStatus: MerchantProductStatus | null = status === 'active' ? 'suspended' : status === 'suspended' ? 'active' : null;
+
+  // Deletion is server-confirmed before we leave the screen; the product
+  // is already gone from local state, so no stale row is shown.
+  useEffect(() => {
+    if (deleteStatus === 'success') {
+      onBackToList();
+    }
+  }, [deleteStatus, onBackToList]);
 
   return (
     <View>
@@ -284,6 +316,63 @@ function ProductActions({
                 style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
               >
                 <Text style={styles.secondaryText}>{t('merchant.product.confirmSuspendNo')}</Text>
+              </Pressable>
+            </View>
+          </Card>
+        </View>
+      </Modal>
+      {deleteError !== null ? (
+        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${deleteError}`} style={styles.inlineError}>
+          <Text style={styles.inlineErrorText}>{deleteError}</Text>
+        </View>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="حذف المنتج"
+        accessibilityState={{ disabled: busy, busy: deleteStatus === 'submitting' }}
+        onPress={() => setDeleting(true)}
+        disabled={busy}
+        style={({ pressed }) => [styles.destructive, busy && styles.disabled, pressed && !busy && styles.pressed]}
+      >
+        {deleteStatus === 'submitting' ? (
+          <ActivityIndicator accessibilityLabel="جارٍ حذف المنتج" color={color.error.DEFAULT} />
+        ) : (
+          <Text style={styles.destructiveText}>حذف المنتج</Text>
+        )}
+      </Pressable>
+
+      <Modal
+        visible={deleting}
+        transparent
+        animationType="fade"
+        accessibilityLabel="تأكيد حذف المنتج"
+        onRequestClose={() => setDeleting(false)}
+      >
+        <View style={styles.scrim}>
+          <Card background={color.surface.base} padded style={styles.dialog}>
+            <Text accessibilityRole="header" style={styles.dialogTitle}>
+              تأكيد حذف المنتج
+            </Text>
+            <Text style={styles.body}>سيتم حذف المنتج نهائيًا من كتالوج متجرك. لا يمكن التراجع.</Text>
+            <View style={styles.dialogActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="تأكيد الحذف"
+                onPress={() => {
+                  setDeleting(false);
+                  onDelete(productId);
+                }}
+                style={({ pressed }) => [styles.destructiveSolid, pressed && styles.pressed]}
+              >
+                <Text style={styles.destructiveSolidText}>حذف</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="إلغاء"
+                onPress={() => setDeleting(false)}
+                style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
+              >
+                <Text style={styles.secondaryText}>إلغاء</Text>
               </Pressable>
             </View>
           </Card>
@@ -384,6 +473,32 @@ const styles = StyleSheet.create({
   warnSolidText: {
     ...type.button,
     color: color.brand.navy,
+  },
+  destructive: {
+    borderWidth: 1,
+    borderColor: color.error.DEFAULT,
+    backgroundColor: color.error.soft,
+    borderRadius: radius.md,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[3],
+  },
+  destructiveText: {
+    ...type.button,
+    color: color.error.DEFAULT,
+  },
+  destructiveSolid: {
+    flex: 1,
+    backgroundColor: color.error.DEFAULT,
+    borderRadius: radius.md,
+    minHeight: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  destructiveSolidText: {
+    ...type.button,
+    color: color.surface.base,
   },
   secondaryInline: {
     flex: 1,

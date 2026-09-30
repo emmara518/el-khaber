@@ -43,11 +43,10 @@ export function mapProduct(dto: MerchantProductDto): MerchantProduct {
     id: dto.id,
     nameAr: dto.nameAr,
     descriptionAr: dto.descriptionAr ?? '',
-    // No category field exists in the backend product model (gap).
-    categoryAr: '',
+    imageUrl: dto.imageUrl,
+    hasImage: dto.imageUrl !== null,
     priceSar: dto.price,
     stockQuantity: dto.stockQuantity,
-    hasImage: dto.imageUrl !== null,
     status: dto.status,
     statusLabelAr: PRODUCT_STATUS_LABELS[dto.status],
   };
@@ -77,8 +76,7 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
         descriptionAr: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : undefined,
         price: draft.priceSar ?? undefined,
         stockQuantity: draft.stockQuantity ?? undefined,
-        // imageUrl: no storage path exists (gap) — never fabricated.
-        // category: no backend field exists (gap).
+        ...(draft.imageUrl.trim().length > 0 ? { imageUrl: draft.imageUrl.trim() } : {}),
       });
       return mapProduct(res.data);
     } catch (err: unknown) {
@@ -101,6 +99,7 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
           descriptionAr: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : undefined,
           price: draft.priceSar ?? undefined,
           stockQuantity: draft.stockQuantity ?? undefined,
+          ...(draft.imageUrl.trim().length > 0 ? { imageUrl: draft.imageUrl.trim() } : {}),
         },
       );
       return mapProduct(res.data);
@@ -121,6 +120,15 @@ export class ApiMerchantProductsDataSource implements MerchantProductDataSource 
         { status: input.status },
       );
       return mapProduct(res.data);
+    } catch (err: unknown) {
+      throw new ProductMutationError(toProductMessage(err));
+    }
+  }
+
+  /** WP-5C: permanent, ownership-scoped deletion (docs/07 §17). */
+  async deleteProduct(input: { role: 'merchant'; productId: string }): Promise<void> {
+    try {
+      await getApi().request('DELETE', `/merchant/products/${input.productId}`);
     } catch (err: unknown) {
       throw new ProductMutationError(toProductMessage(err));
     }

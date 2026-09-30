@@ -14,7 +14,6 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 
 import {
   EMPTY_PRODUCT_FILTERS,
-  MERCHANT_PRODUCT_CATEGORIES,
   PRODUCT_STATUS_OPTIONS,
   filterMerchantProducts,
   type MerchantProduct,
@@ -77,25 +76,6 @@ export default function MerchantCatalogScreen({
             textAlign="right"
           />
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {[null, ...MERCHANT_PRODUCT_CATEGORIES].map((category) => {
-              const label = category ?? 'الأقسام';
-              const selected = filters.category === category;
-              return (
-                <Pressable
-                  key={label}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`تصفية حسب القسم: ${label}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => setFilters((f) => ({ ...f, category }))}
-                  style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
           <View style={styles.statusRow}>
             {PRODUCT_STATUS_OPTIONS.map((option) => {
               const selected = filters.status === option.value;
@@ -156,7 +136,7 @@ export default function MerchantCatalogScreen({
           <Pressable
             key={product.id}
             accessibilityRole="button"
-            accessibilityLabel={`عرض تفاصيل ${product.nameAr}، القسم: ${product.categoryAr}، الحالة: ${product.statusLabelAr}${
+            accessibilityLabel={`عرض تفاصيل ${product.nameAr}، الحالة: ${product.statusLabelAr}${
               product.priceSar !== null ? `، السعر: ${product.priceSar} جنيه` : ''
             }${product.stockQuantity !== null ? `، المخزون: ${product.stockQuantity}` : ''}`}
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
@@ -169,7 +149,6 @@ export default function MerchantCatalogScreen({
                   <Text style={styles.name} numberOfLines={2}>
                     {product.nameAr}
                   </Text>
-                  <Text style={styles.category}>{product.categoryAr}</Text>
                   <Text style={styles.description} numberOfLines={2}>
                     {product.descriptionAr}
                   </Text>

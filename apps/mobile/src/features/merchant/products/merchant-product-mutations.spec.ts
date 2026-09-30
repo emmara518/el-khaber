@@ -1,7 +1,7 @@
 /**
- * M-D tests: product mutations (create/update/status), validation,
- * duplicate prevention, catalog/detail consistency through the
- * shared source, empty-catalog create flow.
+ * M-D / WP-5 tests: product mutations (create/update/status/delete),
+ * validation, image URL persistence, duplicate prevention, catalog/detail
+ * consistency through the shared source, empty-catalog create flow.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,27 +23,30 @@ function validDraft() {
   return {
     nameAr: 'مكيف سبليت جديد ٢ طن',
     descriptionAr: 'مكيف سبليت جديد بكفاءة عالية مع ضمان المتجر لمدة سنتين.',
-    categoryAr: 'تكييفات',
     priceSar: 2100,
     stockQuantity: 15,
-    imageSelected: false,
+    imageUrl: '',
   };
 }
 
 describe('product draft validation', () => {
-  it('requires name, description, category — price optional', () => {
+  it('requires name and description — price/image optional', () => {
     const errors = validateProductDraft(EMPTY_PRODUCT_DRAFT);
     expect(errors.nameAr).toBeDefined();
     expect(errors.descriptionAr).toBeDefined();
-    expect(errors.categoryAr).toBeDefined();
     expect(errors.priceSar).toBeUndefined();
+    expect(errors.imageUrl).toBeUndefined();
     expect(Object.keys(validateProductDraft(validDraft()))).toHaveLength(0);
   });
 
-  it('rejects short name/description and invalid price', () => {
+  it('rejects short name/description, invalid price, and a malformed image URL', () => {
     expect(validateProductDraft({ ...validDraft(), nameAr: 'اب' }).nameAr).toBeDefined();
     expect(validateProductDraft({ ...validDraft(), descriptionAr: 'قصير' }).descriptionAr).toBeDefined();
     expect(validateProductDraft({ ...validDraft(), priceSar: -5 }).priceSar).toBeDefined();
+    expect(validateProductDraft({ ...validDraft(), imageUrl: 'not-a-url' }).imageUrl).toBeDefined();
+    expect(
+      validateProductDraft({ ...validDraft(), imageUrl: 'https://cdn.example.com/a.jpg' }).imageUrl,
+    ).toBeUndefined();
   });
 
   it('converts a product to a draft preserving values (edit prefill)', async () => {
@@ -71,6 +74,18 @@ describe('create product', () => {
     const list = await source.getProducts({ role: 'merchant' });
     const found = findMerchantProduct(list, created.id);
     expect(found?.nameAr).toBe(validDraft().nameAr);
+  });
+
+  it('persists an image URL and reads it back (WP-5B)', async () => {
+    const source = new MockMerchantProductsDataSource();
+    const created = await source.createProduct({
+      role: 'merchant',
+      draft: { ...validDraft(), imageUrl: 'https://cdn.example.com/w.jpg' },
+    });
+    expect(created.imageUrl).toBe('https://cdn.example.com/w.jpg');
+    expect(created.hasImage).toBe(true);
+    const list = await source.getProducts({ role: 'merchant' });
+    expect(findMerchantProduct(list, created.id)?.imageUrl).toBe('https://cdn.example.com/w.jpg');
   });
 
   it('rejects invalid drafts and failing mode without faking success', async () => {
@@ -149,6 +164,25 @@ describe('suspend / activate', () => {
     const source = new MockMerchantProductsDataSource();
     await expect(
       source.setProductStatus({ role: 'merchant', productId: 'nope', status: 'suspended' }),
+    ).rejects.toBeInstanceOf(ProductMutationError);
+  });
+});
+
+describe('delete product (WP-5C)', () => {
+  it('deletes an owned product and removes it from subsequent reads', async () => {
+    const source = new MockMerchantProductsDataSource();
+    await source.deleteProduct({ role: 'merchant', productId: 'mp-001' });
+    const list = await source.getProducts({ role: 'merchant' });
+    expect(findMerchantProduct(list, 'mp-001')).toBeNull();
+  });
+
+  it('rejects deleting an unknown product and fails deterministically in failing mode', async () => {
+    const source = new MockMerchantProductsDataSource();
+    await expect(
+      source.deleteProduct({ role: 'merchant', productId: 'nope' }),
+    ).rejects.toBeInstanceOf(ProductMutationError);
+    await expect(
+      new MockMerchantProductsDataSource('failing').deleteProduct({ role: 'merchant', productId: 'mp-001' }),
     ).rejects.toBeInstanceOf(ProductMutationError);
   });
 });

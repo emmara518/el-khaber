@@ -1,14 +1,13 @@
 /**
- * M-C tests: product fixture determinism, filtering/search, lookup,
- * unknown id, empty/error seeds, display rules (nullable price,
- * documented statuses only).
+ * M-C / WP-5 tests: product fixture determinism, filtering/search,
+ * lookup, unknown id, empty/error seeds, display rules (nullable price,
+ * documented statuses only, image via `image_url`).
  */
 
 import { describe, expect, it } from 'vitest';
 
 import {
   EMPTY_PRODUCT_FILTERS,
-  MERCHANT_PRODUCT_CATEGORIES,
   PRODUCT_STATUS_OPTIONS,
   filterMerchantProducts,
   findMerchantProduct,
@@ -26,14 +25,6 @@ describe('product fixture (deterministic, documented scope)', () => {
     const second = await loadProducts();
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
     expect(first.length).toBeGreaterThan(0);
-  });
-
-  it('covers the documented appliance categories only', async () => {
-    const products = await loadProducts();
-    const categories = new Set(products.map((p) => p.categoryAr));
-    for (const category of categories) {
-      expect(MERCHANT_PRODUCT_CATEGORIES).toContain(category);
-    }
   });
 
   it('covers active + suspended statuses with Arabic labels', async () => {
@@ -74,11 +65,8 @@ describe('product fixture (deterministic, documented scope)', () => {
 });
 
 describe('filtering + search', () => {
-  it('filters by category, status, and free text', async () => {
+  it('filters by status and free text', async () => {
     const products = await loadProducts();
-    const byCategory = filterMerchantProducts(products, { ...EMPTY_PRODUCT_FILTERS, category: 'تكييفات' });
-    expect(byCategory.length).toBeGreaterThan(0);
-    expect(byCategory.every((p) => p.categoryAr === 'تكييفات')).toBe(true);
 
     const byStatus = filterMerchantProducts(products, { ...EMPTY_PRODUCT_FILTERS, status: 'suspended' });
     expect(byStatus.every((p) => p.status === 'suspended')).toBe(true);
@@ -91,7 +79,7 @@ describe('filtering + search', () => {
     const products = await loadProducts();
     const combined = filterMerchantProducts(products, {
       ...EMPTY_PRODUCT_FILTERS,
-      category: 'ثلاجات',
+      query: 'سامسونج',
       status: 'suspended',
     });
     expect(combined).toHaveLength(0);

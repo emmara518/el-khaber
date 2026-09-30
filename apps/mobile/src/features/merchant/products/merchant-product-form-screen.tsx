@@ -15,7 +15,6 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { sharedMerchantProductsSource } from './api-merchant-products-data-source';
 import {
   EMPTY_PRODUCT_DRAFT,
-  MERCHANT_PRODUCT_CATEGORIES,
   validateProductDraft,
   type MerchantProductDataSource,
   type MerchantProductDraft,
@@ -23,7 +22,7 @@ import {
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Icon, PageTitle } from '@/ui';
+import { Card, PageTitle } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
 
@@ -129,38 +128,6 @@ export default function MerchantProductFormScreen({
             </Text>
           ) : null}
 
-          <Text style={styles.label}>{t('merchant.productForm.category')}</Text>
-          <View accessibilityRole="radiogroup" accessibilityLabel={t('merchant.productForm.category')} style={styles.chips}>
-            {MERCHANT_PRODUCT_CATEGORIES.map((category) => {
-              const selected = draft.categoryAr === category;
-              return (
-                <Pressable
-                  key={category}
-                  accessibilityRole="radio"
-                  accessibilityLabel={`القسم: ${category}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected, checked: selected }}
-                  onPress={() => patch({ categoryAr: category })}
-                  disabled={submitting}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    selected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  {selected ? <Icon name="check" size={13} color={color.brand.navy} /> : null}
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {category}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {errors.categoryAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.categoryAr}
-            </Text>
-          ) : null}
-
           <Text style={styles.label}>{t('merchant.productForm.description')}</Text>
           <TextInput
             accessibilityLabel={errors.descriptionAr ? `${t('merchant.productForm.description')}. خطأ: ${errors.descriptionAr}` : t('merchant.productForm.description')}
@@ -225,29 +192,25 @@ export default function MerchantProductFormScreen({
           ) : null}
 
           <Text style={styles.label}>{t('merchant.productForm.image')}</Text>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityLabel={t('merchant.productForm.image')}
-            accessibilityState={{ checked: draft.imageSelected, disabled: submitting }}
-            onPress={() => patch({ imageSelected: !draft.imageSelected })}
-            disabled={submitting}
-            style={({ pressed }) => [
-              styles.imageToggle,
-              draft.imageSelected && styles.chipSelected,
-              pressed && !submitting && styles.pressed,
-            ]}
-          >
-            <Icon
-              name="image"
-              size={16}
-              color={draft.imageSelected ? color.brand.navy : color.text.secondary}
-              accessibilityLabel="الصورة"
-            />
-            <Text style={[styles.chipText, draft.imageSelected && styles.chipTextSelected]}>
-              {draft.imageSelected ? t('merchant.productForm.imageOn') : t('merchant.productForm.imageOff')}
-            </Text>
-          </Pressable>
+          <TextInput
+            accessibilityLabel={errors.imageUrl ? `${t('merchant.productForm.image')}. خطأ: ${errors.imageUrl}` : t('merchant.productForm.image')}
+            placeholder="https://… رابط صورة المنتج (اختياري)"
+            placeholderTextColor={color.text.secondary}
+            value={draft.imageUrl}
+            onChangeText={(text) => patch({ imageUrl: text })}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            style={[styles.input, errors.imageUrl ? styles.inputError : null]}
+            textAlign="right"
+            editable={!submitting}
+          />
           <Text style={styles.optional}>{t('merchant.productForm.imageNote')}</Text>
+          {errors.imageUrl ? (
+            <Text accessibilityRole="alert" style={styles.fieldError}>
+              {errors.imageUrl}
+            </Text>
+          ) : null}
 
           <View style={styles.actions}>
             <Pressable

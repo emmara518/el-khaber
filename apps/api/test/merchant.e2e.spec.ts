@@ -199,6 +199,40 @@ describe('merchant domain e2e', () => {
       expect(second.body.data.slug).not.toBe(res.body.data.slug);
     });
 
+    it('persists the optional image URL on create/update and enforces ownership (WP-5B)', async () => {
+      const a = await onboardMerchant('p-img-a@example.com');
+      const b = await onboardMerchant('p-img-b@example.com');
+      const created = await createProduct(a, {
+        nameAr: 'غسالة بصورة',
+        imageUrl: 'https://cdn.example.com/washer.jpg',
+      }).expect(201);
+      expect(created.body.data.imageUrl).toBe('https://cdn.example.com/washer.jpg');
+      const productId = created.body.data.id as string;
+
+      // Readback.
+      const detail = await request(app.getHttpServer())
+        .get(`/api/v1/merchant/products/${productId}`)
+        .set('Authorization', `Bearer ${a.accessToken}`)
+        .expect(200);
+      expect(detail.body.data.imageUrl).toBe('https://cdn.example.com/washer.jpg');
+
+      // Updated image persists.
+      const updated = await request(app.getHttpServer())
+        .patch(`/api/v1/merchant/products/${productId}`)
+        .set('Authorization', `Bearer ${a.accessToken}`)
+        .send({ imageUrl: 'https://cdn.example.com/washer-2.jpg' })
+        .expect(200);
+      expect(updated.body.data.imageUrl).toBe('https://cdn.example.com/washer-2.jpg');
+
+      // Another merchant cannot mutate the image (identical 404).
+      const foreign = await request(app.getHttpServer())
+        .patch(`/api/v1/merchant/products/${productId}`)
+        .set('Authorization', `Bearer ${b.accessToken}`)
+        .send({ imageUrl: 'https://cdn.example.com/hacked.jpg' });
+      expect(foreign.status).toBe(404);
+      expect(foreign.body.error.message).toBe('Product not found');
+    });
+
     it('rejects duplicate explicit slug with 409 and validates the payload', async () => {
       const merchant = await onboardMerchant('p-slug@example.com');
       await createProduct(merchant, { nameAr: 'منتج', slug: 'unique-slug' }).expect(201);
