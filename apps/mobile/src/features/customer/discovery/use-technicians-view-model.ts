@@ -22,7 +22,8 @@ export interface TechniciansState {
   retry: () => void;
 }
 
-export function useTechniciansViewModel(): TechniciansState {
+export function useTechniciansViewModel(options?: { availableOnly?: boolean }): TechniciansState {
+  const availableOnly = options?.availableOnly ?? false;
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<Omit<TechniciansState, 'retry'>>({
     status: 'loading',
@@ -34,7 +35,10 @@ export function useTechniciansViewModel(): TechniciansState {
     let cancelled = false;
     setState({ status: 'loading', data: null, error: null });
     new ApiTechnicianDataSource()
-      .getTechnicians({ role: 'customer' })
+      .getTechnicians({
+        role: 'customer',
+        ...(availableOnly ? { availability: 'available' as const } : {}),
+      })
       .then((data) => {
         if (cancelled) return;
         setState({ status: 'loaded', data, error: null });
@@ -50,7 +54,7 @@ export function useTechniciansViewModel(): TechniciansState {
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, availableOnly]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 

@@ -132,6 +132,11 @@ export class TechnicianSelfService {
       ...(input.bio !== undefined ? { bio: input.bio } : {}),
       ...(input.avatar_url !== undefined ? { avatarUrl: input.avatar_url } : {}),
       ...(input.experience_years !== undefined ? { experienceYears: input.experience_years } : {}),
+      // WP-4: manual availability (available | unavailable only — `busy` is
+      // rejected by the request schema and never writable here).
+      ...(input.availability_status !== undefined
+        ? { availabilityStatus: input.availability_status }
+        : {}),
     };
 
     await this.prisma.$transaction(async (tx) => {

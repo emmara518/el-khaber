@@ -28,10 +28,12 @@ import {
 } from '../../../lib/request-labels';
 
 import type {
+  TechnicianAvailabilityStatus,
   TechnicianHomeDataSource,
   TechnicianHomeViewModel,
   TechnicianVerification,
 } from './technician-home-types';
+import { availabilityLabelAr } from './technician-home-types';
 import type {
   MeDto,
   ServiceRequestSummaryDto,
@@ -102,12 +104,7 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
         : null;
 
     const name = self.displayName ?? me.phone ?? 'فني';
-    const availabilityLabel =
-      self.availabilityStatus === 'available'
-        ? 'متاح اليوم'
-        : self.availabilityStatus === 'busy'
-          ? 'مشغول حاليًا'
-          : 'غير متاح';
+    const availabilityLabel = availabilityLabelAr(self.availabilityStatus);
 
     return {
       profile: {
@@ -137,5 +134,22 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
       active,
       role: 'technician',
     };
+  }
+
+  /**
+   * WP-4: technician self-service availability. Only available | unavailable
+   * are writable (the API rejects `busy`). The server response is the truth —
+   * callers must adopt the returned status (no divergent optimistic state).
+   */
+  async setAvailability(input: {
+    role: 'technician';
+    available: boolean;
+  }): Promise<{ availabilityStatus: TechnicianAvailabilityStatus }> {
+    const updated = await getApi()
+      .request<TechnicianSelfProfileDto>('PATCH', '/technician/profile', {
+        availability_status: input.available ? 'available' : 'unavailable',
+      })
+      .then((res) => res.data);
+    return { availabilityStatus: updated.availabilityStatus };
   }
 }

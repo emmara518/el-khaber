@@ -490,6 +490,18 @@ The client may use this for display, but backend policies remain authoritative.
 ### GET `/technician/requests`
 ### GET `/technician/stats`
 
+Implementation notes (WP-4 availability):
+
+- `PATCH /technician/profile` also accepts `availability_status`, restricted to
+  `available | unavailable` (`busy` is reserved and rejected with
+  `400 VALIDATION_ERROR`). The technician controls it manually; it persists
+  until changed (no expiry, no schedule). The written value is
+  `technician_profiles.availability_status`.
+- `GET /technicians?availability=available` filters technician discovery
+  **server-side** using the same stored value; rating ordering and pagination
+  are unchanged. The public `TechnicianPublicDto.availabilityStatus` is the
+  server state (`available | unavailable | busy`).
+
 Stats must be server-derived.
 
 ---

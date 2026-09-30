@@ -787,13 +787,15 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     type: 'object',
     description:
       'PATCH /technician/profile payload. Editable: display_name, bio, ' +
-      'avatar_url, experience_years, areas (label + optional coordinates). ' +
-      'verificationStatus/ratings/counters are NEVER writable.',
+      'avatar_url, experience_years, availability_status (available | ' +
+      'unavailable only — technician-controlled, WP-4), areas (label + ' +
+      'optional coordinates). verificationStatus/ratings/counters are NEVER writable.',
     properties: {
       display_name: { type: 'string', minLength: 1, maxLength: 255 },
       bio: { type: 'string', maxLength: 2000 },
       avatar_url: { type: 'string', minLength: 1, maxLength: 512 },
       experience_years: { type: 'integer', minimum: 0, maximum: 60 },
+      availability_status: { type: 'string', enum: ['available', 'unavailable'] },
       areas: {
         type: 'array',
         maxItems: 10,

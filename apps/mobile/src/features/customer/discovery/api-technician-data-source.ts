@@ -49,8 +49,9 @@ export function availabilityLabelAr(status: TechnicianPublicDto['availabilitySta
 } {
   switch (status) {
     case 'available':
-      return { available: true, labelAr: 'متاح اليوم' };
+      return { available: true, labelAr: 'متاح' };
     case 'busy':
+      // Reserved state — safe display only, no phase-4 behavior.
       return { available: false, labelAr: 'مشغول حاليًا' };
     case 'unavailable':
       return { available: false, labelAr: 'غير متاح' };
@@ -123,13 +124,24 @@ async function fetchReviewsFor(id: string): Promise<ReadonlyArray<TechnicianRevi
 }
 
 export class ApiTechnicianDataSource implements TechnicianDataSourceContract {
-  async getTechnicians(_input: { role: 'customer' }): Promise<ReadonlyArray<Technician>> {
+  async getTechnicians(input: {
+    role: 'customer';
+    /** WP-4: availability is filtered SERVER-SIDE via the existing contract. */
+    availability?: 'available';
+  }): Promise<ReadonlyArray<Technician>> {
     // Server-side sort by the documented rating signal; bounded drain.
+    // Availability (when requested) is filtered by the API, preserving
+    // pagination/meta correctness — never filtered from the client page.
     const technicians = await drainPages<TechnicianPublicDto>((page, limit) =>
       getApi()
         .request<TechnicianPublicDto[]>(
           'GET',
-          `/technicians${buildQuery({ page, limit, sort: 'rating' })}`,
+          `/technicians${buildQuery({
+            page,
+            limit,
+            sort: 'rating',
+            ...(input.availability !== undefined ? { availability: input.availability } : {}),
+          })}`,
           undefined,
           { auth: false },
         )

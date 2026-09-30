@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { MockFaultGuideDataSource } from '../fault-guide/mock-fault-guide-data-source';
 
 import { MockTechnicianDataSource } from './mock-technician-data-source';
+import { availabilityLabelAr } from './api-technician-data-source';
 import {
   activeFilterCount,
   applyTechnicianFilters,
@@ -45,6 +46,15 @@ describe('technician mock variety', () => {
   });
 });
 
+describe('public availability label (WP-4)', () => {
+  it('maps the server availabilityStatus to the approved labels', () => {
+    expect(availabilityLabelAr('available')).toEqual({ available: true, labelAr: 'متاح' });
+    expect(availabilityLabelAr('unavailable')).toEqual({ available: false, labelAr: 'غير متاح' });
+    // `busy` is reserved — safe display only.
+    expect(availabilityLabelAr('busy')).toEqual({ available: false, labelAr: 'مشغول حاليًا' });
+  });
+});
+
 describe('appliance filtering', () => {
   it('keeps only technicians supporting the appliance', async () => {
     const techs = await loadTechnicians();
@@ -72,11 +82,19 @@ describe('rating + availability + area + query', () => {
     expect(result.length).toBeLessThan(techs.length);
   });
 
-  it('restricts to available technicians when asked', async () => {
-    const techs = await loadTechnicians();
-    const result = applyTechnicianFilters(techs, { ...EMPTY_TECHNICIAN_FILTERS, availableOnly: true });
-    expect(result.every((t) => t.available)).toBe(true);
-    expect(result.length).toBeLessThan(techs.length);
+  it('requests availability from the server contract instead of filtering the loaded page', async () => {
+    const all = await loadTechnicians();
+    const available = await new MockTechnicianDataSource().getTechnicians({
+      role: 'customer',
+      availability: 'available',
+    });
+    expect(available.length).toBeGreaterThan(0);
+    expect(available.length).toBeLessThan(all.length);
+    expect(available.every((t) => t.available)).toBe(true);
+    // The pure client filter no longer drops unavailable technicians on its
+    // own — availability is authoritative on the server (WP-4).
+    const unfiltered = applyTechnicianFilters(all, { ...EMPTY_TECHNICIAN_FILTERS, availableOnly: true });
+    expect(unfiltered).toHaveLength(all.length);
   });
 
   it('matches service areas', async () => {

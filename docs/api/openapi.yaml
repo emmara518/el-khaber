@@ -1494,8 +1494,9 @@ components:
     UpdateTechnicianProfileDto:
       additionalProperties: false
       description: >-
-        PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years, areas (label +
-        optional coordinates). verificationStatus/ratings/counters are NEVER writable.
+        PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years,
+        availability_status (available | unavailable only — technician-controlled, WP-4), areas (label + optional
+        coordinates). verificationStatus/ratings/counters are NEVER writable.
       properties:
         areas:
           items:
@@ -1518,6 +1519,11 @@ components:
             type: object
           maxItems: 10
           type: array
+        availability_status:
+          enum:
+            - available
+            - unavailable
+          type: string
         avatar_url:
           maxLength: 512
           minLength: 1

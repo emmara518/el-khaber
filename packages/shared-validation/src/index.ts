@@ -405,6 +405,9 @@ export const technicianProfileUpdateSchema = z
     bio: z.string().trim().max(2000).optional(),
     avatar_url: z.string().trim().min(1).max(512).optional(),
     experience_years: z.coerce.number().int().min(0).max(60).optional(),
+    // WP-4: technician controls availability manually. Only available |
+    // unavailable are writable — `busy` is reserved and never self-set.
+    availability_status: z.enum(['available', 'unavailable']).optional(),
     areas: z.array(areaSchema).max(10).optional(),
   })
   .refine(
@@ -413,6 +416,7 @@ export const technicianProfileUpdateSchema = z
       v.bio !== undefined ||
       v.avatar_url !== undefined ||
       v.experience_years !== undefined ||
+      v.availability_status !== undefined ||
       v.areas !== undefined,
     { message: 'at least one field is required' },
   );

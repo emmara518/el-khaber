@@ -555,3 +555,75 @@ describe('HTTP E2E — technician self-service persistence (WP-3)', () => {
     expect(profile.body.data.experienceYears).toBe(7);
   });
 });
+
+describe('HTTP E2E — technician availability (WP-4)', () => {
+  it('technician self-toggles available|unavailable (persisted, readback, busy rejected, isolated)', async () => {
+    const { session: tech, profileId } = await setupVerifiedTechnician('http-wp4-tech@example.com');
+    const { session: other } = await setupVerifiedTechnician('http-wp4-other@example.com');
+
+    // Fresh profile defaults to unavailable.
+    const initial = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(initial.body.data.availabilityStatus).toBe('unavailable');
+
+    // Set AVAILABLE and read it back (server persistence).
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({ availability_status: 'available' })
+      .expect(200);
+    const on = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(on.body.data.availabilityStatus).toBe('available');
+
+    // Discovery reflects the server state (available-only filter + public detail).
+    const available = await request(ctx.app.getHttpServer())
+      .get(`${base}/technicians`)
+      .query({ availability: 'available' })
+      .expect(200);
+    expect(available.body.data.map((t: { id: string }) => t.id)).toContain(profileId);
+    const detail = await request(ctx.app.getHttpServer())
+      .get(`${base}/technicians/${profileId}`)
+      .expect(200);
+    expect(detail.body.data.availabilityStatus).toBe('available');
+
+    // Set UNAVAILABLE again (persisted).
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({ availability_status: 'unavailable' })
+      .expect(200);
+    const off = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(off.body.data.availabilityStatus).toBe('unavailable');
+
+    // `busy` is reserved and NOT technician-writable.
+    const busy = await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({ availability_status: 'busy' });
+    expect(busy.status).toBe(400);
+    expect(busy.body.error.code).toBe('VALIDATION_ERROR');
+
+    // Unauthorized: a customer cannot change technician availability.
+    const customer = await register('customer', 'http-wp4-c@example.com');
+    const denied = await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(customer.accessToken))
+      .send({ availability_status: 'available' });
+    expect(denied.status).toBe(401);
+
+    // Isolation: another technician's availability is unchanged.
+    const otherRead = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(other.accessToken))
+      .expect(200);
+    expect(otherRead.body.data.availabilityStatus).toBe('unavailable');
+  });
+});

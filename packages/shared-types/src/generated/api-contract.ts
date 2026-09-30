@@ -572,10 +572,11 @@ export interface UpdateMerchantProfileDto {
 }
 
 /**
- * PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years, areas (label + optional coordinates). verificationStatus/ratings/counters are NEVER writable.
+ * PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years, availability_status (available | unavailable only — technician-controlled, WP-4), areas (label + optional coordinates). verificationStatus/ratings/counters are NEVER writable.
  */
 export interface UpdateTechnicianProfileDto {
   areas?: Array<{ label_ar: string; latitude?: number; longitude?: number }>;
+  availability_status?: 'available' | 'unavailable';
   avatar_url?: string;
   bio?: string;
   display_name?: string;

@@ -13,6 +13,22 @@
 
 export type TechnicianVerification = 'verified' | 'pending' | 'action_required';
 
+/** WP-4 availability states. `busy` is reserved (never technician-set). */
+export type TechnicianAvailabilityStatus = 'available' | 'busy' | 'unavailable';
+
+/** WP-4 approved labels: available → "متاح", unavailable → "غير متاح". */
+export function availabilityLabelAr(status: TechnicianAvailabilityStatus): string {
+  switch (status) {
+    case 'available':
+      return 'متاح';
+    case 'busy':
+      // Reserved state — safe display only, no phase-4 behavior.
+      return 'مشغول حاليًا';
+    case 'unavailable':
+      return 'غير متاح';
+  }
+}
+
 export interface TechnicianHomeProfile {
   readonly nameAr: string;
   readonly initialsAr: string;
@@ -66,6 +82,11 @@ export interface TechnicianHomeViewModel {
 
 export interface TechnicianHomeDataSource {
   getHome(input: { role: 'technician' }): Promise<TechnicianHomeViewModel>;
+  /** WP-4: technician-controlled availability (available | unavailable only). */
+  setAvailability(input: {
+    role: 'technician';
+    available: boolean;
+  }): Promise<{ availabilityStatus: TechnicianAvailabilityStatus }>;
 }
 
 /** Verification copy — icon + text, never color alone (unit-tested). */

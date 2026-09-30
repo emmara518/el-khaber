@@ -40,12 +40,12 @@ export default function TechnicianSearchScreen() {
   const searchRef = useRef<TextInput>(null);
   const searchOffset = useRef(0);
   const editorialOffset = useRef(0);
-  const { status, data, retry } = useTechniciansViewModel();
   const [guide, setGuide] = useState<FaultGuideData | null>(null);
   const [filters, setFilters] = useState<TechnicianSearchFilters>(EMPTY_TECHNICIAN_FILTERS);
   const [draft, setDraft] = useState<TechnicianSearchFilters>(EMPTY_TECHNICIAN_FILTERS);
   const [panelOpen, setPanelOpen] = useState(false);
   const [contextApplied, setContextApplied] = useState(false);
+  const { status, data, retry } = useTechniciansViewModel({ availableOnly: filters.availableOnly });
 
   useEffect(() => {
     if (symptomId.length === 0) return;

@@ -9,6 +9,8 @@
  */
 
 import {
+  availabilityLabelAr,
+  type TechnicianAvailabilityStatus,
   type TechnicianHomeDataSource,
   type TechnicianHomeViewModel,
 } from './technician-home-types';
@@ -63,7 +65,30 @@ const HOME_FIXTURE: TechnicianHomeViewModel = {
 };
 
 export class MockTechnicianHomeDataSource implements TechnicianHomeDataSource {
+  private status: TechnicianAvailabilityStatus = 'available';
+
+  constructor(private readonly mode: 'success' | 'failing' = 'success') {}
+
   async getHome(_input: { role: 'technician' }): Promise<TechnicianHomeViewModel> {
-    return JSON.parse(JSON.stringify(HOME_FIXTURE)) as TechnicianHomeViewModel;
+    const base = JSON.parse(JSON.stringify(HOME_FIXTURE)) as TechnicianHomeViewModel;
+    return {
+      ...base,
+      profile: {
+        ...base.profile,
+        available: this.status === 'available',
+        availabilityLabelAr: availabilityLabelAr(this.status),
+      },
+    };
+  }
+
+  async setAvailability(input: {
+    role: 'technician';
+    available: boolean;
+  }): Promise<{ availabilityStatus: TechnicianAvailabilityStatus }> {
+    if (this.mode === 'failing') {
+      throw new Error('تعذر تحديث حالة التوفر. حاول مجددًا');
+    }
+    this.status = input.available ? 'available' : 'unavailable';
+    return { availabilityStatus: this.status };
   }
 }

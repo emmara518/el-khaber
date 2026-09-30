@@ -98,7 +98,8 @@ export function applyTechnicianFilters(
     if (filters.specialty !== null && !t.specialtiesAr.includes(filters.specialty)) return false;
     if (filters.minRating !== null && t.rating < filters.minRating) return false;
     if (filters.area !== null && !t.areasAr.includes(filters.area)) return false;
-    if (filters.availableOnly && !t.available) return false;
+    // WP-4: availability is filtered SERVER-SIDE (the discovery request
+    // sends `availability`); it is intentionally NOT re-filtered here.
     if (q.length > 0) {
       const haystack = [t.nameAr, ...t.specialtiesAr, ...t.servicesAr].join(' ');
       if (!haystack.includes(q)) return false;

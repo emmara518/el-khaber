@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { MockTechnicianHomeDataSource } from './mock-technician-home-data-source';
-import { verificationCopy } from './technician-home-types';
+import { availabilityLabelAr, verificationCopy } from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
 
 describe('technician home fixture (deterministic)', () => {
@@ -78,5 +78,39 @@ describe('request preview + active service', () => {
     expect(Number.isInteger(home.today.completedToday)).toBe(true);
     expect(JSON.stringify(home.today)).not.toContain('rate');
     expect(JSON.stringify(home.today)).not.toContain('earning');
+  });
+});
+
+describe('availability (WP-4)', () => {
+  it('maps the approved labels (busy reserved, safe display only)', () => {
+    expect(availabilityLabelAr('available')).toBe('متاح');
+    expect(availabilityLabelAr('unavailable')).toBe('غير متاح');
+    expect(availabilityLabelAr('busy')).toBe('مشغول حاليًا');
+  });
+
+  it('persists the technician toggle and reads it back (server truth)', async () => {
+    const source = new MockTechnicianHomeDataSource();
+    expect((await source.getHome({ role: 'technician' })).profile.available).toBe(true);
+
+    const off = await source.setAvailability({ role: 'technician', available: false });
+    expect(off.availabilityStatus).toBe('unavailable');
+    const afterOff = await source.getHome({ role: 'technician' });
+    expect(afterOff.profile.available).toBe(false);
+    expect(afterOff.profile.availabilityLabelAr).toBe('غير متاح');
+
+    const on = await source.setAvailability({ role: 'technician', available: true });
+    expect(on.availabilityStatus).toBe('available');
+    const afterOn = await source.getHome({ role: 'technician' });
+    expect(afterOn.profile.available).toBe(true);
+    expect(afterOn.profile.availabilityLabelAr).toBe('متاح');
+  });
+
+  it('a failed mutation rejects without mutating state (no divergent optimistic UI)', async () => {
+    const source = new MockTechnicianHomeDataSource('failing');
+    await expect(
+      source.setAvailability({ role: 'technician', available: false }),
+    ).rejects.toBeTruthy();
+    // The server-backed state is unchanged.
+    expect((await source.getHome({ role: 'technician' })).profile.available).toBe(true);
   });
 });

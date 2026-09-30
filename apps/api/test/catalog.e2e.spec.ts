@@ -350,6 +350,34 @@ describe('catalog + content e2e', () => {
         .expect(200);
       expect(combined.body.data.map((t: { id: string }) => t.id)).toEqual([TECH_HIGH_RATING]);
 
+      // WP-4: server-side availability filter. Rating order is preserved
+      // (desc, nulls last): the rated tech first, the unrated one last.
+      const availableOnly = await request(app.getHttpServer())
+        .get('/api/v1/technicians')
+        .query({ availability: 'available' })
+        .expect(200);
+      expect(availableOnly.body.data.map((t: { id: string }) => t.id)).toEqual([
+        TECH_HIGH_RATING,
+        'dddddddd-4444-4444-8444-444444444444',
+      ]);
+      expect(availableOnly.body.meta.total).toBe(2);
+
+      // Pagination stays correct WITH the availability filter applied.
+      const availablePage2 = await request(app.getHttpServer())
+        .get('/api/v1/technicians')
+        .query({ availability: 'available', limit: 1, page: 2 })
+        .expect(200);
+      expect(availablePage2.body.data.map((t: { id: string }) => t.id)).toEqual([
+        'dddddddd-4444-4444-8444-444444444444',
+      ]);
+      expect(availablePage2.body.meta).toMatchObject({
+        page: 2,
+        limit: 1,
+        total: 2,
+        totalPages: 2,
+        hasNext: false,
+      });
+
       const empty = await request(app.getHttpServer())
         .get('/api/v1/technicians')
         .query({ availability: 'unavailable' })

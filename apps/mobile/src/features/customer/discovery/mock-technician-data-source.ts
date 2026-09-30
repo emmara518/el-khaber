@@ -128,11 +128,22 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
 ];
 
 export interface TechnicianDataSource {
-  getTechnicians(input: { role: 'customer' }): Promise<ReadonlyArray<Technician>>;
+  getTechnicians(input: {
+    role: 'customer';
+    /** WP-4: server-side availability filter ('available' only). */
+    availability?: 'available';
+  }): Promise<ReadonlyArray<Technician>>;
 }
 
 export class MockTechnicianDataSource implements TechnicianDataSource {
-  async getTechnicians(_input: { role: 'customer' }): Promise<ReadonlyArray<Technician>> {
-    return JSON.parse(JSON.stringify(TECHNICIANS_FIXTURE)) as ReadonlyArray<Technician>;
+  async getTechnicians(input: {
+    role: 'customer';
+    availability?: 'available';
+  }): Promise<ReadonlyArray<Technician>> {
+    const all = JSON.parse(JSON.stringify(TECHNICIANS_FIXTURE)) as ReadonlyArray<Technician>;
+    if (input.availability === 'available') {
+      return all.filter((t) => t.available);
+    }
+    return all;
   }
 }

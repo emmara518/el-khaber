@@ -48,7 +48,7 @@ const QUICK_ACTIONS: ReadonlyArray<{
 export default function TechnicianHomeScreen() {
   const { t } = useI18n();
   const router = useRouter();
-  const { status, data, error, retry } = useTechnicianHomeViewModel();
+  const { status, data, error, retry, availabilitySaving, availabilityError, setAvailability } = useTechnicianHomeViewModel();
 
   if (status === 'loading' || data === null) {
     return (
@@ -113,6 +113,39 @@ export default function TechnicianHomeScreen() {
           <StatTile icon="tool" value={data.today.inProgress} label={t('tech.home.inProgress')} />
           <StatTile icon="navigation" value={data.today.onTheWay} label="في الطريق" />
           <StatTile icon="check-circle" value={data.today.completedToday} label={t('tech.home.completedToday')} />
+        </View>
+
+        {/* Availability (WP-4) — technician-controlled, server-authoritative */}
+        <View style={styles.section}>
+          <SectionHeading
+            title="حالة التوفر"
+            body="عند تفعيل «المتاحون فقط» في البحث، يظهر الفنيون المتاحون فقط."
+          />
+          <Card background={color.surface.base} padded style={styles.availabilityCard}>
+            <View style={styles.availabilityRow}>
+              <View
+                style={[styles.availabilityDot, data.profile.available ? styles.dotOn : styles.dotOff]}
+                accessibilityLabel={data.profile.available ? 'متاح' : 'غير متاح'}
+              />
+              <Text style={styles.availabilityValue}>
+                {data.profile.available ? 'متاح' : 'غير متاح'}
+              </Text>
+            </View>
+            {availabilityError !== null ? (
+              <Text accessibilityRole="alert" style={styles.inlineError}>
+                {availabilityError}
+              </Text>
+            ) : null}
+            <ActionButton
+              variant={data.profile.available ? 'secondary' : 'primary'}
+              icon={data.profile.available ? 'x-circle' : 'check-circle'}
+              label={data.profile.available ? 'تعيين كغير متاح' : 'تعيين كمتاح'}
+              loading={availabilitySaving}
+              loadingLabel="جارٍ التحديث"
+              disabled={availabilitySaving}
+              onPress={() => setAvailability(!data.profile.available)}
+            />
+          </Card>
         </View>
 
         {/* Current service */}
@@ -263,6 +296,13 @@ const styles = StyleSheet.create({
   heroBody: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', opacity: 0.9 },
   heroArt: { width: 140, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  availabilityCard: { gap: spacing[3] },
+  availabilityRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  availabilityDot: { width: 12, height: 12, borderRadius: radius.pill },
+  dotOn: { backgroundColor: color.success.DEFAULT },
+  dotOff: { backgroundColor: color.text.secondary },
+  availabilityValue: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  inlineError: { ...type.caption, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
   section: { gap: spacing[3] },
   stack: { gap: spacing[3] },
   activeCard: { gap: spacing[3] },
