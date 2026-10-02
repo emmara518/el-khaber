@@ -69,6 +69,8 @@ describe('request preview + active service', () => {
     expect(home.active).not.toBeNull();
     expect(home.active?.customerNameAr).toBeTruthy();
     expect(home.active?.statusLabelAr).toBe('قيد التنفيذ');
+    // The badge must use the request's real status, not a hardcoded one.
+    expect(home.active?.status).toBe('in_progress');
   });
 
   it('reports plain counts for today (no rates or earnings)', async () => {

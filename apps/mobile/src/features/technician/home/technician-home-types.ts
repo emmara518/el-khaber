@@ -11,13 +11,15 @@
  * approved appliance asset on Home cards.
  */
 
-export type TechnicianVerification = 'verified' | 'pending' | 'action_required';
+import type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
+import type { ServiceRequestStatus } from '@khabir/shared-types';
 
 /** WP-4 availability states — canonical server union (single source). */
-import type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
 export type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
 /** WP-4 approved labels — single source shared with customer discovery. */
 export { availabilityLabelAr } from '../../../lib/technician-status';
+
+export type TechnicianVerification = 'verified' | 'pending' | 'action_required';
 
 export interface TechnicianHomeProfile {
   readonly nameAr: string;
@@ -57,6 +59,8 @@ export interface TechnicianActiveService {
   /** Canonical category slug — drives the approved appliance asset. */
   readonly applianceSlug: string | null;
   readonly taskAr: string;
+  /** Real lifecycle status (accepted | on_the_way | in_progress). */
+  readonly status: ServiceRequestStatus;
   readonly statusLabelAr: string;
   readonly startedAr: string;
 }

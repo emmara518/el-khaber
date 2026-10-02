@@ -99,6 +99,7 @@ export class ApiTechnicianHomeDataSource implements TechnicianHomeDataSource {
             applianceAr: await categoryNameAr(activeSummary.applianceCategoryId),
             applianceSlug: await categorySlugById(activeSummary.applianceCategoryId),
             taskAr: activeSummary.problemTitle ?? activeSummary.problemDescription,
+            status: activeSummary.status,
             statusLabelAr: REQUEST_STATUS_LABELS_AR[activeSummary.status],
             startedAr: formatArDateTime(activeSummary.updatedAt),
           }

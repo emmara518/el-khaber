@@ -58,6 +58,7 @@ const HOME_FIXTURE: TechnicianHomeViewModel = {
     applianceAr: 'مكيف',
     applianceSlug: 'air_conditioner',
     taskAr: 'صيانة مكيف سبليت',
+    status: 'in_progress',
     statusLabelAr: 'قيد التنفيذ',
     startedAr: 'بدأ اليوم ١:٠٠ م',
   },

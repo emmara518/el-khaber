@@ -183,9 +183,9 @@ export default function TechnicianHomeScreen() {
                 <View style={styles.activeRow}>
                   <ApplianceThumb slug={active.applianceSlug} size={64} />
                   <View style={styles.activeCopy}>
-                    <StatusBadge status="in_progress" label={active.statusLabelAr} icon={statusBrandAsset('in_progress')} />
+                    <StatusBadge status={active.status} label={active.statusLabelAr} icon={statusBrandAsset(active.status)} />
                     <Text style={styles.activeTitle} numberOfLines={2}>
-                      {active.applianceAr} · {active.taskAr}
+                      {joinNonEmpty([active.applianceAr, active.taskAr])}
                     </Text>
                     <Text style={styles.meta} numberOfLines={1}>
                       {joinNonEmpty([active.customerNameAr, active.startedAr])}
