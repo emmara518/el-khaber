@@ -40,6 +40,8 @@ export type {
   MerchantProductDto,
   CreateMerchantProductDto,
   UpdateMerchantProductDto,
+  PublicMerchantRefDto,
+  PublicProductDto,
   ConversationDto,
   MessageDto,
   ReviewSummaryDto,

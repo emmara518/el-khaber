@@ -858,6 +858,51 @@ components:
         - createdAt
         - updatedAt
       type: object
+    PublicMerchantRefDto:
+      additionalProperties: false
+      description: >-
+        Minimal public merchant identity attached to a store product. No contact/verification/internal fields are
+        exposed.
+      properties:
+        businessNameAr:
+          nullable: true
+          type: string
+      required:
+        - businessNameAr
+      type: object
+    PublicProductDto:
+      additionalProperties: false
+      description: >-
+        Publicly readable merchant product (store). Only ACTIVE products are exposed; suspended products are excluded
+        from lists and 404 on detail. No merchant-management or inventory fields are exposed.
+      properties:
+        descriptionAr:
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        imageUrl:
+          nullable: true
+          type: string
+        merchant:
+          $ref: '#/components/schemas/PublicMerchantRefDto'
+        nameAr:
+          type: string
+        price:
+          nullable: true
+          type: number
+        slug:
+          type: string
+      required:
+        - id
+        - nameAr
+        - slug
+        - descriptionAr
+        - price
+        - imageUrl
+        - merchant
+      type: object
     ReadyDto:
       additionalProperties: false
       description: Readiness payload with per-dependency check results.
@@ -4372,6 +4417,82 @@ paths:
         - bearer: []
       tags:
         - subscriptions
+  /api/v1/products:
+    get:
+      operationId: StoreProductsController_list
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicProductDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active merchant products (paginated; newest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+      tags:
+        - catalog
+  /api/v1/products/{id}:
+    get:
+      operationId: StoreProductsController_detail
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicProductDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Public product detail.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Product not found or not publicly visible (canonical error envelope).
+      tags:
+        - catalog
   /api/v1/ready:
     get:
       operationId: HealthController_ready
@@ -5422,6 +5543,11 @@ paths:
                       - label_ar
                     type: object
                   type: array
+                availability_status:
+                  enum:
+                    - available
+                    - unavailable
+                  type: string
                 avatar_url:
                   maxLength: 512
                   minLength: 1

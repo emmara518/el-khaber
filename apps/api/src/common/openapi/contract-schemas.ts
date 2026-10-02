@@ -952,6 +952,35 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     },
     additionalProperties: false,
   },
+  PublicMerchantRefDto: {
+    type: 'object',
+    description:
+      'Minimal public merchant identity attached to a store product. ' +
+      'No contact/verification/internal fields are exposed.',
+    properties: {
+      businessNameAr: { type: 'string', nullable: true },
+    },
+    required: ['businessNameAr'],
+    additionalProperties: false,
+  },
+  PublicProductDto: {
+    type: 'object',
+    description:
+      'Publicly readable merchant product (store). Only ACTIVE products are ' +
+      'exposed; suspended products are excluded from lists and 404 on detail. ' +
+      'No merchant-management or inventory fields are exposed.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      descriptionAr: { type: 'string', nullable: true },
+      price: { type: 'number', nullable: true },
+      imageUrl: { type: 'string', nullable: true },
+      merchant: REF('PublicMerchantRefDto'),
+    },
+    required: ['id', 'nameAr', 'slug', 'descriptionAr', 'price', 'imageUrl', 'merchant'],
+    additionalProperties: false,
+  },
 };
 
 /** Inline success-envelope wrapper: `{ data: <ref>, meta? }`. */

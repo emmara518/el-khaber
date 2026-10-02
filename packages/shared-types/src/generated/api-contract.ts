@@ -335,6 +335,26 @@ export interface PaymentSubmissionDto {
 }
 
 /**
+ * Minimal public merchant identity attached to a store product. No contact/verification/internal fields are exposed.
+ */
+export interface PublicMerchantRefDto {
+  businessNameAr: string | null;
+}
+
+/**
+ * Publicly readable merchant product (store). Only ACTIVE products are exposed; suspended products are excluded from lists and 404 on detail. No merchant-management or inventory fields are exposed.
+ */
+export interface PublicProductDto {
+  descriptionAr: string | null;
+  id: string;
+  imageUrl: string | null;
+  merchant: PublicMerchantRefDto;
+  nameAr: string;
+  price: number | null;
+  slug: string;
+}
+
+/**
  * Readiness payload with per-dependency check results.
  */
 export interface ReadyDto {

@@ -22,6 +22,7 @@ import { MerchantModule } from './merchant/merchant.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { ServiceRequestsModule } from './service-requests/service-requests.module';
+import { StoreModule } from './store/store.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TechnicianModule } from './technician/technician.module';
 
@@ -40,6 +41,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     CatalogModule,
     ServiceRequestsModule,
     MerchantModule,
+    StoreModule,
     ChatModule,
     ReviewsModule,
     NotificationsModule,
