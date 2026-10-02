@@ -105,6 +105,7 @@ const ARABIC: Record<string, string> = {
   'profile.menu.logout': 'تسجيل الخروج',
   'profile.comingSoon': 'قريباً',
   'profile.support.body': 'فريق الدعم متاح يوميًا من ٩ صباحًا حتى ١٠ مساءً.',
+  'profile.location.none': 'لا يوجد موقع محفوظ',
   // Shared list states
   'state.loading': 'جارٍ التحميل…',
   'state.retry': 'إعادة المحاولة',

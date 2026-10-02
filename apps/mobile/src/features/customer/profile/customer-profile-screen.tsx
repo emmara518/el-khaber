@@ -13,6 +13,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ListError, ListLoading } from '../components/list-state-view';
 
+import { profileLocationLabel } from './location-label';
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
@@ -24,6 +25,10 @@ export default function CustomerProfileScreen() {
   const router = useRouter();
   const { status, data, error, retry } = useCustomerProfileViewModel();
   const logout = useAuthStore((s) => s.logout);
+
+  // The API exposes no customer city/district yet (reported gap). Build the
+  // location line from real, non-empty parts only — never a dangling " - ".
+  const locationLabel = data !== null ? profileLocationLabel(data.cityAr, data.districtAr) : null;
 
   return (
     <View style={styles.root}>
@@ -61,7 +66,9 @@ export default function CustomerProfileScreen() {
             <Pill
               background={color.brand.navyDeep}
               color={color.brand.goldSoft}
-              accessibilityLabel={`الموقع: ${data.cityAr}، ${data.districtAr}`}
+              accessibilityLabel={
+                locationLabel !== null ? `الموقع: ${locationLabel}` : t('profile.location.none')
+              }
               leading={
                 <Icon
                   name="map-pin"
@@ -71,7 +78,7 @@ export default function CustomerProfileScreen() {
                 />
               }
             >
-              {`${data.cityAr} - ${data.districtAr}`}
+              {locationLabel ?? t('profile.location.none')}
             </Pill>
           </Card>
 
