@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 
 import { findMerchantProduct } from './merchant-product-types';
-import { ProductImagePlaceholder } from './product-image-placeholder';
+import { ProductImage } from './product-image';
 import { useMerchantProductsViewModel } from './use-merchant-products-view-model';
 
 import type { MerchantProductStatus } from './merchant-product-types';
@@ -158,7 +158,7 @@ export default function MerchantProductDetailScreen({
       <View style={styles.section}>
         <SectionHeading title={t('merchant.product.description')} body={product.descriptionAr} />
         <View style={styles.showcase}>
-          <ProductImagePlaceholder nameAr={product.nameAr} hasImage={product.hasImage} />
+          <ProductImage imageUrl={product.imageUrl} nameAr={product.nameAr} size={120} />
           <View style={styles.showcaseMeta}>
             <StatusBadge status={product.status} label={product.statusLabelAr} />
             {product.stockQuantity !== null ? (

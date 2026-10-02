@@ -18,7 +18,7 @@ import {
   filterMerchantProducts,
   type MerchantProduct,
 } from './merchant-product-types';
-import { ProductImagePlaceholder } from './product-image-placeholder';
+import { ProductImage } from './product-image';
 import { useMerchantProductsViewModel } from './use-merchant-products-view-model';
 
 import type { MerchantProductFilters } from './merchant-product-types';
@@ -138,7 +138,7 @@ export default function MerchantCatalogScreen({
           >
             <View style={styles.card}>
               <View style={styles.row}>
-                <ProductImagePlaceholder nameAr={product.nameAr} hasImage={product.hasImage} />
+                <ProductImage imageUrl={product.imageUrl} nameAr={product.nameAr} />
                 <View style={styles.middle}>
                   <Text style={styles.name} numberOfLines={2}>
                     {product.nameAr}

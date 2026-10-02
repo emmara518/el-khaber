@@ -14,9 +14,10 @@
  *   status/slug). The UI's category chip therefore cannot persist;
  *   created/updated products keep an empty display category and the
  *   category filter operates on the loaded (real) list only.
- * - product image: the typed `imageSelected` intent has no storage/
- *   media path (docs/07 §9 upload flow unimplemented) → no imageUrl
- *   is ever sent; no fabricated URLs.
+ * - product image: `image_url` IS a real writable field on the contract
+ *   and is sent through create/update unchanged, so a merchant-supplied
+ *   direct URL is persisted and rendered as-is (see `ProductImage`).
+ *   No upload/storage pipeline exists — the merchant pastes a URL.
  */
 
 import { getApi } from '../../../lib/api-client';

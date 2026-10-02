@@ -396,7 +396,7 @@ const ARABIC: Record<string, string> = {
   'merchant.productForm.image': 'صورة المنتج',
   'merchant.productForm.imageOn': 'تم تحديد صورة للمنتج',
   'merchant.productForm.imageOff': 'لم تُحدد صورة بعد',
-  'merchant.productForm.imageNote': 'الصور التوضيحية فقط في هذه المرحلة',
+  'merchant.productForm.imageNote': 'يُعرض الرابط كما هو؛ استخدم رابط صورة مباشرًا يبدأ بـ https',
   'merchant.productForm.createSubmit': 'إضافة المنتج',
   'merchant.productForm.editSubmit': 'حفظ التعديلات',
   'merchant.productForm.retry': 'إعادة المحاولة',

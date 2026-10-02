@@ -1,5 +1,5 @@
 import { color, radius } from '@khabir/ui-tokens';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
@@ -8,18 +8,20 @@ export function ProductImagePlaceholder({
   nameAr,
   size = 96,
   hasImage,
+  style,
 }: {
   nameAr: string;
   size?: number;
   hasImage: boolean;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View
       accessibilityRole="image"
       accessibilityLabel={`رسم توضيحي، ليس صورة المنتج: ${nameAr}${
-        hasImage ? '، صورة المنتج المسجلة غير متاحة للعرض' : ''
+        hasImage ? '، تعذّر عرض صورة المنتج المسجلة' : ''
       }`}
-      style={styles.tile}
+      style={[styles.tile, style]}
     >
       <BrandImage name="spare-parts" size={size} />
       <Text style={styles.label}>رسم توضيحي</Text>

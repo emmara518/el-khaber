@@ -1,10 +1,10 @@
 /**
  * Merchant Product Form (M-D) — ONE component for create + edit.
  *
- * Documented fields only: name, description, category (M-C chips),
- * optional price (null → "السعر غير محدد" semantics), and a typed
- * image-intent toggle (no picker/upload — M-C placeholder system).
- * Status is system-owned and never editable here.
+ * Documented fields only: name, description, optional price (null →
+ * "السعر غير محدد" semantics), optional stock, and an optional product
+ * `image_url` with a live preview of what will be shown. Status is
+ * system-owned and never editable here.
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
@@ -19,6 +19,7 @@ import {
   type MerchantProductDataSource,
   type MerchantProductDraft,
 } from './merchant-product-types';
+import { ProductImage } from './product-image';
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
@@ -175,6 +176,13 @@ export default function MerchantProductFormScreen({
             hint={t('merchant.productForm.imageNote')}
             editable={!submitting}
           />
+          <View style={styles.imagePreview}>
+            <ProductImage
+              imageUrl={draft.imageUrl.trim().length > 0 ? draft.imageUrl.trim() : null}
+              nameAr={draft.nameAr.trim().length > 0 ? draft.nameAr.trim() : t('merchant.productForm.name')}
+              size={112}
+            />
+          </View>
 
           <View style={styles.actions}>
             <Pressable
@@ -239,18 +247,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     paddingTop: spacing[2],
   },
-  imageToggle: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[2],
+  imagePreview: {
+    alignItems: 'flex-start',
   },
   inlineError: {
     backgroundColor: color.error.soft,
