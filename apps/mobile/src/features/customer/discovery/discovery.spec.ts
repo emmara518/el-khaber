@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { MockFaultGuideDataSource } from '../fault-guide/mock-fault-guide-data-source';
 
-import { availabilityLabelAr } from './api-technician-data-source';
+import { availabilityForDto } from './api-technician-data-source';
 import { MockTechnicianDataSource } from './mock-technician-data-source';
 import {
   activeFilterCount,
@@ -48,10 +48,10 @@ describe('technician mock variety', () => {
 
 describe('public availability label (WP-4)', () => {
   it('maps the server availabilityStatus to the approved labels', () => {
-    expect(availabilityLabelAr('available')).toEqual({ available: true, labelAr: 'متاح' });
-    expect(availabilityLabelAr('unavailable')).toEqual({ available: false, labelAr: 'غير متاح' });
+    expect(availabilityForDto('available')).toEqual({ available: true, labelAr: 'متاح' });
+    expect(availabilityForDto('unavailable')).toEqual({ available: false, labelAr: 'غير متاح' });
     // `busy` is reserved — safe display only.
-    expect(availabilityLabelAr('busy')).toEqual({ available: false, labelAr: 'مشغول حاليًا' });
+    expect(availabilityForDto('busy')).toEqual({ available: false, labelAr: 'مشغول حاليًا' });
   });
 });
 

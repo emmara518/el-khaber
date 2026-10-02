@@ -28,6 +28,7 @@ import { formatArDate } from '../../../lib/api-format';
 import { buildQuery, drainPages } from '../../../lib/api-query';
 import { categorySlugById } from '../../../lib/catalog-reference';
 import { initialsOf } from '../../../lib/request-labels';
+import { availabilityLabelAr, isAvailable } from '../../../lib/technician-status';
 
 import type { TechnicianDataSource as TechnicianDataSourceContract } from './mock-technician-data-source';
 import type { Technician, TechnicianReview } from './technician-types';
@@ -42,20 +43,12 @@ const REVIEW_HYDRATION_LIMIT = 10;
 /** Reviews page window per technician (public reviews are bounded). */
 const REVIEWS_PAGE_LIMIT = 20;
 
-/** Availability enum → the existing Arabic availability chips. */
-export function availabilityLabelAr(status: TechnicianPublicDto['availabilityStatus']): {
+/** Availability enum → the shared Arabic label + available flag (single source). */
+export function availabilityForDto(status: TechnicianPublicDto['availabilityStatus']): {
   available: boolean;
   labelAr: string;
 } {
-  switch (status) {
-    case 'available':
-      return { available: true, labelAr: 'متاح' };
-    case 'busy':
-      // Reserved state — safe display only, no phase-4 behavior.
-      return { available: false, labelAr: 'مشغول حاليًا' };
-    case 'unavailable':
-      return { available: false, labelAr: 'غير متاح' };
-  }
+  return { available: isAvailable(status), labelAr: availabilityLabelAr(status) };
 }
 
 /** Map review tags/labels + comment to the existing review card model. */
@@ -87,7 +80,7 @@ export async function mapTechnicianCard(
       applianceSet.add(slug);
     }
   }
-  const availability = availabilityLabelAr(dto.availabilityStatus);
+  const availability = availabilityForDto(dto.availabilityStatus);
   return {
     id: dto.id,
     nameAr: name,

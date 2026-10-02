@@ -13,21 +13,11 @@
 
 export type TechnicianVerification = 'verified' | 'pending' | 'action_required';
 
-/** WP-4 availability states. `busy` is reserved (never technician-set). */
-export type TechnicianAvailabilityStatus = 'available' | 'busy' | 'unavailable';
-
-/** WP-4 approved labels: available → "متاح", unavailable → "غير متاح". */
-export function availabilityLabelAr(status: TechnicianAvailabilityStatus): string {
-  switch (status) {
-    case 'available':
-      return 'متاح';
-    case 'busy':
-      // Reserved state — safe display only, no phase-4 behavior.
-      return 'مشغول حاليًا';
-    case 'unavailable':
-      return 'غير متاح';
-  }
-}
+/** WP-4 availability states — canonical server union (single source). */
+import type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
+export type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
+/** WP-4 approved labels — single source shared with customer discovery. */
+export { availabilityLabelAr } from '../../../lib/technician-status';
 
 export interface TechnicianHomeProfile {
   readonly nameAr: string;
