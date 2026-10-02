@@ -84,13 +84,27 @@ export interface AuthUserDto {
 }
 
 /**
- * The service-request conversation (1:1 with the request). Participants are the request customer and the targeted/assigned technician.
+ * A conversation scoped to EITHER a service request (customer ↔ technician) OR a product (initiator ↔ merchant). Exactly one of serviceRequestId / productId is set; requestStatus is present only for service-request conversations.
  */
 export interface ConversationDto {
   createdAt: string;
   id: string;
-  requestStatus: ServiceRequestStatus;
-  serviceRequestId: string;
+  productId: string | null;
+  requestStatus: ServiceRequestStatus | null;
+  serviceRequestId: string | null;
+}
+
+/**
+ * A conversation the caller participates in (merchant/messages list). peerNameAr is the other party; lastMessageAr is the real latest message (null when none); unreadCount counts messages not sent by the caller and not yet read.
+ */
+export interface ConversationSummaryDto {
+  id: string;
+  lastMessageAr: string | null;
+  peerNameAr: string;
+  productId: string | null;
+  serviceRequestId: string | null;
+  unreadCount: number;
+  updatedAt: string;
 }
 
 /**

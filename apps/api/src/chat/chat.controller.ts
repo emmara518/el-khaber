@@ -16,7 +16,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { ChatService } from './chat.service';
 
-import type { ApiMeta, ApiSuccess, ConversationDto, MessageDto } from '@khabir/shared-types';
+import type { ApiMeta, ApiSuccess, ConversationDto, ConversationSummaryDto, MessageDto } from '@khabir/shared-types';
 
 @ApiTags('chat')
 @ApiBearerAuth('bearer')
@@ -36,6 +36,25 @@ export class ChatController {
     @Param('id') id: string,
   ): Promise<ApiSuccess<ConversationDto>> {
     return { data: await this.chat.getForRequest({ id: user.id, role: user.role }, id) };
+  }
+
+  /** Phase D: product inquiry → merchant conversation (customer/technician). */
+  @Get('products/:id/conversation')
+  @ApiEnvelopeOk('ConversationDto', 200, 'Authorized product conversation (lazily created on first access).')
+  async getForProduct(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ): Promise<ApiSuccess<ConversationDto>> {
+    return { data: await this.chat.getForProduct({ id: user.id, role: user.role }, id) };
+  }
+
+  /** The caller's conversations (merchant/messages list; any participant). */
+  @Get('conversations')
+  @ApiEnvelopeOk('ConversationSummaryDto', 200, 'Conversations the caller participates in (newest first).')
+  async listConversations(
+    @CurrentUser() user: RequestUser,
+  ): Promise<ApiSuccess<ConversationSummaryDto[]>> {
+    return { data: await this.chat.listConversations({ id: user.id, role: user.role }) };
   }
 
   @Get('conversations/:id/messages')

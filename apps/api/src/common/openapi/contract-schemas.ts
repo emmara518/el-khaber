@@ -452,15 +452,45 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   ConversationDto: {
     type: 'object',
     description:
-      'The service-request conversation (1:1 with the request). Participants ' +
-      'are the request customer and the targeted/assigned technician.',
+      'A conversation scoped to EITHER a service request (customer ↔ technician) ' +
+      'OR a product (initiator ↔ merchant). Exactly one of serviceRequestId / ' +
+      'productId is set; requestStatus is present only for service-request ' +
+      'conversations.',
     properties: {
       id: { type: 'string', format: 'uuid' },
-      serviceRequestId: { type: 'string', format: 'uuid' },
-      requestStatus: REF('ServiceRequestStatus'),
+      serviceRequestId: { type: 'string', format: 'uuid', nullable: true },
+      productId: { type: 'string', format: 'uuid', nullable: true },
+      requestStatus: { ...REF('ServiceRequestStatus'), nullable: true },
       createdAt: { type: 'string', format: 'date-time' },
     },
-    required: ['id', 'serviceRequestId', 'requestStatus', 'createdAt'],
+    required: ['id', 'serviceRequestId', 'productId', 'requestStatus', 'createdAt'],
+    additionalProperties: false,
+  },
+  ConversationSummaryDto: {
+    type: 'object',
+    description:
+      'A conversation the caller participates in (merchant/messages list). ' +
+      'peerNameAr is the other party; lastMessageAr is the real latest message ' +
+      '(null when none); unreadCount counts messages not sent by the caller and ' +
+      'not yet read.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      peerNameAr: { type: 'string' },
+      lastMessageAr: { type: 'string', nullable: true },
+      unreadCount: { type: 'integer' },
+      productId: { type: 'string', format: 'uuid', nullable: true },
+      serviceRequestId: { type: 'string', format: 'uuid', nullable: true },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'peerNameAr',
+      'lastMessageAr',
+      'unreadCount',
+      'productId',
+      'serviceRequestId',
+      'updatedAt',
+    ],
     additionalProperties: false,
   },
   MessageDto: {

@@ -5,6 +5,7 @@
 
 export type {
   ConversationDto,
+  ConversationSummaryDto,
   MessageDto,
   ReviewSummaryDto,
   NotificationDto,

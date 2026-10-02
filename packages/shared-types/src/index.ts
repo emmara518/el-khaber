@@ -43,6 +43,7 @@ export type {
   PublicMerchantRefDto,
   PublicProductDto,
   ConversationDto,
+  ConversationSummaryDto,
   MessageDto,
   ReviewSummaryDto,
   ReviewTagDto,

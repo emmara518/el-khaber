@@ -161,8 +161,9 @@ components:
     ConversationDto:
       additionalProperties: false
       description: >-
-        The service-request conversation (1:1 with the request). Participants are the request customer and the
-        targeted/assigned technician.
+        A conversation scoped to EITHER a service request (customer ↔ technician) OR a product (initiator ↔ merchant).
+        Exactly one of serviceRequestId / productId is set; requestStatus is present only for service-request
+        conversations.
       properties:
         createdAt:
           format: date-time
@@ -170,16 +171,60 @@ components:
         id:
           format: uuid
           type: string
+        productId:
+          format: uuid
+          nullable: true
+          type: string
         requestStatus:
           $ref: '#/components/schemas/ServiceRequestStatus'
+          nullable: true
         serviceRequestId:
           format: uuid
+          nullable: true
           type: string
       required:
         - id
         - serviceRequestId
+        - productId
         - requestStatus
         - createdAt
+      type: object
+    ConversationSummaryDto:
+      additionalProperties: false
+      description: >-
+        A conversation the caller participates in (merchant/messages list). peerNameAr is the other party; lastMessageAr
+        is the real latest message (null when none); unreadCount counts messages not sent by the caller and not yet
+        read.
+      properties:
+        id:
+          format: uuid
+          type: string
+        lastMessageAr:
+          nullable: true
+          type: string
+        peerNameAr:
+          type: string
+        productId:
+          format: uuid
+          nullable: true
+          type: string
+        serviceRequestId:
+          format: uuid
+          nullable: true
+          type: string
+        unreadCount:
+          type: integer
+        updatedAt:
+          format: date-time
+          type: string
+      required:
+        - id
+        - peerNameAr
+        - lastMessageAr
+        - unreadCount
+        - productId
+        - serviceRequestId
+        - updatedAt
       type: object
     CreateMerchantProductDto:
       additionalProperties: false
@@ -3175,6 +3220,46 @@ paths:
           description: Invalid, expired, or already-used reset token.
       tags:
         - auth
+  /api/v1/conversations:
+    get:
+      operationId: ChatController_listConversations
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConversationSummaryDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Conversations the caller participates in (newest first).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conversation not found or not a participant (identical response).
+      security:
+        - bearer: []
+      tags:
+        - chat
   /api/v1/conversations/{id}/messages:
     get:
       operationId: ChatController_listMessages
@@ -4493,6 +4578,51 @@ paths:
           description: Product not found or not publicly visible (canonical error envelope).
       tags:
         - catalog
+  /api/v1/products/{id}/conversation:
+    get:
+      operationId: ChatController_getForProduct
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ConversationDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Authorized product conversation (lazily created on first access).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conversation not found or not a participant (identical response).
+      security:
+        - bearer: []
+      tags:
+        - chat
   /api/v1/ready:
     get:
       operationId: HealthController_ready

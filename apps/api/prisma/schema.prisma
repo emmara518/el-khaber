@@ -649,16 +649,23 @@ model ReviewTagAssignment {
 
 model Conversation {
   id               String    @id @default(uuid()) @db.Uuid
-  // One conversation per service request.
-  serviceRequestId String    @unique @map("service_request_id") @db.Uuid
+  // A conversation is scoped to EITHER a service request (customer ↔
+  // technician) OR a product (initiator ↔ merchant). Exactly one is set
+  // (enforced by a CHECK constraint in the migration). Product
+  // conversations are keyed by (product, initiator) to stay idempotent.
+  serviceRequestId String?   @unique @map("service_request_id") @db.Uuid
+  productId        String?   @map("product_id") @db.Uuid
+  initiatorUserId  String?   @map("initiator_user_id") @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   closedAt         DateTime? @map("closed_at")
 
-  serviceRequest ServiceRequest            @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  serviceRequest ServiceRequest?           @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  product        Product?                  @relation(fields: [productId], references: [id], onDelete: Cascade)
   participants   ConversationParticipant[]
   messages       Message[]
 
+  @@unique([productId, initiatorUserId])
   @@map("conversations")
 }
 
@@ -732,6 +739,7 @@ model Product {
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   merchant MerchantProfile @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
 
   @@unique([merchantId, slug])
   @@index([merchantId, status])
