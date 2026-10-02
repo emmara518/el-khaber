@@ -25,7 +25,7 @@ import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ActionButton, AppHeader, Icon, ListEmpty, ListError, ListLoading, PageTitle, SearchField, StatusBadge, type } from '@/ui';
+import { ActionButton, AppHeader, Chip, ListEmpty, ListError, ListLoading, PageTitle, SearchField, StatusBadge, type } from '@/ui';
 
 
 export default function MerchantCatalogScreen({
@@ -83,23 +83,13 @@ export default function MerchantCatalogScreen({
             {PRODUCT_STATUS_OPTIONS.map((option) => {
               const selected = filters.status === option.value;
               return (
-                <Pressable
+                <Chip
                   key={option.labelAr}
-                  accessibilityRole="radio"
+                  label={option.labelAr}
+                  selected={selected}
                   accessibilityLabel={`حالة المنتج: ${option.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected, checked: selected }}
                   onPress={() => setFilters((f) => ({ ...f, status: option.value }))}
-                  style={({ pressed }) => [
-                    styles.statusChip,
-                    selected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  {selected ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {option.labelAr}
-                  </Text>
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -212,43 +202,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing[2],
   },
-  statusChip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1] + 2,
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    borderColor: color.brand.navy,
-    borderWidth: 2,
-    backgroundColor: color.surface.base,
-  },
   pressed: {
     opacity: 0.75,
-  },
-  chipText: {
-    ...type.bodyMedium,
-    color: color.text.secondary,
-  },
-  chipTextSelected: {
-    color: color.text.primary,
   },
   count: {
     ...type.caption,

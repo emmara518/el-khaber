@@ -6,9 +6,9 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Icon } from '@/ui/icon';
+import { Chip } from '@/ui/chip';
 
 export function LabeledInput({
   label,
@@ -76,19 +76,14 @@ export function MultiSelectChips<T extends string>({
         {options.map((option) => {
           const on = selected.includes(option);
           return (
-            <Pressable
+            <Chip
               key={option}
-              accessibilityRole="checkbox"
+              label={option}
+              selectionMode="multiple"
+              selected={on}
               accessibilityLabel={`${option}${on ? '، محدد' : ''}`}
-              accessibilityState={{ selected: on, checked: on }}
               onPress={() => onToggle(option)}
-              style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
-            >
-              {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                {option}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -126,17 +121,14 @@ export function CatalogChips({
             {group.items.map((item) => {
               const on = selected.includes(item.id);
               return (
-                <Pressable
+                <Chip
                   key={item.id}
-                  accessibilityRole="checkbox"
+                  label={item.labelAr}
+                  selectionMode="multiple"
+                  selected={on}
                   accessibilityLabel={`${item.labelAr}${on ? '، محدد' : ''}`}
-                  accessibilityState={{ selected: on, checked: on }}
                   onPress={() => onToggle(item.id)}
-                  style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
-                >
-                  {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
-                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{item.labelAr}</Text>
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -199,34 +191,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1] + 2,
-  },
-  chipOn: {
-    borderColor: color.brand.navy,
-    borderWidth: 2,
-    backgroundColor: color.surface.base,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  chipText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-  },
-  chipTextOn: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
   },
 });

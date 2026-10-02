@@ -6,7 +6,7 @@
  * Empty (per filter), error+retry, and loading states included.
  */
 
-import { color, radius, spacing } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -22,8 +22,7 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ListEmpty, ListError, ListLoading } from '@/ui';
-import { AppHeader, Avatar, Card, fontFamily, Icon, IconText, PageTitle, statusBrandAsset, StatusUnit, type } from '@/ui';
+import { AppHeader, Avatar, Card, Chip, Icon, IconText, ListEmpty, ListError, ListLoading, PageTitle, statusBrandAsset, StatusUnit, type } from '@/ui';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
@@ -60,22 +59,13 @@ export default function CustomerRequestsScreen() {
               {REQUEST_FILTERS.map((f) => {
                 const selected = filter === f.id;
                 return (
-                  <Pressable
+                  <Chip
                     key={f.id}
-                    accessibilityRole="tab"
+                    label={f.labelAr}
+                    selected={selected}
                     accessibilityLabel={`تصفية الطلبات: ${f.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                    accessibilityState={{ selected }}
                     onPress={() => setFilter(f.id)}
-                    style={({ pressed }) => [
-                      styles.chip,
-                      selected && styles.chipSelected,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                      {f.labelAr}
-                    </Text>
-                  </Pressable>
+                  />
                 );
               })}
             </ScrollView>
@@ -168,49 +158,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[5],
     paddingTop: spacing[4],
   },
-  title: {
-    ...type.h2,
-    color: color.text.primary,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    ...type.body,
-    color: color.text.secondary,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
   filters: {
     flexDirection: 'row',
     gap: spacing[2],
     paddingVertical: spacing[4],
   },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
   pressed: {
     opacity: 0.75,
-  },
-  chipText: {
-    ...type.bodyMedium,
-    color: color.text.secondary,
-  },
-  chipTextSelected: {
-    color: color.text.primary,
-    fontFamily: fontFamily.bold,
   },
   list: {
     gap: spacing[3],

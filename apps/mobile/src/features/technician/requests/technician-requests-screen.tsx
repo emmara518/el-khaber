@@ -29,6 +29,7 @@ import {
   AppHeader,
   ApplianceThumb,
   Card,
+  Chip,
   Icon,
   ListEmpty,
   ListError,
@@ -37,7 +38,7 @@ import {
   StatusBadge,
   statusBrandAsset,
 } from '@/ui';
-import { fontFamily, type } from '@/ui/typography';
+import { type } from '@/ui/typography';
 
 const FILTER_ICON: Record<TechnicianRequestFilter, IconName> = {
   all: 'list',
@@ -103,21 +104,14 @@ export default function TechnicianRequestsScreen({
               {TECHNICIAN_REQUEST_FILTERS.map((option) => {
                 const selected = filter === option.id;
                 return (
-                  <Pressable
+                  <Chip
                     key={option.id}
-                    accessibilityRole="tab"
+                    label={option.labelAr}
+                    icon={FILTER_ICON[option.id]}
+                    selected={selected}
                     accessibilityLabel={`تصفية الطلبات: ${option.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                    accessibilityState={{ selected }}
                     onPress={() => setFilter(option.id)}
-                    style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-                  >
-                    <Icon
-                      name={FILTER_ICON[option.id]}
-                      size={16}
-                      color={selected ? color.surface.base : color.text.secondary}
-                    />
-                    <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{option.labelAr}</Text>
-                  </Pressable>
+                  />
                 );
               })}
             </ScrollView>
@@ -254,23 +248,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surface.subtle },
   content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
   filters: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
-  chip: {
-    flexDirection: 'row',
-    direction: 'rtl',
-    alignItems: 'center',
-    gap: spacing[1] + 2,
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: { borderColor: color.brand.navy, backgroundColor: color.brand.navy },
-  chipText: { ...type.bodyMedium, color: color.text.secondary },
-  chipTextSelected: { ...type.bodyMedium, fontFamily: fontFamily.bold, color: color.surface.base },
   list: { gap: spacing[3] },
   card: { gap: spacing[3] },
   cardRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },

@@ -25,10 +25,9 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, ListError, ListLoading, type } from '@/ui';
+import { Card, Chip, ListError, ListLoading, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
-import { fontFamily } from '@/ui/typography';
 
 export default function TechnicianSearchScreen() {
   const { t } = useI18n();
@@ -231,11 +230,12 @@ export default function TechnicianSearchScreen() {
                 {specialtyOptions.length > 0 ? (
                   <FilterGroup label="التخصص والخدمة">
                     {specialtyOptions.map((specialty) => (
-                      <FilterChip
+                      <Chip
                         key={specialty}
                         label={specialty}
+                        selectionMode="multiple"
                         selected={draft.specialty === specialty}
-                        groupLabel="التخصص والخدمة"
+                        accessibilityLabel={`التخصص والخدمة: ${specialty}`}
                         onPress={() => setDraft((current) => ({
                           ...current,
                           specialty: current.specialty === specialty ? null : specialty,
@@ -247,11 +247,12 @@ export default function TechnicianSearchScreen() {
                 {areaOptions.length > 0 ? (
                   <FilterGroup label="مناطق الخدمة">
                     {areaOptions.map((area) => (
-                      <FilterChip
+                      <Chip
                         key={area}
                         label={area}
+                        selectionMode="multiple"
                         selected={draft.area === area}
-                        groupLabel="مناطق الخدمة"
+                        accessibilityLabel={`مناطق الخدمة: ${area}`}
                         onPress={() => setDraft((current) => ({ ...current, area: current.area === area ? null : area }))}
                       />
                     ))}
@@ -259,20 +260,22 @@ export default function TechnicianSearchScreen() {
                 ) : null}
                 <FilterGroup label="التقييم">
                   {RATING_OPTIONS.map((option) => (
-                    <FilterChip
+                    <Chip
                       key={option.labelAr}
                       label={option.labelAr}
+                      selectionMode="multiple"
                       selected={draft.minRating === option.value}
-                      groupLabel="التقييم"
+                      accessibilityLabel={`التقييم: ${option.labelAr}`}
                       onPress={() => setDraft((current) => ({ ...current, minRating: option.value }))}
                     />
                   ))}
                 </FilterGroup>
                 <FilterGroup label="التوفر">
-                  <FilterChip
+                  <Chip
                     label="المتاحون فقط"
+                    selectionMode="multiple"
                     selected={draft.availableOnly}
-                    groupLabel="التوفر"
+                    accessibilityLabel="التوفر: المتاحون فقط"
                     onPress={() => setDraft((current) => ({ ...current, availableOnly: !current.availableOnly }))}
                   />
                 </FilterGroup>
@@ -356,26 +359,6 @@ function FilterGroup({ label, children }: { label: string; children: React.React
       <Text style={styles.groupLabel}>{label}</Text>
       <View style={styles.groupChips}>{children}</View>
     </View>
-  );
-}
-
-function FilterChip({ label, selected, groupLabel, onPress }: {
-  label: string;
-  selected: boolean;
-  groupLabel: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityLabel={`${groupLabel}: ${label}`}
-      accessibilityState={{ checked: selected }}
-      onPress={onPress}
-      style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-    >
-      {selected ? <Icon name="check" size={16} color={color.brand.navy} /> : null}
-      <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -467,42 +450,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  chips: {
-    flexDirection: 'row',
-    gap: spacing[2],
-    paddingVertical: spacing[3],
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[1],
-    maxWidth: '100%',
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    borderColor: color.brand.gold,
-    backgroundColor: color.brand.goldSoft,
-  },
   pressed: {
     opacity: 0.75,
-  },
-  chipText: {
-    flexShrink: 1,
-    ...type.bodyMedium,
-    color: color.text.secondary,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  chipTextSelected: {
-    color: color.text.primary,
-    fontFamily: fontFamily.bold,
   },
   filterToggle: {
     flexDirection: 'row',

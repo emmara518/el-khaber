@@ -14,6 +14,7 @@ export { MenuRow, MenuDivider } from './menu-row';
 
 export { Card } from './card';
 export { Pill } from './pill';
+export { Chip, type ChipProps, type ChipSelectionMode } from './chip';
 export { Avatar } from './avatar';
 export { IconText } from './icon-text';
 export { RatingStars } from './rating-stars';
