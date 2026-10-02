@@ -16,10 +16,11 @@ import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import type { ReactNode } from 'react';
+
 import { Icon } from '@/ui/icon';
 import { type } from '@/ui/typography';
 
-import type { ReactNode } from 'react';
 
 interface AuthScreenProps {
   title: string;

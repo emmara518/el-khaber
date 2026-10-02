@@ -17,6 +17,7 @@ import { useTechnicianMessagesViewModel } from './use-technician-messages-view-m
 
 import type { TechnicianConversationItem } from './technician-messages-types';
 
+import { joinNonEmpty } from '@/lib/api-format';
 import { AppHeader, Avatar, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle } from '@/ui';
 import { type } from '@/ui/typography';
 
@@ -74,7 +75,7 @@ export default function TechnicianMessagesScreen() {
                             <Text style={styles.time}>{conversation.timeAr}</Text>
                           </View>
                           <Text style={styles.ref} numberOfLines={1}>
-                            {conversation.applianceAr} · {conversation.orderRefAr}
+                            {joinNonEmpty([conversation.applianceAr, conversation.orderRefAr])}
                           </Text>
                         </View>
                         <Icon name="chevron-left" size={20} color={color.brand.navy} />

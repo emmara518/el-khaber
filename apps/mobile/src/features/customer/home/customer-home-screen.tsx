@@ -62,7 +62,7 @@ export default function CustomerHomeScreen() {
   return (
     <View style={styles.root}>
       <AppHeader
-        avatarInitials={data?.context.avatarInitialsAr ?? '·'}
+        avatarInitials={data?.context.avatarInitialsAr}
         notificationCount={notifications.unreadCount}
         onPressNotifications={() => router.push('/(customer)/notifications')}
         onPressAvatar={() => router.replace('/(customer)/profile')}

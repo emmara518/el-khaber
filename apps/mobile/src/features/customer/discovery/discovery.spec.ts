@@ -7,8 +7,8 @@ import { describe, expect, it } from 'vitest';
 
 import { MockFaultGuideDataSource } from '../fault-guide/mock-fault-guide-data-source';
 
-import { MockTechnicianDataSource } from './mock-technician-data-source';
 import { availabilityLabelAr } from './api-technician-data-source';
+import { MockTechnicianDataSource } from './mock-technician-data-source';
 import {
   activeFilterCount,
   applyTechnicianFilters,

@@ -16,6 +16,7 @@ import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
@@ -187,7 +188,7 @@ export default function TechnicianHomeScreen() {
                       {active.applianceAr} · {active.taskAr}
                     </Text>
                     <Text style={styles.meta} numberOfLines={1}>
-                      {active.customerNameAr} · {active.startedAr}
+                      {joinNonEmpty([active.customerNameAr, active.startedAr])}
                     </Text>
                   </View>
                 </View>

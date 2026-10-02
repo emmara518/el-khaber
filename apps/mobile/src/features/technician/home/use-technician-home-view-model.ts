@@ -8,7 +8,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ApiTechnicianHomeDataSource } from './api-technician-home-data-source';
-
 import { availabilityLabelAr } from './technician-home-types';
 
 import type { TechnicianHomeDataSource, TechnicianHomeViewModel } from './technician-home-types';

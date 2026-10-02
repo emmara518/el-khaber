@@ -10,8 +10,8 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 
-import { ApiTechnicianServicesDataSource } from '../services/api-technician-services-data-source';
 import { ApiTechnicianProfileDataSource } from '../profile/api-technician-profile-data-source';
+import { ApiTechnicianServicesDataSource } from '../services/api-technician-services-data-source';
 
 import {
   INITIAL_ONBOARDING_STATE,

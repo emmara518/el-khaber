@@ -24,6 +24,7 @@ import type { TechnicianRequestsDataSource } from './mock-technician-requests-da
 import type { IconName } from '@/ui';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
@@ -189,7 +190,7 @@ export default function TechnicianRequestsScreen({
                   <View style={styles.cardCopy}>
                     <StatusBadge status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
                     <Text style={styles.cardTitle} numberOfLines={2}>
-                      {item.applianceAr} · {item.problemAr}
+                      {joinNonEmpty([item.applianceAr, item.problemAr])}
                     </Text>
                     <View style={styles.metaRow}>
                       <Icon name="map-pin" size={13} color={color.text.secondary} accessibilityLabel="الموقع" />

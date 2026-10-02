@@ -41,7 +41,7 @@ export default function MerchantHomeScreen() {
   return (
     <View style={styles.root}>
       <AppHeader
-        avatarInitials={data?.profile.initialsAr || '·'}
+        avatarInitials={data?.profile.initialsAr}
         notificationCount={notifications.unreadCount}
         onPressNotifications={() => router.push('/(merchant)/notifications')}
         onPressAvatar={openProfile}

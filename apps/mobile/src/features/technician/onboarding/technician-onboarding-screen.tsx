@@ -22,11 +22,12 @@ import {
 import { ONBOARDING_STEPS, type OnboardingStep } from './technician-onboarding-machine';
 import { useTechnicianOnboardingViewModel } from './use-technician-onboarding-view-model';
 
+import type { TechnicianServicesDataSource } from '../services/technician-services-types';
+
 import { useI18n } from '@/i18n/use-i18n';
 import { ActionButton, AppHeader, Card, Icon, PageTitle, SectionHeading } from '@/ui';
 import { type } from '@/ui/typography';
 
-import type { TechnicianServicesDataSource } from '../services/technician-services-types';
 
 const STEP_TITLES: Record<OnboardingStep, string> = {
   info: 'البيانات الأساسية',

@@ -26,6 +26,7 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { Avatar, Icon, RatingStars, type } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
@@ -78,7 +79,7 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
         asset="technician_profile_hero"
         eyebrow={technician.specialtiesAr.join(' · ')}
         title={technician.nameAr}
-        body={`${technician.experienceAr} · ${technician.availabilityLabelAr}`}
+        body={joinNonEmpty([technician.experienceAr, technician.availabilityLabelAr])}
         action={<SceneAction label={t('discovery.profile.requestService')} accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`} onPress={onRequestService} />}
         compact
       >

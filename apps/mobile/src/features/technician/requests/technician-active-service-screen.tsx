@@ -21,6 +21,7 @@ import { useTechnicianActiveServiceViewModel } from './use-technician-active-ser
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
@@ -138,7 +139,7 @@ export default function TechnicianActiveServiceScreen({
             <View style={styles.headCopy}>
               <StatusBadge status={request.status} label={request.statusLabelAr} icon={statusBrandAsset(request.status)} />
               <Text style={styles.headTitle} numberOfLines={2}>
-                {request.applianceAr} · {request.problemAr}
+                {joinNonEmpty([request.applianceAr, request.problemAr])}
               </Text>
               <Text style={styles.meta} numberOfLines={1}>
                 {request.customerNameAr}

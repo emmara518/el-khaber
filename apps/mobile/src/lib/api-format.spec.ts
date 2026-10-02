@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatArDate, formatArDateTime, formatArTime, formatArYear, isToday, toArabicDigits } from './api-format';
+import { formatArDate, formatArDateTime, formatArTime, formatArYear, isToday, joinNonEmpty, toArabicDigits } from './api-format';
 
 describe('toArabicDigits', () => {
   it('converts ASCII digits to Arabic-Indic digits', () => {
@@ -44,5 +44,22 @@ describe('isToday', () => {
   it('is true for now and false for a fixed past date', () => {
     expect(isToday(new Date().toISOString())).toBe(true);
     expect(isToday('2020-01-01T00:00:00Z')).toBe(false);
+  });
+});
+
+describe('joinNonEmpty', () => {
+  it('drops empty parts so no dangling separator remains', () => {
+    expect(joinNonEmpty(['تكييفات', ''])).toBe('تكييفات');
+    expect(joinNonEmpty(['', 'تكييفات'])).toBe('تكييفات');
+    expect(joinNonEmpty(['أحمد', '', 'اليوم ٢:٠٥ م'])).toBe('أحمد · اليوم ٢:٠٥ م');
+  });
+
+  it('treats whitespace and null/undefined as empty', () => {
+    expect(joinNonEmpty([' ', null, undefined])).toBe('');
+    expect(joinNonEmpty(['قاهرة', '  ', 'غسالات'])).toBe('قاهرة · غسالات');
+  });
+
+  it('supports a custom separator', () => {
+    expect(joinNonEmpty(['قاهرة', 'غسالات'], '، ')).toBe('قاهرة، غسالات');
   });
 });

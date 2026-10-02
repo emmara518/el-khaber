@@ -10,8 +10,8 @@
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { useSubscriptionViewModel } from '@/features/subscriptions/use-subscription-view-model';
 import { priceLineAr } from '@/features/subscriptions/subscription-presentation';
+import { useSubscriptionViewModel } from '@/features/subscriptions/use-subscription-view-model';
 import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
 import { type } from '@/ui/typography';

@@ -75,3 +75,16 @@ export function isToday(iso: string): boolean {
     date.getDate() === now.getDate()
   );
 }
+
+/**
+ * Join only the non-empty parts with a separator (default ' · ').
+ *
+ * Presentation truth: a missing field must never leave a dangling separator
+ * (e.g. "تكييفات · "). Empty/whitespace parts are dropped entirely, so the
+ * caller renders exactly the metadata that actually exists.
+ */
+export function joinNonEmpty(parts: ReadonlyArray<string | null | undefined>, separator = ' · '): string {
+  return parts
+    .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+    .join(separator);
+}

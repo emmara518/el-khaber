@@ -27,13 +27,14 @@ import {
   REQUEST_STATUS_LABELS_AR,
 } from '../../../lib/request-labels';
 
+import { availabilityLabelAr } from './technician-home-types';
+
 import type {
   TechnicianAvailabilityStatus,
   TechnicianHomeDataSource,
   TechnicianHomeViewModel,
   TechnicianVerification,
 } from './technician-home-types';
-import { availabilityLabelAr } from './technician-home-types';
 import type {
   MeDto,
   ServiceRequestSummaryDto,

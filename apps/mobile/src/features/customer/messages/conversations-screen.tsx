@@ -21,6 +21,7 @@ import { useConversationsViewModel } from './use-conversations-view-model';
 import type { ConversationItem } from './conversations-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { AppHeader, Avatar, Card, fontFamily, PageTitle, type } from '@/ui';
 import { SceneSection } from '@/ui/cinematic';
@@ -128,7 +129,7 @@ function ConversationRow({
               <Text style={styles.time}>{conversation.timeAr}</Text>
             </View>
             <Text style={styles.specialty}>
-              {conversation.specialtyAr} · {conversation.orderRefAr}
+              {joinNonEmpty([conversation.specialtyAr, conversation.orderRefAr])}
             </Text>
             <Text style={styles.snippet} numberOfLines={1}>
               {conversation.lastMessageAr}

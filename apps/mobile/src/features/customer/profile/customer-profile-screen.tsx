@@ -17,6 +17,7 @@ import { profileLocationLabel } from './location-label';
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import { useAuthStore } from '@/lib/auth-store';
 import { ActionButton, AppHeader, Avatar, Card, Icon, ListError, ListLoading, MenuDivider, MenuRow, PageTitle, Pill, StatTile, type } from '@/ui';
 
@@ -61,7 +62,7 @@ export default function CustomerProfileScreen() {
             />
             <Text style={styles.name}>{data.displayNameAr}</Text>
             <Text style={styles.meta}>
-              {data.phoneAr} · {data.memberSinceAr}
+              {joinNonEmpty([data.phoneAr, data.memberSinceAr])}
             </Text>
             <Pill
               background={color.brand.navyDeep}

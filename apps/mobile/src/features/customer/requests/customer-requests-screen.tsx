@@ -22,6 +22,7 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import { AppHeader, Avatar, Card, Chip, Icon, IconText, ListEmpty, ListError, ListLoading, PageTitle, statusBrandAsset, StatusUnit, type } from '@/ui';
 
 export default function CustomerRequestsScreen() {
@@ -125,7 +126,7 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
         <View style={styles.middle}>
           <Text style={styles.task}>{item.taskAr}</Text>
           <Text style={styles.model}>
-            {item.applianceAr} · {item.brandAndModel}
+            {joinNonEmpty([item.applianceAr, item.brandAndModel])}
           </Text>
           <Text style={styles.tech}>{item.technicianNameAr}</Text>
         </View>

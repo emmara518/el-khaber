@@ -19,6 +19,7 @@ import { useTechnicianRequestsViewModel } from './use-technician-requests-view-m
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
@@ -123,7 +124,7 @@ export default function TechnicianRequestDetailScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PageTitle
           eyebrow="تفاصيل الطلب"
-          title={`${request.applianceAr} · ${request.problemAr}`}
+          title={joinNonEmpty([request.applianceAr, request.problemAr])}
           body={request.descriptionAr}
         />
 
