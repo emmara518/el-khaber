@@ -11,6 +11,7 @@
 const LOCALE = 'ar-EG';
 
 function safeFormat(date: Date, options: Intl.DateTimeFormatOptions): string {
+  if (Number.isNaN(date.getTime())) return '';
   try {
     return new Intl.DateTimeFormat(LOCALE, options).format(date);
   } catch {

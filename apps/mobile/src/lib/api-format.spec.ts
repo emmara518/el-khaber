@@ -27,6 +27,17 @@ describe('formatAr*', () => {
   it('renders a year for member-since copy', () => {
     expect(formatArYear('2025-03-01T00:00:00Z')).toBe('٢٠٢٥');
   });
+
+  it('never renders "Invalid Date" for malformed input', () => {
+    for (const bad of ['', 'not-a-date', '2026-13-40T99:99:99Z', 'undefined']) {
+      expect(formatArTime(bad)).toBe('');
+      expect(formatArDate(bad)).toBe('');
+      expect(formatArDateTime(bad)).toBe('');
+      expect(formatArYear(bad)).toBe('');
+      expect(formatArTime(bad)).not.toContain('Invalid');
+      expect(formatArDate(bad)).not.toContain('Invalid');
+    }
+  });
 });
 
 describe('isToday', () => {

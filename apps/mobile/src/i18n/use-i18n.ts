@@ -390,7 +390,7 @@ const ARABIC: Record<string, string> = {
   'merchant.productForm.name': 'اسم المنتج',
   'merchant.productForm.category': 'قسم المنتج',
   'merchant.productForm.description': 'وصف المنتج',
-  'merchant.productForm.price': 'السعر (ريال)',
+  'merchant.productForm.price': 'السعر (جنيه)',
   'merchant.productForm.pricePlaceholder': 'مثال: 1450',
   'merchant.productForm.priceOptional': 'اختياري — اتركه فارغًا إذا كان السعر غير محدد',
   'merchant.productForm.image': 'صورة المنتج',
