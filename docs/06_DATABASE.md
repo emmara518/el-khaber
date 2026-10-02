@@ -375,11 +375,18 @@ Tags must be configured, not hard-coded into business logic.
 
 ```text
 id
-service_request_id FK
+service_request_id FK nullable   -- service-request conversations
+product_id FK nullable           -- product (merchant) conversations
+initiator_user_id nullable       -- product conversation initiator
 created_at
 updated_at
 closed_at nullable
 ```
+
+A conversation is scoped to EXACTLY ONE of `service_request_id` /
+`product_id` (enforced by a `conversations_scope_exclusive` CHECK). Product
+conversations are unique per `(product_id, initiator_user_id)` so re-opening
+a product chat reuses the same thread (Phase D).
 
 ### conversation_participants
 

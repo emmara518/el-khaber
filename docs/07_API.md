@@ -342,17 +342,38 @@ Optional, only if editing is approved. NOT IMPLEMENTED (Task 10H): no edit polic
 
 ## 11. Chat endpoints
 
+One shared chat domain. A conversation is scoped to EITHER a service request
+(participants = the request customer + the assigned/targeted technician) OR a
+product (participants = the initiating customer/technician + the merchant who
+owns the product). There are no arbitrary user-to-user conversations.
+`Message.readAt` backs server-authoritative unread counts; opening a
+conversation marks the peer's messages read. No realtime: HTTP only.
+
 ### GET `/service-requests/:id/conversation`
-Returns authorized conversation.
+Returns the authorized service-request conversation (lazily created on first
+access; participants derived server-side from the request).
+
+### GET `/products/:id/conversation`
+Phase D. Customer/technician only. Returns (or lazily creates) the caller's
+conversation with the merchant who owns the ACTIVE product. Idempotent per
+`(product, initiator)`. Merchants initiating here receive an identical 404.
+
+### GET `/conversations`
+Phase D. Lists the caller's conversations (newest activity first) with the
+real last message and server-computed unread count. Used by the Merchant
+Messages surface. Participant-scoped: a caller only ever sees their own.
 
 ### GET `/conversations/:id/messages`
-Paginated message history.
+Paginated message history. Opening the conversation marks incoming messages
+read for the caller (unread counts stay truthful).
 
 ### POST `/conversations/:id/messages`
-Sends message.
+Sends a message.
 
 Server checks:
-- participant authorization
+- participant authorization (service conversations by request membership;
+  product conversations by participant row) — enforced server-side, IDOR-safe
+- sender identity is always the verified JWT subject (never the payload)
 - rate limit
 - content limits
 - attachment validity
@@ -566,6 +587,36 @@ Implementation notes (WP-5):
   server confirmation.
 
 Marketplace order endpoints should be added only if that transaction model is explicitly approved.
+
+---
+
+## 17A. Public store product reads (Phase D)
+
+The customer/technician store reads the SAME merchant products through a
+public read contract (no merchant-management privileges).
+
+### GET `/products`
+Public. Paginated list of ACTIVE products, newest first.
+
+### GET `/products/:id`
+Public. Active product detail. A missing product and a suspended product
+return the identical `404 NOT_FOUND`.
+
+Visibility semantics: only products with `status = active` are exposed
+(reusing the existing `active | suspended` lifecycle — no approval/moderation
+system). A merchant-created product is therefore publicly readable while
+active.
+
+Response model `PublicProductDto` (minimal, no internal fields):
+`id`, `nameAr`, `slug`, `descriptionAr`, `price` (nullable, implicit EGP),
+`imageUrl` (nullable), `merchant: { businessNameAr }` (nullable). Inventory
+(`stockQuantity`), the internal `merchantId`, `status`, and timestamps are
+deliberately NOT exposed.
+
+Notes:
+- Customer and Technician MUST NOT use the `/merchant/products*` management
+  routes; those remain merchant-JWT-scoped (non-merchant → `401`).
+- No checkout/order/payment behavior is implied by the store read.
 
 ---
 
