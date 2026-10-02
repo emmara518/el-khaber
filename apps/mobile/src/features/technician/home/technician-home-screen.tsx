@@ -14,6 +14,7 @@ import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-nat
 import { verificationCopy } from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
 
+import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
 import {
   ActionButton,
@@ -49,6 +50,7 @@ export default function TechnicianHomeScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { status, data, error, retry, availabilitySaving, availabilityError, setAvailability } = useTechnicianHomeViewModel();
+  const notifications = useNotificationsViewModel('technician');
 
   if (status === 'loading' || data === null) {
     return (
@@ -87,6 +89,7 @@ export default function TechnicianHomeScreen() {
       <AppHeader
         availabilityLabel={data.profile.available ? data.profile.availabilityLabelAr : undefined}
         avatarInitials={data.profile.initialsAr}
+        notificationCount={notifications.unreadCount}
         onPressNotifications={() => router.push('/(technician)/notifications')}
         onPressAvatar={() => router.push('/(technician)/profile')}
       />
