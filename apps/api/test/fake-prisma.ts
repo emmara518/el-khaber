@@ -195,7 +195,9 @@ interface ProductRow {
 
 interface ConversationRow {
   id: string;
-  serviceRequestId: string;
+  serviceRequestId: string | null;
+  productId: string | null;
+  initiatorUserId: string | null;
   createdAt: Date;
   updatedAt: Date;
   closedAt: Date | null;
@@ -1144,14 +1146,29 @@ class FakePrismaClient {
   };
 
   conversation = {
-    findFirst: async (args: { where: { id?: string; serviceRequestId?: string } }): Promise<ConversationRow | null> => {
-      return (
-        this.conversations.find(
-          (c) =>
-            (args.where.id === undefined || c.id === args.where.id) &&
-            (args.where.serviceRequestId === undefined || c.serviceRequestId === args.where.serviceRequestId),
-        ) ?? null
+    findFirst: async (args: {
+      where: { id?: string; serviceRequestId?: string; productId?: string; initiatorUserId?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
+      const row = this.conversations.find(
+        (c) =>
+          (args.where.id === undefined || c.id === args.where.id) &&
+          (args.where.serviceRequestId === undefined || c.serviceRequestId === args.where.serviceRequestId) &&
+          (args.where.productId === undefined || c.productId === args.where.productId) &&
+          (args.where.initiatorUserId === undefined || c.initiatorUserId === args.where.initiatorUserId),
       );
+      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    findMany: async (args: {
+      where?: { id?: { in: string[] } };
+      orderBy?: Array<Record<string, string>>;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.conversations.filter(
+        (c) => args.where?.id === undefined || args.where.id.in.includes(c.id),
+      );
+      rows = [...rows].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
     findUniqueOrThrow: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
       const row = this.conversations.find((c) => c.id === args.where.id);
@@ -1160,11 +1177,30 @@ class FakePrismaClient {
       }
       return applySelect(row as unknown as Record<string, unknown>, args.select);
     },
-    create: async (args: { data: { serviceRequestId: string } }): Promise<ConversationRow> => {
+    create: async (args: { data: { serviceRequestId?: string; productId?: string; initiatorUserId?: string } }): Promise<ConversationRow> => {
       const now = new Date();
-      const row: ConversationRow = { id: randomUUID(), closedAt: null, ...args.data, createdAt: now, updatedAt: now };
+      const row: ConversationRow = {
+        id: randomUUID(),
+        serviceRequestId: args.data.serviceRequestId ?? null,
+        productId: args.data.productId ?? null,
+        initiatorUserId: args.data.initiatorUserId ?? null,
+        closedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      };
       this.conversations.push(row);
       return row;
+    },
+    updateMany: async (args: { where: { id?: string }; data: { updatedAt?: Date } }): Promise<{ count: number }> => {
+      let count = 0;
+      this.conversations = this.conversations.map((c) => {
+        if (args.where.id === undefined || c.id === args.where.id) {
+          count += 1;
+          return { ...c, updatedAt: args.data.updatedAt ?? c.updatedAt };
+        }
+        return c;
+      });
+      return { count };
     },
   };
 
@@ -1174,11 +1210,32 @@ class FakePrismaClient {
       this.conversationParticipants.push(row);
       return row;
     },
+    findFirst: async (args: { where: { conversationId?: string; userId?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const row = this.conversationParticipants.find(
+        (p) =>
+          (args.where.conversationId === undefined || p.conversationId === args.where.conversationId) &&
+          (args.where.userId === undefined || p.userId === args.where.userId),
+      );
+      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    findMany: async (args: { where: { userId?: string; conversationId?: string }; select?: Record<string, unknown> }): Promise<Array<Record<string, unknown>>> => {
+      const rows = this.conversationParticipants.filter(
+        (p) =>
+          (args.where.userId === undefined || p.userId === args.where.userId) &&
+          (args.where.conversationId === undefined || p.conversationId === args.where.conversationId),
+      );
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
   };
 
   message = {
-    count: async (args: { where: { conversationId: string } }): Promise<number> =>
-      this.messageRows.filter((m) => m.conversationId === args.where.conversationId).length,
+    count: async (args: { where: { conversationId: string; readAt?: null; senderUserId?: { not: string } } }): Promise<number> =>
+      this.messageRows.filter(
+        (m) =>
+          m.conversationId === args.where.conversationId &&
+          (args.where.readAt === undefined || m.readAt === null) &&
+          (args.where.senderUserId === undefined || m.senderUserId !== args.where.senderUserId.not),
+      ).length,
     findMany: async (args: {
       where: { conversationId: string };
       orderBy?: Array<Record<string, string>>;
@@ -1191,10 +1248,31 @@ class FakePrismaClient {
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
+    findFirst: async (args: { where: { conversationId: string }; orderBy?: Array<Record<string, string>>; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+      const rows = this.messageRows
+        .filter((m) => m.conversationId === args.where.conversationId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      return rows[0] === undefined ? null : applySelect(rows[0] as unknown as Record<string, unknown>, args.select);
+    },
     create: async (args: { data: Omit<MessageRow, 'id' | 'createdAt' | 'readAt'> & { readAt?: Date | null }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
       const row: MessageRow = { id: randomUUID(), readAt: null, createdAt: new Date(), ...args.data };
       this.messageRows.push(row);
       return applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    updateMany: async (args: { where: { conversationId: string; readAt?: null; senderUserId?: { not: string } }; data: { readAt?: Date } }): Promise<{ count: number }> => {
+      let count = 0;
+      this.messageRows = this.messageRows.map((m) => {
+        if (
+          m.conversationId === args.where.conversationId &&
+          (args.where.readAt === undefined || m.readAt === null) &&
+          (args.where.senderUserId === undefined || m.senderUserId !== args.where.senderUserId.not)
+        ) {
+          count += 1;
+          return { ...m, readAt: args.data.readAt ?? m.readAt };
+        }
+        return m;
+      });
+      return { count };
     },
   };
 
