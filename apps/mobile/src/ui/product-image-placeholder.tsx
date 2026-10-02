@@ -1,8 +1,8 @@
 import { color, radius } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { BrandImage } from '@/ui/brand-image';
-import { type } from '@/ui/typography';
+import { BrandImage } from './brand-image';
+import { type } from './typography';
 
 export function ProductImagePlaceholder({
   nameAr,

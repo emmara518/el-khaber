@@ -1,5 +1,5 @@
 /**
- * ProductImage — renders the real persisted `image_url` when present.
+ * ProductImage — renders the real persisted product `image_url` when present.
  *
  * Truth rules (Phase C / C5):
  *   • a stored URL → render the actual product image (no placeholder lie),
@@ -7,8 +7,9 @@
  *   • if it fails to load → the truthful illustrative placeholder,
  *   • no URL at all → the truthful illustrative placeholder.
  *
- * The URL is a plain stored string from the merchant product contract
- * (`MerchantProductDto.imageUrl`, docs/06 §21) — no signing/storage layer.
+ * Shared by the merchant catalog/detail and the public store (customer and
+ * technician). The URL is a plain stored string from the product contract
+ * (`MerchantProductDto.imageUrl` / `PublicProductDto.imageUrl`) — no signing.
  */
 
 import { color, radius } from '@khabir/ui-tokens';

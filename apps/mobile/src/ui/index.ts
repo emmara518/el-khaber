@@ -48,4 +48,6 @@ export { AppHeader } from './app-header';
 export { PageTitle } from './page-title';
 export { SectionHeading } from './section-heading';
 export { ApplianceThumb } from './appliance-thumb';
+export { ProductImage } from './product-image';
+export { productImageDisplay, type ProductImageDisplay } from './product-image-display';
 export { LifecycleTimeline, type LifecycleStep, type LifecycleStepState } from './lifecycle-timeline';

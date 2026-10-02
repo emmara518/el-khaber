@@ -12,17 +12,12 @@ interface StorePreviewCardProps {
 /**
  * El-Khabir Store — a major, asset-led card on a warm cream surface. The
  * approved `spare-parts` asset leads on the right; the title, copy and
- * navy CTA follow. There is no customer-facing catalog API/route yet
- * (`GET /merchant/products` is merchant-owned), so the card stays clearly
- * "قريبًا". No invented products, prices, merchants, images or checkout.
+ * navy CTA follow. The CTA opens the real public store
+ * (`GET /products` — active merchant products).
  */
 export function StorePreviewCard({ onPressStore }: StorePreviewCardProps) {
   return (
     <View style={styles.card}>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>قريبًا</Text>
-      </View>
-
       <View style={styles.row}>
         <View style={styles.stage} accessibilityRole="image" accessibilityLabel="متجر الخبير">
           <BrandImage name="spare-parts" size={150} />
@@ -35,7 +30,7 @@ export function StorePreviewCard({ onPressStore }: StorePreviewCardProps) {
           <Text style={styles.body}>قطع ومنتجات تساعدك في صيانة أجهزتك</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="دخول المتجر، قريبًا"
+            accessibilityLabel="دخول المتجر"
             onPress={onPressStore}
             style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
           >
@@ -55,22 +50,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     direction: 'rtl',
     ...shadow.medium,
-  },
-  badge: {
-    position: 'absolute',
-    top: spacing[3],
-    start: spacing[3],
-    zIndex: 2,
-    backgroundColor: color.brand.gold,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[3],
-    paddingVertical: 3,
-    ...shadow.low,
-  },
-  badgeText: {
-    ...type.caption,
-    color: color.brand.navy,
-    writingDirection: 'rtl',
   },
   row: {
     flexDirection: 'row',

@@ -417,6 +417,17 @@ const ARABIC: Record<string, string> = {
   'merchant.productForm.stockPlaceholder': 'مثال: 12',
   'merchant.productForm.stockOptional': 'اختياري — اتركه فارغًا إذا كانت الكمية غير محددة',
   'merchant.product.stock': 'المخزون',
+  'store.title': 'متجر الخبير',
+  'store.subtitle': 'قطع ومنتجات من تجّار موثوقين',
+  'store.empty.title': 'لا توجد منتجات بعد',
+  'store.empty.body': 'سيظهر هنا كل منتج يعرضه التجار.',
+  'store.error.title': 'تعذر تحميل المتجر',
+  'store.product.missing': 'المنتج غير متاح',
+  'store.product.missingBody': 'قد يكون المنتج غير متوفر حاليًا.',
+  'store.product.back': 'العودة إلى المتجر',
+  'store.product.description': 'تفاصيل المنتج',
+  'store.product.priceUnspecified': 'السعر غير محدد',
+  'store.product.merchant': 'التاجر',
 };
 
 export type TranslationKey = keyof typeof ARABIC;

@@ -1,7 +1,7 @@
 import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 
 import { TechnicalDataDialog } from '../components/technical-data-dialog';
@@ -135,11 +135,7 @@ export default function CustomerHomeScreen() {
             </HomeSection>
 
             <View style={styles.storeWrap}>
-              <StorePreviewCard
-                onPressStore={() =>
-                  Alert.alert('متجر الخبير', 'المتجر قيد التجهيز وسيتوفر قريبًا.')
-                }
-              />
+              <StorePreviewCard onPressStore={() => router.push('/(customer)/store')} />
             </View>
 
             <HomeSection title="ليه الخبير؟" eyebrow="ثقة مبنية على الواقع">

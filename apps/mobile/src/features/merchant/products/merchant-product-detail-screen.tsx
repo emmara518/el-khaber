@@ -20,7 +20,6 @@ import {
 } from 'react-native';
 
 import { findMerchantProduct } from './merchant-product-types';
-import { ProductImage } from './product-image';
 import { useMerchantProductsViewModel } from './use-merchant-products-view-model';
 
 import type { MerchantProductStatus } from './merchant-product-types';
@@ -35,6 +34,7 @@ import {
   ListError,
   ListLoading,
   PageTitle,
+  ProductImage,
   SectionHeading,
   StatusBadge,
   type,

@@ -19,11 +19,10 @@ import {
   type MerchantProductDataSource,
   type MerchantProductDraft,
 } from './merchant-product-types';
-import { ProductImage } from './product-image';
 import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { AppHeader, Card, FormField, PageTitle } from '@/ui';
+import { AppHeader, Card, FormField, PageTitle, ProductImage } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
 

@@ -18,14 +18,13 @@ import {
   filterMerchantProducts,
   type MerchantProduct,
 } from './merchant-product-types';
-import { ProductImage } from './product-image';
 import { useMerchantProductsViewModel } from './use-merchant-products-view-model';
 
 import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ActionButton, AppHeader, Chip, ListEmpty, ListError, ListLoading, PageTitle, SearchField, StatusBadge, type } from '@/ui';
+import { ActionButton, AppHeader, Chip, ListEmpty, ListError, ListLoading, PageTitle, ProductImage, SearchField, StatusBadge, type } from '@/ui';
 
 
 export default function MerchantCatalogScreen({
