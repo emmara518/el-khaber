@@ -9,7 +9,7 @@
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   MERCHANT_CITY_OPTIONS,
@@ -24,7 +24,7 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { AppHeader, Card, Icon, PageTitle, SectionHeading } from '@/ui';
+import { AppHeader, Card, Chip, FormField, Icon, PageTitle, SectionHeading } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
 
@@ -122,90 +122,63 @@ export default function MerchantOnboardingScreen({
 
       {step === 'identity' ? (
         <View style={styles.section}>
-          <Text style={styles.label}>اسم المتجر</Text>
-          <TextInput
-            accessibilityLabel={fieldErrors.businessNameAr ? 'اسم المتجر. خطأ: أدخل اسم المتجر (حرفان على الأقل)' : 'اسم المتجر'}
+          <FormField
+            label="اسم المتجر"
             placeholder="مثال: مكتبة الخبير للأجهزة"
-            placeholderTextColor={color.text.secondary}
             value={draft.businessNameAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'businessNameAr', text })}
-            style={[styles.input, fieldErrors.businessNameAr ? styles.inputError : null]}
-            textAlign="right"
+            error={fieldErrors.businessNameAr}
           />
-          {fieldErrors.businessNameAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {fieldErrors.businessNameAr}
-            </Text>
-          ) : null}
-          <Text style={styles.label}>مدينة المتجر</Text>
-          <View accessibilityRole="radiogroup" accessibilityLabel="اختيار مدينة المتجر" style={styles.cities}>
-            {MERCHANT_CITY_OPTIONS.map((city) => {
-              const selected = draft.cityAr === city;
-              return (
-                <Pressable
-                  key={city}
-                  accessibilityRole="radio"
-                  accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
-                  accessibilityState={{ selected, checked: selected }}
-                  onPress={() => vm.dispatch({ type: 'SET_TEXT', field: 'cityAr', text: city })}
-                  style={({ pressed }) => [
-                    styles.cityChip,
-                    selected && styles.cityChipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  {selected ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
-                  <Text style={[styles.cityText, selected && styles.cityTextSelected]}>
-                    {city}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View>
+            <Text style={styles.label}>مدينة المتجر</Text>
+            <View accessibilityRole="radiogroup" accessibilityLabel="اختيار مدينة المتجر" style={styles.cities}>
+              {MERCHANT_CITY_OPTIONS.map((city) => {
+                const selected = draft.cityAr === city;
+                return (
+                  <Chip
+                    key={city}
+                    label={city}
+                    selected={selected}
+                    accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
+                    onPress={() => vm.dispatch({ type: 'SET_TEXT', field: 'cityAr', text: city })}
+                  />
+                );
+              })}
+            </View>
+            {fieldErrors.cityAr ? (
+              <Text accessibilityRole="alert" style={styles.fieldError}>
+                {fieldErrors.cityAr}
+              </Text>
+            ) : null}
           </View>
-          {fieldErrors.cityAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {fieldErrors.cityAr}
-            </Text>
-          ) : null}
         </View>
       ) : null}
 
       {step === 'business' ? (
         <View style={styles.section}>
           <SectionHeading title={t('merchant.onboarding.bio')} />
-          <TextInput
-            accessibilityLabel="نبذة عن المتجر، اختياري"
+          <FormField
+            label={t('merchant.onboarding.bio')}
             placeholder="تخصص متجرك وما يقدمه للعملاء…"
-            placeholderTextColor={color.text.secondary}
             value={draft.bioAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'bioAr', text })}
-            style={[styles.input, styles.multiline]}
-            textAlign="right"
+            hint="اختياري"
             multiline
             numberOfLines={4}
           />
-          <Text style={styles.optional}>اختياري</Text>
         </View>
       ) : null}
 
       {step === 'contact' ? (
         <View style={styles.section}>
-          <Text style={styles.label}>رقم هاتف المتجر</Text>
-          <TextInput
-            accessibilityLabel={fieldErrors.phoneAr ? 'رقم هاتف المتجر. خطأ: رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا' : 'رقم هاتف المتجر'}
+          <FormField
+            label="رقم هاتف المتجر"
             placeholder="01xxxxxxxxx"
-            placeholderTextColor={color.text.secondary}
             value={draft.phoneAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'phoneAr', text })}
             keyboardType="phone-pad"
-            style={[styles.input, fieldErrors.phoneAr ? styles.inputError : null]}
-            textAlign="right"
+            error={fieldErrors.phoneAr}
           />
-          {fieldErrors.phoneAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {fieldErrors.phoneAr}
-            </Text>
-          ) : null}
         </View>
       ) : null}
 
@@ -404,33 +377,9 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
     marginTop: spacing[2],
   },
-  input: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    color: color.text.primary,
-    ...type.body,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
-  },
-  multiline: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-  },
-  inputError: {
-    borderColor: color.error.DEFAULT,
-  },
   fieldError: {
     ...type.caption,
     color: color.error.DEFAULT,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  optional: {
-    ...type.caption,
-    color: color.text.secondary,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -438,36 +387,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-  },
-  cityChip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[1] + 2,
-  },
-  cityChipSelected: {
-    borderColor: color.brand.navy,
-    borderWidth: 2,
-    backgroundColor: color.surface.base,
-  },
-  cityText: {
-    ...type.body,
-    color: color.text.secondary,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  cityTextSelected: {
-    ...type.cardTitle,
-    color: color.text.primary,
-    textAlign: 'right',
-    writingDirection: 'rtl',
+    marginTop: spacing[2],
   },
   inlineError: {
     backgroundColor: color.error.soft,

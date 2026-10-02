@@ -11,7 +11,7 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   MERCHANT_CITY_OPTIONS,
@@ -29,6 +29,8 @@ import {
   AppHeader,
   Avatar,
   Card,
+  Chip,
+  FormField,
   Icon,
   ListError,
   ListLoading,
@@ -237,78 +239,51 @@ function ProfileEditForm({
       <ScrollView contentContainerStyle={[styles.content, styles.padded]} showsVerticalScrollIndicator={false}>
       <PageTitle eyebrow="الملف الشخصي" title={t('merchant.profile.editTitle')} />
       <View style={styles.form}>
-        <Text style={styles.label}>{t('merchant.profile.name')}</Text>
-        <TextInput
-          accessibilityLabel={errors.businessNameAr ? `${t('merchant.profile.name')}. خطأ: ${errors.businessNameAr}` : t('merchant.profile.name')}
+        <FormField
+          label={t('merchant.profile.name')}
           value={draft.businessNameAr}
           onChangeText={(text) => patch({ businessNameAr: text })}
-          style={[styles.input, errors.businessNameAr ? styles.inputError : null]}
-          textAlign="right"
+          error={errors.businessNameAr}
         />
-        {errors.businessNameAr ? (
-          <Text accessibilityRole="alert" style={styles.fieldError}>
-            {errors.businessNameAr}
-          </Text>
-        ) : null}
 
-        <Text style={styles.label}>{t('merchant.profile.city')}</Text>
-        <View accessibilityRole="radiogroup" accessibilityLabel={t('merchant.profile.city')} style={styles.cities}>
-          {MERCHANT_CITY_OPTIONS.map((city) => {
-            const selected = draft.cityAr === city;
-            return (
-              <Pressable
-                key={city}
-                accessibilityRole="radio"
-                accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
-                accessibilityState={{ selected, checked: selected }}
-                onPress={() => patch({ cityAr: city })}
-                style={({ pressed }) => [
-                  styles.cityChip,
-                  selected && styles.cityChipSelected,
-                  pressed && styles.pressed,
-                ]}
-              >
-                {selected ? (
-                  <Icon name="check" size={14} color={color.surface.base} />
-                ) : null}
-                <Text style={[styles.cityText, selected && styles.cityTextSelected]}>
-                  {city}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <View>
+          <Text style={styles.label}>{t('merchant.profile.city')}</Text>
+          <View accessibilityRole="radiogroup" accessibilityLabel={t('merchant.profile.city')} style={styles.cities}>
+            {MERCHANT_CITY_OPTIONS.map((city) => {
+              const selected = draft.cityAr === city;
+              return (
+                <Chip
+                  key={city}
+                  label={city}
+                  selected={selected}
+                  accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
+                  onPress={() => patch({ cityAr: city })}
+                />
+              );
+            })}
+          </View>
+          {errors.cityAr ? (
+            <Text accessibilityRole="alert" style={styles.fieldError}>
+              {errors.cityAr}
+            </Text>
+          ) : null}
         </View>
-        {errors.cityAr ? (
-          <Text accessibilityRole="alert" style={styles.fieldError}>
-            {errors.cityAr}
-          </Text>
-        ) : null}
 
-        <Text style={styles.label}>{t('merchant.profile.bio')}</Text>
-        <TextInput
-          accessibilityLabel={t('merchant.profile.bio')}
+        <FormField
+          label={t('merchant.profile.bio')}
           value={draft.bioAr}
           onChangeText={(text) => patch({ bioAr: text })}
-          style={[styles.input, styles.multiline]}
-          textAlign="right"
           multiline
           numberOfLines={4}
         />
 
-        <Text style={styles.label}>{t('merchant.profile.phone')}</Text>
-        <TextInput
-          accessibilityLabel={errors.phoneAr ? `${t('merchant.profile.phone')}. خطأ: ${errors.phoneAr}` : t('merchant.profile.phone')}
+        <FormField
+          label={t('merchant.profile.phone')}
           value={draft.phoneAr}
           onChangeText={(text) => patch({ phoneAr: text })}
           keyboardType="phone-pad"
-          style={[styles.input, errors.phoneAr ? styles.inputError : null]}
-          textAlign="right"
+          error={errors.phoneAr}
         />
-        {errors.phoneAr ? (
-          <Text accessibilityRole="alert" style={styles.fieldError}>
-            {errors.phoneAr}
-          </Text>
-        ) : null}
       </View>
       {saveStatus === 'error' ? (
         <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${saveError ?? ''}`} style={styles.inlineError}>
@@ -457,9 +432,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: spacing[4],
   },
-  pressed: {
-    opacity: 0.85,
-  },
   disabled: {
     opacity: 0.6,
   },
@@ -504,26 +476,6 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
     marginTop: spacing[2],
   },
-  input: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    ...type.body,
-    color: color.text.primary,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  multiline: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-  },
-  inputError: {
-    borderColor: color.error.DEFAULT,
-  },
   fieldError: {
     ...type.caption,
     color: color.error.DEFAULT,
@@ -534,34 +486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-  },
-  cityChip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[1] + 2,
-  },
-  cityChipSelected: {
-    borderColor: color.brand.navy,
-    borderWidth: 2,
-    backgroundColor: color.surface.base,
-  },
-  cityText: {
-    ...type.body,
-    color: color.text.secondary,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  cityTextSelected: {
-    ...type.bodyMedium,
-    color: color.text.primary,
+    marginTop: spacing[2],
   },
   inlineError: {
     backgroundColor: color.error.soft,

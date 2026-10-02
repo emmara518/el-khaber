@@ -15,8 +15,9 @@ import { RATING_LABELS_AR, type RatingDataSource } from './rating-types';
 import { useRatingViewModel } from './use-rating-view-model';
 
 import { BrandImage } from '@/ui/brand-image';
+import { Chip } from '@/ui/chip';
 import { Icon } from '@/ui/icon';
-import { fontFamily, type } from '@/ui/typography';
+import { type } from '@/ui/typography';
 
 export function RatingForm({
   requestId,
@@ -90,18 +91,15 @@ export function RatingForm({
             {vm.availableTags.map((tag) => {
               const on = vm.selectedTagIds.includes(tag.id);
               return (
-                <Pressable
+                <Chip
                   key={tag.id}
-                  accessibilityRole="checkbox"
-                  accessibilityLabel={`وسم: ${tag.labelAr}${on ? '، محدد' : ''}`}
-                  accessibilityState={{ selected: on, checked: on }}
-                  onPress={() => vm.toggleTagId(tag.id)}
+                  label={tag.labelAr}
+                  selectionMode="multiple"
+                  selected={on}
                   disabled={submitting}
-                  style={({ pressed }) => [styles.tag, on && styles.tagOn, pressed && styles.pressed]}
-                >
-                  {on ? <Icon name="check" size={14} color={color.brand.navy} /> : null}
-                  <Text style={[styles.tagText, on && styles.tagTextOn]}>{tag.labelAr}</Text>
-                </Pressable>
+                  accessibilityLabel={`وسم: ${tag.labelAr}${on ? '، محدد' : ''}`}
+                  onPress={() => vm.toggleTagId(tag.id)}
+                />
               );
             })}
           </View>
@@ -201,32 +199,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-  },
-  tag: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing[1] + 2,
-  },
-  tagOn: {
-    borderColor: color.brand.navy,
-    borderWidth: 2,
-    backgroundColor: color.surface.base,
-  },
-  tagText: {
-    ...type.body,
-    color: color.text.secondary,
-  },
-  tagTextOn: {
-    color: color.text.primary,
-    fontFamily: fontFamily.bold,
   },
   input: {
     borderWidth: 1,

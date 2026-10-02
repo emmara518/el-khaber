@@ -31,6 +31,8 @@ export interface ChipProps {
   selectionMode?: ChipSelectionMode;
   /** Optional leading glyph (e.g. a filter category icon). */
   icon?: IconName;
+  /** Disables interaction (announced via accessibilityState). */
+  disabled?: boolean;
   /**
    * Accessibility label override. For filters, pass a group-aware label
    * (e.g. "المهارة: سباكة") so screen readers announce context.
@@ -45,6 +47,7 @@ export function Chip({
   selected = false,
   selectionMode = 'single',
   icon,
+  disabled = false,
   accessibilityLabel,
   style,
 }: ChipProps) {
@@ -65,12 +68,14 @@ export function Chip({
     <Pressable
       accessibilityRole={toggle ? 'checkbox' : 'tab'}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={toggle ? { checked: selected } : { selected }}
+      accessibilityState={toggle ? { checked: selected, disabled } : { selected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
         toggle ? styles.toggle : styles.filter,
         selected && (toggle ? styles.toggleOn : styles.filterOn),
+        disabled && styles.disabled,
         pressed && styles.pressed,
         style,
       ]}
@@ -160,4 +165,5 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   pressed: { opacity: 0.75 },
+  disabled: { opacity: 0.55 },
 });
