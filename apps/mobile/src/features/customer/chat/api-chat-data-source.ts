@@ -28,6 +28,8 @@ import type { ConversationDto, MessageDto } from '@khabir/shared-types';
 export { ChatSendError };
 
 const CHAT_KEY_PREFIX = 'req-chat-';
+const PRODUCT_KEY_PREFIX = 'product-chat-';
+const CONVERSATION_KEY_PREFIX = 'conv-';
 const LOAD_FALLBACK_AR = 'تعذر تحميل المحادثة. تحقق من الاتصال وحاول مجددًا';
 
 /** Extract the service-request id from the UI conversation key. */
@@ -38,20 +40,38 @@ export function requestIdFromChatKey(conversationId: string): string {
 }
 
 export class ApiChatDataSource implements ChatDataSource {
-  private readonly conversations = new Map<string, Promise<ConversationDto>>();
+  private readonly conversations = new Map<string, Promise<string>>();
 
-  /** Resolve (and cache) the request's conversation. Real id only. */
-  private conversationFor(requestId: string): Promise<ConversationDto> {
-    const cached = this.conversations.get(requestId);
+  /**
+   * Resolve (and cache) a conversation id from a UI key:
+   *   • `req-chat-<requestId>`     → service-request conversation,
+   *   • `product-chat-<productId>` → product ↔ merchant conversation,
+   *   • `conv-<conversationId>`    → an already-known conversation id.
+   */
+  private conversationIdFor(key: string): Promise<string> {
+    const cached = this.conversations.get(key);
     if (cached !== undefined) return cached;
-    const promise = getApi()
-      .request<ConversationDto>('GET', `/service-requests/${requestId}/conversation`)
-      .then((res) => res.data)
-      .catch((err: unknown) => {
-        this.conversations.delete(requestId); // allow retry on next call
-        throw new ChatSendError(toLoadMessage(err));
-      });
-    this.conversations.set(requestId, promise);
+    let promise: Promise<string>;
+    if (key.startsWith(CHAT_KEY_PREFIX)) {
+      const requestId = key.slice(CHAT_KEY_PREFIX.length);
+      promise = getApi()
+        .request<ConversationDto>('GET', `/service-requests/${requestId}/conversation`)
+        .then((res) => res.data.id);
+    } else if (key.startsWith(PRODUCT_KEY_PREFIX)) {
+      const productId = key.slice(PRODUCT_KEY_PREFIX.length);
+      promise = getApi()
+        .request<ConversationDto>('GET', `/products/${productId}/conversation`)
+        .then((res) => res.data.id);
+    } else if (key.startsWith(CONVERSATION_KEY_PREFIX)) {
+      promise = Promise.resolve(key.slice(CONVERSATION_KEY_PREFIX.length));
+    } else {
+      promise = Promise.resolve(key);
+    }
+    promise = promise.catch((err: unknown) => {
+      this.conversations.delete(key); // allow retry on next call
+      throw new ChatSendError(toLoadMessage(err));
+    });
+    this.conversations.set(key, promise);
     return promise;
   }
 
@@ -59,15 +79,13 @@ export class ApiChatDataSource implements ChatDataSource {
     role: ChatRole;
     conversationId: string;
   }): Promise<ReadonlyArray<ChatMessage>> {
-    void input.role;
-    const requestId = requestIdFromChatKey(input.conversationId);
-    const conversation = await this.conversationFor(requestId);
+    const conversationId = await this.conversationIdFor(input.conversationId);
     try {
       const messages = await drainPages<MessageDto>((page, limit) =>
         getApi()
           .request<MessageDto[]>(
             'GET',
-            `/conversations/${conversation.id}/messages${buildQuery({ page, limit })}`,
+            `/conversations/${conversationId}/messages${buildQuery({ page, limit })}`,
           )
           .then((res) => ({ items: res.data, meta: res.meta })),
       );
@@ -85,12 +103,11 @@ export class ApiChatDataSource implements ChatDataSource {
     conversationId: string;
     textAr: string;
   }): Promise<ChatMessage> {
-    const requestId = requestIdFromChatKey(input.conversationId);
-    const conversation = await this.conversationFor(requestId);
+    const conversationId = await this.conversationIdFor(input.conversationId);
     try {
       const res = await getApi().request<MessageDto>(
         'POST',
-        `/conversations/${conversation.id}/messages`,
+        `/conversations/${conversationId}/messages`,
         // Sender identity is server-derived from the JWT (never sent).
         { body: input.textAr },
       );
@@ -115,8 +132,8 @@ export class ApiChatDataSource implements ChatDataSource {
     return {
       id: dto.id,
       conversationId: uiConversationId,
-      // Own messages render on the signed-in side; the peer is the
-      // other side of the 1:1 conversation (server-authorized).
+      // Own messages render on the signed-in side; the peer is the other
+      // side of the 1:1 conversation (server-authorized).
       sender: mine ? role : role === 'customer' ? 'technician' : 'customer',
       textAr: dto.body,
       timeAr: formatArTime(dto.createdAt),

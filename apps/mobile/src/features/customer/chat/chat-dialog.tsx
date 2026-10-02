@@ -155,9 +155,11 @@ export function ChatBody({
               />
               <Text style={styles.emptyTitle}>ابدأ المحادثة</Text>
               <Text style={styles.muted}>
-                {role === 'technician'
-                  ? 'لا توجد رسائل بعد. تواصل مع العميل لتأكيد الوصول أو تفاصيل الخدمة.'
-                  : 'لا توجد رسائل بعد. اسأل الفني عن موعد الوصول أو تفاصيل الخدمة.'}
+                {role === 'merchant'
+                  ? 'لا توجد رسائل بعد. رد على استفسار العميل.'
+                  : role === 'technician'
+                    ? 'لا توجد رسائل بعد. تواصل مع العميل لتأكيد الوصول أو تفاصيل الخدمة.'
+                    : 'لا توجد رسائل بعد. اسأل الفني عن موعد الوصول أو تفاصيل الخدمة.'}
               </Text>
             </View>
           ) : (
@@ -242,7 +244,7 @@ function MessageBubble({
   return (
     <View style={[styles.bubbleRow, outgoing ? styles.outgoingRow : styles.incomingRow]}>
       <View
-        accessibilityLabel={`${outgoing ? 'رسالتك' : role === 'technician' ? 'رسالة العميل' : 'رسالة الفني'}: ${message.textAr}، ${message.timeAr}${
+        accessibilityLabel={`${outgoing ? 'رسالتك' : 'رسالة الطرف الآخر'}: ${message.textAr}، ${message.timeAr}${
           message.status === 'error' ? '، فشل الإرسال' : message.status === 'sending' ? '، جارٍ الإرسال' : ''
         }`}
         style={[styles.bubble, outgoing ? styles.outgoing : styles.incoming]}

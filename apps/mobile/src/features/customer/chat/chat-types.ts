@@ -6,8 +6,8 @@
  * product defines none of those.
  */
 
-export type ChatSender = 'customer' | 'technician';
-export type ChatRole = 'customer' | 'technician';
+export type ChatSender = 'customer' | 'technician' | 'merchant';
+export type ChatRole = 'customer' | 'technician' | 'merchant';
 export type ChatMessageStatus = 'sending' | 'sent' | 'error';
 
 export interface ChatMessage {
