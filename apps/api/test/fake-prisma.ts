@@ -374,6 +374,24 @@ function applySelect<T extends Record<string, unknown>>(row: T, select: Record<s
   return picked as T;
 }
 
+/**
+ * Product select projection: resolves the `merchant` relation to a minimal
+ * `{ businessName }` (the public store read model). The fake ProductRow has
+ * no `merchant` key, so it is attached here rather than by `applySelect`.
+ */
+function applyProductSelect(
+  row: ProductRow,
+  select: Record<string, unknown> | undefined,
+  merchantProfiles: MerchantProfileRow[],
+): Record<string, unknown> {
+  const picked = applySelect(row as unknown as Record<string, unknown>, select);
+  if (select !== undefined && select['merchant'] !== undefined) {
+    const profile = merchantProfiles.find((m) => m.id === row.merchantId);
+    picked['merchant'] = { businessName: profile?.businessName ?? null };
+  }
+  return picked;
+}
+
 function textContains(value: string | null, needle: string): boolean {
   return value !== null && value.includes(needle);
 }
@@ -1060,36 +1078,43 @@ class FakePrismaClient {
   };
 
   product = {
-    findFirst: async (args: { where: { id?: string; merchantId?: string; slug?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: { where: { id?: string; merchantId?: string; slug?: string; status?: ProductStatusValue }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
       const row = this.products.find(
         (p) =>
           (args.where.id === undefined || p.id === args.where.id) &&
           (args.where.merchantId === undefined || p.merchantId === args.where.merchantId) &&
-          (args.where.slug === undefined || p.slug === args.where.slug),
+          (args.where.slug === undefined || p.slug === args.where.slug) &&
+          (args.where.status === undefined || p.status === args.where.status),
       );
-      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+      return row === undefined ? null : applyProductSelect(row, args.select, this.merchantProfiles);
     },
-    count: async (args: { where: { merchantId?: string } }): Promise<number> =>
-      this.products.filter((p) => args.where.merchantId === undefined || p.merchantId === args.where.merchantId).length,
+    count: async (args: { where: { merchantId?: string; status?: ProductStatusValue } }): Promise<number> =>
+      this.products.filter(
+        (p) =>
+          (args.where.merchantId === undefined || p.merchantId === args.where.merchantId) &&
+          (args.where.status === undefined || p.status === args.where.status),
+      ).length,
     findMany: async (args: {
-      where: { merchantId?: string };
+      where: { merchantId?: string; status?: ProductStatusValue };
       orderBy?: Array<Record<string, string>>;
       skip?: number;
       take?: number;
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.products.filter(
-        (p) => args.where.merchantId === undefined || p.merchantId === args.where.merchantId,
+        (p) =>
+          (args.where.merchantId === undefined || p.merchantId === args.where.merchantId) &&
+          (args.where.status === undefined || p.status === args.where.status),
       );
       rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
-      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+      return rows.map((r) => applyProductSelect(r, args.select, this.merchantProfiles));
     },
     create: async (args: { data: Omit<ProductRow, 'id' | 'createdAt' | 'updatedAt'>; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
       const now = new Date();
       const row: ProductRow = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
       this.products.push(row);
-      return applySelect(row as unknown as Record<string, unknown>, args.select);
+      return applyProductSelect(row, args.select, this.merchantProfiles);
     },
     updateMany: async (args: { where: { id?: string; merchantId?: string }; data: Partial<ProductRow> }): Promise<{ count: number }> => {
       let count = 0;
