@@ -12,7 +12,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ApiChatDataSource } from '../../customer/chat/api-chat-data-source';
 import { ChatDialog } from '../../customer/chat/chat-dialog';
 
 import { buildTechnicianTimeline, TECHNICIAN_STATUS_LABELS } from './technician-request-types';
@@ -225,7 +224,6 @@ export default function TechnicianActiveServiceScreen({
         serviceTitle={request.applianceAr}
         requestId={request.id}
         role="technician"
-        source={new ApiChatDataSource()}
       />
 
       <Modal
