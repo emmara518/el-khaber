@@ -43,13 +43,9 @@ import {
 export default function MerchantProductDetailScreen({
   productId,
   source,
-  editEnabled = false,
-  shared = false,
 }: {
   productId: string;
   source?: MerchantProductsDataSource;
-  editEnabled?: boolean;
-  shared?: boolean;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -70,6 +66,15 @@ export default function MerchantProductDetailScreen({
   } = useMerchantProductsViewModel(source);
   void resetMutation;
   void resetDelete;
+
+  // A server-confirmed delete removes the product from local state, so the
+  // row disappears before the not-found guard below can render. Leave for
+  // the catalog immediately instead of flashing a false "not found" state.
+  useEffect(() => {
+    if (deleteStatus === 'success') {
+      router.replace('/(merchant)/products');
+    }
+  }, [deleteStatus, router]);
 
   const header = (
     <AppHeader
@@ -143,13 +148,11 @@ export default function MerchantProductDetailScreen({
             <Text style={styles.heroNoPrice}>{t('merchant.catalog.noPrice')}</Text>
           )}
         </View>
-        {editEnabled && shared ? (
-          <ActionButton
-            label={t('merchant.product.edit')}
-            icon="edit-3"
-            onPress={() => router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })}
-          />
-        ) : null}
+        <ActionButton
+          label={t('merchant.product.edit')}
+          icon="edit-3"
+          onPress={() => router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })}
+        />
       </View>
 
       <View style={styles.section}>
@@ -167,34 +170,18 @@ export default function MerchantProductDetailScreen({
         </View>
       </View>
 
-      {editEnabled && shared ? (
-        <ProductActions
-          productId={product.id}
-          status={product.status}
-          mutationStatus={mutationStatus}
-          mutationError={mutationError}
-          mutationResult={mutationResult}
-          setProductStatus={setProductStatus}
-          deleteStatus={deleteStatus}
-          deleteError={deleteError}
-          onDelete={deleteProduct}
-          onEdit={() =>
-            router.push({ pathname: '/(merchant)/products/[id]/edit', params: { id: product.id } })
-          }
-          onBackToList={() => router.replace('/(merchant)/products')}
-        />
-      ) : null}
-
-      {!(editEnabled && shared) ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('merchant.product.backToCatalog')}
-          onPress={() => router.replace('/(merchant)/products')}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>{t('merchant.product.backToCatalog')}</Text>
-        </Pressable>
-      ) : null}
+      <ProductActions
+        productId={product.id}
+        status={product.status}
+        mutationStatus={mutationStatus}
+        mutationError={mutationError}
+        mutationResult={mutationResult}
+        setProductStatus={setProductStatus}
+        deleteStatus={deleteStatus}
+        deleteError={deleteError}
+        onDelete={deleteProduct}
+        onBackToList={() => router.replace('/(merchant)/products')}
+      />
       <View style={styles.bottomSpacer} />
     </ScrollView>
     </View>
@@ -211,7 +198,6 @@ function ProductActions({
   deleteStatus,
   deleteError,
   onDelete,
-  onEdit,
   onBackToList,
 }: {
   productId: string;
@@ -223,7 +209,6 @@ function ProductActions({
   deleteStatus: 'idle' | 'submitting' | 'success' | 'error';
   deleteError: string | null;
   onDelete: (productId: string) => void;
-  onEdit: () => void;
   onBackToList: () => void;
 }) {
   const { t } = useI18n();
@@ -232,26 +217,17 @@ function ProductActions({
   const busy = mutationStatus === 'submitting' || deleteStatus === 'submitting';
   const nextStatus: MerchantProductStatus | null = status === 'active' ? 'suspended' : status === 'suspended' ? 'active' : null;
 
-  // Deletion is server-confirmed before we leave the screen; the product
-  // is already gone from local state, so no stale row is shown.
+  // Deletion navigation is owned by the screen (it leaves for the catalog on
+  // success, before the not-found guard can render). This block only reflects
+  // that a delete is in flight.
   useEffect(() => {
-    if (deleteStatus === 'success') {
-      onBackToList();
+    if (deleteStatus === 'submitting') {
+      setDeleting(true);
     }
-  }, [deleteStatus, onBackToList]);
+  }, [deleteStatus]);
 
   return (
     <View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('merchant.product.edit')}
-        onPress={onEdit}
-        disabled={busy}
-        style={({ pressed }) => [styles.primary, busy && styles.disabled, pressed && !busy && styles.pressed]}
-      >
-        <Text style={styles.primaryText}>{t('merchant.product.edit')}</Text>
-      </Pressable>
-
       {nextStatus !== null ? (
         <Pressable
           accessibilityRole="button"
