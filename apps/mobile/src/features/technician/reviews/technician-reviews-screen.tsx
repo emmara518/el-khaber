@@ -55,7 +55,7 @@ export default function TechnicianReviewsScreen({
         {status === 'loaded' && data ? (
           <>
             <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.summary}>
-              <RatingStars rating={data.rating} reviewCount={data.reviewCount} />
+              <RatingStars rating={data.rating} reviewCount={data.reviewCount} onDark />
               <Text style={styles.summaryText}>
                 {data.reviewCount} {t('tech.reviews.count')}
               </Text>
