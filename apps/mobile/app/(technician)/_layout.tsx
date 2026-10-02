@@ -35,9 +35,8 @@ export default function TechnicianTabsLayout() {
           <Slot />
         </View>
         <RoleTabBar
-          surface="navy"
           tabs={TABS}
-          active={active ?? ''}
+          active={active}
           onChange={(id) => {
             router.replace(technicianTarget(id));
           }}
