@@ -44,6 +44,18 @@ export function canReject(status: CustomerRequestStatus): boolean {
   return decideRequestAction(status, 'reject').ok;
 }
 
+/**
+ * Which accept/reject controls a request row must expose, derived from the
+ * same policy the mutation uses. Screens consume this instead of re-deriving
+ * `status === 'pending'`, so UI and behavior can never drift apart.
+ */
+export function requestActionsForStatus(status: CustomerRequestStatus): {
+  canAccept: boolean;
+  canReject: boolean;
+} {
+  return { canAccept: canAccept(status), canReject: canReject(status) };
+}
+
 /** User-safe Arabic for policy + concurrency failures. */
 export function requestActionErrorAr(code: 'stale' | 'invalid_transition' | 'terminal' | 'unknown'): string {
   switch (code) {

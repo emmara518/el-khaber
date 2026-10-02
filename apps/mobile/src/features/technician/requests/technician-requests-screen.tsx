@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { requestActionsForStatus } from './request-policy';
 import {
   TECHNICIAN_REQUEST_FILTERS,
   filterTechnicianRequests,
@@ -65,7 +66,9 @@ export default function TechnicianRequestsScreen({
   }, [vm.actionStatus]);
 
   const submitReject = () => {
-    if (rejectTarget !== null) setBusyId(rejectTarget.id);
+    if (rejectTarget === null) return;
+    setBusyId(rejectTarget.id);
+    vm.reject(rejectTarget.id);
     setRejectTarget(null);
   };
 
@@ -177,7 +180,8 @@ export default function TechnicianRequestsScreen({
       <View style={styles.list}>
         {requests.map((item) => {
           const busy = busyId === item.id && vm.actionStatus === 'submitting';
-          const canAct = item.status === 'pending';
+          const actions = requestActionsForStatus(item.status);
+          const actionable = actions.canAccept || actions.canReject;
           return (
             <Card key={item.id} background={color.surface.base} padded style={styles.card}>
               <Pressable
@@ -210,28 +214,32 @@ export default function TechnicianRequestsScreen({
                 </View>
               </Pressable>
 
-              {canAct ? (
+              {actionable ? (
                 <View style={styles.actions}>
-                  <ActionButton
-                    variant="accent"
-                    icon="arrow-left"
-                    label={t('tech.request.accept')}
-                    loading={busy && vm.actionStatus === 'submitting'}
-                    loadingLabel="جارٍ قبول الطلب"
-                    disabled={vm.actionStatus === 'submitting'}
-                    onPress={() => {
-                      setBusyId(item.id);
-                      vm.accept(item.id);
-                    }}
-                    style={styles.acceptAction}
-                  />
-                  <ActionButton
-                    variant="destructive"
-                    label={t('tech.request.reject')}
-                    disabled={vm.actionStatus === 'submitting'}
-                    onPress={() => setRejectTarget(item)}
-                    style={styles.rejectAction}
-                  />
+                  {actions.canAccept ? (
+                    <ActionButton
+                      variant="accent"
+                      icon="arrow-left"
+                      label={t('tech.request.accept')}
+                      loading={busy && vm.actionStatus === 'submitting'}
+                      loadingLabel="جارٍ قبول الطلب"
+                      disabled={vm.actionStatus === 'submitting'}
+                      onPress={() => {
+                        setBusyId(item.id);
+                        vm.accept(item.id);
+                      }}
+                      style={styles.acceptAction}
+                    />
+                  ) : null}
+                  {actions.canReject ? (
+                    <ActionButton
+                      variant="destructive"
+                      label={t('tech.request.reject')}
+                      disabled={vm.actionStatus === 'submitting'}
+                      onPress={() => setRejectTarget(item)}
+                      style={styles.rejectAction}
+                    />
+                  ) : null}
                 </View>
               ) : null}
             </Card>
