@@ -114,7 +114,12 @@ export function useServiceRequestViewModel(
 
   const reloadForm = useCallback(() => setAttempt((n) => n + 1), []);
 
-  /** Creates an owned location, selects it, and refreshes the form data. */
+  /**
+   * Creates an owned location, selects it, and merges it into the loaded
+   * form data. The server returns the created location, so we insert it
+   * locally instead of refetching: a refresh failure must never replace the
+   * in-progress form with an error screen (Phase C / C3).
+   */
   const addLocation = useCallback(
     (input: { labelAr: string; addressAr: string }) => {
       setLocationStatus('saving');
@@ -122,8 +127,10 @@ export function useServiceRequestViewModel(
       void (async () => {
         try {
           const created = await source.createLocation(input);
+          setFormData((current) =>
+            current === null ? current : { ...current, locations: [...current.locations, created] },
+          );
           dispatch({ type: 'SET_LOCATION', locationId: created.id });
-          setAttempt((n) => n + 1);
           setLocationStatus('idle');
         } catch (err) {
           setLocationError(err instanceof Error ? err.message : 'تعذر حفظ الموقع. حاول مجددًا');
