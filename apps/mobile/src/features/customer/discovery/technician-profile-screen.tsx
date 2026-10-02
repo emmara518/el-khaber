@@ -13,7 +13,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 import { useSafeBack } from '../components/use-safe-back';
 
 import { VerificationBadge } from './components/verification-badge';
@@ -27,6 +26,7 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { Avatar, Icon, RatingStars, type } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 

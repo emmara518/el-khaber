@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 
-import { ListError, ListLoading } from '../../src/features/customer/components/list-state-view';
 import { priceLineAr } from '../../src/features/subscriptions/subscription-presentation';
 import {
   canCancelRenewal,
@@ -25,6 +24,7 @@ import {
   useSubscriptionViewModel,
   type SubscriptionViewState,
 } from '../../src/features/subscriptions/use-subscription-view-model';
+import { ListError, ListLoading } from '../../src/ui';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { AppHeader, Card, Icon, PageTitle, type } from '@/ui';

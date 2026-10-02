@@ -3,13 +3,13 @@ import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 import { StepProgress } from '../components/step-progress';
 
 import { symptomsForAppliance, type FaultDetail } from './fault-guide-types';
 import { useFaultGuideViewModel } from './use-fault-guide-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { AppHeader, Icon, PageTitle, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 

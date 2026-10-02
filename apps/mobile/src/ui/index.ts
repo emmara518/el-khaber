@@ -11,7 +11,7 @@
 
 export { Icon, ICON_SIZE_SCALE, type IconName, type IconSize } from './icon';
 export { MenuRow, MenuDivider } from './menu-row';
-export { SectionHeader } from './section-header';
+
 export { Card } from './card';
 export { Pill } from './pill';
 export { Avatar } from './avatar';

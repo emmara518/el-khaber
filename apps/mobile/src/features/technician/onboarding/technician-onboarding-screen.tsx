@@ -23,7 +23,7 @@ import { ONBOARDING_STEPS, type OnboardingStep } from './technician-onboarding-m
 import { useTechnicianOnboardingViewModel } from './use-technician-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ActionButton, AppHeader, Card, Icon, PageTitle, SectionHeader } from '@/ui';
+import { ActionButton, AppHeader, Card, Icon, PageTitle, SectionHeading } from '@/ui';
 import { type } from '@/ui/typography';
 
 import type { TechnicianServicesDataSource } from '../services/technician-services-types';
@@ -279,7 +279,7 @@ function ReviewSummary({
   const submitting = submitStatus === 'submitting';
   return (
     <View>
-      <SectionHeader titleKey="tech.onboarding.review" />
+      <SectionHeading title={t('tech.onboarding.review')} />
       <Card background={color.surface.base} padded style={styles.review}>
         {rows.map((row) => (
           <View key={row.key} style={styles.reviewRow}>

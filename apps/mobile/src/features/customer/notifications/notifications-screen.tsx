@@ -10,12 +10,12 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 
 import type { NotificationItem } from '@/features/notifications/notifications-data-source';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
+import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { AppHeader, Card, Icon, PageTitle, type } from '@/ui';
 
 export default function NotificationsScreen() {

@@ -24,7 +24,7 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { AppHeader, Card, Icon, PageTitle, SectionHeader } from '@/ui';
+import { AppHeader, Card, Icon, PageTitle, SectionHeading } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
 import { type } from '@/ui/typography';
 
@@ -42,6 +42,7 @@ export default function MerchantOnboardingScreen({
   initialDraft?: MerchantProfileDraft;
   source?: MerchantProfileDataSource;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const vm = useMerchantOnboardingViewModel(initialDraft, source);
   const { step, draft, fieldErrors, stepError } = vm.machine;
@@ -171,7 +172,7 @@ export default function MerchantOnboardingScreen({
 
       {step === 'business' ? (
         <View style={styles.section}>
-          <SectionHeader titleKey="merchant.onboarding.bio" />
+          <SectionHeading title={t('merchant.onboarding.bio')} />
           <TextInput
             accessibilityLabel="نبذة عن المتجر، اختياري"
             placeholder="تخصص متجرك وما يقدمه للعملاء…"
@@ -275,7 +276,7 @@ function ReviewSummary({
   const submitting = submitStatus === 'submitting';
   return (
     <View>
-      <SectionHeader titleKey="merchant.onboarding.review" />
+      <SectionHeading title={t('merchant.onboarding.review')} />
       <Card background={color.surface.base} padded style={styles.review}>
         {rows.map((row) => (
           <View key={row.key} style={styles.reviewRow}>

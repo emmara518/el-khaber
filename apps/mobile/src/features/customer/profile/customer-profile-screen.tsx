@@ -11,14 +11,14 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ListError, ListLoading } from '../components/list-state-view';
+
 
 import { profileLocationLabel } from './location-label';
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { useAuthStore } from '@/lib/auth-store';
-import { ActionButton, AppHeader, Avatar, Card, Icon, MenuDivider, MenuRow, PageTitle, Pill, StatTile, type } from '@/ui';
+import { ActionButton, AppHeader, Avatar, Card, Icon, ListError, ListLoading, MenuDivider, MenuRow, PageTitle, Pill, StatTile, type } from '@/ui';
 
 export default function CustomerProfileScreen() {
   const { t } = useI18n();

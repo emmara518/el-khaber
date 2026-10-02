@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChatDialog } from '../chat/chat-dialog';
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
 import { RatingForm } from '../rating/rating-form';
 
 import { nextStepTitle, type OrderDataSource, type OrderDetail } from './order-detail-types';
@@ -16,6 +15,7 @@ import type { ChatDataSource } from '../chat/chat-types';
 import type { RatingDataSource } from '../rating/rating-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { Avatar, StatusBadge, statusBrandAsset, type } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
 

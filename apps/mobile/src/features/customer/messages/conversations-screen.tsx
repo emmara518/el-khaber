@@ -14,13 +14,14 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChatDialog } from '../chat/chat-dialog';
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
+
 
 import { useConversationsViewModel } from './use-conversations-view-model';
 
 import type { ConversationItem } from './conversations-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { AppHeader, Avatar, Card, fontFamily, PageTitle, type } from '@/ui';
 import { SceneSection } from '@/ui/cinematic';
 

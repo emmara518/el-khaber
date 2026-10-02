@@ -33,7 +33,7 @@ import {
   ListError,
   ListLoading,
   PageTitle,
-  SectionHeader,
+  SectionHeading,
 } from '@/ui';
 import { type } from '@/ui/typography';
 
@@ -164,7 +164,7 @@ export default function MerchantProfileScreen({
         <Text style={styles.heroBadge}>{status.titleAr}</Text>
       </Card>
 
-      <SectionHeader titleKey="merchant.profile.about" />
+      <SectionHeading title={t('merchant.profile.about')} />
       <Card background={color.surface.base} padded>
         <Text style={styles.body}>{profile.bioAr || '—'}</Text>
         <Text style={styles.meta}>

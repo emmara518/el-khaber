@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import { ListEmpty, ListError } from '../components/list-state-view';
+
 import { TechnicalDataDialog } from '../components/technical-data-dialog';
 import { requestTrackingRoute } from '../orders/request-routes';
 
@@ -25,7 +25,7 @@ import type { BrandAssetName } from '@/ui/brand-assets';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
-import { AppHeader } from '@/ui';
+import { AppHeader, ListEmpty, ListError } from '@/ui';
 
 /** Service icon → approved brand mark (same vocabulary as the tiles). */
 const SERVICE_ASSET: Record<QuickServiceItem['icon'], BrandAssetName> = {

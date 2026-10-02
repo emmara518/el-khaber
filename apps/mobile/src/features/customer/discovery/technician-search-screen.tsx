@@ -5,7 +5,7 @@ import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ListError, ListLoading } from '../components/list-state-view';
+
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
 import { DiscoveryEmptyState } from './components/discovery-empty-state';
@@ -25,7 +25,7 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, type } from '@/ui';
+import { Card, ListError, ListLoading, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
 import { fontFamily } from '@/ui/typography';

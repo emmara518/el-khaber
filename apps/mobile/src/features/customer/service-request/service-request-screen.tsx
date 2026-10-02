@@ -24,7 +24,6 @@ import {
   View,
 } from 'react-native';
 
-import { ListError, ListLoading } from '../components/list-state-view';
 import { useSafeBack } from '../components/use-safe-back';
 import { ApiTechnicianDataSource } from '../discovery/api-technician-data-source';
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
@@ -48,7 +47,8 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ApplianceIcon, Avatar, Card, Icon, SectionHeader, type } from '@/ui';
+import { ListError, ListLoading } from '@/ui';
+import { ApplianceIcon, Avatar, Card, Icon, SectionHeading, type } from '@/ui';
 import { applianceSceneAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
 
 
@@ -330,7 +330,7 @@ function ApplianceStep({
   const options: ReadonlyArray<ApplianceSlug> = ['washing_machine', 'refrigerator', 'air_conditioner'];
   return (
     <View>
-      <SectionHeader titleKey="request.appliance.title" />
+      <SectionHeading title={t('request.appliance.title')} />
       <View accessibilityRole="radiogroup" accessibilityLabel={t('request.appliance.title')} style={styles.options}>
         {options.map((slug) => {
           const selected = draft.appliance === slug;
@@ -359,7 +359,7 @@ function ProblemStep({
   const { t } = useI18n();
   return (
     <View>
-      <SectionHeader titleKey="request.problem.title" />
+      <SectionHeading title={t('request.problem.title')} />
       {symptomTitle !== null && draft.symptomId !== null ? (
         <Card background={color.brand.goldSoft} borderColor={color.brand.gold} padded style={styles.contextCard}>
           <Text style={styles.contextLabel}>{t('request.problem.fromGuide')}</Text>
@@ -426,7 +426,7 @@ function DescriptionStep({
   const { t } = useI18n();
   return (
     <View>
-      <SectionHeader titleKey="request.description.title" />
+      <SectionHeading title={t('request.description.title')} />
       <TextInput
         accessibilityLabel={`${t('request.description.title')}، ${draft.descriptionAr.length} من ${DESCRIPTION_MAX} حرف`}
         placeholder={t('request.description.placeholder')}
@@ -475,7 +475,7 @@ function LocationStep({
 
   return (
     <View>
-      <SectionHeader titleKey="request.location.title" />
+      <SectionHeading title={t('request.location.title')} />
       {locations.length === 0 ? (
         <Text style={styles.emptyHint}>{t('request.location.empty')}</Text>
       ) : (
@@ -564,7 +564,7 @@ function AppointmentStep({
   const { t } = useI18n();
   return (
     <View>
-      <SectionHeader titleKey="request.appointment.title" />
+      <SectionHeading title={t('request.appointment.title')} />
       <View accessibilityRole="radiogroup" accessibilityLabel={t('request.appointment.title')} style={styles.options}>
         <Pressable
           accessibilityRole="radio"
@@ -687,7 +687,7 @@ function ReviewStep({
   const submitting = submitStatus === 'submitting';
   return (
     <View>
-      <SectionHeader titleKey="request.review.title" />
+      <SectionHeading title={t('request.review.title')} />
       <View style={styles.review}>
         {rows.map((row) => (
           <View key={row.key} style={styles.reviewRow}>
