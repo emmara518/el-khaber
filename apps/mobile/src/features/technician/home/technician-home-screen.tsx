@@ -39,11 +39,12 @@ const QUICK_ACTIONS: ReadonlyArray<{
   id: string;
   label: string;
   asset: BrandAssetName;
-  target: '/(technician)/orders' | '/(technician)/services' | '/(technician)/messages' | '/(technician)/reviews';
+  target: '/(technician)/orders' | '/(technician)/services' | '/(technician)/messages' | '/(technician)/reviews' | '/(technician)/store';
 }> = [
   { id: 'orders', label: 'الطلبات', asset: 'my-requests', target: '/(technician)/orders' },
   { id: 'services', label: 'الخدمات', asset: 'maintenance', target: '/(technician)/services' },
   { id: 'messages', label: 'الرسائل', asset: 'messages', target: '/(technician)/messages' },
+  { id: 'store', label: 'المتجر', asset: 'spare-parts', target: '/(technician)/store' },
   { id: 'reviews', label: 'التقييمات', asset: 'rate-us', target: '/(technician)/reviews' },
 ];
 
