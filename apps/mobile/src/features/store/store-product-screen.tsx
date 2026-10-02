@@ -7,12 +7,15 @@
  */
 
 import { color, spacing } from '@khabir/ui-tokens';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { ChatDialog } from '../customer/chat/chat-dialog';
 
 import { useStoreProductViewModel } from './use-store-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { AppHeader, Card, Icon, ListEmpty, ListError, ListLoading, ProductImage, SectionHeading, type } from '@/ui';
+import { ActionButton, AppHeader, Card, Icon, ListEmpty, ListError, ListLoading, ProductImage, SectionHeading, type } from '@/ui';
 
 export function StoreProductScreen({
   role,
@@ -29,6 +32,7 @@ export function StoreProductScreen({
 }) {
   const { t } = useI18n();
   const { status, data, error, retry } = useStoreProductViewModel(role, productId);
+  const [chatOpen, setChatOpen] = useState(false);
 
   return (
     <View style={styles.root}>
@@ -91,11 +95,30 @@ export function StoreProductScreen({
             {data.descriptionAr !== null && data.descriptionAr.trim().length > 0 ? (
               <SectionHeading title={t('store.product.description')} body={data.descriptionAr} />
             ) : null}
+
+            <ActionButton
+              icon="message-circle"
+              label={t('store.product.contactMerchant')}
+              accessibilityLabel={t('store.product.contactMerchant')}
+              onPress={() => setChatOpen(true)}
+            />
           </>
         ) : null}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {status === 'loaded' && data ? (
+        <ChatDialog
+          visible={chatOpen}
+          onClose={() => setChatOpen(false)}
+          conversationId={`product-chat-${data.id}`}
+          technicianNameAr={data.merchantNameAr ?? t('store.product.merchant')}
+          peerNameAr={data.merchantNameAr ?? t('store.product.merchant')}
+          serviceTitle={data.nameAr}
+          role={role}
+        />
+      ) : null}
     </View>
   );
 }

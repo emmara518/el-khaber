@@ -428,6 +428,7 @@ const ARABIC: Record<string, string> = {
   'store.product.description': 'تفاصيل المنتج',
   'store.product.priceUnspecified': 'السعر غير محدد',
   'store.product.merchant': 'التاجر',
+  'store.product.contactMerchant': 'تواصل مع التاجر',
 };
 
 export type TranslationKey = keyof typeof ARABIC;
