@@ -9,7 +9,7 @@
 
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { verificationCopy } from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
@@ -115,36 +115,48 @@ export default function TechnicianHomeScreen() {
           <StatTile icon="check-circle" value={data.today.completedToday} label={t('tech.home.completedToday')} />
         </View>
 
-        {/* Availability (WP-4) — technician-controlled, server-authoritative */}
+        {/* Availability (WP-4) — technician-controlled, server-authoritative.
+            A controlled on/off Switch (not a large CTA): the state is read
+            from the server, the write is real, and it is disabled while a
+            mutation is in flight. No schedule, no time range. */}
         <View style={styles.section}>
           <SectionHeading
-            title="حالة التوفر"
-            body="عند تفعيل «المتاحون فقط» في البحث، يظهر الفنيون المتاحون فقط."
+            title={t('tech.home.availability.title')}
+            body={t('tech.home.availability.body')}
           />
           <Card background={color.surface.base} padded style={styles.availabilityCard}>
             <View style={styles.availabilityRow}>
-              <View
-                style={[styles.availabilityDot, data.profile.available ? styles.dotOn : styles.dotOff]}
-                accessibilityLabel={data.profile.available ? 'متاح' : 'غير متاح'}
+              <View style={styles.availabilityCopy}>
+                <View style={styles.availabilityLabelRow}>
+                  <View
+                    style={[styles.availabilityDot, data.profile.available ? styles.dotOn : styles.dotOff]}
+                  />
+                  <Text style={styles.availabilityValue}>
+                    {data.profile.available
+                      ? t('tech.home.availability.on')
+                      : t('tech.home.availability.off')}
+                  </Text>
+                </View>
+                {availabilitySaving ? (
+                  <Text style={styles.availabilityHint}>{t('tech.home.availability.saving')}</Text>
+                ) : null}
+              </View>
+              <Switch
+                value={data.profile.available}
+                onValueChange={(next) => setAvailability(next)}
+                disabled={availabilitySaving}
+                accessibilityLabel={t('tech.home.availability.title')}
+                accessibilityState={{ checked: data.profile.available, disabled: availabilitySaving }}
+                trackColor={{ false: color.border.default, true: color.brand.goldSoft }}
+                thumbColor={data.profile.available ? color.brand.gold : color.surface.base}
+                ios_backgroundColor={color.border.default}
               />
-              <Text style={styles.availabilityValue}>
-                {data.profile.available ? 'متاح' : 'غير متاح'}
-              </Text>
             </View>
             {availabilityError !== null ? (
               <Text accessibilityRole="alert" style={styles.inlineError}>
                 {availabilityError}
               </Text>
             ) : null}
-            <ActionButton
-              variant={data.profile.available ? 'secondary' : 'primary'}
-              icon={data.profile.available ? 'x-circle' : 'check-circle'}
-              label={data.profile.available ? 'تعيين كغير متاح' : 'تعيين كمتاح'}
-              loading={availabilitySaving}
-              loadingLabel="جارٍ التحديث"
-              disabled={availabilitySaving}
-              onPress={() => setAvailability(!data.profile.available)}
-            />
           </Card>
         </View>
 
@@ -297,11 +309,20 @@ const styles = StyleSheet.create({
   heroArt: { width: 140, alignItems: 'center', justifyContent: 'center' },
   statsRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
   availabilityCard: { gap: spacing[3] },
-  availabilityRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  availabilityRow: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing[3],
+  },
+  availabilityCopy: { flex: 1, minWidth: 0, gap: 2 },
+  availabilityLabelRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
   availabilityDot: { width: 12, height: 12, borderRadius: radius.pill },
   dotOn: { backgroundColor: color.success.DEFAULT },
   dotOff: { backgroundColor: color.text.secondary },
   availabilityValue: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  availabilityHint: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   inlineError: { ...type.caption, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
   section: { gap: spacing[3] },
   stack: { gap: spacing[3] },

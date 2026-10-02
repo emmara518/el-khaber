@@ -236,6 +236,11 @@ const ARABIC: Record<string, string> = {
   'tech.home.orders': 'الطلبات',
   'tech.home.messages': 'الرسائل',
   'tech.home.error': 'تعذر تحميل الرئيسية',
+  'tech.home.availability.title': 'حالة التوفر',
+  'tech.home.availability.body': 'عند تفعيل «المتاحون فقط» في البحث، يظهر الفنيون المتاحون فقط.',
+  'tech.home.availability.on': 'متاح للعمل',
+  'tech.home.availability.off': 'غير متاح للعمل',
+  'tech.home.availability.saving': 'جارٍ التحديث',
   // Technician — onboarding + profile
   'tech.onboarding.review': 'مراجعة البيانات',
   'tech.profile.title': 'الملف الشخصي',
