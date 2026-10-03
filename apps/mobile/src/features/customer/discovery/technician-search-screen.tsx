@@ -54,6 +54,9 @@ export default function TechnicianSearchScreen() {
       .then((loadedGuide) => {
         if (!cancelled) setGuide(loadedGuide);
       })
+      // Supporting context only (prefilters the appliance + shows a banner).
+      // A failure degrades truthfully to "no context" — the technician
+      // discovery list below has its own explicit loading/error state.
       .catch(() => undefined);
     return () => {
       cancelled = true;

@@ -148,7 +148,7 @@ export default function MerchantProfileScreen({
       {needsUpdate ? (
         <ActionButton
           label={t('merchant.profile.updateData')}
-          onPress={() => router.push('/(merchant)/onboarding')}
+          onPress={() => router.push({ pathname: '/(merchant)/onboarding', params: { resume: '1' } })}
           style={styles.actionGap}
         />
       ) : null}

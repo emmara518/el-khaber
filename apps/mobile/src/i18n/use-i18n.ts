@@ -32,7 +32,6 @@ const ARABIC: Record<string, string> = {
   'home.recommendedTechnicians': 'فنيون مقترحون لك',
   'home.changeLocation': 'تغيير الموقع',
   // Placeholder screens
-  'placeholder.title': 'قريباً',
   'placeholder.body': 'سيتم تفعيل هذه الشاشة في مهمة لاحقة.',
   // Auth
   'auth.appTagline': 'صيانة موثوقة لأجهزتك المنزلية',
@@ -72,8 +71,6 @@ const ARABIC: Record<string, string> = {
   'auth.reset.submit': 'حفظ كلمة المرور',
   'auth.reset.done': 'تم تحديث كلمة المرور بنجاح. سجّل الدخول بحسابك.',
   'auth.retry': 'إعادة المحاولة',
-  'auth.shell.soonTitle': 'هذه المساحة قيد التجهيز',
-  'auth.shell.soonBody': 'هيكل التطبيق جاهز، وسيتم تفعيل شاشات هذه المرحلة في مهمة لاحقة.',
   // Customer — requests
   'requests.title': 'طلباتي',
   'requests.subtitle': 'تابع حالة طلبات الصيانة الخاصة بك',
@@ -103,7 +100,6 @@ const ARABIC: Record<string, string> = {
   'profile.menu.subscription': 'الاشتراك',
   'profile.menu.support': 'الدعم والمساعدة',
   'profile.menu.logout': 'تسجيل الخروج',
-  'profile.comingSoon': 'قريباً',
   'profile.support.body': 'فريق الدعم متاح يوميًا من ٩ صباحًا حتى ١٠ مساءً.',
   'profile.location.none': 'لا يوجد موقع محفوظ',
   // Shared list states

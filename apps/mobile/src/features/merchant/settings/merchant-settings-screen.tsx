@@ -53,7 +53,7 @@ export default function MerchantSettingsScreen() {
               icon="edit-3"
               label={t('merchant.settings.onboarding')}
               hint={t('merchant.settings.onboardingHint')}
-              onPress={() => router.push('/(merchant)/onboarding')}
+              onPress={() => router.push({ pathname: '/(merchant)/onboarding', params: { resume: '1' } })}
             />
             <MenuDivider />
             <MenuRow

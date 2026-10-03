@@ -99,6 +99,9 @@ export default function ServiceRequestScreen({
       .then((g) => {
         if (!cancelled) setGuide(g);
       })
+      // Supporting context only (prefills the symptom problem). A failure
+      // degrades truthfully: the form still loads and the customer can pick
+      // the problem manually — the form's own loading/error state is above.
       .catch(() => {});
     return () => {
       cancelled = true;
