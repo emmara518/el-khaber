@@ -12,6 +12,7 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { type } from './typography';
@@ -24,16 +25,31 @@ interface FormFieldProps extends TextInputProps {
   hint?: string;
 }
 
-export function FormField({ label, error, hint, style, ...rest }: FormFieldProps) {
+export function FormField({ label, error, hint, style, onFocus, onBlur, ...rest }: FormFieldProps) {
   const labelText = rest.accessibilityLabel ?? label;
+  const [focused, setFocused] = useState(false);
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={error ? `${labelText}. خطأ: ${error}` : labelText}
         placeholderTextColor={color.text.secondary}
-        style={[styles.input, rest.multiline && styles.multiline, error ? styles.inputError : null, style]}
+        style={[
+          styles.input,
+          rest.multiline && styles.multiline,
+          focused && styles.inputFocused,
+          error ? styles.inputError : null,
+          style,
+        ]}
         textAlign="right"
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         {...rest}
       />
       {error ? (
@@ -71,6 +87,9 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 110,
     textAlignVertical: 'top',
+  },
+  inputFocused: {
+    borderColor: color.brand.navy,
   },
   inputError: {
     borderColor: color.error.DEFAULT,
