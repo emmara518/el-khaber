@@ -15,6 +15,7 @@ import { color, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { fontFamily, type } from './typography';
+import { unreadBadgeLabel } from './unread-badge-label';
 
 export interface UnreadBadgeProps {
   count: number;
@@ -31,7 +32,7 @@ export interface UnreadBadgeProps {
 
 export function UnreadBadge({ count, accessibilityLabel, format, style }: UnreadBadgeProps) {
   if (count <= 0) return null;
-  const label = format ? format(count) : count > 99 ? '99+' : String(count);
+  const label = unreadBadgeLabel(count, format);
   return (
     <View
       accessibilityLabel={accessibilityLabel ?? label}
