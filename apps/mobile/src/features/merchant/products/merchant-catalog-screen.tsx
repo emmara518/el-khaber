@@ -7,7 +7,7 @@
  * منتج" CTA opens the product form screen.
  */
 
-import { color, radius, spacing } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -24,7 +24,7 @@ import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { ActionButton, AppHeader, Chip, ListEmpty, ListError, ListLoading, PageTitle, ProductImage, SearchField, StatusBadge, type } from '@/ui';
+import { ActionButton, AppHeader, Card, Chip, ListEmpty, ListError, ListLoading, PageTitle, ProductImage, SearchField, StatusBadge, type } from '@/ui';
 
 
 export default function MerchantCatalogScreen({
@@ -135,9 +135,9 @@ export default function MerchantCatalogScreen({
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
-            <View style={styles.card}>
+            <Card background={color.surface.base} padded style={styles.card}>
               <View style={styles.row}>
-                <ProductImage imageUrl={product.imageUrl} nameAr={product.nameAr} />
+                <ProductImage imageUrl={product.imageUrl} nameAr={product.nameAr} size={72} />
                 <View style={styles.middle}>
                   <Text style={styles.name} numberOfLines={2}>
                     {product.nameAr}
@@ -160,7 +160,7 @@ export default function MerchantCatalogScreen({
                   <StatusBadge status={product.status} label={product.statusLabelAr} />
                 </View>
               </View>
-            </View>
+            </Card>
           </Pressable>
         ))}
       </View>
@@ -215,11 +215,6 @@ const styles = StyleSheet.create({
   },
   card: {
     gap: 0,
-    backgroundColor: color.surface.base,
-    padding: spacing[4],
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: color.border.default,
   },
   row: {
     flexDirection: 'row',
