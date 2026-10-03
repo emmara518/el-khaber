@@ -10,7 +10,6 @@ import { requestTrackingRoute } from '../orders/request-routes';
 import { ApplianceCard } from './components/appliance-card';
 import { CurrentOrderCard } from './components/current-order-card';
 import { HomeHero } from './components/home-hero';
-import { HomeSearch } from './components/home-search';
 import { HomeSection } from './components/home-section';
 import { HomeSkeleton } from './components/home-skeleton';
 import { RecommendedTechnicianCard } from './components/recommended-technician-card';
@@ -77,13 +76,6 @@ export default function CustomerHomeScreen() {
           secondaryLabel="استكشف الخدمات"
           onPressSecondary={() => go('maintenance')}
         />
-
-        <View style={styles.searchWrap}>
-          <HomeSearch
-            placeholder="ابحث عن جهاز أو خدمة"
-            onPress={() => go('find-technician')}
-          />
-        </View>
 
         {status === 'loading' ? <HomeSkeleton label={t('state.loading')} /> : null}
         {status === 'error' || (status !== 'loading' && !data) ? (
@@ -215,7 +207,6 @@ const styles = StyleSheet.create({
     paddingTop: spacing[4],
     paddingBottom: spacing[8],
   },
-  searchWrap: { marginTop: spacing[4] },
   applianceRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] + 2 },
   serviceRail: { flexDirection: 'row', direction: 'rtl', gap: spacing[3] },
   storeWrap: { marginTop: spacing[6] },

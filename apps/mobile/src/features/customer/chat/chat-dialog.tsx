@@ -34,7 +34,6 @@ export function ChatDialog({
   conversationId,
   technicianNameAr,
   serviceTitle,
-  requestId,
   source,
   role = 'customer',
   peerNameAr,
@@ -44,7 +43,6 @@ export function ChatDialog({
   conversationId: string;
   technicianNameAr: string;
   serviceTitle?: string;
-  requestId?: string;
   source?: ChatDataSource;
   /** Signed-in side of the 1:1 conversation. Defaults to `customer`. */
   role?: ChatRole;
@@ -66,7 +64,6 @@ export function ChatDialog({
             conversationId={conversationId}
             technicianNameAr={peer}
             serviceTitle={serviceTitle}
-            requestId={requestId}
             onClose={onClose}
             source={source}
             role={role}
@@ -81,7 +78,6 @@ export function ChatBody({
   conversationId,
   technicianNameAr,
   serviceTitle,
-  requestId,
   onClose,
   source,
   role = 'customer',
@@ -89,7 +85,6 @@ export function ChatBody({
   conversationId: string;
   technicianNameAr: string;
   serviceTitle?: string;
-  requestId?: string;
   onClose: () => void;
   source?: ChatDataSource;
   role?: ChatRole;
@@ -111,7 +106,6 @@ export function ChatBody({
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>{technicianNameAr}</Text>
             <Text style={styles.headerSub}>{serviceTitle ?? 'محادثة الطلب الحالي'}</Text>
-            {requestId ? <Text style={styles.headerSub}>رقم الطلب: {requestId}</Text> : null}
           </View>
         </View>
         <Pressable

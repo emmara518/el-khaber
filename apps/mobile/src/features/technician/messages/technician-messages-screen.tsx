@@ -98,7 +98,6 @@ export default function TechnicianMessagesScreen() {
           technicianNameAr={open.peerNameAr}
           peerNameAr={open.peerNameAr}
           serviceTitle={open.applianceAr}
-          requestId={open.id}
           role="technician"
         />
       ) : null}

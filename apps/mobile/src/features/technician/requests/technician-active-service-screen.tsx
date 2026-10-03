@@ -222,7 +222,6 @@ export default function TechnicianActiveServiceScreen({
         technicianNameAr={request.customerNameAr}
         peerNameAr={request.customerNameAr}
         serviceTitle={request.applianceAr}
-        requestId={request.id}
         role="technician"
       />
 

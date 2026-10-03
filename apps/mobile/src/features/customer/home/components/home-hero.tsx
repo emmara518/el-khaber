@@ -33,9 +33,8 @@ export function HomeHero({
 }: HomeHeroProps) {
   return (
     <View style={styles.card}>
-      <View style={styles.badge}>
-        <BrandImage name="verified" size={16} />
-        <Text style={styles.badgeText}>خدمة منزلية مضمونة</Text>
+      <View style={styles.mark} accessibilityRole="image" accessibilityLabel="خدمة منزلية مضمونة">
+        <BrandImage name="verified" size={18} />
       </View>
 
       <View style={styles.row}>
@@ -82,25 +81,18 @@ const styles = StyleSheet.create({
     direction: 'rtl',
     ...shadow.medium,
   },
-  badge: {
+  mark: {
     position: 'absolute',
     top: spacing[3],
-    start: spacing[3],
+    end: spacing[3],
     zIndex: 2,
-    flexDirection: 'row',
-    direction: 'rtl',
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    gap: spacing[1] + 2,
+    justifyContent: 'center',
     backgroundColor: color.surface.base,
     borderRadius: radius.pill,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
     ...shadow.low,
-  },
-  badgeText: {
-    ...type.caption,
-    color: color.brand.navy,
-    writingDirection: 'rtl',
   },
   row: {
     flexDirection: 'row',

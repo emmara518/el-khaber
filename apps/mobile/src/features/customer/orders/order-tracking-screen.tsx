@@ -88,7 +88,7 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
         </SceneSection>
         <SceneAction variant="secondary" label={t('tracking.backToRequests')} onPress={onBackToRequests} />
       </View>
-      {chattable ? <ChatDialog visible={chatOpen} onClose={onCloseChat} conversationId={`req-chat-${detail.requestId}`} technicianNameAr={detail.technicianNameAr} serviceTitle={detail.taskAr} requestId={detail.requestId} source={chatSource} /> : null}
+      {chattable ? <ChatDialog visible={chatOpen} onClose={onCloseChat} conversationId={`req-chat-${detail.requestId}`} technicianNameAr={detail.technicianNameAr} serviceTitle={detail.taskAr} source={chatSource} /> : null}
     </>
   );
 }

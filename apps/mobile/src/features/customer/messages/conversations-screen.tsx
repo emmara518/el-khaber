@@ -90,7 +90,6 @@ export default function ConversationsScreen() {
           conversationId={chatKeyFor(open.id)}
           technicianNameAr={open.technicianNameAr}
           serviceTitle={open.specialtyAr}
-          requestId={open.id}
         />
       ) : null}
     </>

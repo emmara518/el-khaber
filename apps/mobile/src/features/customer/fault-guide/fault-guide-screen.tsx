@@ -9,6 +9,7 @@ import { symptomsForAppliance, type FaultDetail } from './fault-guide-types';
 import { useFaultGuideViewModel } from './use-fault-guide-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { filterApprovedAppliances } from '@/lib/approved-appliances';
 import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { AppHeader, Icon, PageTitle, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
@@ -20,7 +21,11 @@ export default function FaultGuideScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const vm = useFaultGuideViewModel();
-  const appliance = vm.data?.appliances.find((item) => item.slug === vm.appliance);
+  // Approved MVP scope: expose only غسالات / ثلاجات / تكييفات regardless of
+  // what the backend catalog returns. Future categories keep their assets in
+  // the repo but are not offered here.
+  const approvedAppliances = filterApprovedAppliances(vm.data?.appliances ?? []);
+  const appliance = approvedAppliances.find((item) => item.slug === vm.appliance);
   const symptom = vm.data?.symptoms.find((item) => item.id === vm.symptomId);
   const stepIndex = vm.step === 'APPLIANCE' ? 0 : vm.step === 'SYMPTOM' ? 1 : 2;
   const findTechnician = () => router.push({
@@ -61,7 +66,7 @@ export default function FaultGuideScreen() {
               {vm.step === 'APPLIANCE' ? (
                 <SceneSection title={t('fault.chooseAppliance')} eyebrow="الخطوة الأولى">
                   <View accessibilityRole="radiogroup" accessibilityLabel={t('fault.chooseAppliance')} style={styles.appliances}>
-                    {vm.data.appliances.map((item) => (
+                    {approvedAppliances.map((item) => (
                       <SceneObject
                         key={item.slug}
                         brandAsset={applianceBrandAsset(item.slug)}
@@ -71,7 +76,7 @@ export default function FaultGuideScreen() {
                       />
                     ))}
                   </View>
-                  {vm.data.appliances.length === 0 ? (
+                  {approvedAppliances.length === 0 ? (
                     <ListEmpty icon="search" iconLabel={t('fault.noAppliances.title')} brandAsset="no-results" title={t('fault.noAppliances.title')} body={t('fault.noAppliances.body')} actionLabel={t('fault.noAppliances.action')} onAction={vm.reload} />
                   ) : null}
                 </SceneSection>
