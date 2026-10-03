@@ -16,6 +16,8 @@
 import Feather from '@expo/vector-icons/Feather';
 import { color } from '@khabir/ui-tokens';
 
+import { iconIsAccessible } from './icon-a11y';
+
 import type { ComponentProps } from 'react';
 import type { StyleProp, TextStyle } from 'react-native';
 
@@ -43,7 +45,7 @@ interface IconProps {
 
 export function Icon({ name, size = 'md', color: tint, style, accessibilityLabel, accessible }: IconProps) {
   const px = typeof size === 'number' ? size : ICON_SIZE_SCALE[size];
-  const isAccessible = accessible ?? accessibilityLabel !== undefined;
+  const isAccessible = iconIsAccessible(accessibilityLabel, accessible);
   return (
     <Feather
       name={name}

@@ -2,6 +2,7 @@ import { color, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from './icon';
+import { ratingSpokenLabel } from './rating-label';
 import { fontFamily } from './typography';
 
 interface RatingStarsProps {
@@ -28,9 +29,7 @@ export function RatingStars({
   const fontSize = size === 'sm' ? typography.size.caption : typography.size.body;
   const valueColor = onDark ? color.surface.base : color.text.primary;
   const countColor = onDark ? color.brand.goldSoft : color.text.secondary;
-  const spoken = showCount
-    ? `التقييم ${rating.toFixed(1)} من 5، ${reviewCount} مراجعة`
-    : `التقييم ${rating.toFixed(1)} من 5`;
+  const spoken = ratingSpokenLabel(rating, reviewCount, showCount);
   return (
     <View accessibilityRole="text" accessibilityLabel={spoken} style={styles.row}>
       <Icon name="star" size={fontSize === typography.size.caption ? 13 : 15} color={color.brand.gold} accessible={false} />
