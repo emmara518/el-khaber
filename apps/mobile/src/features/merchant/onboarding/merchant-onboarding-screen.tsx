@@ -60,7 +60,7 @@ export default function MerchantOnboardingScreen({
           <BrandImage name="success" size={124} />
         </View>
         <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
-          <View style={styles.successBadge}><Icon name="clock" size={26} color={color.brand.navy} accessibilityLabel="قيد المراجعة" /></View>
+          <View style={styles.successBadge}><Icon name="clock" size={26} color={color.brand.navy} accessible={false} /></View>
           <Text accessibilityRole="header" style={styles.successTitle}>
             تم إرسال بيانات المتجر للمراجعة
           </Text>

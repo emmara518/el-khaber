@@ -22,7 +22,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
         accessibilityLabel="موثّق من الخبير: تم التحقق من الهوية والخبرة"
         style={[styles.badge, styles.verified]}
       >
-        <BrandImage name="verified" size={16} accessibilityLabel="موثّق" />
+        <BrandImage name="verified" size={16} />
         <Text style={[styles.label, styles.verifiedText]}>موثّق من الخبير</Text>
       </View>
     );
@@ -33,7 +33,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
       accessibilityLabel="لم يتم توثيقه بعد"
       style={[styles.badge, styles.unverified]}
     >
-      <Icon name="circle" size={13} color={color.text.secondary} accessibilityLabel="غير موثّق" />
+      <Icon name="circle" size={13} color={color.text.secondary} accessible={false} />
       <Text style={[styles.label, styles.unverifiedText]}>لم يتم توثيقه بعد</Text>
     </View>
   );

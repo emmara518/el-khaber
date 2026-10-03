@@ -136,7 +136,7 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
       </View>
       <View style={styles.footer}>
         <IconText
-          glyph={<Icon name="calendar" size={13} color={color.brand.gold} accessibilityLabel="الموعد" />}
+          glyph={<Icon name="calendar" size={13} color={color.brand.gold} accessible={false} />}
           label={item.scheduledLabelAr}
           size="sm"
         />

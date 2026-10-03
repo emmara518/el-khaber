@@ -28,9 +28,12 @@ export function RatingStars({
   const fontSize = size === 'sm' ? typography.size.caption : typography.size.body;
   const valueColor = onDark ? color.surface.base : color.text.primary;
   const countColor = onDark ? color.brand.goldSoft : color.text.secondary;
+  const spoken = showCount
+    ? `التقييم ${rating.toFixed(1)} من 5، ${reviewCount} مراجعة`
+    : `التقييم ${rating.toFixed(1)} من 5`;
   return (
-    <View style={styles.row}>
-      <Icon name="star" size={fontSize === typography.size.caption ? 13 : 15} color={color.brand.gold} accessibilityLabel="التقييم" />
+    <View accessibilityRole="text" accessibilityLabel={spoken} style={styles.row}>
+      <Icon name="star" size={fontSize === typography.size.caption ? 13 : 15} color={color.brand.gold} accessible={false} />
       <Text style={[styles.rating, { fontSize, color: valueColor }]}>
         {rating.toFixed(1)}
       </Text>

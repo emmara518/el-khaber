@@ -84,7 +84,7 @@ export default function TechnicianOnboardingScreen({
           <PageTitle eyebrow="التوثيق" title="إكمال ملف الفني" />
           <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
             <View style={styles.successBadge}>
-              <Icon name="check-circle" size={26} color={color.success.DEFAULT} accessibilityLabel="قيد المراجعة" />
+              <Icon name="check-circle" size={26} color={color.success.DEFAULT} accessible={false} />
             </View>
             <Text accessibilityRole="header" style={styles.successTitle}>
               تم إرسال البيانات للمراجعة

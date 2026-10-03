@@ -302,7 +302,7 @@ function RequestHeader({ technician, onExit }: { technician: Technician; onExit:
           onPress={onExit}
           style={({ pressed }) => [styles.exit, pressed && styles.pressed]}
         >
-          <Icon name="x" size={16} color={color.error.DEFAULT} accessibilityLabel="إلغاء" />
+          <Icon name="x" size={16} color={color.error.DEFAULT} accessible={false} />
           <Text style={styles.exitText}>{t('request.cancel')}</Text>
         </Pressable>
       </View>
@@ -311,7 +311,7 @@ function RequestHeader({ technician, onExit }: { technician: Technician; onExit:
         <View style={styles.techText}>
           <Text style={styles.techName}>{technician.nameAr}</Text>
           <View style={styles.techMetaRow}>
-            <Icon name="star" size={13} color={color.brand.gold} accessibilityLabel="التقييم" />
+            <Icon name="star" size={13} color={color.brand.gold} accessible={false} />
             <Text style={styles.techMeta}>
               {technician.specialtiesAr.join(' · ')} · {technician.rating.toFixed(1)}
             </Text>

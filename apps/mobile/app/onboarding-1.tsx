@@ -9,7 +9,6 @@ export default function OnboardingOneRoute() {
   return (
     <OnboardingSlide
       imageSource={onboardingAssets.appliances}
-      imageLabel="كل الأجهزة المنزلية المدعومة: غسالة وثلاجة وتكييف وميكروويف وماكينة قهوة على منصة واحدة"
       imageAspectRatio={3 / 2}
       title="كل خدمات الأجهزة المنزلية في مكان واحد"
       body="غسالات، ثلاجات، تكييفات، ميكروويف وأكثر… صيانة موثوقة وسهولة."

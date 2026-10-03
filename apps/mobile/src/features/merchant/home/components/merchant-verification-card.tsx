@@ -38,7 +38,7 @@ export function MerchantVerificationCard({
       <View
         style={[styles.iconWrap, verified ? styles.iconWrapVerified : styles.iconWrapAttention]}
       >
-        <Icon name={icon} size={22} color={iconColor} accessibilityLabel={headlineAr} />
+        <Icon name={icon} size={22} color={iconColor} accessible={false} />
       </View>
       <View style={styles.copy}>
         <Text style={styles.title}>{headlineAr}</Text>

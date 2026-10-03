@@ -89,7 +89,7 @@ export function ListEmpty({
         <StateScene asset={asset} />
       ) : (
         <View accessibilityRole="image" accessibilityLabel={iconLabel} style={styles.iconWrap}>
-          <Icon name={icon} size={26} color={color.text.secondary} accessibilityLabel={iconLabel} />
+          <Icon name={icon} size={26} color={color.text.secondary} accessible={false} />
         </View>
       )}
       <Text accessibilityRole="header" style={styles.title}>
@@ -133,7 +133,7 @@ export function ListError({
         <StateScene asset={asset} />
       ) : (
         <View accessibilityRole="image" accessibilityLabel="خطأ" style={[styles.iconWrap, styles.iconWrapError]}>
-          <Icon name="cloud-off" size={26} color={color.error.DEFAULT} accessibilityLabel="خطأ" />
+          <Icon name="cloud-off" size={26} color={color.error.DEFAULT} accessible={false} />
         </View>
       )}
       <Text accessibilityRole="alert" accessibilityLabel={`${title}. ${message}`} style={styles.title}>

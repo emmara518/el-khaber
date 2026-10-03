@@ -9,7 +9,6 @@ export default function OnboardingTwoRoute() {
   return (
     <OnboardingSlide
       imageSource={onboardingAssets.technician}
-      imageLabel="فني معتمد يعمل بثقة محاطة بشارات التوثيق والتقييم والموقع والجدولة"
       imageAspectRatio={3 / 2}
       title="اعثر على الفني المناسب بثقة"
       body="فنيون متخصصون حسب جهازك وموقعك، مع تقييمات حقيقية ومتابعة لطلبك."

@@ -31,7 +31,6 @@ const arrival = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
 
 export function OnboardingSlide({
   imageSource,
-  imageLabel,
   imageAspectRatio,
   title,
   body,
@@ -43,7 +42,6 @@ export function OnboardingSlide({
   onSkip,
 }: {
   imageSource: ImageSourcePropType;
-  imageLabel: string;
   /** width / height of the artwork, so the stage reserves its true shape. */
   imageAspectRatio: number;
   title: string;
@@ -89,7 +87,6 @@ export function OnboardingSlide({
             source={imageSource}
             accessible={false}
             importantForAccessibility="no"
-            accessibilityLabel={imageLabel}
             resizeMode="contain"
             style={styles.artImage}
           />

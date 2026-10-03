@@ -75,7 +75,7 @@ export function NotificationListScreen({
                     onPress={vm.markAllRead}
                     style={({ pressed }) => [styles.markAll, pressed && styles.pressed]}
                   >
-                    <Icon name="check-circle" size={16} color={color.brand.navy} />
+                    <Icon name="check-circle" size={16} color={color.brand.navy} accessible={false} />
                     <Text style={styles.markAllText}>تعليم الكل كمقروء ({vm.unreadCount})</Text>
                   </Pressable>
                 ) : null}
@@ -123,7 +123,7 @@ function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: (
             <Text style={styles.itemBody}>{item.bodyAr}</Text>
             <Text style={styles.time}>{item.timeAr}</Text>
           </View>
-          {!item.read ? <View style={styles.unreadDot} accessibilityLabel="غير مقروء" /> : null}
+          {!item.read ? <View style={styles.unreadDot} accessible={false} /> : null}
         </View>
       </Card>
     </Pressable>

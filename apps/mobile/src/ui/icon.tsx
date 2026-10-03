@@ -32,17 +32,26 @@ interface IconProps {
   style?: StyleProp<TextStyle>;
   /** Screen-reader label; omit when adjacent text already conveys it. */
   accessibilityLabel?: string;
+  /**
+   * Whether the icon is its own accessibility element. Defaults to `false`
+   * (decorative) unless an `accessibilityLabel` is provided, so unlabelled
+   * glyphs never become stray focus targets or duplicate their parent's
+   * announcement.
+   */
+  accessible?: boolean;
 }
 
-export function Icon({ name, size = 'md', color: tint, style, accessibilityLabel }: IconProps) {
+export function Icon({ name, size = 'md', color: tint, style, accessibilityLabel, accessible }: IconProps) {
   const px = typeof size === 'number' ? size : ICON_SIZE_SCALE[size];
+  const isAccessible = accessible ?? accessibilityLabel !== undefined;
   return (
     <Feather
       name={name}
       size={px}
       color={tint ?? color.text.primary}
       style={style}
-      accessibilityLabel={accessibilityLabel}
+      accessible={isAccessible}
+      accessibilityLabel={isAccessible ? accessibilityLabel : undefined}
       allowFontScaling
     />
   );

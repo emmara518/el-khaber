@@ -141,7 +141,7 @@ export default function TechnicianServicesScreen() {
                 onPress={() => setCatalogOpen(false)}
                 style={styles.close}
               >
-                <Icon name="x" size={20} color={color.text.primary} accessibilityLabel="إغلاق" />
+                <Icon name="x" size={20} color={color.text.primary} accessible={false} />
               </Pressable>
             </View>
             <ScrollView contentContainerStyle={styles.catalog} showsVerticalScrollIndicator={false}>
@@ -166,9 +166,9 @@ export default function TechnicianServicesScreen() {
                           {item.applianceNameAr.length > 0 ? <Text style={styles.meta}>{item.applianceNameAr}</Text> : null}
                         </View>
                         {pending ? (
-                          <ActivityIndicator accessibilityLabel="جارٍ الإضافة" color={color.brand.navy} />
+                          <ActivityIndicator color={color.brand.navy} />
                         ) : (
-                          <Icon name="plus-circle" size={22} color={color.brand.navy} accessibilityLabel="إضافة" />
+                          <Icon name="plus-circle" size={22} color={color.brand.navy} accessible={false} />
                         )}
                       </Card>
                     </Pressable>

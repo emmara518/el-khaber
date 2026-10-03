@@ -120,7 +120,7 @@ export function ChatBody({
           onPress={onClose}
           style={({ pressed }) => [styles.close, pressed && styles.pressed]}
         >
-          <Icon name="x" size={20} color={color.surface.base} accessibilityLabel="إغلاق" />
+          <Icon name="x" size={20} color={color.surface.base} accessible={false} />
         </Pressable>
       </View>
 
@@ -215,14 +215,14 @@ export function ChatBody({
           ]}
         >
           {vm.sending ? (
-            <ActivityIndicator accessibilityLabel="جارٍ الإرسال" color={color.surface.base} size="small" />
+            <ActivityIndicator color={color.surface.base} size="small" />
           ) : (
             <Icon
               name="send"
               size={20}
               color={color.surface.base}
               style={styles.sendIcon}
-              accessibilityLabel="إرسال"
+              accessible={false}
             />
           )}
         </Pressable>
