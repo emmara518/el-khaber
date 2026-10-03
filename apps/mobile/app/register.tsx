@@ -159,13 +159,30 @@ export default function RegisterRoute() {
       />
 
       {failure !== null ? <AuthAlert kind="error" message={failure} /> : null}
+      {notice !== null ? <AuthAlert kind="info" message={notice} /> : null}
 
       <TermsCheckbox
         checked={termsAccepted}
         onToggle={() => setTermsAccepted((value) => !value)}
       >
-        أوافق على <Text style={styles.termsLink}>شروط الاستخدام</Text> و
-        <Text style={styles.termsLink}>سياسة الخصوصية</Text>
+        أوافق على{' '}
+        <Text
+          accessibilityRole="link"
+          accessibilityLabel="شروط الاستخدام"
+          onPress={() => setNotice('شروط الاستخدام ستُتاح عند نشر النسخة الرسمية.')}
+          style={styles.termsLink}
+        >
+          شروط الاستخدام
+        </Text>
+        {' '}و{' '}
+        <Text
+          accessibilityRole="link"
+          accessibilityLabel="سياسة الخصوصية"
+          onPress={() => setNotice('سياسة الخصوصية ستُتاح عند نشر النسخة الرسمية.')}
+          style={styles.termsLink}
+        >
+          سياسة الخصوصية
+        </Text>
       </TermsCheckbox>
 
       <AuthButton
