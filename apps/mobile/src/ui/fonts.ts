@@ -13,6 +13,12 @@
 
 import { useFonts } from 'expo-font';
 
+// The icon font MUST be registered through the same `useFonts` call as the
+// text fonts. On Expo Web (static export) the bundled Feather TTF is only
+// emitted as a CSS @font-face when it is part of this map; otherwise every
+// <Icon> renders as an empty box. The family key must match the name the
+// icon component uses ('feather' — see @expo/vector-icons Feather.js).
+import Feather from '@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf';
 import AlexandriaBold from '../assets/fonts/Alexandria/Alexandria-Bold.ttf';
 import AlexandriaExtraBold from '../assets/fonts/Alexandria/Alexandria-ExtraBold.ttf';
 import AlexandriaMedium from '../assets/fonts/Alexandria/Alexandria-Medium.ttf';
@@ -29,6 +35,7 @@ export const appFonts = {
   'Alexandria-ExtraBold': AlexandriaExtraBold,
   'ArefRuqaa-Regular': ArefRuqaaRegular,
   'ArefRuqaa-Bold': ArefRuqaaBold,
+  feather: Feather,
 } as const;
 
 /** Load the app fonts. Returns `{ loaded, error }`. */
