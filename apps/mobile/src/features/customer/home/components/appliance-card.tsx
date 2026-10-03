@@ -25,42 +25,44 @@ export function ApplianceCard({ item, onPress, onPressInfo }: ApplianceCardProps
   const availability = availabilityLineAr(item.availableTechnicians, item.techniciansAr);
   const asset = applianceBrandAsset(item.slug);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={availability !== null ? `${item.titleAr}، ${availability}` : item.titleAr}
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
-    >
-      <View style={styles.stage}>
-        {asset ? <BrandImage name={asset} size={88} /> : null}
-      </View>
-      <View style={styles.footer}>
-        <View style={styles.copy}>
-          <Text style={styles.title} numberOfLines={1}>
-            {item.titleAr}
-          </Text>
-          {availability !== null ? (
-            <Text style={styles.availability} numberOfLines={2}>
-              {availability}
+    <View style={styles.card}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={availability !== null ? `${item.titleAr}، ${availability}` : item.titleAr}
+        onPress={onPress}
+        style={({ pressed }) => [styles.main, pressed && styles.pressed]}
+      >
+        <View style={styles.stage}>
+          {asset ? <BrandImage name={asset} size={88} /> : null}
+        </View>
+        <View style={styles.footer}>
+          <View style={styles.copy}>
+            <Text style={styles.title} numberOfLines={1}>
+              {item.titleAr}
             </Text>
-          ) : null}
+            {availability !== null ? (
+              <Text style={styles.availability} numberOfLines={2}>
+                {availability}
+              </Text>
+            ) : null}
+          </View>
+          <View style={styles.arrow}>
+            <Icon name="chevron-left" size={15} color={color.surface.base} />
+          </View>
         </View>
-        {onPressInfo !== undefined ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`البيانات الفنية: ${item.titleAr}`}
-            onPress={onPressInfo}
-            hitSlop={8}
-            style={({ pressed }) => [styles.infoBtn, pressed && styles.pressed]}
-          >
-            <Icon name="info" size={16} color={color.text.secondary} />
-          </Pressable>
-        ) : null}
-        <View style={styles.arrow}>
-          <Icon name="chevron-left" size={15} color={color.surface.base} />
-        </View>
-      </View>
-    </Pressable>
+      </Pressable>
+      {onPressInfo !== undefined ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`البيانات الفنية: ${item.titleAr}`}
+          onPress={onPressInfo}
+          hitSlop={12}
+          style={({ pressed }) => [styles.infoBtn, pressed && styles.pressed]}
+        >
+          <Icon name="info" size={16} color={color.text.secondary} />
+        </Pressable>
+      ) : null}
+    </View>
   );
 }
 
@@ -74,6 +76,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
     ...shadow.low,
+  },
+  main: {
+    flex: 1,
+    minWidth: 0,
   },
   pressed: {
     opacity: 0.9,
@@ -117,9 +123,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   infoBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    position: 'absolute',
+    top: 0,
+    end: 0,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
