@@ -26,6 +26,7 @@ export function TermsCheckbox({
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
+      aria-checked={checked}
       accessibilityLabel="الموافقة على شروط الاستخدام وسياسة الخصوصية"
       onPress={onToggle}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}

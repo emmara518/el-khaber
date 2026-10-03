@@ -202,6 +202,7 @@ export default function TechnicianSearchScreen() {
             accessibilityRole="button"
             accessibilityLabel={t('discovery.filters')}
             accessibilityState={{ expanded: panelOpen }}
+            aria-expanded={panelOpen}
             onPress={() => {
               Keyboard.dismiss();
               setDraft(filters);

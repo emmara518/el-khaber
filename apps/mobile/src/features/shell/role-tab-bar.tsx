@@ -73,6 +73,7 @@ function RoleTabItem({
       onPressOut={scale.onPressOut}
       accessibilityRole="tab"
       accessibilityState={{ selected: isActive }}
+      aria-selected={isActive}
       accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
       style={styles.item}
     >

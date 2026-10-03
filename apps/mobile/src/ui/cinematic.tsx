@@ -170,6 +170,7 @@ export function SceneObject({ asset, brandAsset, title, body, selected = false, 
         accessibilityRole="radio"
         accessibilityLabel={accessibilityLabel ?? [title, body].filter(Boolean).join('، ')}
         accessibilityState={{ checked: selected }}
+        aria-checked={selected}
         onPress={onPress}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}

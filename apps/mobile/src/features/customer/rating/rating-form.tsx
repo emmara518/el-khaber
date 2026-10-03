@@ -62,6 +62,7 @@ export function RatingForm({
               accessibilityRole="radio"
               accessibilityLabel={`${value} من ٥: ${RATING_LABELS_AR[value]}${vm.stars === value ? '، محدد حاليًا' : ''}`}
               accessibilityState={{ selected: vm.stars === value, checked: vm.stars === value }}
+              aria-checked={vm.stars === value}
               onPress={() => vm.selectStars(value)}
               disabled={submitting}
               style={({ pressed }) => [styles.star, pressed && !submitting && styles.pressed]}

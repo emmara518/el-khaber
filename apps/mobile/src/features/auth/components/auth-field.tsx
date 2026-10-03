@@ -112,6 +112,7 @@ export function PasswordField({ startIcon = 'lock', ...props }: PasswordFieldPro
           accessibilityRole="togglebutton"
           accessibilityLabel={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
           accessibilityState={{ selected: visible }}
+          aria-pressed={visible}
           onPress={() => setVisible((v) => !v)}
           hitSlop={8}
           style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}

@@ -48,6 +48,7 @@ export function RoleSelectionCard({
           selected ? '. محدَّد' : ''
         }`}
         accessibilityState={{ selected, checked: selected }}
+        aria-checked={selected}
         onPress={() => onSelect(option.role)}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}

@@ -69,6 +69,9 @@ export function Chip({
       accessibilityRole={toggle ? 'checkbox' : 'tab'}
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={toggle ? { checked: selected, disabled } : { selected, disabled }}
+      aria-checked={toggle ? selected : undefined}
+      aria-selected={toggle ? undefined : selected}
+      aria-disabled={disabled || undefined}
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [

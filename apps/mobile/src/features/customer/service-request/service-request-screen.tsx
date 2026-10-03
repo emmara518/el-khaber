@@ -380,6 +380,7 @@ function ProblemStep({
                 accessibilityRole="radio"
                 accessibilityLabel={`المشكلة: ${problem.titleAr}${selected ? '، محددة حاليًا' : ''}`}
                 accessibilityState={{ selected, checked: selected }}
+                aria-checked={selected}
                 onPress={() => onSelect(selected ? null : problem.id)}
                 style={({ pressed }) => [styles.listOption, selected && styles.optionSelected, pressed && styles.pressed]}
               >
@@ -392,6 +393,7 @@ function ProblemStep({
           accessibilityRole="radio"
           accessibilityLabel={`${t('request.problem.other')}${draft.problemId === OTHER_PROBLEM_ID ? '، محددة حاليًا' : ''}`}
           accessibilityState={{ selected: draft.problemId === OTHER_PROBLEM_ID, checked: draft.problemId === OTHER_PROBLEM_ID }}
+          aria-checked={draft.problemId === OTHER_PROBLEM_ID}
           onPress={() => onSelect(draft.problemId === OTHER_PROBLEM_ID ? null : OTHER_PROBLEM_ID)}
           style={({ pressed }) => [
             styles.listOption,
@@ -491,6 +493,7 @@ function LocationStep({
                 accessibilityRole="radio"
                 accessibilityLabel={`الموقع: ${location.labelAr}، ${location.detailAr}${selected ? '، محدد حاليًا' : ''}`}
                 accessibilityState={{ selected, checked: selected }}
+                aria-checked={selected}
                 onPress={() => onSelect(location.id)}
                 style={({ pressed }) => [styles.listOption, selected && styles.optionSelected, pressed && styles.pressed]}
               >
@@ -573,6 +576,7 @@ function AppointmentStep({
           accessibilityRole="radio"
           accessibilityLabel={`${t('request.appointment.phone')}${draft.appointmentSlotId === null ? '، محدد حاليًا' : ''}`}
           accessibilityState={{ selected: draft.appointmentSlotId === null, checked: draft.appointmentSlotId === null }}
+          aria-checked={draft.appointmentSlotId === null}
           onPress={() => onSelect(null)}
           style={({ pressed }) => [
             styles.listOption,
@@ -596,6 +600,8 @@ function AppointmentStep({
               accessibilityRole="radio"
               accessibilityLabel={`موعد: ${slot.dayAr}، ${slot.timeAr}${slot.available ? '' : '، غير متاح'}${selected ? '، محدد حاليًا' : ''}`}
               accessibilityState={{ selected, checked: selected, disabled: !slot.available }}
+              aria-checked={selected}
+              aria-disabled={!slot.available}
               accessibilityHint={slot.available ? undefined : t('request.appointment.unavailable')}
               onPress={() => onSelect(slot.id)}
               disabled={!slot.available}
