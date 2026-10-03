@@ -43,7 +43,7 @@ Apply migrations from a machine with `DIRECT_URL` set (never via the pooler):
 
 ```sh
 pnpm --filter @khabir/api prisma:migrate:deploy
-pnpm --filter @khabir/api exec prisma migrate status   # expect: 7 applied, 0 pending
+pnpm --filter @khabir/api exec prisma migrate status   # expect: 8 applied, 0 pending
 ```
 
 Expected migration chain (additive, non-destructive):
@@ -56,11 +56,18 @@ Expected migration chain (additive, non-destructive):
 20260913000000_technician_self_service
 20260914000000_location_coordinates_optional
 20260915000000_payment_proof_metadata
+20260916000000_merchant_product_conversations
 ```
 
 **BOOTSTRAPPED 2026-09-20:** `khabir-prod` exists (ref `gvobmjqxpacpmemvjbvw`,
 eu-west-1, PostgreSQL 17.6, PostGIS 3.3.7, uuid-ossp 1.1, pgcrypto 1.3) with
-the full 7/7 chain applied and `migrate status` clean. Platform notes learned
+the 7/7 chain applied and `migrate status` clean. **Phase H (2026-10-03)
+note:** the prod chain is therefore at **7 of 8** — migration
+`20260916000000_merchant_product_conversations` (Phase D, additive/nullable
+`service_request_id` + product conversation support) is **applied to
+khabir-dev but NOT yet to khabir-prod**. Deploying this release requires that
+one additive migration; it is non-destructive (no drops, no data rewrite).
+Platform notes learned
 during bootstrap: direct `db.<ref>.supabase.co:5432` is IPv6-only from most
 networks — run all DDL through the session-mode pooler
 `aws-1-eu-west-1.pooler.supabase.com:5432` (transaction pooler `:6543` is

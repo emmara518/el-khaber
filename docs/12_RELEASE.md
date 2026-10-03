@@ -1,10 +1,45 @@
 # الخبير — Release Candidate Manifest
 
 **Path:** `docs/12_RELEASE.md`
-**Status:** RC5 closure run (2026-09-19) — strongest achievable candidate
-given the environment. **NOT deployed. NOT merged to main.**
+**Status:** RC5 closure run (2026-09-19) + **Phase H release hardening
+(2026-10-03)**. Strongest achievable candidate given the environment.
+**NOT deployed. NOT merged to main.**
 Supersedes the RC4 notes below where they conflict (migrations 6→7,
 release build fixed, payment storage code-complete).
+
+---
+
+## 0-pre. Phase H release-hardening pass — 2026-10-03
+
+Engineering release gate re-run at HEAD `5b8666a`
+(`review/final-production-release`). Scope: hardening + verification only —
+no features, no redesign, no business-logic change, no schema change.
+
+- **Security/secrets:** only `.env.example` files are tracked; the real
+  `.env` (dev Supabase URL + JWT secrets) is git-ignored and **absent from
+  all git history**. No `EXPO_PUBLIC_*` server secret in the mobile bundle.
+- **Authorization (IDOR):** cross-role/ownership isolation verified in code
+  **and** by `test/http-e2e/security.http.spec.ts` (cross-customer 404,
+  cross-technician 404, merchant product ownership, admin/user authority
+  isolation, participant-scoped chat/notifications/subscriptions).
+- **Input validation:** zod schemas enforce UUID/enum/bounds/lengths;
+  `updateMe` strips forbidden fields; ownership always derives from the JWT.
+- **API production behaviour:** production 5xx returns a generic message;
+  stack logged server-side only; CORS fail-closed; boot guard against unsafe
+  multi-instance; readiness probe logs raw driver errors server-side only.
+- **Web production build:** `expo export --platform web` succeeds (198
+  files); the HTTPS `EXPO_PUBLIC_API_URL` is injected and **no
+  localhost/10.0.2.2 is baked into the bundle**; `+not-found.html` present.
+- **Tests:** API 31 files / 264; mobile 52 files / 368; typecheck 0 errors
+  (both); lint 0 errors; API build PASS.
+- **Runtime/visual smoke (390×844, Web):** customer (home/store/product),
+  technician (home/requests/messages), merchant (home/catalog/messages) —
+  real data, RTL, correct EGP, no broken images, no debug UI.
+- **Contrast:** three token pairs below AA-normal recorded in
+  `docs/adr/0005-brand-contrast-wcag.md`; **tokens not changed** (brand
+  decision gate).
+- **Migration:** dev 8/8; prod 7/8 (one additive migration pending, not
+  executed — CTO gate).
 
 ---
 
@@ -52,7 +87,7 @@ release build fixed, payment storage code-complete).
 | Mobile version  | `0.0.1` (Expo SDK 52, `ai.khabir.app`)                                     |
 | Admin web       | `0.0.1` (Next.js)                                                          |
 | Landing web     | `0.0.1` (Next.js)                                                          |
-| Database        | managed PostgreSQL + PostGIS; **7 migrations**                             |
+| Database        | managed PostgreSQL + PostGIS; **8 migrations** (dev 8/8; prod 7/8)         |
 
 ---
 
@@ -129,7 +164,22 @@ release build fixed, payment storage code-complete).
 20260912000000_payments_and_grants
 20260913000000_technician_self_service
 20260914000000_location_coordinates_optional
+20260915000000_payment_proof_metadata
+20260916000000_merchant_product_conversations   (Phase D — new)
 ```
+
+- **khabir-dev:** 8/8 applied; `prisma migrate status` → "Database schema is
+  up to date!".
+- **khabir-prod:** bootstrapped 2026-09-20 at **7/8**. The Phase D migration
+  `20260916000000_merchant_product_conversations` is **pending** on prod and
+  must be applied before this release serves merchant product conversations.
+  It is additive/non-destructive (`ALTER COLUMN ... DROP NOT NULL` only).
+- **Chain is non-destructive:** every migration is additive; the only
+  `DROP` statements are `ALTER COLUMN ... DROP NOT NULL` (constraint
+  widening). No table/column drops, no data rewrites.
+- **Prepared, not executed:** production migration is READY (see
+  `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md` §migrations) and requires explicit
+  CTO authorization to run.
 
 ---
 
@@ -223,3 +273,25 @@ classification while payment proof is impossible, native execution is
 unverified, and the production topology is unresolved. These are external
 dependencies/decisions, not engineering failures. This candidate is the
 strongest state achievable in the current environment.
+
+### 7.1 Phase H decision matrix (2026-10-03, HEAD `5b8666a`)
+
+Engineering is **release-candidate ready**; release remains blocked only by
+external/decision gates.
+
+| ID  | Class | Item                                                             | Owner      |
+| --- | ----- | ---------------------------------------------------------------- | ---------- |
+| P0  | —     | None.                                                            | —          |
+| P1  | gate  | **Legal content** — no approved Terms/Privacy text or URL.       | CTO/Legal  |
+| P1  | gate  | **Deployed HTTPS API** — no production API host configured.      | CTO/Ops    |
+| P1  | gate  | **Android upload keystore** — not provided (`MYAPP_UPLOAD_*`).   | CTO/Ops    |
+| P1  | gate  | **Payment proof storage** — no S3-compatible credentials.        | CTO        |
+| P1  | gate  | **Production topology** ratification (single-instance policy).   | CTO        |
+| P2  | debt  | Brand contrast below AA-normal (ADR-0005); not changed.          | Brand/CTO  |
+| P2  | debt  | Prod migration 7→8 pending (additive) — prepared, not executed.  | CTO        |
+| P2  | debt  | Admin session-expiry UX finding (2026-09-14 run).                | Engineering|
+| P3  | future| Admin plan/pricing + notification scheduling UI; request photos  | Product    |
+
+No P0. Every P1 is an external/decision gate, explicitly accepted as
+release-blocking (not silently downgraded). Engineering verification in
+Phase H is green (tests, typecheck, lint, build, runtime/visual smoke).
