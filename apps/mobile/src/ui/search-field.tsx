@@ -55,7 +55,7 @@ export function SearchField({
   if (onPress && onChangeText === undefined) {
     return (
       <Pressable
-        accessibilityRole="search"
+        accessibilityRole="button"
         accessibilityLabel={label}
         onPress={onPress}
         style={({ pressed }) => [pressed && styles.pressed]}

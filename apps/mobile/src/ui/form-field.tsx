@@ -33,6 +33,7 @@ export function FormField({ label, error, hint, style, onFocus, onBlur, ...rest 
       <Text style={styles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={error ? `${labelText}. خطأ: ${error}` : labelText}
+        accessibilityState={{ disabled: rest.editable === false }}
         placeholderTextColor={color.text.secondary}
         style={[
           styles.input,
