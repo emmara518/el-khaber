@@ -23,7 +23,7 @@ import type { ConversationItem } from './conversations-types';
 import { useI18n } from '@/i18n/use-i18n';
 import { joinNonEmpty } from '@/lib/api-format';
 import { ListEmpty, ListError, ListLoading } from '@/ui';
-import { AppHeader, Avatar, Card, fontFamily, PageTitle, type } from '@/ui';
+import { AppHeader, Avatar, Card, PageTitle, type, UnreadBadge } from '@/ui';
 import { SceneSection } from '@/ui/cinematic';
 
 /** Chat conversation key derived from the request id (TASK-012). */
@@ -135,11 +135,7 @@ function ConversationRow({
               {conversation.lastMessageAr}
             </Text>
           </View>
-          {conversation.unreadCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{conversation.unreadCount}</Text>
-            </View>
-          ) : null}
+          <UnreadBadge count={conversation.unreadCount} />
         </View>
       </Card>
     </Pressable>
@@ -199,20 +195,6 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
-  },
-  badge: {
-    minWidth: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: color.error.DEFAULT,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[2],
-  },
-  badgeText: {
-    ...type.caption,
-    color: color.surface.base,
-    fontFamily: fontFamily.bold,
   },
   bottomSpacer: {
     height: spacing[6],

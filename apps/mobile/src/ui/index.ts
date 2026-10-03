@@ -51,4 +51,5 @@ export { ApplianceThumb } from './appliance-thumb';
 export { ProductImage } from './product-image';
 export { productImageDisplay, type ProductImageDisplay } from './product-image-display';
 export { usePressScale, screenReveal } from './use-press-scale';
+export { UnreadBadge } from './unread-badge';
 export { LifecycleTimeline, type LifecycleStep, type LifecycleStepState } from './lifecycle-timeline';

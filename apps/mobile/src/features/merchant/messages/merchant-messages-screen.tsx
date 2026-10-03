@@ -18,7 +18,7 @@ import { useMerchantMessagesViewModel } from './use-merchant-messages-view-model
 
 import type { MerchantConversationItem } from './merchant-messages-types';
 
-import { AppHeader, Avatar, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle, screenReveal } from '@/ui';
+import { AppHeader, Avatar, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle, screenReveal, UnreadBadge } from '@/ui';
 import { type } from '@/ui/typography';
 
 const chatKeyFor = (conversationId: string) => `conv-${conversationId}`;
@@ -82,11 +82,7 @@ export default function MerchantMessagesScreen() {
                               : 'لا توجد رسائل بعد'}
                           </Text>
                         </View>
-                        {conversation.unreadCount > 0 ? (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{conversation.unreadCount}</Text>
-                          </View>
-                        ) : null}
+                        <UnreadBadge count={conversation.unreadCount} />
                         <Icon name="chevron-left" size={20} color={color.brand.navy} />
                       </View>
                     </Card>
@@ -124,16 +120,6 @@ const styles = StyleSheet.create({
   name: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   time: { ...type.caption, color: color.text.secondary },
   snippet: { ...type.caption, color: color.text.secondary, marginTop: spacing[1], textAlign: 'right', writingDirection: 'rtl' },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    backgroundColor: color.error.DEFAULT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: { ...type.caption, color: color.surface.base, writingDirection: 'rtl' },
   pressed: { opacity: 0.9 },
   bottomSpacer: { height: spacing[2] },
 });

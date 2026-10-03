@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon } from './icon';
 import { fontFamily, type } from './typography';
+import { UnreadBadge } from './unread-badge';
 
 interface AppHeaderProps {
   /** Centred brand wordmark. Defaults to الخبير. */
@@ -57,13 +58,11 @@ export function AppHeader({
               style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
             >
               <Icon name="bell" size={18} color={color.brand.navy} />
-              {notificationCount > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText} numberOfLines={1}>
-                    {notificationCount > 9 ? '٩+' : notificationCount.toLocaleString('ar-EG')}
-                  </Text>
-                </View>
-              ) : null}
+              <UnreadBadge
+                count={notificationCount}
+                format={(n) => (n > 9 ? '٩+' : n.toLocaleString('ar-EG'))}
+                style={styles.badge}
+              />
             </Pressable>
           ) : null}
         </View>
@@ -189,14 +188,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     end: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: color.error.DEFAULT,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
-  badgeText: { ...type.navigation, color: color.surface.base, fontFamily: fontFamily.bold },
   pressed: { opacity: 0.7 },
 });
