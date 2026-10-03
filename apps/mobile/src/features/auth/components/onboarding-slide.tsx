@@ -16,18 +16,13 @@
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Image, Pressable, StatusBar, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
-import Animated, {
-  FadeIn,
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { OnboardingDots } from './onboarding-dots';
 import { OnboardingSkip } from './onboarding-skip';
 
+import { usePressScale } from '@/ui';
 import { Icon } from '@/ui/icon';
 import { type } from '@/ui/typography';
 
@@ -61,17 +56,7 @@ export function OnboardingSlide({
   onSkip: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const scale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  function animatePress(pressed: boolean) {
-    scale.value = withTiming(pressed ? 0.98 : 1, {
-      duration: pressed ? 100 : 150,
-      reduceMotion: ReduceMotion.System,
-    });
-  }
+  const press = usePressScale(0.98);
 
   return (
     <View style={styles.root}>
@@ -118,13 +103,13 @@ export function OnboardingSlide({
           <View style={styles.dots}>
             <OnboardingDots position={position} total={total} />
           </View>
-          <Animated.View style={pressStyle}>
+          <Animated.View style={press.style}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={actionAccessibilityLabel}
               onPress={onNext}
-              onPressIn={() => animatePress(true)}
-              onPressOut={() => animatePress(false)}
+              onPressIn={press.onPressIn}
+              onPressOut={press.onPressOut}
               style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
             >
               <Text style={styles.primaryText}>{actionLabel}</Text>

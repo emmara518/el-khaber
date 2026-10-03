@@ -15,17 +15,13 @@
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { ROLE_OPTIONS, type RoleOption } from '../roles';
 
 import type { Role } from '@khabir/shared-types';
 
+import { usePressScale } from '@/ui';
 import { Icon } from '@/ui/icon';
 import { ROLE_ASPECT_RATIO, roleSelectionAsset } from '@/ui/role-selection-assets';
 import { type } from '@/ui/typography';
@@ -42,20 +38,10 @@ export function RoleSelectionCard({
   selected: boolean;
   onSelect: (role: Role) => void;
 }) {
-  const scale = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  function animatePress(pressed: boolean) {
-    scale.value = withTiming(pressed ? 0.97 : 1, {
-      duration: pressed ? 100 : 150,
-      reduceMotion: ReduceMotion.System,
-    });
-  }
+  const press = usePressScale(0.97);
 
   return (
-    <Animated.View style={[styles.cell, pressStyle]}>
+    <Animated.View style={[styles.cell, press.style]}>
       <Pressable
         accessibilityRole="radio"
         accessibilityLabel={`نوع الحساب: ${option.titleAr}. ${option.descriptionAr}${
@@ -63,8 +49,8 @@ export function RoleSelectionCard({
         }`}
         accessibilityState={{ selected, checked: selected }}
         onPress={() => onSelect(option.role)}
-        onPressIn={() => animatePress(true)}
-        onPressOut={() => animatePress(false)}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
         style={({ pressed }) => [
           styles.card,
           selected && styles.cardSelected,

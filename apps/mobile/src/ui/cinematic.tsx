@@ -1,11 +1,12 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
-import Animated, { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { brandAssets, type BrandAssetName } from './brand-assets';
 import { Icon } from './icon';
 import { sceneAssets, type SceneAssetName } from './scene-assets';
 import { type } from './typography';
+import { usePressScale } from './use-press-scale';
 
 import type { ReactNode } from 'react';
 
@@ -60,15 +61,7 @@ export type SceneObjectProps = {
 };
 
 function useScenePress() {
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const animate = (pressed: boolean) => {
-    scale.value = withTiming(pressed ? 0.98 : 1, {
-      duration: pressed ? 100 : 150,
-      reduceMotion: ReduceMotion.System,
-    });
-  };
-  return { style, onPressIn: () => animate(true), onPressOut: () => animate(false) };
+  return usePressScale(0.98);
 }
 
 export function applianceSceneAsset(slug: string): SceneAssetName | undefined {

@@ -1,18 +1,13 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  ReduceMotion,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { getTechnicianCardContent } from './technician-result-card-content';
 import { VerificationBadge } from './verification-badge';
 
 import type { Technician } from '../technician-types';
 
-import { Avatar } from '@/ui/avatar';
+import { Avatar, usePressScale } from '@/ui';
 import { Card } from '@/ui/card';
 import { applianceSceneAsset } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
@@ -29,28 +24,18 @@ export function TechnicianResultCard({
 }) {
   const content = getTechnicianCardContent(technician);
   const serviceAsset = applianceSceneAsset(technician.appliances[0] ?? '');
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const press = usePressScale(0.985);
   const hasTrust = content.rating !== null || content.verified || content.availability.length > 0;
 
-  function animatePress(pressed: boolean) {
-    scale.value = withTiming(pressed ? 0.985 : 1, {
-      duration: pressed ? 100 : 150,
-      reduceMotion: ReduceMotion.System,
-    });
-  }
-
   return (
-    <Animated.View style={animatedStyle}>
+    <Animated.View style={press.style}>
       <Pressable
         accessible
         accessibilityRole="button"
         accessibilityLabel={content.accessibilityLabel}
         onPress={onPress}
-        onPressIn={() => animatePress(true)}
-        onPressOut={() => animatePress(false)}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
       >
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Card borderRadius={radius.xl} style={styles.card}>

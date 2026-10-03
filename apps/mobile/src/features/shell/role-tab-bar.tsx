@@ -17,9 +17,9 @@
 
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
-import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
-import { BrandImage, type BrandAssetName } from '@/ui';
+import { BrandImage, usePressScale, type BrandAssetName } from '@/ui';
 import { Icon, type IconName } from '@/ui/icon';
 import { fontFamily, type } from '@/ui/typography';
 
@@ -65,25 +65,18 @@ function RoleTabItem({
   isActive: boolean;
   onPress: () => void;
 }) {
-  const scale = useSharedValue(1);
-  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const animate = (pressed: boolean) => {
-    scale.value = withTiming(pressed ? 0.92 : 1, {
-      duration: pressed ? 100 : 160,
-      reduceMotion: ReduceMotion.System,
-    });
-  };
+  const scale = usePressScale(0.92);
   return (
     <Pressable
       onPress={onPress}
-      onPressIn={() => animate(true)}
-      onPressOut={() => animate(false)}
+      onPressIn={scale.onPressIn}
+      onPressOut={scale.onPressOut}
       accessibilityRole="tab"
       accessibilityState={{ selected: isActive }}
       accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
       style={styles.item}
     >
-      <Animated.View style={animatedStyle}>
+      <Animated.View style={scale.style}>
         <View style={[styles.iconPill, isActive && styles.iconPillActive]}>
           {tab.asset !== undefined ? (
             <BrandImage name={tab.asset} size={28} />
