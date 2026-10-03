@@ -8,10 +8,11 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "build": "expo prebuild --no-install",
+    "export:web": "expo export --platform web --output-dir dist-web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "clean": "rm -rf dist .turbo .expo android ios"
+    "clean": "rm -rf dist dist-web .turbo .expo android ios"
   },
   "dependencies": {
     "@babel/runtime": "7.26.10",
