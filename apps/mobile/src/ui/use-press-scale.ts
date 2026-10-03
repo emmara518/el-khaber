@@ -12,7 +12,7 @@
  */
 
 import { useCallback } from 'react';
-import { ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { FadeIn, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
 export function usePressScale(pressedScale = 0.97) {
   const scale = useSharedValue(1);
@@ -32,3 +32,11 @@ export function usePressScale(pressedScale = 0.97) {
     onPressOut: useCallback(() => animate(false), [animate]),
   };
 }
+
+/**
+ * A restrained screen/list entrance: fade + tiny rise, 220ms, honours Reduce
+ * Motion. Spread onto an `Animated.View entering`. Use for a list's first
+ * paint or a screen's content block — never for every row (that would stagger
+ * into noise).
+ */
+export const screenReveal = FadeIn.duration(220).reduceMotion(ReduceMotion.System);

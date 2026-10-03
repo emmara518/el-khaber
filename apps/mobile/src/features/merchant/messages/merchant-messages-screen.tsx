@@ -10,6 +10,7 @@ import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { ChatDialog } from '../../customer/chat/chat-dialog';
 
@@ -17,7 +18,7 @@ import { useMerchantMessagesViewModel } from './use-merchant-messages-view-model
 
 import type { MerchantConversationItem } from './merchant-messages-types';
 
-import { AppHeader, Avatar, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle } from '@/ui';
+import { AppHeader, Avatar, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle, screenReveal } from '@/ui';
 import { type } from '@/ui/typography';
 
 const chatKeyFor = (conversationId: string) => `conv-${conversationId}`;
@@ -56,7 +57,7 @@ export default function MerchantMessagesScreen() {
                 body="عندما يراسلك عميل بخصوص أحد منتجاتك ستظهر المحادثة هنا."
               />
             ) : (
-              <View style={styles.list}>
+              <Animated.View entering={screenReveal} style={styles.list}>
                 {data.conversations.map((conversation) => (
                   <Pressable
                     key={conversation.id}
@@ -91,7 +92,7 @@ export default function MerchantMessagesScreen() {
                     </Card>
                   </Pressable>
                 ))}
-              </View>
+              </Animated.View>
             )
           ) : null}
           <View style={styles.bottomSpacer} />

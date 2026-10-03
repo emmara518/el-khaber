@@ -7,12 +7,13 @@
 
 import { color, spacing } from '@khabir/ui-tokens';
 import { ScrollView, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { StoreProductCard } from './components/store-product-card';
 import { useStoreViewModel } from './use-store-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { AppHeader, ListEmpty, ListError, ListLoading, PageTitle } from '@/ui';
+import { AppHeader, ListEmpty, ListError, ListLoading, PageTitle, screenReveal } from '@/ui';
 
 export function StoreListScreen({
   role,
@@ -55,7 +56,7 @@ export function StoreListScreen({
               body={t('store.empty.body')}
             />
           ) : (
-            <View style={styles.list}>
+            <Animated.View entering={screenReveal} style={styles.list}>
               {data.map((product) => (
                 <StoreProductCard
                   key={product.id}
@@ -63,7 +64,7 @@ export function StoreListScreen({
                   onPress={() => onOpenProduct(product.id)}
                 />
               ))}
-            </View>
+            </Animated.View>
           )
         ) : null}
 
