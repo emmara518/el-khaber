@@ -193,7 +193,7 @@ export default function MerchantProductFormScreen({
               style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
             >
               {submitting ? (
-                <ActivityIndicator accessibilityLabel="جارٍ حفظ المنتج" color={color.surface.base} />
+                <ActivityIndicator color={color.surface.base} />
               ) : (
                 <Text style={styles.primaryText}>
                   {vm.status === 'error'

@@ -247,7 +247,7 @@ function ProductActions({
           style={({ pressed }) => [styles.warn, busy && styles.disabled, pressed && !busy && styles.pressed]}
         >
           {busy ? (
-            <ActivityIndicator accessibilityLabel="جارٍ تحديث حالة المنتج" color={color.brand.navy} />
+            <ActivityIndicator color={color.brand.navy} />
           ) : (
             <Text style={styles.warnText}>
               {nextStatus === 'suspended' ? t('merchant.product.suspend') : t('merchant.product.activate')}
@@ -327,7 +327,7 @@ function ProductActions({
         style={({ pressed }) => [styles.destructive, busy && styles.disabled, pressed && !busy && styles.pressed]}
       >
         {deleteStatus === 'submitting' ? (
-          <ActivityIndicator accessibilityLabel="جارٍ حذف المنتج" color={color.error.DEFAULT} />
+          <ActivityIndicator color={color.error.DEFAULT} />
         ) : (
           <Text style={styles.destructiveText}>حذف المنتج</Text>
         )}

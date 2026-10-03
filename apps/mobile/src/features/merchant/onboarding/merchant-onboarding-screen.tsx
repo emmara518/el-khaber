@@ -292,7 +292,7 @@ function ReviewSummary({
           style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
         >
           {submitting ? (
-            <ActivityIndicator accessibilityLabel="جارٍ إرسال بيانات المتجر" color={color.surface.base} />
+            <ActivityIndicator color={color.surface.base} />
           ) : (
             <Text style={styles.primaryText}>إرسال بيانات المتجر للمراجعة</Text>
           )}

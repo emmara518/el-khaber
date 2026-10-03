@@ -133,7 +133,7 @@ export function RatingForm({
         style={({ pressed }) => [styles.submit, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
       >
         {submitting ? (
-          <ActivityIndicator accessibilityLabel="جارٍ إرسال التقييم" color={color.surface.base} />
+          <ActivityIndicator color={color.surface.base} />
         ) : (
           <Text style={styles.submitText}>إرسال التقييم</Text>
         )}

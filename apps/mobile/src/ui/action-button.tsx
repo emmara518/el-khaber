@@ -82,7 +82,7 @@ export function ActionButton({
       ]}
     >
       {loading ? (
-        <ActivityIndicator accessibilityLabel={loadingLabel} color={spinnerColor} />
+        <ActivityIndicator color={spinnerColor} />
       ) : (
         <>
           {success ? (
