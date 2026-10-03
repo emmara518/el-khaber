@@ -152,6 +152,7 @@ export default function TechnicianHomeScreen() {
                 disabled={availabilitySaving}
                 accessibilityLabel={t('tech.home.availability.title')}
                 accessibilityState={{ checked: data.profile.available, disabled: availabilitySaving }}
+                aria-checked={data.profile.available}
                 trackColor={{ false: color.border.default, true: color.brand.goldSoft }}
                 thumbColor={data.profile.available ? color.brand.gold : color.surface.base}
                 ios_backgroundColor={color.border.default}

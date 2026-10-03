@@ -70,6 +70,8 @@ export function ActionButton({
       accessibilityRole="button"
       accessibilityLabel={loading || success ? text : accessibilityLabel ?? label}
       accessibilityState={{ disabled: blocked, busy: loading }}
+      aria-disabled={blocked || undefined}
+      aria-busy={loading || undefined}
       accessibilityLiveRegion="polite"
       disabled={blocked}
       onPress={onPress}
