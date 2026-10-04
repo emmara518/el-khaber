@@ -65,7 +65,9 @@ export function mapLocation(dto: LocationDto, isDefault: boolean): RequestLocati
   return {
     id: dto.id,
     labelAr: dto.label ?? 'موقع',
-    detailAr: detailParts.length > 0 ? detailParts.join('، ') : '—',
+    // Empty when no address parts exist — the UI omits the detail line
+    // rather than showing a dangling separator / raw dash.
+    detailAr: detailParts.join('، '),
     isDefault,
   };
 }

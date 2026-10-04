@@ -22,6 +22,24 @@ export const APPLIANCE_LABELS: Record<ApplianceSlug, string> = {
   water_heater: 'سخانات المياه',
 };
 
+/**
+ * Canonical display order for the approved appliance catalog. Screens that
+ * offer appliance selection consume this instead of re-declaring a subset;
+ * the order matches the Home appliance grid and the fault guide.
+ */
+export const APPLIANCE_ORDER: ReadonlyArray<ApplianceSlug> = [
+  'washing_machine',
+  'refrigerator',
+  'air_conditioner',
+  'dishwasher',
+  'coffee_machine',
+  'microwave',
+  'oven',
+  'tv_screen',
+  'vacuum_cleaner',
+  'water_heater',
+];
+
 /** Arabic label for an appliance slug. */
 export function applianceLabelAr(slug: ApplianceSlug): string {
   return APPLIANCE_LABELS[slug];
