@@ -76,7 +76,6 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <SceneHero
-        asset="technician_profile_hero"
         eyebrow={technician.specialtiesAr.join(' · ')}
         title={technician.nameAr}
         body={joinNonEmpty([technician.experienceAr, technician.availabilityLabelAr])}
@@ -92,10 +91,10 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
         </View>
       </SceneHero>
       <View style={styles.editorial}>
-        <SceneSection title={t('discovery.profile.about')} eyebrow="نبذة" asset="technician_profile_services">
+        <SceneSection title={t('discovery.profile.about')} eyebrow="نبذة" brandAsset="certified-technician">
           <Text style={styles.body}>{technician.aboutAr}</Text>
         </SceneSection>
-        <SceneSection title={t('discovery.profile.services')} eyebrow="ما يمكنه تقديمه" body="الخدمات مدرجة كما يقدمها الفني." action={<SceneAction label="اطلب خدمة" onPress={onRequestService} />}>
+        <SceneSection title={t('discovery.profile.services')} eyebrow="ما يمكنه تقديمه" body="الخدمات مدرجة كما يقدمها الفني.">
           <View style={styles.services}>
             {technician.servicesAr.map((service) => (
               <View key={service} style={styles.serviceTag} accessibilityLabel={`خدمة: ${service}`}>
@@ -104,7 +103,7 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
             ))}
           </View>
         </SceneSection>
-        <SceneSection title={t('discovery.profile.reviews')} eyebrow="تجارب حقيقية" asset="technician_profile_reviews">
+        <SceneSection title={t('discovery.profile.reviews')} eyebrow="تجارب حقيقية" brandAsset="top-rated">
           {technician.reviews.length === 0 ? (
             <Text style={styles.body}>{t('discovery.profile.noReviews')}</Text>
           ) : (
@@ -122,15 +121,14 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
             </View>
           )}
         </SceneSection>
-        <SceneSection title={t('discovery.profile.areas')} eyebrow="أين يعمل" asset="technician_profile_location">
+        <SceneSection title={t('discovery.profile.areas')} eyebrow="أين يعمل">
           <View style={styles.areaRow}>
             <Icon name="map-pin" size={16} color={color.text.secondary} accessibilityLabel="مناطق الخدمة" />
             <Text style={styles.body}>{technician.areasAr.join('، ')}</Text>
           </View>
         </SceneSection>
-        <SceneSection title="تعامل بثقة" eyebrow="حلوانفية أولاً" asset="technician_trust" body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب." />
+        <SceneSection title="تعامل بثقة" eyebrow="حلوانفية أولاً" brandAsset="verified" body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب." />
         <View style={styles.ctaFooter}>
-          <SceneAction label={t('discovery.profile.requestService')} accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`} onPress={onRequestService} />
           <SceneAction label={t('fault.back')} variant="secondary" onPress={onBack} />
         </View>
       </View>

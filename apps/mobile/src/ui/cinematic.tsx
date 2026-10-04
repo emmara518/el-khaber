@@ -13,7 +13,10 @@ import type { ReactNode } from 'react';
 const reveal = FadeIn.duration(220).reduceMotion(ReduceMotion.System);
 const bands = [0.04, 0.08, 0.14, 0.22, 0.32, 0.44, 0.57, 0.7, 0.81, 0.9, 0.96, 1];
 
-type SceneImage = { asset: SceneAssetName; image?: never } | { image: ImageSourcePropType; asset?: never };
+type SceneImage =
+  | { asset: SceneAssetName; image?: never }
+  | { image: ImageSourcePropType; asset?: never }
+  | { asset?: never; image?: never };
 
 export type SceneHeroProps = SceneImage & {
   eyebrow: string;
@@ -42,6 +45,8 @@ export type SceneSectionProps = {
   eyebrow?: string;
   body?: string;
   asset?: SceneAssetName;
+  /** Canonical brand asset shown in the section heading (takes priority over `asset`). */
+  brandAsset?: BrandAssetName;
   children?: ReactNode;
   action?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -96,17 +101,22 @@ export function applianceBrandAsset(slug: string): BrandAssetName | undefined {
 
 export function SceneHero({ asset, image, eyebrow, title, body, children, action, compact = false }: SceneHeroProps) {
   const sceneHeight = compact ? 148 : 252;
+  const source = asset ? sceneAssets[asset] : image;
   return (
     <View style={styles.hero}>
-      <Image
-        source={asset ? sceneAssets[asset] : image}
-        accessible={false}
-        importantForAccessibility="no"
-        resizeMode="cover"
-        style={[styles.heroImage, { height: sceneHeight + 80 }]}
-      />
-      <View pointerEvents="none" style={[styles.tint, { height: sceneHeight + 80 }]} />
-      <View style={{ height: sceneHeight }} />
+      {source ? (
+        <>
+          <Image
+            source={source}
+            accessible={false}
+            importantForAccessibility="no"
+            resizeMode="cover"
+            style={[styles.heroImage, { height: sceneHeight + 80 }]}
+          />
+          <View pointerEvents="none" style={[styles.tint, { height: sceneHeight + 80 }]} />
+        </>
+      ) : null}
+      <View style={{ height: source ? sceneHeight : 0 }} />
       <Animated.View entering={reveal} style={styles.heroContent}>
         <View pointerEvents="none" style={styles.scrim}>
           {bands.map((opacity) => <View key={opacity} style={[styles.band, { opacity }]} />)}
@@ -147,7 +157,8 @@ export function SceneAction({ label, onPress, accessibilityLabel, disabled = fal
   );
 }
 
-export function SceneSection({ title, eyebrow, body, asset, children, action, style }: SceneSectionProps) {
+export function SceneSection({ title, eyebrow, body, asset, brandAsset, children, action, style }: SceneSectionProps) {
+  const headingImage = brandAsset ? brandAssets[brandAsset] : asset ? sceneAssets[asset] : null;
   return (
     <View style={[styles.section, style]}>
       <View style={styles.sectionHeading}>
@@ -156,7 +167,7 @@ export function SceneSection({ title, eyebrow, body, asset, children, action, st
           <Text accessibilityRole="header" style={styles.sectionTitle}>{title}</Text>
           {body ? <Text style={styles.sectionBody}>{body}</Text> : null}
         </View>
-        {asset ? <Image source={sceneAssets[asset]} accessible={false} style={styles.sectionImage} resizeMode="cover" /> : null}
+        {headingImage ? <Image source={headingImage} accessible={false} style={styles.sectionImage} resizeMode="cover" /> : null}
       </View>
       {children}
       {action}

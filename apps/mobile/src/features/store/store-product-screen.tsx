@@ -48,7 +48,7 @@ export function StoreProductScreen({
           <Text style={styles.backText}>{t('store.title')}</Text>
         </Pressable>
 
-        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="merchant_products" /> : null}
+        {status === 'loading' ? <ListLoading label={t('state.loading')} brandAsset="spare-parts" /> : null}
 
         {status === 'error' ? (
           <ListError
@@ -61,7 +61,7 @@ export function StoreProductScreen({
 
         {status === 'not-found' ? (
           <ListEmpty
-            asset="merchant_products"
+            brandAsset="spare-parts"
             icon="package"
             iconLabel="منتج غير متاح"
             title={t('store.product.missing')}

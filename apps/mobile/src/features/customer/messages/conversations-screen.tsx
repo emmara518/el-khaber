@@ -58,7 +58,7 @@ export default function ConversationsScreen() {
           {status === 'loaded' && data ? (
             data.conversations.length === 0 ? (
               <ListEmpty
-                asset="technician_profile_reviews"
+                brandAsset="messages"
                 icon="message-circle"
                 iconLabel="لا توجد محادثات"
                 title={t('messages.empty.title')}

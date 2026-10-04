@@ -35,7 +35,7 @@ export function StoreListScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <PageTitle eyebrow="المتجر" title={t('store.title')} body={t('store.subtitle')} />
 
-        {status === 'loading' ? <ListLoading label={t('state.loading')} asset="merchant_products" /> : null}
+        {status === 'loading' ? <ListLoading label={t('state.loading')} brandAsset="spare-parts" /> : null}
 
         {status === 'error' ? (
           <ListError
@@ -49,7 +49,7 @@ export function StoreListScreen({
         {status === 'loaded' && data ? (
           data.length === 0 ? (
             <ListEmpty
-              asset="merchant_products"
+              brandAsset="spare-parts"
               icon="package"
               iconLabel="لا توجد منتجات"
               title={t('store.empty.title')}

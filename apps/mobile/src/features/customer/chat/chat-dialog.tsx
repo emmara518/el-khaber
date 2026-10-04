@@ -9,7 +9,6 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRef } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -24,8 +23,8 @@ import { useChatViewModel } from './use-chat-view-model';
 
 import type { ChatDataSource, ChatMessage, ChatRole } from './chat-types';
 
+import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
-import { sceneAssets } from '@/ui/scene-assets';
 import { type } from '@/ui/typography';
 
 export function ChatDialog({
@@ -96,13 +95,7 @@ export function ChatBody({
     <View style={styles.body}>
       <View style={styles.header}>
         <View style={styles.headerIdentity}>
-          <Image
-            source={sceneAssets.technician_placeholder_male}
-            accessible={false}
-            importantForAccessibility="no"
-            resizeMode="cover"
-            style={styles.headerAvatar}
-          />
+          <BrandImage name="technician" size={46} style={styles.headerAvatar} />
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>{technicianNameAr}</Text>
             <Text style={styles.headerSub}>{serviceTitle ?? 'محادثة الطلب الحالي'}</Text>
@@ -140,13 +133,9 @@ export function ChatBody({
         {vm.loadStatus === 'loaded' ? (
           vm.messages.length === 0 ? (
             <View style={styles.center}>
-              <Image
-                source={sceneAssets.technician_trust}
-                accessible={false}
-                importantForAccessibility="no"
-                resizeMode="cover"
-                style={styles.emptyScene}
-              />
+              <View style={styles.emptyScene}>
+                <BrandImage name="messages" size={84} />
+              </View>
               <Text style={styles.emptyTitle}>ابدأ المحادثة</Text>
               <Text style={styles.muted}>
                 {role === 'merchant'
@@ -309,10 +298,14 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.navyDeep,
   },
   emptyScene: {
-    width: '100%',
-    height: 130,
+    width: 120,
+    height: 120,
     borderRadius: radius.lg,
-    backgroundColor: color.brand.navyDeep,
+    backgroundColor: color.surface.subtle,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyTitle: {
     ...type.h3,

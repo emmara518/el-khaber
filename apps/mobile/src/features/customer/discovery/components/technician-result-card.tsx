@@ -1,5 +1,5 @@
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { getTechnicianCardContent } from './technician-result-card-content';
@@ -8,11 +8,11 @@ import { VerificationBadge } from './verification-badge';
 import type { Technician } from '../technician-types';
 
 import { Avatar, usePressScale } from '@/ui';
+import { BrandImage } from '@/ui/brand-image';
 import { Card } from '@/ui/card';
-import { applianceSceneAsset } from '@/ui/cinematic';
+import { applianceBrandAsset } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
 import { RatingStars } from '@/ui/rating-stars';
-import { sceneAssets } from '@/ui/scene-assets';
 import { type } from '@/ui/typography';
 
 export function TechnicianResultCard({
@@ -23,7 +23,7 @@ export function TechnicianResultCard({
   onPress: () => void;
 }) {
   const content = getTechnicianCardContent(technician);
-  const serviceAsset = applianceSceneAsset(technician.appliances[0] ?? '');
+  const serviceAsset = applianceBrandAsset(technician.appliances[0] ?? '') ?? 'toolbox';
   const press = usePressScale(0.985);
   const hasTrust = content.rating !== null || content.verified || content.availability.length > 0;
 
@@ -45,7 +45,9 @@ export function TechnicianResultCard({
                 <Text style={styles.visualLabel}>الخدمات والأجهزة</Text>
                 <Text style={styles.visualCaption}>صورة توضيحية للخدمة</Text>
               </View>
-              <Image source={sceneAssets[serviceAsset ?? 'technician_profile_services']} accessible={false} resizeMode="contain" style={styles.serviceImage} />
+              <View style={styles.serviceImage}>
+                <BrandImage name={serviceAsset} size={64} />
+              </View>
             </View>
             <View style={styles.body}>
               <View style={styles.identity}>
@@ -117,7 +119,7 @@ const styles = StyleSheet.create({
   visualContext: { flex: 1, gap: spacing[1] },
   visualLabel: { ...type.bodyMedium, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
   visualCaption: { ...type.caption, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
-  serviceImage: { width: 72, height: 80, borderRadius: radius.md },
+  serviceImage: { width: 72, height: 80, alignItems: 'center', justifyContent: 'center' },
   body: {
     padding: spacing[5],
     gap: spacing[3],
