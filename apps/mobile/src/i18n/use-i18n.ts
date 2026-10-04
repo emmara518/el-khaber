@@ -240,7 +240,7 @@ const ARABIC: Record<string, string> = {
   'tracking.unassigned': 'لم يتم تعيين فني بعد — سنعلمك فور قبول طلبك.',
   'tracking.timeline': 'مراحل الطلب',
   'tracking.timelineNote': 'الحالة من سجل الطلب، وليست تتبعًا مباشرًا للموقع. حدّث لعرض آخر التغييرات.',
-  'tracking.next.title': 'الخطوة التالية',
+  'tracking.next.title': 'ما التالي؟',
   'tracking.refresh': 'تحديث حالة الطلب',
   'tracking.rate.title': 'كيف كانت تجربتك؟',
   'tracking.rate.body': 'تقييمك مرتبط بهذه الخدمة فقط.',
