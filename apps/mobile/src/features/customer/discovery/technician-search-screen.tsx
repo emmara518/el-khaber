@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
 import { DiscoveryEmptyState } from './components/discovery-empty-state';
-import { DiscoveryHero } from './components/discovery-hero';
 import { TechnicianResultCard } from './components/technician-result-card';
 import {
   ACTIVE_APPLIANCE_FILTERS,
@@ -25,7 +24,7 @@ import { useTechniciansViewModel } from './use-technicians-view-model';
 import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, Chip, ListError, ListLoading, type } from '@/ui';
+import { Card, Chip, ListError, ListLoading, PageTitle, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
 
@@ -115,11 +114,6 @@ export default function TechnicianSearchScreen() {
     setPanelOpen(false);
   }
 
-  function explore() {
-    scrollRef.current?.scrollTo({ y: editorialOffset.current + searchOffset.current, animated: false });
-    searchRef.current?.focus();
-  }
-
   return (
     <View style={styles.root}>
       <View style={[styles.navigation, { paddingTop: insets.top + spacing[2] }]}>
@@ -145,7 +139,13 @@ export default function TechnicianSearchScreen() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <DiscoveryHero applianceLabel={applianceLabel} onExplore={explore} />
+        <View style={styles.heroHeader}>
+          <PageTitle
+            eyebrow="دليل الفنيين"
+            title="اختر من يعتني بجهازك"
+            body={`ابحث عن خدمة ${applianceLabel}، وقارن التخصصات ومناطق الخدمة قبل اختيار الفني.`}
+          />
+        </View>
         <View style={styles.editorial} onLayout={(event) => { editorialOffset.current = event.nativeEvent.layout.y; }}>
         {context !== null && filters.appliance === context.applianceSlug ? (
           <View style={styles.context}>
@@ -394,7 +394,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
+    paddingTop: spacing[5],
     paddingBottom: spacing[8],
+  },
+  heroHeader: {
+    paddingHorizontal: spacing[5],
   },
   editorial: {
     paddingHorizontal: spacing[5],
