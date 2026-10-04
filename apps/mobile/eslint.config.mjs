@@ -17,5 +17,5 @@ export default [
         },
       ]
     : []),
-  { ignores: ['.expo/**', 'node_modules/**'] },
+  { ignores: ['.expo/**', 'node_modules/**', 'dist-uat/**', 'dist-web/**', '.vercel/**'] },
 ];
