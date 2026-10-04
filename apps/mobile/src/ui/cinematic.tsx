@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType, typ
 import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 
 import { brandAssets, type BrandAssetName } from './brand-assets';
-import { Icon } from './icon';
+import { Icon, type IconName } from './icon';
 import { sceneAssets, type SceneAssetName } from './scene-assets';
 import { type } from './typography';
 import { usePressScale } from './use-press-scale';
@@ -38,6 +38,12 @@ export type SceneActionProps = {
   successLabel?: string;
   variant?: 'primary' | 'secondary';
   style?: StyleProp<ViewStyle>;
+  /**
+   * Optional leading icon. Defaults to `arrow-left` (the RTL "forward"
+   * affordance). Pass an explicit Feather name for directional actions
+   * (e.g. `arrow-right` for Back in RTL), or `null` to hide the icon.
+   */
+  icon?: IconName | null;
 };
 
 export type SceneSectionProps = {
@@ -131,10 +137,11 @@ export function SceneHero({ asset, image, eyebrow, title, body, children, action
   );
 }
 
-export function SceneAction({ label, onPress, accessibilityLabel, disabled = false, loading = false, success = false, loadingLabel = 'جارٍ التحميل…', successLabel = 'تم بنجاح', variant = 'primary', style }: SceneActionProps) {
+export function SceneAction({ label, onPress, accessibilityLabel, disabled = false, loading = false, success = false, loadingLabel = 'جارٍ التحميل…', successLabel = 'تم بنجاح', variant = 'primary', style, icon }: SceneActionProps) {
   const press = useScenePress();
   const blocked = disabled || loading || success;
   const text = loading ? loadingLabel : success ? successLabel : label;
+  const glyph: IconName | null = loading ? 'clock' : success ? 'check' : icon === undefined ? 'arrow-left' : icon;
   return (
     <Animated.View style={[style, press.style]}>
       <Pressable
@@ -151,7 +158,7 @@ export function SceneAction({ label, onPress, accessibilityLabel, disabled = fal
         style={({ pressed }) => [styles.action, variant === 'secondary' && styles.secondary, success && styles.success, disabled && styles.disabled, pressed && styles.pressed]}
       >
         <Text style={styles.actionText}>{text}</Text>
-        <Icon name={loading ? 'clock' : success ? 'check' : 'arrow-left'} size={20} color={color.brand.navy} />
+        {glyph !== null ? <Icon name={glyph} size={20} color={color.brand.navy} accessible={false} /> : null}
       </Pressable>
     </Animated.View>
   );

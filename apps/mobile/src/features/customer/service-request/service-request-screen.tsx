@@ -16,6 +16,8 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,6 +25,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSafeBack } from '../components/use-safe-back';
 import { ApiTechnicianDataSource } from '../discovery/api-technician-data-source';
@@ -32,6 +35,7 @@ import { ServiceRequestProgress } from './service-request-progress';
 import { REQUEST_SCENES } from './service-request-scenes';
 import {
   DESCRIPTION_MAX,
+  NAV_ICONS,
   OTHER_PROBLEM_ID,
   STEP_INDEX,
   problemsForAppliance,
@@ -47,7 +51,7 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { APPLIANCE_LABELS as APPLIANCE_TITLES } from '@/lib/appliance-labels';
+import { APPLIANCE_LABELS as APPLIANCE_TITLES, APPLIANCE_ORDER } from '@/lib/appliance-labels';
 import { ListError, ListLoading } from '@/ui';
 import { ApplianceIcon, Avatar, Card, Icon, SectionHeading, type } from '@/ui';
 import { applianceSceneAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
@@ -61,6 +65,7 @@ export default function ServiceRequestScreen({
 }) {
   const { t } = useI18n();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const safeBack = useSafeBack('/(customer)/find-technician');
   const vm = useServiceRequestViewModel(handoff, source);
 
@@ -181,97 +186,107 @@ export default function ServiceRequestScreen({
   const scene = REQUEST_SCENES[step];
 
   return (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <RequestHeader technician={technician} onExit={safeBack} />
-      <ServiceRequestProgress index={STEP_INDEX[step]} />
-      <SceneHero compact asset={scene.asset} eyebrow="طلب خدمة · خطوة بخطوة" title={scene.title} body={scene.body} />
-      {draft.appliance !== null ? (
-        <View style={styles.applianceContext}>
-          <ApplianceIcon slug={draft.appliance} size={40} />
-          <View style={styles.techText}>
-            <Text style={styles.contextLabel}>الجهاز المختار</Text>
-            <Text style={styles.contextValue}>{APPLIANCE_TITLES[draft.appliance]}</Text>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={insets.top + 8}
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        style={styles.flex}
+      >
+        <RequestHeader technician={technician} onExit={safeBack} />
+        <ServiceRequestProgress index={STEP_INDEX[step]} />
+        <SceneHero compact asset={scene.asset} eyebrow="طلب خدمة · خطوة بخطوة" title={scene.title} body={scene.body} />
+        {draft.appliance !== null ? (
+          <View style={styles.applianceContext}>
+            <ApplianceIcon slug={draft.appliance} size={40} />
+            <View style={styles.techText}>
+              <Text style={styles.contextLabel}>الجهاز المختار</Text>
+              <Text style={styles.contextValue}>{APPLIANCE_TITLES[draft.appliance]}</Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel="تغيير الجهاز" disabled={vm.submitStatus === 'submitting'} onPress={() => vm.dispatch({ type: 'GOTO', step: 'appliance' })} style={styles.reviewEdit}>
+              <Text style={styles.reviewEditText}>تغيير</Text>
+            </Pressable>
           </View>
-          <Pressable accessibilityRole="button" accessibilityLabel="تغيير الجهاز" disabled={vm.submitStatus === 'submitting'} onPress={() => vm.dispatch({ type: 'GOTO', step: 'appliance' })} style={styles.reviewEdit}>
-            <Text style={styles.reviewEditText}>تغيير</Text>
-          </Pressable>
+        ) : null}
+        <View style={styles.stepBody}>
+
+        {stepError !== null ? (
+          <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${stepError}`} style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{stepError}</Text>
+          </View>
+        ) : null}
+
+        {step === 'appliance' ? (
+          <ApplianceStep draft={draft} onSelect={(appliance) => vm.dispatch({ type: 'SET_APPLIANCE', appliance })} />
+        ) : null}
+        {step === 'problem' ? (
+          <ProblemStep
+            draft={draft}
+            symptomTitle={symptomTitle}
+            problems={problemsForAppliance(vm.formData.problems, draft.appliance)}
+            onSelect={(problemId) => vm.dispatch({ type: 'SET_PROBLEM', problemId })}
+            onCustom={(text) => vm.dispatch({ type: 'SET_CUSTOM_PROBLEM', text })}
+          />
+        ) : null}
+        {step === 'description' ? (
+          <DescriptionStep
+            draft={draft}
+            onChange={(text) => vm.dispatch({ type: 'SET_DESCRIPTION', text: text.slice(0, DESCRIPTION_MAX + 20) })}
+          />
+        ) : null}
+        {step === 'photos' ? (
+          <SceneSection title={t('request.photos.title')} body={t('request.photos.continueBody')}>
+            <SceneAction label={t('request.photos.editDescription')} variant="secondary" icon="arrow-left" onPress={() => vm.dispatch({ type: 'GOTO', step: 'description' })} />
+          </SceneSection>
+        ) : null}
+        {step === 'location' ? (
+          <LocationStep
+            draft={draft}
+            locations={vm.formData.locations}
+            onSelect={(locationId) => vm.dispatch({ type: 'SET_LOCATION', locationId })}
+            onCreate={vm.addLocation}
+            addStatus={vm.locationStatus}
+            addError={vm.locationError}
+          />
+        ) : null}
+        {step === 'appointment' ? (
+          <AppointmentStep
+            draft={draft}
+            slots={vm.formData.slots}
+            onSelect={(slotId) => vm.dispatch({ type: 'SET_APPOINTMENT', slotId })}
+          />
+        ) : null}
+        {step === 'review' ? (
+          <ReviewStep
+            draft={draft}
+            technicianName={technician.nameAr}
+            problems={vm.formData.problems}
+            locations={vm.formData.locations}
+            slots={vm.formData.slots}
+            submitStatus={vm.submitStatus}
+            submitError={vm.submitError}
+            onGoto={(target) => vm.dispatch({ type: 'GOTO', step: target })}
+            onSubmit={vm.submit}
+            onRetrySubmit={() => {
+              vm.retrySubmit();
+              vm.submit();
+            }}
+          />
+        ) : null}
+
         </View>
-      ) : null}
-      <View style={styles.stepBody}>
-
-      {stepError !== null ? (
-        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${stepError}`} style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{stepError}</Text>
-        </View>
-      ) : null}
-
-      {step === 'appliance' ? (
-        <ApplianceStep draft={draft} onSelect={(appliance) => vm.dispatch({ type: 'SET_APPLIANCE', appliance })} />
-      ) : null}
-      {step === 'problem' ? (
-        <ProblemStep
-          draft={draft}
-          symptomTitle={symptomTitle}
-          problems={problemsForAppliance(vm.formData.problems, draft.appliance)}
-          onSelect={(problemId) => vm.dispatch({ type: 'SET_PROBLEM', problemId })}
-          onCustom={(text) => vm.dispatch({ type: 'SET_CUSTOM_PROBLEM', text })}
-        />
-      ) : null}
-      {step === 'description' ? (
-        <DescriptionStep
-          draft={draft}
-          onChange={(text) => vm.dispatch({ type: 'SET_DESCRIPTION', text: text.slice(0, DESCRIPTION_MAX + 20) })}
-        />
-      ) : null}
-      {step === 'photos' ? (
-        <SceneSection title="تابع دون صور" body="لا يتم رفع أو إرسال أي صور مع الطلب في النسخة الحالية. اكتب التفاصيل المهمة في وصف المشكلة.">
-          <SceneAction label="تعديل الوصف" variant="secondary" onPress={() => vm.dispatch({ type: 'GOTO', step: 'description' })} />
-        </SceneSection>
-      ) : null}
-      {step === 'location' ? (
-        <LocationStep
-          draft={draft}
-          locations={vm.formData.locations}
-          onSelect={(locationId) => vm.dispatch({ type: 'SET_LOCATION', locationId })}
-          onCreate={vm.addLocation}
-          addStatus={vm.locationStatus}
-          addError={vm.locationError}
-        />
-      ) : null}
-      {step === 'appointment' ? (
-        <AppointmentStep
-          draft={draft}
-          slots={vm.formData.slots}
-          onSelect={(slotId) => vm.dispatch({ type: 'SET_APPOINTMENT', slotId })}
-        />
-      ) : null}
-      {step === 'review' ? (
-        <ReviewStep
-          draft={draft}
-          technicianName={technician.nameAr}
-          problems={vm.formData.problems}
-          locations={vm.formData.locations}
-          slots={vm.formData.slots}
-          submitStatus={vm.submitStatus}
-          submitError={vm.submitError}
-          onGoto={(target) => vm.dispatch({ type: 'GOTO', step: target })}
-          onSubmit={vm.submit}
-          onRetrySubmit={() => {
-            vm.retrySubmit();
-            vm.submit();
-          }}
-        />
-      ) : null}
-
-      </View>
+      </ScrollView>
       {step !== 'review' ? (
-        <View style={styles.nav}>
-          <SceneAction style={{ flex: 1 }} variant="secondary" label={t('request.back')} disabled={step === 'appliance'} onPress={() => vm.dispatch({ type: 'BACK' })} />
-          <SceneAction style={{ flex: 2 }} label={step === 'photos' ? 'المتابعة دون صور' : t('request.next')} onPress={() => vm.dispatch({ type: 'NEXT' })} />
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing[4]) }]}>
+          <SceneAction style={{ flex: 1 }} variant="secondary" icon={NAV_ICONS.back} label={t('request.back')} disabled={step === 'appliance'} onPress={() => vm.dispatch({ type: 'BACK' })} />
+          <SceneAction style={{ flex: 2 }} icon={NAV_ICONS.next} label={step === 'photos' ? t('request.photos.continue') : t('request.next')} onPress={() => vm.dispatch({ type: 'NEXT' })} />
         </View>
       ) : null}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -317,7 +332,7 @@ function ApplianceStep({
   onSelect: (appliance: ApplianceSlug) => void;
 }) {
   const { t } = useI18n();
-  const options: ReadonlyArray<ApplianceSlug> = ['washing_machine', 'refrigerator', 'air_conditioner'];
+  const options: ReadonlyArray<ApplianceSlug> = APPLIANCE_ORDER;
   return (
     <View>
       <SectionHeading title={t('request.appliance.title')} />
@@ -478,7 +493,7 @@ function LocationStep({
               <Pressable
                 key={location.id}
                 accessibilityRole="radio"
-                accessibilityLabel={`الموقع: ${location.labelAr}، ${location.detailAr}${selected ? '، محدد حاليًا' : ''}`}
+                accessibilityLabel={`الموقع: ${location.labelAr}${location.detailAr.trim().length > 0 ? `، ${location.detailAr}` : ''}${selected ? '، محدد حاليًا' : ''}`}
                 accessibilityState={{ selected, checked: selected }}
                 aria-checked={selected}
                 onPress={() => onSelect(location.id)}
@@ -489,7 +504,9 @@ function LocationStep({
                     <Icon name="map-pin" size={15} color={color.text.secondary} accessibilityLabel="الموقع" />
                     <Text style={styles.listOptionText}>{location.labelAr}</Text>
                   </View>
-                  <Text style={styles.locationDetail}>{location.detailAr}</Text>
+                  {location.detailAr.trim().length > 0 ? (
+                    <Text style={styles.locationDetail}>{location.detailAr}</Text>
+                  ) : null}
                 </View>
                 {selected ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
               </Pressable>
@@ -643,7 +660,7 @@ function ReviewStep({
   const problemTitle =
     draft.problemId === OTHER_PROBLEM_ID
       ? draft.customProblemAr
-      : (problems.find((p) => p.id === draft.problemId)?.titleAr ?? t('request.review.none'));
+      : (problems.find((p) => p.id === draft.problemId)?.titleAr ?? t('request.review.noProblem'));
   const location = locations.find((l) => l.id === draft.locationId);
   const slot = slots.find((s) => s.id === draft.appointmentSlotId);
   const rows: ReadonlyArray<{ key: string; label: string; value: string; step: ServiceRequestStep }> = [
@@ -651,26 +668,28 @@ function ReviewStep({
     {
       key: 'appliance',
       label: t('request.review.appliance'),
-      value: draft.appliance !== null ? APPLIANCE_TITLES[draft.appliance] : t('request.review.none'),
+      value: draft.appliance !== null ? APPLIANCE_TITLES[draft.appliance] : t('request.review.noAppliance'),
       step: 'appliance',
     },
     { key: 'problem', label: t('request.review.problem'), value: problemTitle, step: 'problem' },
     {
       key: 'desc',
       label: t('request.review.description'),
-      value: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr : t('request.review.none'),
+      value: draft.descriptionAr.trim().length > 0 ? draft.descriptionAr : t('request.review.noDescription'),
       step: 'description',
     },
     {
       key: 'photos',
       label: t('request.review.photos'),
-      value: draft.photos.length > 0 ? `${draft.photos.length} صور` : t('request.review.none'),
+      value: draft.photos.length > 0 ? `${draft.photos.length} صور` : t('request.review.noPhotos'),
       step: 'photos',
     },
     {
       key: 'loc',
       label: t('request.review.location'),
-      value: location ? `${location.labelAr} — ${location.detailAr}` : t('request.review.none'),
+      value: location
+        ? (location.detailAr.trim().length > 0 ? `${location.labelAr} · ${location.detailAr}` : location.labelAr)
+        : t('request.review.noLocation'),
       step: 'location',
     },
     {
@@ -715,13 +734,24 @@ function ReviewStep({
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   applianceContext: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[4], borderBottomWidth: 1, borderBottomColor: color.border.default },
   stepBody: { paddingVertical: spacing[4] },
   content: {
     direction: 'rtl',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
-    paddingBottom: spacing[8],
+    paddingBottom: spacing[6],
+  },
+  footer: {
+    direction: 'rtl',
+    flexDirection: 'row',
+    gap: spacing[3],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[3],
+    backgroundColor: color.surface.subtle,
+    borderTopWidth: 1,
+    borderTopColor: color.border.default,
   },
   headerRow: {
     flexDirection: 'row',
@@ -802,6 +832,7 @@ const styles = StyleSheet.create({
   optionSelected: {
     borderColor: color.brand.gold,
     borderWidth: 2,
+    backgroundColor: color.brand.goldSoft,
   },
   pressed: {
     opacity: 0.8,

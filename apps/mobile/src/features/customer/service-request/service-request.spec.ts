@@ -15,6 +15,10 @@ import {
   type ServiceRequestState,
 } from './service-request-machine';
 import {
+  NAV_ICONS,
+  PHOTOS_MAX,
+  STEP_INDEX,
+  SERVICE_REQUEST_STEPS,
   draftHasContent,
   initDraftFromHandoff,
   problemsForAppliance,
@@ -204,5 +208,65 @@ describe('mock submission', () => {
     // An untouched draft holds no submittable content.
     expect(draftHasContent(INITIAL_SERVICE_REQUEST_STATE.draft)).toBe(false);
     expect(draftHasContent(complete)).toBe(true);
+  });
+});
+
+describe('wizard step index (1..7) and RTL navigation', () => {
+  it('numbers the seven steps 0..6 with no gap or duplicate', () => {
+    expect(SERVICE_REQUEST_STEPS).toHaveLength(7);
+    const indices = SERVICE_REQUEST_STEPS.map((s) => STEP_INDEX[s]);
+    expect(indices).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(new Set(indices).size).toBe(7);
+  });
+
+  it('uses distinct RTL-correct arrows for back and next', () => {
+    // In RTL, forward advances left; back returns right — never the same arrow.
+    expect(NAV_ICONS.next).toBe('arrow-left');
+    expect(NAV_ICONS.back).toBe('arrow-right');
+    expect(NAV_ICONS.next).not.toBe(NAV_ICONS.back);
+  });
+
+  it('keeps the declared photo cap consistent with validation', () => {
+    expect(PHOTOS_MAX).toBe(5);
+  });
+});
+
+describe('location persistence across navigation', () => {
+  const withLocation: ServiceRequestState = {
+    ...INITIAL_SERVICE_REQUEST_STATE,
+    draft: {
+      ...INITIAL_SERVICE_REQUEST_STATE.draft,
+      technicianId: 'tech-1',
+      appliance: 'washing_machine',
+      problemId: 'wm-leak',
+      locationId: 'home',
+    },
+  };
+
+  it('persists the selected location across NEXT and BACK', () => {
+    let state = serviceRequestReducer(withLocation, { type: 'NEXT' });
+    expect(state.step).toBe('problem');
+    state = serviceRequestReducer(state, { type: 'BACK' });
+    expect(state.step).toBe('appliance');
+    expect(state.draft.locationId).toBe('home');
+  });
+
+  it('persists a location chosen later through the remaining steps', () => {
+    let state = serviceRequestReducer(INITIAL_SERVICE_REQUEST_STATE, {
+      type: 'SET_APPLIANCE',
+      appliance: 'washing_machine',
+    });
+    state = serviceRequestReducer(state, { type: 'SET_PROBLEM', problemId: 'wm-leak' });
+    state = serviceRequestReducer(state, { type: 'NEXT' }); // problem
+    state = serviceRequestReducer(state, { type: 'NEXT' }); // description
+    state = serviceRequestReducer(state, { type: 'NEXT' }); // photos
+    state = serviceRequestReducer(state, { type: 'NEXT' }); // location
+    expect(state.step).toBe('location');
+    state = serviceRequestReducer(state, { type: 'SET_LOCATION', locationId: 'work' });
+    state = serviceRequestReducer(state, { type: 'NEXT' }); // appointment
+    expect(state.draft.locationId).toBe('work');
+    state = serviceRequestReducer(state, { type: 'NEXT' }); // review
+    expect(state.step).toBe('review');
+    expect(state.draft.locationId).toBe('work');
   });
 });

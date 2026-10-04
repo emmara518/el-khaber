@@ -90,6 +90,17 @@ export const EMPTY_DRAFT: ServiceRequestDraft = {
   appointmentSlotId: null,
 };
 
+/**
+ * RTL navigation icons for the wizard footer.
+ *
+ * In a right-to-left layout "forward" advances leftward, so Next points
+ * left and Back points right. Distinct arrows so movement is unambiguous.
+ */
+export const NAV_ICONS = {
+  back: 'arrow-right',
+  next: 'arrow-left',
+} as const;
+
 export const DESCRIPTION_MAX = 500;
 export const PHOTOS_MAX = 5;
 

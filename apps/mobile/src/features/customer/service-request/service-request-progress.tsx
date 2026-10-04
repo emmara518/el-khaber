@@ -10,8 +10,9 @@ const STEPS_AR = ['الجهاز', 'المشكلة', 'الوصف', 'الصور', 
 
 export function ServiceRequestProgress({ index }: { index: number }) {
   const groupIndex = requestGroupIndex(SERVICE_REQUEST_STEPS[index] ?? 'appliance');
+  const stepLabel = `الخطوة ${index + 1} من ٧`;
   return (
-    <View accessibilityRole="text" accessibilityLiveRegion="polite" accessibilityLabel={`الخطوة ${index + 1} من ٧: ${STEPS_AR[index]}`} style={styles.root}>
+    <View accessibilityRole="text" accessibilityLiveRegion="polite" accessibilityLabel={`${stepLabel}: ${STEPS_AR[index]}`} style={styles.root}>
       <View style={styles.groups}>
         {REQUEST_GROUPS.map((group, i) => (
           <View key={group.title} style={styles.group}>
@@ -20,7 +21,7 @@ export function ServiceRequestProgress({ index }: { index: number }) {
           </View>
         ))}
       </View>
-      <Text style={styles.label}>{index + 1} / ٧ · {STEPS_AR[index]}</Text>
+      <Text style={styles.label}>{stepLabel} · {STEPS_AR[index]}</Text>
     </View>
   );
 }
