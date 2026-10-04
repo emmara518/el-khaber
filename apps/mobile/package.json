@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "clean": "rm -rf dist dist-web .turbo .expo android ios"
+    "clean": "rm -rf dist dist-web dist-uat .turbo .expo android ios"
   },
   "dependencies": {
     "@babel/runtime": "7.26.10",

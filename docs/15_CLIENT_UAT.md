@@ -27,9 +27,14 @@ prod ref is different and is never configured here.
 
 ## 3. URLs
 
-- **Client UAT URL:** `https://el-khabir-uat.vercel.app`
+- **Client UAT URL:** `https://el-khabir-uat.vercel.app` (the only UAT host;
+  `khabir-uat.vercel.app` is an unrelated/404 host and must not be used).
 - **API URL:** the HTTPS tunnel for the local API (see §4). The web bundle
   embeds `EXPO_PUBLIC_API_URL=<tunnel>/api/v1` at build time.
+- **Canonical web artifact:** `apps/mobile/dist-web` — the single output
+  that `export:web` writes and that `vercel.json` (`outputDirectory`) and
+  `apps/mobile/.vercelignore` (`!dist-web/**`) both reference. No other
+  directory is deployed; `dist-uat` is not used.
 
 ## 4. How it is assembled (per deploy)
 
@@ -58,6 +63,9 @@ prod ref is different and is never configured here.
    ```
 
 4. Deploy the static output to Vercel (config: `apps/mobile/vercel.json`).
+   The build output, `vercel.json`'s `outputDirectory`, and
+   `.vercelignore` all target `dist-web`; verify the deployed bundle
+   contains the intended `EXPO_PUBLIC_API_URL` before sharing the link.
 
 ## 5. Known limitations (client-facing)
 

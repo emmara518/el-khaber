@@ -1,5 +1,7 @@
 # UAT static deploy: only the exported web app is uploaded.
 # Everything else (source, node_modules, other apps/packages, logs, images)
 # must never enter the upload, which previously scanned the whole monorepo.
+# The export script (`export:web`) writes to dist-web, and vercel.json's
+# `outputDirectory` is dist-web — keep these three in lockstep.
 *
-!dist-uat/**
+!dist-web/**
