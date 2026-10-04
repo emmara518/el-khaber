@@ -7,6 +7,7 @@ import { ChatDialog } from '../chat/chat-dialog';
 import { RatingForm } from '../rating/rating-form';
 
 import { nextStepTitle, type OrderDataSource, type OrderDetail } from './order-detail-types';
+import { orderReferenceLabel } from './order-reference';
 import { OrderTimeline } from './order-timeline';
 import { canChatWithOrder, canRateOrder, TRACKING_SCENES } from './tracking-scenes';
 import { useOrderViewModel } from './use-order-view-model';
@@ -65,12 +66,12 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
         compact
         asset={scene.asset}
         eyebrow="متابعة الخدمة · آخر حالة مسجلة"
-        title={detail.statusLabelAr}
+        title={scene.title}
         body={scene.body}
       >
         <View style={styles.heroMeta}>
           <StatusBadge status={detail.status} label={detail.statusLabelAr} icon={statusBrandAsset(detail.status)} />
-          <Text selectable style={styles.reference}>رقم الطلب: {detail.requestId}</Text>
+          <Text selectable style={styles.reference}>{orderReferenceLabel(detail.requestId)}</Text>
         </View>
       </SceneHero>
 

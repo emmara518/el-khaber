@@ -57,13 +57,17 @@ export async function mapOrderDetail(dto: ServiceRequestDto): Promise<OrderDetai
   }
   const locationParts = [dto.location.label, dto.location.city, dto.location.addressText]
     .filter((part): part is string => part !== null && part.trim().length > 0);
+  const taskAr =
+    (dto.problemTitle ?? dto.problemDescription ?? '').trim().length > 0
+      ? (dto.problemTitle ?? dto.problemDescription ?? '').trim()
+      : applianceAr;
   return {
     requestId: dto.id,
     technicianId: dto.technicianId,
     technicianNameAr,
     technicianInitialsAr,
     applianceAr,
-    taskAr: dto.problemTitle ?? dto.problemDescription,
+    taskAr,
     status: dto.status,
     statusLabelAr: REQUEST_STATUS_LABELS_AR[dto.status],
     locationAr: locationParts.join(' – '),

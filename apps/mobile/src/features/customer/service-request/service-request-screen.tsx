@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSafeBack } from '../components/use-safe-back';
 import { ApiTechnicianDataSource } from '../discovery/api-technician-data-source';
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
+import { orderReferenceLabel } from '../orders/order-reference';
 
 import { ServiceRequestProgress } from './service-request-progress';
 import { REQUEST_SCENES } from './service-request-scenes';
@@ -174,7 +175,7 @@ export default function ServiceRequestScreen({
         <SceneHero compact asset="service_request_success" eyebrow="تم إرسال الطلب" title={t('request.success.title')} body="يمكنك الآن متابعة حالة الطلب ورد الفني. إرسال الطلب لا يعني تأكيد موعد الزيارة."
           action={<SceneAction label={t('request.success.track')} onPress={() => router.replace({ pathname: '/(customer)/requests/[id]', params: { id: submission.requestId } })} />}
         />
-        <SceneSection title={technician.nameAr} eyebrow={`رقم الطلب: ${submission.requestId}`} body={submission.createdAtAr}>
+        <SceneSection title={technician.nameAr} eyebrow={orderReferenceLabel(submission.requestId)} body={submission.createdAtAr}>
           <Text style={styles.contextValue}>{vm.machine.draft.appliance ? APPLIANCE_TITLES[vm.machine.draft.appliance] : ''}</Text>
           <SceneAction variant="secondary" label={t('request.success.orders')} onPress={() => router.replace('/(customer)/requests')} />
         </SceneSection>
@@ -199,7 +200,7 @@ export default function ServiceRequestScreen({
       >
         <RequestHeader technician={technician} onExit={safeBack} />
         <ServiceRequestProgress index={STEP_INDEX[step]} />
-        <SceneHero compact asset={scene.asset} eyebrow="طلب خدمة · خطوة بخطوة" title={scene.title} body={scene.body} />
+        <SceneHero dense asset={scene.asset} eyebrow="طلب خدمة · خطوة بخطوة" title={scene.title} body={scene.body} />
         {draft.appliance !== null ? (
           <View style={styles.applianceContext}>
             <ApplianceIcon slug={draft.appliance} size={40} />

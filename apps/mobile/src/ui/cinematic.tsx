@@ -5,6 +5,7 @@ import Animated, { FadeIn, ReduceMotion } from 'react-native-reanimated';
 import { brandAssets, type BrandAssetName } from './brand-assets';
 import { Icon, type IconName } from './icon';
 import { sceneAssets, type SceneAssetName } from './scene-assets';
+import { sceneHeroMetrics } from './scene-hero-metrics';
 import { type } from './typography';
 import { usePressScale } from './use-press-scale';
 
@@ -25,6 +26,12 @@ export type SceneHeroProps = SceneImage & {
   children?: ReactNode;
   action?: ReactNode;
   compact?: boolean;
+  /**
+   * Compact "band" treatment for step/status surfaces. Keeps the scene
+   * identity but shrinks the hero so functional controls stay above the
+   * fold. Takes priority over `compact`.
+   */
+  dense?: boolean;
 };
 
 export type SceneActionProps = {
@@ -105,8 +112,8 @@ export function applianceBrandAsset(slug: string): BrandAssetName | undefined {
   }
 }
 
-export function SceneHero({ asset, image, eyebrow, title, body, children, action, compact = false }: SceneHeroProps) {
-  const sceneHeight = compact ? 148 : 252;
+export function SceneHero({ asset, image, eyebrow, title, body, children, action, compact = false, dense = false }: SceneHeroProps) {
+  const metrics = sceneHeroMetrics({ dense, compact });
   const source = asset ? sceneAssets[asset] : image;
   return (
     <View style={styles.hero}>
@@ -117,19 +124,19 @@ export function SceneHero({ asset, image, eyebrow, title, body, children, action
             accessible={false}
             importantForAccessibility="no"
             resizeMode="cover"
-            style={[styles.heroImage, { height: sceneHeight + 80 }]}
+            style={[styles.heroImage, { height: metrics.sceneHeight + metrics.imageOverlap }]}
           />
-          <View pointerEvents="none" style={[styles.tint, { height: sceneHeight + 80 }]} />
+          <View pointerEvents="none" style={[styles.tint, { height: metrics.sceneHeight + metrics.imageOverlap }]} />
         </>
       ) : null}
-      <View style={{ height: source ? sceneHeight : 0 }} />
-      <Animated.View entering={reveal} style={styles.heroContent}>
+      <View style={{ height: source ? metrics.sceneHeight : 0 }} />
+      <Animated.View entering={reveal} style={[styles.heroContent, metrics.dense && styles.heroContentDense]}>
         <View pointerEvents="none" style={styles.scrim}>
           {bands.map((opacity) => <View key={opacity} style={[styles.band, { opacity }]} />)}
         </View>
         <Text style={styles.eyebrow}>{eyebrow}</Text>
-        <Text accessibilityRole="header" style={[styles.heroTitle, compact && styles.compactTitle]}>{title}</Text>
-        {body ? <Text style={styles.heroBody}>{body}</Text> : null}
+        <Text accessibilityRole="header" style={[styles.heroTitle, compact && styles.compactTitle, metrics.dense && styles.denseTitle]}>{title}</Text>
+        {body ? <Text style={[styles.heroBody, metrics.dense && styles.denseBody]}>{body}</Text> : null}
         {children}
         {action ? <View style={styles.heroAction}>{action}</View> : null}
       </Animated.View>
@@ -218,12 +225,15 @@ const styles = StyleSheet.create({
   heroImage: { position: 'absolute', top: 0, left: 0, width: '100%' },
   tint: { position: 'absolute', top: 0, left: 0, right: 0, backgroundColor: color.brand.navy, opacity: 0.14 },
   heroContent: { backgroundColor: color.brand.navy, paddingHorizontal: spacing[6], paddingBottom: spacing[6], gap: spacing[2] },
+  heroContentDense: { paddingHorizontal: spacing[5], paddingBottom: spacing[4], gap: spacing[1] },
   scrim: { position: 'absolute', top: -80, height: 80, left: 0, right: 0 },
   band: { flex: 1, backgroundColor: color.brand.navy },
   eyebrow: { ...type.label, color: color.brand.gold, textAlign: 'right', writingDirection: 'rtl' },
   heroTitle: { ...type.h1, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
   compactTitle: { fontSize: typography.size.h2, lineHeight: 36 },
+  denseTitle: { fontSize: typography.size.h3, lineHeight: 28 },
   heroBody: { ...type.body, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
+  denseBody: { ...type.caption, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
   heroAction: { marginTop: spacing[3] },
   action: { minHeight: 56, paddingHorizontal: spacing[4], paddingVertical: spacing[3], backgroundColor: color.brand.gold, borderRadius: radius.md, flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
   actionText: { flexShrink: 1, ...type.button, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
