@@ -21,3 +21,18 @@ export function tabIdForPathname(pathname: string): CustomerTabId | null {
   // no tab is active.
   return null;
 }
+
+/**
+ * Full-screen customer flows that must render as an isolated journey
+ * with NO global bottom tab bar:
+ * - `/request-service` — the 7-step request wizard (own Back/Next nav),
+ * - `/requests/[id]` — order tracking detail (its own exit action).
+ *
+ * The tab-bar-less treatment is keyed off the route, not off view state,
+ * so it stays correct across back/forward navigation and deep links.
+ */
+export function isCustomerFlowRoute(pathname: string): boolean {
+  if (pathname === '/request-service') return true;
+  if (pathname.startsWith('/requests/')) return true;
+  return false;
+}

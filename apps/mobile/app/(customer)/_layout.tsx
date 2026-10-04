@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CustomerTabBar } from '@/features/customer/customer-tab-bar';
-import { tabIdForPathname } from '@/features/customer/customer-tab-routing';
+import { isCustomerFlowRoute, tabIdForPathname } from '@/features/customer/customer-tab-routing';
 
 /**
  * Customer route group layout.
@@ -25,6 +25,21 @@ export default function CustomerTabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const active = tabIdForPathname(pathname);
+  // Isolated flows (request wizard, order tracking) render full-screen
+  // with no global tab bar; their own navigation owns the journey.
+  const isFlow = isCustomerFlowRoute(pathname);
+
+  if (isFlow) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView edges={['bottom']} style={styles.safe}>
+          <View style={styles.content}>
+            <Slot />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
