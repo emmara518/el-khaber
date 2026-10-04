@@ -13,12 +13,17 @@
 
 import { useFonts } from 'expo-font';
 
-// The icon font MUST be registered through the same `useFonts` call as the
-// text fonts. On Expo Web (static export) the bundled Feather TTF is only
-// emitted as a CSS @font-face when it is part of this map; otherwise every
-// <Icon> renders as an empty box. The family key must match the name the
-// icon component uses ('feather' — see @expo/vector-icons Feather.js).
-import Feather from '@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Feather.ttf';
+// Icon fonts MUST be registered here, through the same gated `useFonts` call
+// as the text fonts, and MUST resolve to an app-local asset path.
+//
+// Why: `@expo/vector-icons` imports its TTFs from the pnpm virtual store, so
+// the web build emits them under `assets/__node_modules/.pnpm/...`. Vercel
+// does not deploy dot-prefixed directories, so those requests 404 and every
+// glyph falls back to the missing-glyph box (□) on the deployed UAT site —
+// while text fonts under `src/assets/...` load fine. Importing the same
+// canonical TTFs from `src/assets/fonts/icons/` emits them on a served path,
+// and the family keys must match the names the icon components use
+// ('feather' — see @expo/vector-icons Feather.js; 'ionicons' — Ionicons.js).
 import AlexandriaBold from '../assets/fonts/Alexandria/Alexandria-Bold.ttf';
 import AlexandriaExtraBold from '../assets/fonts/Alexandria/Alexandria-ExtraBold.ttf';
 import AlexandriaMedium from '../assets/fonts/Alexandria/Alexandria-Medium.ttf';
@@ -26,6 +31,8 @@ import AlexandriaRegular from '../assets/fonts/Alexandria/Alexandria-Regular.ttf
 import AlexandriaSemiBold from '../assets/fonts/Alexandria/Alexandria-SemiBold.ttf';
 import ArefRuqaaBold from '../assets/fonts/ArefRuqaa/ArefRuqaa-Bold.ttf';
 import ArefRuqaaRegular from '../assets/fonts/ArefRuqaa/ArefRuqaa-Regular.ttf';
+import Feather from '../assets/fonts/icons/Feather.ttf';
+import Ionicons from '../assets/fonts/icons/Ionicons.ttf';
 
 export const appFonts = {
   'Alexandria-Regular': AlexandriaRegular,
@@ -36,6 +43,7 @@ export const appFonts = {
   'ArefRuqaa-Regular': ArefRuqaaRegular,
   'ArefRuqaa-Bold': ArefRuqaaBold,
   feather: Feather,
+  ionicons: Ionicons,
 } as const;
 
 /** Load the app fonts. Returns `{ loaded, error }`. */
