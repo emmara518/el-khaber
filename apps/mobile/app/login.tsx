@@ -86,7 +86,7 @@ export default function LoginRoute() {
           if (fieldErrors.password) setFieldErrors((e) => ({ ...e, password: undefined }));
         }}
         error={fieldErrors.password}
-        autoComplete="password"
+        autoComplete="current-password"
       />
       <View style={styles.forgot}>
         <AuthLink label="نسيت كلمة المرور؟" onPress={() => router.push('/forgot-password')} />

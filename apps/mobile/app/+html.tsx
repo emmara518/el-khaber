@@ -16,6 +16,7 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>الخبير · صيانة • فنيين • متجر</title>
         <ScrollViewStyleReset />
       </head>
       <body>{children}</body>

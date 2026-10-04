@@ -109,10 +109,10 @@ export function PasswordField({ startIcon = 'lock', ...props }: PasswordFieldPro
       secureTextEntry={!visible}
       endSlot={
         <Pressable
-          accessibilityRole="togglebutton"
+          accessibilityRole="button"
           accessibilityLabel={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-          accessibilityState={{ selected: visible }}
-          aria-pressed={visible}
+          accessibilityState={{ expanded: visible }}
+          aria-expanded={visible}
           onPress={() => setVisible((v) => !v)}
           hitSlop={8}
           style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}
