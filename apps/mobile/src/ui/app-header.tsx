@@ -26,6 +26,8 @@ interface AppHeaderProps {
   avatarInitials?: string;
   /** Unread notification count; a badge shows when > 0. */
   notificationCount?: number;
+  /** When provided, a back affordance replaces the notifications action. */
+  onPressBack?: () => void;
   onPressNotifications?: () => void;
   onPressAvatar?: () => void;
   style?: StyleProp<ViewStyle>;
@@ -39,6 +41,7 @@ export function AppHeader({
   availabilityLabel,
   avatarInitials,
   notificationCount = 0,
+  onPressBack,
   onPressNotifications,
   onPressAvatar,
   style,
@@ -47,7 +50,17 @@ export function AppHeader({
     <SafeAreaView edges={['top']} style={[styles.safe, style]}>
       <View style={styles.row}>
         <View style={styles.slot}>
-          {onPressNotifications ? (
+          {onPressBack ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="رجوع"
+              onPress={onPressBack}
+              hitSlop={8}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            >
+              <Icon name="arrow-right" size={18} color={color.brand.navy} />
+            </Pressable>
+          ) : onPressNotifications ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={

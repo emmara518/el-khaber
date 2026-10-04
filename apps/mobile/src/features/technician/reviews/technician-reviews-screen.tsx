@@ -37,6 +37,7 @@ export default function TechnicianReviewsScreen({
   return (
     <View style={styles.root}>
       <AppHeader
+        onPressBack={() => router.replace('/(technician)/profile')}
         onPressNotifications={() => router.push('/(technician)/notifications')}
         onPressAvatar={() => router.push('/(technician)/profile')}
       />

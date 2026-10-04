@@ -60,6 +60,7 @@ export default function MerchantProductFormScreen({
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
     <AppHeader
+      onPressBack={() => router.replace('/(merchant)/products')}
       onPressNotifications={() => router.push('/(merchant)/notifications')}
       onPressAvatar={() => router.push('/(merchant)/profile')}
     />

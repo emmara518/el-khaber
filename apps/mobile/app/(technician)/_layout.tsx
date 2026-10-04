@@ -13,7 +13,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RoleTabBar, type ShellTab } from '@/features/shell/role-tab-bar';
-import { tabIdForPathname } from '@/features/technician/technician-tab-routing';
+import { isTechnicianFlowRoute, tabIdForPathname } from '@/features/technician/technician-tab-routing';
 
 const TABS: ReadonlyArray<ShellTab> = [
   { id: 'home', labelAr: 'الرئيسية', icon: 'home', asset: 'home' },
@@ -27,6 +27,22 @@ export default function TechnicianTabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const active = tabIdForPathname(pathname);
+  // Isolated flows (onboarding, request detail, active service, reviews,
+  // settings) render full-screen with no global tab bar; their own
+  // navigation owns the journey.
+  const isFlow = isTechnicianFlowRoute(pathname);
+
+  if (isFlow) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView edges={['bottom']} style={styles.safe}>
+          <View style={styles.content}>
+            <Slot />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>

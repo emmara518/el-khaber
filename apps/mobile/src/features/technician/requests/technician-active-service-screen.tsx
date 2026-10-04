@@ -61,6 +61,7 @@ export default function TechnicianActiveServiceScreen({
 
   const header = (
     <AppHeader
+      onPressBack={() => router.replace('/(technician)/orders')}
       onPressNotifications={() => router.push('/(technician)/notifications')}
       onPressAvatar={() => router.push('/(technician)/profile')}
     />

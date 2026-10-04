@@ -78,6 +78,7 @@ export default function MerchantProductDetailScreen({
 
   const header = (
     <AppHeader
+      onPressBack={() => router.replace('/(merchant)/products')}
       onPressNotifications={() => router.push('/(merchant)/notifications')}
       onPressAvatar={() => router.push('/(merchant)/profile')}
     />

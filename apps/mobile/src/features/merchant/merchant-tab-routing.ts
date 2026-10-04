@@ -20,3 +20,20 @@ export function tabIdForPathname(pathname: string): MerchantTabId | null {
   // Not a tab route (onboarding, settings, notifications): no tab is active.
   return null;
 }
+
+/**
+ * Full-screen merchant workflows that must render as an isolated journey
+ * with NO global bottom tab bar:
+ * - `/onboarding` — the onboarding wizard (own Back/Next nav),
+ * - `/products/[id]` — product detail (own back action),
+ * - `/products/new` and `/products/[id]/edit` — the product form,
+ * - `/settings` — the account settings surface (own back action).
+ *
+ * `/products` (the catalog list) remains a tab root and keeps the tab bar.
+ */
+export function isMerchantFlowRoute(pathname: string): boolean {
+  if (pathname === '/onboarding') return true;
+  if (pathname === '/settings') return true;
+  if (pathname.startsWith('/products/')) return true;
+  return false;
+}

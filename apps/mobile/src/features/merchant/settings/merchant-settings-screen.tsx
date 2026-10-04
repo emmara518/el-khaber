@@ -24,6 +24,7 @@ export default function MerchantSettingsScreen() {
   return (
     <View style={styles.root}>
       <AppHeader
+        onPressBack={() => router.replace('/(merchant)/profile')}
         onPressNotifications={() => router.push('/(merchant)/notifications')}
         onPressAvatar={() => router.push('/(merchant)/profile')}
       />

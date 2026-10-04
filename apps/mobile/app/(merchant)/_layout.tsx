@@ -12,7 +12,7 @@ import { Slot, usePathname, useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { tabIdForPathname } from '@/features/merchant/merchant-tab-routing';
+import { isMerchantFlowRoute, tabIdForPathname } from '@/features/merchant/merchant-tab-routing';
 import { RoleTabBar, type ShellTab } from '@/features/shell/role-tab-bar';
 
 const TABS: ReadonlyArray<ShellTab> = [
@@ -26,6 +26,22 @@ export default function MerchantTabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const active = tabIdForPathname(pathname);
+  // Isolated flows (onboarding, product detail/form, settings) render
+  // full-screen with no global tab bar; their own navigation owns the
+  // journey. `/products` (the catalog list) stays a tab root.
+  const isFlow = isMerchantFlowRoute(pathname);
+
+  if (isFlow) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView edges={['bottom']} style={styles.safe}>
+          <View style={styles.content}>
+            <Slot />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>

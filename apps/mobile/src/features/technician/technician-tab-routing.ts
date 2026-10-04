@@ -22,3 +22,23 @@ export function tabIdForPathname(pathname: string): TechnicianTabId | null {
   // no tab is active.
   return null;
 }
+
+/**
+ * Full-screen technician workflows that must render as an isolated
+ * journey with NO global bottom tab bar:
+ * - `/onboarding` — the onboarding wizard (own Back/Next nav),
+ * - `/orders/[id]` — request detail (own back action),
+ * - `/active-service` — the service execution screen (own actions),
+ * - `/reviews` — the reviews detail (own back action),
+ * - `/settings` — the account settings surface (own back action).
+ *
+ * `/orders` (the list) remains a tab root and keeps the tab bar.
+ */
+export function isTechnicianFlowRoute(pathname: string): boolean {
+  if (pathname === '/onboarding') return true;
+  if (pathname === '/active-service') return true;
+  if (pathname === '/reviews') return true;
+  if (pathname === '/settings') return true;
+  if (pathname.startsWith('/orders/')) return true;
+  return false;
+}
