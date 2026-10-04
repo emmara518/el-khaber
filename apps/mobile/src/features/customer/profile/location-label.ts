@@ -13,5 +13,5 @@ export function profileLocationLabel(
   const parts = [cityAr, districtAr]
     .map((part) => (part ?? '').trim())
     .filter((part) => part.length > 0);
-  return parts.length > 0 ? parts.join(' - ') : null;
+  return parts.length > 0 ? parts.join(' · ') : null;
 }

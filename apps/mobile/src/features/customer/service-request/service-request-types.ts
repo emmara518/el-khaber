@@ -164,7 +164,7 @@ export function problemsForAppliance(
   problems: ReadonlyArray<ProblemOption>,
   appliance: ApplianceSlug | null,
 ): ReadonlyArray<ProblemOption> {
-  if (appliance === null) return [];
+  if (appliance === null) return problems;
   return problems.filter((p) => p.applianceSlug === null || p.applianceSlug === appliance);
 }
 

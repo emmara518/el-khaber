@@ -29,6 +29,7 @@ import { buildQuery, drainPages } from '../../../lib/api-query';
 import { categorySlugById } from '../../../lib/catalog-reference';
 import { initialsOf } from '../../../lib/request-labels';
 import { availabilityLabelAr, isAvailable } from '../../../lib/technician-status';
+import { isApplianceSlug } from '../service-request/service-request-types';
 
 import type { TechnicianDataSource as TechnicianDataSourceContract } from './mock-technician-data-source';
 import type { Technician, TechnicianReview } from './technician-types';
@@ -76,7 +77,8 @@ export async function mapTechnicianCard(
     servicesAr.push(entry.service.nameAr);
     if (!specialtiesAr.includes(entry.service.nameAr)) specialtiesAr.push(entry.service.nameAr);
     const slug = await categorySlugById(entry.service.applianceCategoryId);
-    if (slug === 'washing_machine' || slug === 'refrigerator' || slug === 'air_conditioner') {
+    // All approved catalog appliance categories are in scope (CTO correction).
+    if (isApplianceSlug(slug)) {
       applianceSet.add(slug);
     }
   }

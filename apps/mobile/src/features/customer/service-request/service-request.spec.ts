@@ -163,7 +163,11 @@ describe('validation', () => {
     const wm = problemsForAppliance(form.problems, 'washing_machine');
     expect(wm.length).toBeGreaterThan(0);
     expect(wm.every((p) => p.applianceSlug === null || p.applianceSlug === 'washing_machine')).toBe(true);
-    expect(problemsForAppliance(form.problems, null)).toHaveLength(0);
+    // Unfiltered list (no appliance selected) exposes every catalog problem;
+    // scoping only removes the ones bound to a *different* appliance.
+    const all = problemsForAppliance(form.problems, null);
+    expect(all).toHaveLength(form.problems.length);
+    expect(all.length).toBeGreaterThanOrEqual(wm.length);
   });
 });
 

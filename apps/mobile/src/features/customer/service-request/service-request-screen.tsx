@@ -47,23 +47,10 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { APPLIANCE_LABELS as APPLIANCE_TITLES } from '@/lib/appliance-labels';
 import { ListError, ListLoading } from '@/ui';
 import { ApplianceIcon, Avatar, Card, Icon, SectionHeading, type } from '@/ui';
 import { applianceSceneAsset, SceneAction, SceneHero, SceneObject, SceneSection } from '@/ui/cinematic';
-
-
-const APPLIANCE_TITLES: Record<ApplianceSlug, string> = {
-  washing_machine: 'غسالات',
-  refrigerator: 'ثلاجات',
-  air_conditioner: 'تكييفات',
-  dishwasher: 'غسالات الأطباق',
-  coffee_machine: 'ماكينات القهوة',
-  microwave: 'ميكروويف',
-  oven: 'أفران',
-  tv_screen: 'شاشات',
-  vacuum_cleaner: 'مكانس كهربائية',
-  water_heater: 'سخانات المياه',
-};
 
 export default function ServiceRequestScreen({
   handoff,

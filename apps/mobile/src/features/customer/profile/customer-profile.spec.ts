@@ -24,10 +24,12 @@ describe('profile mock contract', () => {
 });
 
 // Regression guard for F-05: an empty location must never render a
-// dangling " - " line, and must be reported as absent (null) instead.
+// dangling separator line, and must be reported as absent (null) instead.
+// Parts join with the Arabic-safe middot " · " (never hyphen, which is
+// visually ambiguous and RTL-unsafe).
 describe('profile location label (truthful null handling)', () => {
   it('joins only real, non-empty parts', () => {
-    expect(profileLocationLabel('القاهرة', 'مدينة نصر')).toBe('القاهرة - مدينة نصر');
+    expect(profileLocationLabel('القاهرة', 'مدينة نصر')).toBe('القاهرة · مدينة نصر');
     expect(profileLocationLabel('القاهرة', '')).toBe('القاهرة');
     expect(profileLocationLabel('', 'مدينة نصر')).toBe('مدينة نصر');
     expect(profileLocationLabel('  ', '  ')).toBeNull();
