@@ -79,7 +79,7 @@ export default function SubscriptionScreen() {
       {vm.status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
       {vm.status === 'error' ? (
         <ListError
-          title="تعذر تحميل الاشتراك"
+          title={t('subscription.error.title')}
           message={vm.error?.message ?? ''}
           retryLabel={t('state.retry')}
           onRetry={vm.reload}
@@ -89,26 +89,26 @@ export default function SubscriptionScreen() {
         <>
           <View style={styles.titleWrap}>
             <PageTitle
-              eyebrow="الاشتراكات"
+              eyebrow={t('subscription.eyebrow')}
               title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'}
               body={
                 current === null
                   ? 'استعرض الباقات المتاحة. يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.'
-                  : 'يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة، ويمكنك متابعة حالة طلباتك أدناه.'
+                  : 'يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة، ويمكنك متابعة حالة الاشتراك هنا.'
               }
             />
           </View>
           <View style={styles.sections}>
             {current !== null ? (
               <Card background={color.surface.base} padded style={styles.card}>
-                <Text style={styles.sectionTitle}>اشتراكك الحالي</Text>
+                <Text style={styles.sectionTitle}>{t('subscription.active.title')}</Text>
                 <Text style={styles.planName}>{current.planNameAr}</Text>
-                <Text style={styles.metaText}>الحالة: {current.statusAr}</Text>
+                <Text style={styles.metaText}>{t('subscription.current.label')}: {current.statusAr}</Text>
                 <Text style={styles.metaText}>
-                  ينتهي في: {formatPeriodEnd(current.currentPeriodEnd)}
+                  {t('subscription.period.end.label')}: {formatPeriodEnd(current.currentPeriodEnd)}
                 </Text>
                 <Text style={styles.metaText}>
-                  التجديد: {current.renewalEnabled ? 'مفعّل' : 'موقوف'}
+                  {t('subscription.renewal.label')}: {current.renewalEnabled ? t('subscription.renewal.enabled') : t('subscription.renewal.disabled')}
                 </Text>
                 <Text style={styles.metaText}>
                   {priceLineAr(current.price, current.currency, current.billingInterval)}
@@ -122,15 +122,15 @@ export default function SubscriptionScreen() {
                     ) : null}
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="إيقاف التجديد التلقائي"
+                      accessibilityLabel={t('subscription.cancel.action')}
                       disabled={vm.cancelling}
                       onPress={vm.cancelRenewal}
                       style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
                     >
                       {vm.cancelling ? (
-                        <ActivityIndicator accessibilityLabel="جارٍ الإيقاف" color={color.brand.navy} />
+                        <ActivityIndicator accessibilityLabel={t('state.loading')} color={color.brand.navy} />
                       ) : (
-                        <Text style={styles.secondaryText}>إيقاف التجديد التلقائي</Text>
+                        <Text style={styles.secondaryText}>{t('subscription.cancel.action')}</Text>
                       )}
                     </Pressable>
                   </>
@@ -139,10 +139,10 @@ export default function SubscriptionScreen() {
             ) : null}
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>الباقات المتاحة</Text>
+              <Text style={styles.sectionTitle}>{t('subscription.plans.title')}</Text>
               {vm.plans.length === 0 ? (
                 <Card background={color.surface.base} padded>
-                  <Text style={styles.muted}>لا توجد باقات متاحة حاليًا.</Text>
+                  <Text style={styles.muted}>{t('subscription.noPlans')}</Text>
                 </Card>
               ) : (
                 vm.plans.map((plan) => (
@@ -152,6 +152,7 @@ export default function SubscriptionScreen() {
                     isCurrent={current?.status === 'active' && current.planId === plan.id}
                     selectable={canSelectPlan(plan, current)}
                     nextLabel={subscribeNextAction(plan, current).labelAr}
+                    selectLabel={t('subscription.select.action')}
                     onSelect={() => openPayment(plan)}
                   />
                 ))
@@ -159,16 +160,16 @@ export default function SubscriptionScreen() {
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>طلبات الدفع</Text>
+              <Text style={styles.sectionTitle}>{t('subscription.requests.title')}</Text>
               {vm.submissions.length === 0 ? (
                 <Card background={color.surface.base} padded>
-                  <Text style={styles.muted}>لا توجد طلبات دفع سابقة.</Text>
+                  <Text style={styles.muted}>{t('subscription.noRequests')}</Text>
                 </Card>
               ) : (
                 vm.submissions.map((submission) => (
                   <Card key={submission.id} background={color.surface.base} padded style={styles.card}>
-                    <Text style={styles.metaText}>الحالة: {submission.statusAr}</Text>
-                    <Text style={styles.muted}>المرجع: {submission.transferReference}</Text>
+                    <Text style={styles.metaText}>{t('subscription.current.label')}: {submission.statusAr}</Text>
+                    <Text style={styles.muted}>{t('subscription.reference.label')}: {submission.transferReference}</Text>
                   </Card>
                 ))
               )}
@@ -198,12 +199,14 @@ function PlanCard({
   isCurrent,
   selectable,
   nextLabel,
+  selectLabel,
   onSelect,
 }: {
   plan: SubscriptionPlan;
   isCurrent: boolean;
   selectable: boolean;
   nextLabel: string;
+  selectLabel: string;
   onSelect: () => void;
 }) {
   return (
@@ -221,11 +224,11 @@ function PlanCard({
       {selectable ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`اختيار باقة ${plan.nameAr}`}
+          accessibilityLabel={`${selectLabel} ${plan.nameAr}`}
           onPress={onSelect}
           style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
         >
-          <Text style={styles.primaryText}>اختيار الباقة</Text>
+          <Text style={styles.primaryText}>{selectLabel}</Text>
         </Pressable>
       ) : null}
     </Card>
@@ -253,6 +256,7 @@ function PaymentDialog({
   onSubmit: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   if (plan === null) return null;
 
   const selectedMethodConfig = vm.methods.find((m) => m.method === method) ?? null;
@@ -264,13 +268,13 @@ function PaymentDialog({
       visible
       transparent
       animationType="fade"
-      accessibilityLabel="طلب دفع الاشتراك"
+      accessibilityLabel={t('subscription.pay.title')}
       onRequestClose={onClose}
     >
       <View style={styles.scrim}>
         <Card background={color.surface.base} padded style={styles.dialog}>
           <Text accessibilityRole="header" style={styles.dialogTitle}>
-            طلب اشتراك: {plan.nameAr}
+            {t('subscription.pay.title')}: {plan.nameAr}
           </Text>
           <Text style={styles.metaText}>
             {priceLineAr(plan.price, plan.currency, plan.billingInterval)}
@@ -279,23 +283,23 @@ function PaymentDialog({
           {succeeded ? (
             <>
               <View style={styles.successBox}>
-                <Icon name="check-circle" size={18} color={color.success.DEFAULT} accessibilityLabel="تم الإرسال" />
-                <Text style={styles.muted}>تم إرسال طلب الدفع. سيُفعّل الاشتراك بعد مراجعة الإدارة.</Text>
+                <Icon name="check-circle" size={18} color={color.success.DEFAULT} accessibilityLabel="تم" />
+                <Text style={styles.muted}>تم إرسال طلب الدفع. سيتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.</Text>
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="إغلاق"
+                accessibilityLabel={t('subscription.close.action')}
                 onPress={onClose}
                 style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
               >
-                <Text style={styles.primaryText}>إغلاق</Text>
+                <Text style={styles.primaryText}>{t('subscription.close.action')}</Text>
               </Pressable>
             </>
           ) : (
             <>
-              <Text style={styles.fieldLabel}>طريقة الدفع</Text>
+              <Text style={styles.fieldLabel}>{t('subscription.method.label')}</Text>
               {vm.methods.length === 0 ? (
-                <Text style={styles.muted}>لا توجد وسائل دفع مفعّلة حاليًا.</Text>
+                <Text style={styles.muted}>{t('subscription.method.none')}</Text>
               ) : (
                 <View style={styles.methods}>
                   {vm.methods.map((option) => {
@@ -304,7 +308,7 @@ function PaymentDialog({
                       <Pressable
                         key={option.method}
                         accessibilityRole="radio"
-                        accessibilityLabel={`طريقة الدفع: ${option.displayName}${selected ? '، محدد حاليًا' : ''}`}
+                        accessibilityLabel={`${t('subscription.method.label')}: ${option.displayName}${selected ? '، مُحدّد' : ''}`}
                         accessibilityState={{ selected, checked: selected }}
                         onPress={() => onSelectMethod(option.method)}
                         style={({ pressed }) => [styles.method, selected && styles.methodSelected, pressed && styles.pressed]}
@@ -320,14 +324,14 @@ function PaymentDialog({
 
               {selectedMethodConfig !== null ? (
                 <Text style={styles.muted}>
-                  حوّل المبلغ إلى: {selectedMethodConfig.displayName} — {selectedMethodConfig.accountIdentifier}
+                  {t('subscription.method.details')}: {selectedMethodConfig.displayName} — {selectedMethodConfig.accountIdentifier}
                 </Text>
               ) : null}
 
-              <Text style={styles.fieldLabel}>مرجع التحويل</Text>
+              <Text style={styles.fieldLabel}>{t('subscription.reference.label')}</Text>
               <TextInput
-                accessibilityLabel="مرجع التحويل"
-                placeholder="مثال: رقم عملية التحويل"
+                accessibilityLabel={t('subscription.reference.label')}
+                placeholder={t('subscription.reference.placeholder')}
                 placeholderTextColor={color.text.secondary}
                 value={reference}
                 onChangeText={onChangeReference}
@@ -345,35 +349,33 @@ function PaymentDialog({
                 <Text accessibilityRole="alert" style={styles.error}>{vm.submitError}</Text>
               ) : null}
 
-              <Text style={styles.note}>
-                لن يُفعّل الاشتراك تلقائيًا؛ تتم المراجعة من الإدارة بعد التسجيل.
-              </Text>
+              <Text style={styles.note}>{t('subscription.note')}</Text>
 
               <View style={styles.dialogActions}>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="إرسال طلب الدفع"
+                  accessibilityLabel={t('subscription.submit.action')}
                   accessibilityState={{ disabled: submitting, busy: submitting }}
                   onPress={onSubmit}
                   disabled={submitting}
                   style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
                 >
                   {submitting ? (
-                    <ActivityIndicator accessibilityLabel="جارٍ إرسال الطلب" color={color.surface.base} />
+                    <ActivityIndicator accessibilityLabel={t('state.loading')} color={color.surface.base} />
                   ) : (
                     <Text style={styles.primaryText}>
-                      {vm.submitStatus === 'error' ? 'إعادة المحاولة' : 'إرسال طلب الدفع'}
+                      {vm.submitStatus === 'error' ? t('subscription.submit.retry') : t('subscription.submit.action')}
                     </Text>
                   )}
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="إلغاء"
+                  accessibilityLabel={t('subscription.cancel.action.inline')}
                   onPress={onClose}
                   disabled={submitting}
                   style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
                 >
-                  <Text style={styles.secondaryText}>إلغاء</Text>
+                  <Text style={styles.secondaryText}>{t('subscription.cancel.action.inline')}</Text>
                 </Pressable>
               </View>
             </>
