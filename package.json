@@ -7,6 +7,19 @@
   "engines": {
     "node": ">=20.11.0"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@expo/cli",
+      "@prisma/client",
+      "@prisma/engines",
+      "@swc/core",
+      "argon2",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
+  },
   "scripts": {
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
