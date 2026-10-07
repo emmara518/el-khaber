@@ -62,6 +62,12 @@ export async function mapTechnicianRequest(
   const applianceSlug = await categorySlugById(summary.applianceCategoryId);
   const problemAr =
     summary.problemTitle ?? summary.problemDescription.split('\n')[0]?.slice(0, 80) ?? '';
+  // Defensive: tolerate a server that predates the location-in-summary
+  // contract (staggered rollout) — render an empty location rather than
+  // crashing. The list still never falls back to a per-row detail fetch.
+  const location = summary.location as
+    | { label: string | null; city: string | null; addressText: string | null }
+    | undefined;
   return {
     id: summary.id,
     customerNameAr: CUSTOMER_NAME_FALLBACK_AR, // privacy by contract
@@ -69,7 +75,7 @@ export async function mapTechnicianRequest(
     applianceSlug,
     problemAr,
     descriptionAr: summary.problemDescription,
-    locationAr: locationArFromSummary(summary.location),
+    locationAr: location ? locationArFromSummary(location) : '',
     timeAr: summary.scheduledAt !== null ? formatArDateTime(summary.scheduledAt) : '',
     createdAr: formatArDateTime(summary.createdAt),
     appointmentAr: summary.scheduledAt !== null ? formatArDateTime(summary.scheduledAt) : null,

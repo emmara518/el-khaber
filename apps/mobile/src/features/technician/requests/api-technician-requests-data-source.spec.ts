@@ -72,6 +72,18 @@ describe('technician requests list enrichment (P0-1)', () => {
 
     expect(requests[0]?.locationAr).toBe('');
   });
+
+  it('tolerates a legacy summary without location (staggered rollout): no crash, still one call', async () => {
+    const legacy = summaryDto();
+    delete (legacy as Record<string, unknown>).location;
+    requestMock.mockResolvedValueOnce({ data: [legacy], meta: META });
+
+    const requests = await new ApiTechnicianRequestsDataSource().getRequests({ role: 'technician' });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.locationAr).toBe('');
+    expect(requestMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('locationArFromSummary', () => {
