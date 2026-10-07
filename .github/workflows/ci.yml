@@ -2,15 +2,19 @@ name: ci
 
 on:
   push:
-    branches: [main]
+    branches: [main, review/final-production-release]
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
-    name: install · typecheck · lint
+    name: install · typecheck · lint · tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -35,3 +39,44 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      - name: Build shared packages
+        run: pnpm --filter @khabir/shared-types --filter @khabir/shared-validation build
+
+      # API tests run against the in-memory FakePrisma harness — no database
+      # or production secrets required. Real-DB integration specs self-skip
+      # without a Supabase DATABASE_URL.
+      - name: API tests
+        run: pnpm --filter @khabir/api test
+
+      - name: Mobile tests
+        run: pnpm --filter @khabir/mobile test
+
+  web-export:
+    name: expo web export
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Web export
+        run: pnpm --filter @khabir/mobile export:web
+
+      - name: Verify export output
+        run: test -f apps/mobile/dist-web/index.html
