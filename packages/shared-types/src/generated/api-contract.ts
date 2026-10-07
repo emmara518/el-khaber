@@ -27,12 +27,82 @@ export interface AdminGrantResultDto {
 }
 
 /**
+ * Admin merchant list item read model.
+ */
+export interface AdminMerchantDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin metrics read model.
+ */
+export interface AdminMetricsDto {
+  [key: string]: unknown;
+}
+
+/**
  * Admin operational notification creation result.
  */
 export interface AdminNotificationResultDto {
   id: string;
   type: string;
   userId: string;
+}
+
+/**
+ * Admin review list item read model.
+ */
+export interface AdminReviewDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin review removal result.
+ */
+export interface AdminReviewRemoveResultDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin service-request list item read model.
+ */
+export interface AdminServiceRequestDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin service-request status override result.
+ */
+export interface AdminStatusOverrideResultDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin technician list item read model.
+ */
+export interface AdminTechnicianDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin user detail read model.
+ */
+export interface AdminUserDetailDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin user list item read model.
+ */
+export interface AdminUserDto {
+  [key: string]: unknown;
+}
+
+/**
+ * Admin verification decision result.
+ */
+export interface AdminVerificationResultDto {
+  [key: string]: unknown;
 }
 
 /**
@@ -57,6 +127,13 @@ export interface ApplianceCategoryDto {
   nameAr: string;
   slug: string;
   sortOrder: number;
+}
+
+/**
+ * Audit log entry read model.
+ */
+export interface AuditLogDto {
+  [key: string]: unknown;
 }
 
 /**
@@ -312,6 +389,8 @@ export interface NotificationDto {
   type: string;
 }
 
+export type PaymentApprovalResultDto = PaymentReviewResultDto;
+
 /**
  * Admin-managed manual payment destination (method + account + display name).
  */
@@ -321,6 +400,8 @@ export interface PaymentMethodConfigDto {
   isEnabled: boolean;
   method: 'instapay' | 'vodafone_cash';
 }
+
+export type PaymentRejectResultDto = PaymentReviewResultDto;
 
 /**
  * Admin approval/rejection result payload.
@@ -349,6 +430,29 @@ export interface PaymentSubmissionDto {
 }
 
 /**
+ * Admin presigned download grant for a submission proof.
+ */
+export interface ProofDownloadUrlDto {
+  downloadUrl: string;
+  expiresInSeconds: number;
+  storageKey: string;
+  submissionId: string;
+}
+
+/**
+ * Presigned PUT grant for a server-generated proof storage key.
+ */
+export interface ProofUploadUrlDto {
+  expiresInSeconds: number;
+  maxBytes: number;
+  mimeType: string;
+  requiredHeaders?: Record<string, string>;
+  storageKey: string;
+  submissionId: string;
+  uploadUrl: string;
+}
+
+/**
  * Minimal public merchant identity attached to a store product. No contact/verification/internal fields are exposed.
  */
 export interface PublicMerchantRefDto {
@@ -366,6 +470,13 @@ export interface PublicProductDto {
   nameAr: string;
   price: number | null;
   slug: string;
+}
+
+/**
+ * Result of marking all own notifications read.
+ */
+export interface ReadAllResultDto {
+  updated: number;
 }
 
 /**

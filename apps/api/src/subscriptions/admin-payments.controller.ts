@@ -22,6 +22,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 
 import { AuthKind, CurrentUser, type RequestUser } from '../common/decorators';
+import { ValidationException } from '../common/errors';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -59,8 +60,13 @@ export class AdminPaymentsController {
     @Param('method') method: string,
     @Body(new ZodValidationPipe(adminPaymentConfigUpsertSchema)) body: AdminPaymentConfigUpsertInput,
   ): Promise<ApiSuccess<Payload>> {
-    const parsed = paymentMethodSchema.parse(method);
-    return { data: await this.payments.adminUpsertConfig(admin.id, parsed, body) };
+    const parsed = paymentMethodSchema.safeParse(method);
+    if (!parsed.success) {
+      // Invalid :method must be a 400 (canonical envelope), never an
+      // unhandled ZodError → 500.
+      throw new ValidationException('Invalid payment method');
+    }
+    return { data: await this.payments.adminUpsertConfig(admin.id, parsed.data, body) };
   }
 
   // --- Payment review (CTO contract §1.5) ----------------------------------

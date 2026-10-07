@@ -39,6 +39,14 @@ components:
         - id
         - userId
       type: object
+    AdminMerchantDto:
+      additionalProperties: true
+      description: Admin merchant list item read model.
+      type: object
+    AdminMetricsDto:
+      additionalProperties: true
+      description: Admin metrics read model.
+      type: object
     AdminNotificationResultDto:
       additionalProperties: false
       description: Admin operational notification creation result.
@@ -55,6 +63,38 @@ components:
         - id
         - userId
         - type
+      type: object
+    AdminReviewDto:
+      additionalProperties: true
+      description: Admin review list item read model.
+      type: object
+    AdminReviewRemoveResultDto:
+      additionalProperties: true
+      description: Admin review removal result.
+      type: object
+    AdminServiceRequestDto:
+      additionalProperties: true
+      description: Admin service-request list item read model.
+      type: object
+    AdminStatusOverrideResultDto:
+      additionalProperties: true
+      description: Admin service-request status override result.
+      type: object
+    AdminTechnicianDto:
+      additionalProperties: true
+      description: Admin technician list item read model.
+      type: object
+    AdminUserDetailDto:
+      additionalProperties: true
+      description: Admin user detail read model.
+      type: object
+    AdminUserDto:
+      additionalProperties: true
+      description: Admin user list item read model.
+      type: object
+    AdminVerificationResultDto:
+      additionalProperties: true
+      description: Admin verification decision result.
       type: object
     ApiMeta:
       additionalProperties: true
@@ -104,6 +144,10 @@ components:
         - iconUrl
         - imageUrl
         - sortOrder
+      type: object
+    AuditLogDto:
+      additionalProperties: true
+      description: Audit log entry read model.
       type: object
     AuthSessionDto:
       additionalProperties: false
@@ -806,6 +850,9 @@ components:
         - readAt
         - createdAt
       type: object
+    PaymentApprovalResultDto:
+      $ref: '#/components/schemas/PaymentReviewResultDto'
+      description: Admin approval result (alias of PaymentReviewResultDto).
     PaymentMethodConfigDto:
       additionalProperties: false
       description: Admin-managed manual payment destination (method + account + display name).
@@ -827,6 +874,9 @@ components:
         - displayName
         - isEnabled
       type: object
+    PaymentRejectResultDto:
+      $ref: '#/components/schemas/PaymentReviewResultDto'
+      description: Admin rejection result (alias of PaymentReviewResultDto).
     PaymentReviewResultDto:
       additionalProperties: false
       description: Admin approval/rejection result payload.
@@ -903,6 +953,54 @@ components:
         - createdAt
         - updatedAt
       type: object
+    ProofDownloadUrlDto:
+      additionalProperties: false
+      description: Admin presigned download grant for a submission proof.
+      properties:
+        downloadUrl:
+          type: string
+        expiresInSeconds:
+          type: integer
+        storageKey:
+          type: string
+        submissionId:
+          format: uuid
+          type: string
+      required:
+        - submissionId
+        - storageKey
+        - downloadUrl
+        - expiresInSeconds
+      type: object
+    ProofUploadUrlDto:
+      additionalProperties: false
+      description: Presigned PUT grant for a server-generated proof storage key.
+      properties:
+        expiresInSeconds:
+          type: integer
+        maxBytes:
+          type: integer
+        mimeType:
+          type: string
+        requiredHeaders:
+          additionalProperties:
+            type: string
+          type: object
+        storageKey:
+          type: string
+        submissionId:
+          format: uuid
+          type: string
+        uploadUrl:
+          type: string
+      required:
+        - submissionId
+        - storageKey
+        - uploadUrl
+        - mimeType
+        - maxBytes
+        - expiresInSeconds
+      type: object
     PublicMerchantRefDto:
       additionalProperties: false
       description: >-
@@ -947,6 +1045,15 @@ components:
         - price
         - imageUrl
         - merchant
+      type: object
+    ReadAllResultDto:
+      additionalProperties: false
+      description: Result of marking all own notifications read.
+      properties:
+        updated:
+          type: integer
+      required:
+        - updated
       type: object
     ReadyDto:
       additionalProperties: false

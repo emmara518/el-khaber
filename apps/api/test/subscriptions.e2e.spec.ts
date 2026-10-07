@@ -229,6 +229,16 @@ describe('subscriptions + manual payments e2e', () => {
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
 
+    it('returns 400 (not 500) for an invalid payment method on admin config (P2-4)', async () => {
+      const admin = await loginAdmin('s-badmethod-admin@example.com');
+      const res = await request(app.getHttpServer())
+        .put('/api/v1/admin/payments/config/not_a_method')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ account_identifier: '01000000000', display_name: 'الخبير', is_enabled: true });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('blocks submission with disabled method, foreign role plan, and inactive plan', async () => {
       const customer = await register('customer', 's-block@example.com');
       const admin = await loginAdmin('s-block-admin@example.com');
