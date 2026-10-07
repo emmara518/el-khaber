@@ -402,6 +402,8 @@ const ARABIC: Record<string, string> = {
   'merchant.settings.onboardingHint': 'إكمال أو تحديث بيانات المتجر',
   'merchant.settings.notifications': 'الإشعارات',
   'merchant.settings.notificationsHint': 'متابعة تحديثات متجرك ومنتجاتك',
+  'merchant.settings.subscription': 'الاشتراك',
+  'merchant.settings.subscriptionHint': 'الباقة وحالة الدفع الخاصة بمتجرك',
   // Merchant — catalog (M-C)
   'merchant.catalog.title': 'إدارة المنتجات',
   'merchant.catalog.subtitle': 'منتجات متجرك وحالاتها',

@@ -65,6 +65,13 @@ export default function MerchantSettingsScreen() {
             />
             <MenuDivider />
             <MenuRow
+              icon="award"
+              label={t('merchant.settings.subscription')}
+              hint={t('merchant.settings.subscriptionHint')}
+              onPress={() => router.push('/(merchant)/subscription')}
+            />
+            <MenuDivider />
+            <MenuRow
               icon="headphones"
               label={t('profile.menu.support')}
               hint={t('profile.support.body')}

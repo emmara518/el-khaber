@@ -95,6 +95,41 @@ describe('ApiSubscriptionsDataSource (WP-6)', () => {
     // WP-7 D7: entitlement codes are never fetched/transported.
     expect(requestMock.mock.calls.some((c) => String(c[1]).includes('/me/entitlements'))).toBe(false);
   });
+
+  it('reads the merchant current-subscription alias and unwraps { subscription }', async () => {
+    requestMock.mockResolvedValueOnce({
+      data: {
+        subscription: {
+          id: 's1',
+          status: 'active',
+          startedAt: 'x',
+          currentPeriodStart: 'x',
+          currentPeriodEnd: '2026-11-01T00:00:00.000Z',
+          renewalEnabled: true,
+          cancelledAt: null,
+          createdAt: 'x',
+          plan: {
+            id: 'p1',
+            code: 'basic',
+            nameAr: 'باقة التاجر الأساسية',
+            nameEn: 'Merchant Basic',
+            role: 'merchant',
+            price: 49,
+            currency: 'EGP',
+            billingInterval: 'monthly',
+            isActive: true,
+          },
+        },
+        entitlements: ['products.manage'],
+      },
+      meta: undefined,
+    });
+
+    const current = await new ApiSubscriptionsDataSource().getCurrent({ role: 'merchant' });
+    expect(current?.planNameAr).toBe('باقة التاجر الأساسية');
+    expect(current?.statusAr).toBe('نشطة');
+    expect(requestMock.mock.calls[0]?.[1]).toBe('/merchant/subscription/current');
+  });
 });
 
 describe('ApiPaymentsDataSource (WP-6)', () => {
