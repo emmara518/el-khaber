@@ -1,0 +1,64 @@
+# Render Blueprint — EL-KHABIR API (production-delivery environment)
+#
+# Deploys the EXISTING NestJS API unchanged, using the existing
+# apps/api/Dockerfile (monorepo-root build context). No Render database or
+# Key Value is created: Supabase (khabir-dev) remains the only database.
+#
+# Secrets are NOT stored here: every secret uses `sync: false`, so Render
+# prompts for the value (or it is provided via the Render dashboard / MCP)
+# and never lands in git. See the release runbook for the value sources.
+#
+# Apply: Render dashboard -> New -> Blueprint -> select this repo/branch.
+# (Or create the web service via the Render MCP and match these settings.)
+
+services:
+  - type: web
+    name: khabir-api
+    runtime: docker
+    plan: starter                     # cost decision: always-on (not free spin-down)
+    region: frankfurt                 # closest to Supabase eu-west-1 (khabir-dev)
+    repo: https://github.com/emmara518/el-khabir
+    branch: review/final-production-release
+    autoDeploy: true                  # deploys only from the branch above
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      # --- runtime ---
+      - key: NODE_ENV
+        value: production
+      - key: API_GLOBAL_PREFIX
+        value: api/v1
+      - key: CORS_ORIGINS
+        value: https://el-khabir-uat.vercel.app
+      # Render injects PORT automatically; the app reads process.env.PORT.
+
+      # --- database (khabir-dev ONLY; never khabir-prod) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+
+      # --- auth secrets (must differ from each other) ---
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: ADMIN_JWT_ACCESS_SECRET
+        sync: false
+
+      # --- production proof storage (required: local is refused in production) ---
+      - key: PROOF_STORAGE_PROVIDER
+        value: s3
+      - key: PROOF_S3_BUCKET
+        sync: false
+      - key: PROOF_S3_REGION
+        value: eu-west-1
+      - key: PROOF_S3_ACCESS_KEY_ID
+        sync: false
+      - key: PROOF_S3_SECRET_ACCESS_KEY
+        sync: false
+
+      # --- password-reset delivery (real webhook; optional bearer) ---
+      - key: PASSWORD_RESET_DELIVERY_URL
+        sync: false
+      - key: PASSWORD_RESET_DELIVERY_TOKEN
+        sync: false
