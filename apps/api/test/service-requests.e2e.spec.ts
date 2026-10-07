@@ -399,6 +399,13 @@ describe('service request lifecycle e2e', () => {
         .set('Authorization', `Bearer ${techA.accessToken}`)
         .expect(200);
       expect(aList.body.data.map((r: { id: string }) => r.id)).toEqual([mine.id]);
+      // Regression (P0-1): the list summary carries the job location, so list
+      // views need no per-row detail fetch (no N+1 waterfall / burst / 429).
+      expect(aList.body.data[0].location).toEqual({
+        label: 'المنزل',
+        addressText: 'شارع عباس العقاد',
+        city: 'القاهرة',
+      });
 
       // Status filter: pending shows it, completed does not.
       const pendingOnly = await request(app.getHttpServer())

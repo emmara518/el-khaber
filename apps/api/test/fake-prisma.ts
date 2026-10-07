@@ -968,7 +968,12 @@ class FakePrismaClient {
       let rows = this.matchServiceRequests(args.where);
       rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
-      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+      return rows.map((r) =>
+        applySelect(
+          { ...r, location: this.locations.find((l) => l.id === r.locationId) } as unknown as Record<string, unknown>,
+          args.select,
+        ),
+      );
     },
     findFirst: async (args: { where: ServiceRequestWhere; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
       const row = this.matchServiceRequests(args.where)[0];

@@ -1202,7 +1202,10 @@ components:
       type: object
     ServiceRequestSummaryDto:
       additionalProperties: false
-      description: Role-scoped service-request list item.
+      description: >-
+        Role-scoped service-request list item. Includes the job-location summary (label/addressText/city) so list views
+        need no per-row detail fetch. The list is role-scoped, so the location is only returned to the request owner and
+        the targeted/assigned technician.
       properties:
         applianceCategoryId:
           format: uuid
@@ -1217,6 +1220,23 @@ components:
         id:
           format: uuid
           type: string
+        location:
+          additionalProperties: false
+          properties:
+            addressText:
+              nullable: true
+              type: string
+            city:
+              nullable: true
+              type: string
+            label:
+              nullable: true
+              type: string
+          required:
+            - label
+            - addressText
+            - city
+          type: object
         problemDescription:
           type: string
         problemTitle:
@@ -1251,6 +1271,7 @@ components:
         - scheduledAt
         - createdAt
         - updatedAt
+        - location
       type: object
     SubscriptionPlanDto:
       additionalProperties: false

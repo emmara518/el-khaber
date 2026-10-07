@@ -39,10 +39,24 @@ import type {
   ServiceRequestSummaryDto,
 } from '@khabir/shared-types';
 
-/** Summary → card model (location enriched separately, cached). */
+/** Location summary (label/city/addressText) → the existing single-line label. */
+export function locationArFromSummary(location: {
+  label: string | null;
+  city: string | null;
+  addressText: string | null;
+}): string {
+  return [location.label, location.city, location.addressText]
+    .filter((part): part is string => part !== null && part.trim().length > 0)
+    .join(' – ');
+}
+
+/**
+ * Summary → card model. The list payload now carries the location summary,
+ * so no per-row detail fetch is needed (removes the N+1 waterfall and the
+ * burst that tripped the global rate limit).
+ */
 export async function mapTechnicianRequest(
   summary: ServiceRequestSummaryDto,
-  locationAr: string,
 ): Promise<TechnicianRequest> {
   const applianceAr = await categoryNameAr(summary.applianceCategoryId);
   const applianceSlug = await categorySlugById(summary.applianceCategoryId);
@@ -55,7 +69,7 @@ export async function mapTechnicianRequest(
     applianceSlug,
     problemAr,
     descriptionAr: summary.problemDescription,
-    locationAr,
+    locationAr: locationArFromSummary(summary.location),
     timeAr: summary.scheduledAt !== null ? formatArDateTime(summary.scheduledAt) : '',
     createdAr: formatArDateTime(summary.createdAt),
     appointmentAr: summary.scheduledAt !== null ? formatArDateTime(summary.scheduledAt) : null,
@@ -66,31 +80,27 @@ export async function mapTechnicianRequest(
 
 /** Real detail location → the existing single-line location label. */
 export function locationArOf(dto: ServiceRequestDto): string {
-  return [dto.location.label, dto.location.city, dto.location.addressText]
-    .filter((part): part is string => part !== null && part.trim().length > 0)
-    .join(' – ');
+  return locationArFromSummary(dto.location);
 }
 
 /** Map a detail DTO (transition result) onto the card model. */
 export async function mapTechnicianRequestFromDetail(
   dto: ServiceRequestDto,
 ): Promise<TechnicianRequest> {
-  return mapTechnicianRequest(
-    {
-      applianceCategoryId: dto.applianceCategoryId,
-      createdAt: dto.createdAt,
-      faultId: dto.faultId,
-      id: dto.id,
-      problemDescription: dto.problemDescription,
-      problemTitle: dto.problemTitle,
-      scheduledAt: dto.scheduledAt,
-      serviceId: dto.serviceId,
-      status: dto.status,
-      technicianId: dto.technicianId,
-      updatedAt: dto.updatedAt,
-    },
-    locationArOf(dto),
-  );
+  return mapTechnicianRequest({
+    applianceCategoryId: dto.applianceCategoryId,
+    createdAt: dto.createdAt,
+    faultId: dto.faultId,
+    id: dto.id,
+    location: { label: dto.location.label, city: dto.location.city, addressText: dto.location.addressText },
+    problemDescription: dto.problemDescription,
+    problemTitle: dto.problemTitle,
+    scheduledAt: dto.scheduledAt,
+    serviceId: dto.serviceId,
+    status: dto.status,
+    technicianId: dto.technicianId,
+    updatedAt: dto.updatedAt,
+  });
 }
 
 
@@ -106,22 +116,9 @@ export class ApiTechnicianRequestsDataSource implements TechnicianRequestsDataSo
         )
         .then((res) => ({ items: res.data, meta: res.meta })),
     );
-    // Location lives only on the detail DTO; enrich the bounded
-    // visible window (cached so detail/action re-fetches stay deduped).
-    const locations = await Promise.all(
-      summaries.map(async (summary): Promise<string> => {
-        if (summary.technicianId === null) return ''; // pending: not assigned yet
-        try {
-          const dto = await this.detail(summary.id);
-          return locationArOf(dto);
-        } catch {
-          return ''; // location stays empty rather than fabricated
-        }
-      }),
-    );
-    return Promise.all(
-      summaries.map(async (summary, index) => mapTechnicianRequest(summary, locations[index])),
-    );
+    // Single list call: the summary now carries the location, so there is
+    // no per-row detail waterfall (no burst, no 429 on list rendering).
+    return Promise.all(summaries.map((summary) => mapTechnicianRequest(summary)));
   }
 
   async acceptRequest(input: { role: 'technician'; requestId: string }): Promise<TechnicianRequest> {

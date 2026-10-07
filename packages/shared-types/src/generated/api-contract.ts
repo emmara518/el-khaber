@@ -452,13 +452,14 @@ export interface ServiceRequestStatusHistoryDto {
 }
 
 /**
- * Role-scoped service-request list item.
+ * Role-scoped service-request list item. Includes the job-location summary (label/addressText/city) so list views need no per-row detail fetch. The list is role-scoped, so the location is only returned to the request owner and the targeted/assigned technician.
  */
 export interface ServiceRequestSummaryDto {
   applianceCategoryId: string;
   createdAt: string;
   faultId: string | null;
   id: string;
+  location: { addressText: string | null; city: string | null; label: string | null };
   problemDescription: string;
   problemTitle: string | null;
   scheduledAt: string | null;

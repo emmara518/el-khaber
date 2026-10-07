@@ -336,7 +336,11 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   },
   ServiceRequestSummaryDto: {
     type: 'object',
-    description: 'Role-scoped service-request list item.',
+    description:
+      'Role-scoped service-request list item. Includes the job-location summary ' +
+      '(label/addressText/city) so list views need no per-row detail fetch. The ' +
+      'list is role-scoped, so the location is only returned to the request owner ' +
+      'and the targeted/assigned technician.',
     properties: {
       id: { type: 'string', format: 'uuid' },
       status: REF('ServiceRequestStatus'),
@@ -349,6 +353,16 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       scheduledAt: { type: 'string', format: 'date-time', nullable: true },
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
+      location: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', nullable: true },
+          addressText: { type: 'string', nullable: true },
+          city: { type: 'string', nullable: true },
+        },
+        required: ['label', 'addressText', 'city'],
+        additionalProperties: false,
+      },
     },
     required: [
       'id',
@@ -362,6 +376,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'scheduledAt',
       'createdAt',
       'updatedAt',
+      'location',
     ],
     additionalProperties: false,
   },

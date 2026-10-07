@@ -47,6 +47,11 @@ const SUMMARY_SELECT = {
   scheduledAt: true,
   createdAt: true,
   updatedAt: true,
+  // Job location summary (list enrichment). The list is already role-scoped
+  // (customer owner / targeted-assigned technician), so including the
+  // location in the summary is authorized and removes the client's
+  // per-row detail waterfall (N+1).
+  location: { select: { label: true, addressText: true, city: true } },
 } satisfies Prisma.ServiceRequestSelect;
 
 const DETAIL_SELECT = {
@@ -73,6 +78,11 @@ type DetailRow = Prisma.ServiceRequestGetPayload<{ select: typeof DETAIL_SELECT 
 function toSummaryDto(row: SummaryRow): ServiceRequestSummaryDto {
   return {
     ...row,
+    location: {
+      label: row.location.label,
+      addressText: row.location.addressText,
+      city: row.location.city,
+    },
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
