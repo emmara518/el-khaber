@@ -21,7 +21,7 @@ import { Injectable } from '@nestjs/common';
 
 
 import { AuditService } from '../audit/audit.service';
-import { ConflictException, NotFoundException } from '../common/errors';
+import { ConflictException, NotFoundException, ValidationException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
 import { provisionalPeriodEnd } from './subscription-period';
@@ -134,13 +134,25 @@ export class PaymentsService {
       throw new ConflictException('Payment method is not available');
     }
 
+    // A client-supplied storage key can never be validated at creation: the
+    // submission id does not exist yet, so no key can be owned by it. Proof
+    // is attached ONLY via the owned proof endpoints (`proof-upload-url` →
+    // `proof-confirm`), which build and verify the key server-side. Accepting
+    // an arbitrary key here would let a user bind a foreign/guessed object
+    // that an admin later presigns a download for (P2-2).
+    if (input.proof_storage_key !== undefined) {
+      throw new ValidationException('proof_storage_key is not accepted on submission creation', {
+        proof_storage_key: 'Attach proof via the proof upload/confirm endpoints',
+      });
+    }
+
     const row = await this.prisma.paymentSubmission.create({
       data: {
         userId,
         planId: input.plan_id,
         method: input.method as PaymentMethodType,
         transferReference: input.transfer_reference,
-        proofStorageKey: input.proof_storage_key,
+        proofStorageKey: null,
         status: 'pending',
       },
       select: SUBMISSION_SELECT,

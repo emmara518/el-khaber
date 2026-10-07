@@ -207,6 +207,28 @@ describe('subscriptions + manual payments e2e', () => {
       expect(res.body.data.userId).toBe(customer.userId);
     });
 
+    it('rejects a client-supplied proof_storage_key at creation (P2-2)', async () => {
+      const customer = await register('customer', 's-proof-key@example.com');
+      const admin = await loginAdmin('s-proofkey-admin@example.com');
+      await request(app.getHttpServer())
+        .put('/api/v1/admin/payments/config/vodafone_cash')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ account_identifier: '01000000000', display_name: 'الخبير', is_enabled: true })
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/subscriptions')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          plan_id: '99999999-0000-4000-8000-000000000002',
+          method: 'vodafone_cash',
+          transfer_reference: 'TRX-123456',
+          proof_storage_key: 'payment-proofs/someone-else/other-submission/abc.jpg',
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('blocks submission with disabled method, foreign role plan, and inactive plan', async () => {
       const customer = await register('customer', 's-block@example.com');
       const admin = await loginAdmin('s-block-admin@example.com');
