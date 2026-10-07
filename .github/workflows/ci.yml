@@ -41,6 +41,12 @@ jobs:
       - name: Build shared packages
         run: pnpm --filter @khabir/shared-types --filter @khabir/shared-validation build
 
+      # The API's PrismaService needs the generated client types for
+      # typecheck/build/tests. Generation reads only schema.prisma — no DB
+      # or secrets required.
+      - name: Generate Prisma client
+        run: pnpm --filter @khabir/api exec prisma generate
+
       # API tests run against the in-memory FakePrisma harness — no database
       # or production secrets required. Real-DB integration specs self-skip
       # without a Supabase DATABASE_URL.
