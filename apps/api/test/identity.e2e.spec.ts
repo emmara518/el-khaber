@@ -321,4 +321,47 @@ describe('identity hardening e2e', () => {
       expect(res.body.error.code).toBe('AUTH_INVALID');
     });
   });
+
+  describe('access-token revocation (P2-3)', () => {
+    it('denies an already-issued access token immediately after suspension', async () => {
+      const session = await register(app, { phone: '01099990001' });
+      const me = await request(app.getHttpServer())
+        .get('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .expect(200);
+      const id = me.body.data.id as string;
+
+      const row = prisma.users.find((u) => u.id === id);
+      expect(row).toBeDefined();
+      if (row !== undefined) {
+        row.status = 'suspended';
+      }
+
+      const denied = await request(app.getHttpServer())
+        .get('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`);
+      expect(denied.status).toBe(401);
+    });
+
+    it('reflects a role change from the database, not the stale token claim', async () => {
+      const session = await register(app, { phone: '01099990002' });
+      const me = await request(app.getHttpServer())
+        .get('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .expect(200);
+      const id = me.body.data.id as string;
+
+      const row = prisma.users.find((u) => u.id === id);
+      expect(row).toBeDefined();
+      if (row !== undefined) {
+        row.role = 'technician';
+      }
+
+      const after = await request(app.getHttpServer())
+        .get('/api/v1/me')
+        .set('Authorization', `Bearer ${session.accessToken}`)
+        .expect(200);
+      expect(after.body.data.role).toBe('technician');
+    });
+  });
 });

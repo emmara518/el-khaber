@@ -20,6 +20,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
 import { getConfig } from '../config/app.config';
+import { PrismaService } from '../database/prisma.service';
 
 import {
   AUTH_KIND_METADATA_KEY,
@@ -51,6 +52,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -87,6 +89,31 @@ export class JwtAuthGuard implements CanActivate {
       payload = await this.jwt.verifyAsync<JwtPayload>(token, { secret, issuer, audience });
     } catch {
       throw new AuthRequiredException('Invalid or expired access token');
+    }
+
+    // Token claims are NOT trusted for authorization state. Re-check the
+    // principal against the database so suspension and role changes take
+    // effect immediately, independent of the access-token TTL. (A password
+    // reset revokes refresh tokens immediately; access tokens still expire
+    // within their short TTL — see the tokenVersion note in the report.)
+    if (requiredKind === 'admin') {
+      const admin = await this.prisma.adminUser.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, status: true },
+      });
+      if (admin === null || admin.status !== 'active') {
+        throw new AuthRequiredException();
+      }
+    } else {
+      const principal = await this.prisma.user.findFirst({
+        where: { id: payload.sub },
+        select: { id: true, role: true, status: true },
+      });
+      if (principal === null || principal.status !== 'active') {
+        throw new AuthRequiredException();
+      }
+      // The database is the source of truth for the role.
+      payload = { ...payload, role: principal.role };
     }
 
     const requiredRoles = this.reflector.getAllAndOverride<string[] | undefined>(
