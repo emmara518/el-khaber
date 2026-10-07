@@ -63,6 +63,16 @@ export function readProofStorageConfig(env: NodeJS.ProcessEnv = process.env): Pr
   if (rawProvider !== 's3' && rawProvider !== 'local') {
     throw new Error(`Invalid PROOF_STORAGE_PROVIDER: ${rawProvider} (expected s3|local)`);
   }
+  // The local adapter writes to disk and returns non-routable `local://`
+  // URLs — acceptable for dev/test only. Refuse it in production so a
+  // misconfigured deploy fails fast instead of silently breaking proof
+  // upload/download.
+  const nodeEnv = (readString(env, 'NODE_ENV') ?? 'development').toLowerCase();
+  if (nodeEnv === 'production' && rawProvider === 'local') {
+    throw new Error(
+      'PROOF_STORAGE_PROVIDER=local is not allowed in production; set provider=s3 with PROOF_S3_BUCKET/PROOF_S3_ACCESS_KEY_ID/PROOF_S3_SECRET_ACCESS_KEY',
+    );
+  }
   return {
     provider: rawProvider,
     bucket: readString(env, 'PROOF_S3_BUCKET'),

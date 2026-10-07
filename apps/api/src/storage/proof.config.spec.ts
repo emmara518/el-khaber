@@ -12,6 +12,7 @@ import {
 } from './proof.config';
 
 const KEYS = [
+  'NODE_ENV',
   'PROOF_STORAGE_PROVIDER',
   'PROOF_S3_BUCKET',
   'PROOF_S3_REGION',
@@ -93,5 +94,19 @@ describe('readProofStorageConfig', () => {
 
     process.env['PROOF_URL_TTL_SECONDS'] = '0';
     expect(() => readProofStorageConfig()).toThrow(/PROOF_URL_TTL_SECONDS/);
+  });
+
+  it('refuses provider=local in production (fail fast, no silent broken storage)', () => {
+    snapshot();
+    process.env['NODE_ENV'] = 'production';
+    // default provider = local
+    expect(() => readProofStorageConfig()).toThrow(/not allowed in production/);
+
+    // a configured S3 provider is accepted in production
+    process.env['PROOF_STORAGE_PROVIDER'] = 's3';
+    process.env['PROOF_S3_BUCKET'] = 'khabir-proofs';
+    process.env['PROOF_S3_ACCESS_KEY_ID'] = 'key-id';
+    process.env['PROOF_S3_SECRET_ACCESS_KEY'] = 'secret';
+    expect(readProofStorageConfig().provider).toBe('s3');
   });
 });
