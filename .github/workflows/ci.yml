@@ -77,6 +77,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Build workspace packages
+        run: pnpm --filter @khabir/ui-tokens --filter @khabir/shared-types --filter @khabir/shared-validation build
+
       - name: Web export
         run: pnpm --filter @khabir/mobile export:web
 
