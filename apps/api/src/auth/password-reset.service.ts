@@ -20,7 +20,7 @@
  * Source: docs/05_TECH_ARCHITECTURE.md §6; docs/07_API.md §4.
  */
 
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { AuthInvalidException, ValidationException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
@@ -114,13 +114,22 @@ export class PasswordResetService {
     // Delivery boundary (Task 10D §4): hand the raw token to the
     // provider-agnostic delivery port. The token never reaches an HTTP
     // response or a log line — only the delivery adapter sees it.
-    await this.delivery.sendPasswordReset({
-      contact: {
-        phone: user.phone ?? undefined,
-        email: user.email ?? undefined,
-      },
-      rawToken,
-    });
+    // A delivery-provider outage must not turn the enumeration-safe 202
+    // into a 500; the failure is logged WITHOUT the token.
+    try {
+      await this.delivery.sendPasswordReset({
+        contact: {
+          phone: user.phone ?? undefined,
+          email: user.email ?? undefined,
+        },
+        rawToken,
+      });
+    } catch (error: unknown) {
+      const status = error instanceof Error ? error.message : 'unknown error';
+      new Logger(PasswordResetService.name).warn(
+        `password reset delivery failed (token not logged): ${status}`,
+      );
+    }
 
     return { accepted: true, issued: true, rawToken };
   }

@@ -7,6 +7,7 @@ import { getConfig } from '../config/app.config';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { HttpPasswordResetDelivery } from './http-password-reset-delivery';
 import { LoginAttemptGuard } from './login-attempt.guard';
 import {
   DeferredPasswordResetDelivery,
@@ -34,9 +35,20 @@ import { PasswordResetService } from './password-reset.service';
     AuthService,
     PasswordResetService,
     LoginAttemptGuard,
-    // Provider-agnostic delivery boundary (Task 10D §4). No delivery
-    // provider is approved yet; the deferred no-op never claims delivery.
-    { provide: PASSWORD_RESET_DELIVERY, useClass: DeferredPasswordResetDelivery },
+    // Provider-agnostic delivery boundary (Task 10D §4). When
+    // PASSWORD_RESET_DELIVERY_URL is configured, a real HTTP webhook
+    // adapter is used; otherwise the deferred no-op never claims delivery.
+    {
+      provide: PASSWORD_RESET_DELIVERY,
+      useFactory: () => {
+        const url = process.env['PASSWORD_RESET_DELIVERY_URL']?.trim();
+        if (url !== undefined && url.length > 0 && /^https?:\/\//u.test(url)) {
+          const token = process.env['PASSWORD_RESET_DELIVERY_TOKEN']?.trim() ?? '';
+          return new HttpPasswordResetDelivery(url, token.length > 0 ? token : null);
+        }
+        return new DeferredPasswordResetDelivery();
+      },
+    },
     // Apply rate limiting to all routes. The tighter auth limiter is used
     // via the `@Throttle({ default: { limit: <authMax> } })` decorator on
     // individual auth routes below.

@@ -5,6 +5,7 @@ import {
   PASSWORD_RESET_DELIVERY,
   type PasswordResetDeliveryMessage,
 } from '../src/auth/password-reset-delivery.port';
+import { HttpPasswordResetDelivery } from '../src/auth/http-password-reset-delivery';
 import { PasswordResetService } from '../src/auth/password-reset.service';
 
 import type { PrismaService } from '../src/database/prisma.service';
@@ -119,5 +120,48 @@ describe('password reset delivery boundary', () => {
       expect(PASSWORD_RESET_DELIVERY).toBeDefined();
       expect(new DeferredPasswordResetDelivery()).toHaveProperty('sendPasswordReset');
     });
+  });
+
+  describe('HttpPasswordResetDelivery (configured provider boundary)', () => {
+    it('POSTs the contact channel(s) and token to the configured webhook', async () => {
+      const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
+      vi.stubGlobal('fetch', fetchMock);
+      const adapter = new HttpPasswordResetDelivery('https://gateway.example/reset', 'secret-token');
+
+      await adapter.sendPasswordReset({ contact: { email: 'u@example.com' }, rawToken: 'RAW-1' });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchMock.mock.calls[0] as [string, { method: string; headers: Record<string, string>; body: string }];
+      expect(url).toBe('https://gateway.example/reset');
+      expect(init.method).toBe('POST');
+      expect(init.headers['authorization']).toBe('Bearer secret-token');
+      expect(JSON.parse(init.body)).toEqual({
+        purpose: 'password_reset',
+        contact: { email: 'u@example.com' },
+        token: 'RAW-1',
+      });
+      vi.unstubAllGlobals();
+    });
+
+    it('throws on a non-2xx gateway response (no silent success)', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 502 })));
+      const adapter = new HttpPasswordResetDelivery('https://gateway.example/reset', null);
+      await expect(
+        adapter.sendPasswordReset({ contact: { email: 'u@example.com' }, rawToken: 'RAW-2' }),
+      ).rejects.toThrow(/502/u);
+      vi.unstubAllGlobals();
+    });
+  });
+
+  it('a delivery-provider outage never turns the enumeration-safe request into a failure', async () => {
+    const { prisma } = makePrisma({ id: 'u4', phone: null, email: 'u4@example.com' });
+    const delivery = { sendPasswordReset: vi.fn(async () => { throw new Error('gateway down'); }) };
+
+    const service = new PasswordResetService(prisma, delivery);
+    const result = await service.requestReset({ email: 'u4@example.com' });
+
+    expect(result.accepted).toBe(true);
+    expect(result.issued).toBe(true);
+    expect(delivery.sendPasswordReset).toHaveBeenCalledTimes(1);
   });
 });
