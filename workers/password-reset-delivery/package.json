@@ -1,0 +1,12 @@
+{
+  "name": "khabir-password-reset-delivery",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Cloudflare Worker relay: password-reset delivery (Resend email + Twilio SMS). Deployed outside the pnpm workspace.",
+  "type": "module",
+  "scripts": {
+    "test": "tsc src/contract.ts --outDir dist-test --module esnext --target es2022 --moduleResolution bundler && node --test test/contract.test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "deploy": "wrangler deploy"
+  }
+}
