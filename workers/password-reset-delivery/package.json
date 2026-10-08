@@ -3,9 +3,8 @@
   "private": true,
   "version": "0.0.1",
   "description": "Cloudflare Worker relay: password-reset delivery (Resend email + Twilio SMS). Deployed outside the pnpm workspace.",
-  "type": "module",
   "scripts": {
-    "test": "tsc src/contract.ts --outDir dist-test --module esnext --target es2022 --moduleResolution bundler && node --test test/contract.test.mjs",
+    "test": "tsc src/index.ts src/contract.ts --outDir dist-test --module commonjs --target es2022 --moduleResolution node --lib es2022,webworker --skipLibCheck && node --test test/contract.test.cjs test/handler.test.cjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "deploy": "wrangler deploy"
   }

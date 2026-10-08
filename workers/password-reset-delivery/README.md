@@ -1,7 +1,10 @@
 # Password Reset Delivery Worker (`password-reset-delivery`)
 
 Private Cloudflare Worker relay that implements the API's existing
-**password-reset delivery contract** and routes **one** message per request.
+**password-reset delivery contract**.
+
+> **Current UAT supports email delivery through Resend. SMS delivery for
+> phone-only accounts is deferred.**
 
 It is a standalone deployable and is intentionally **outside the pnpm
 workspace** (`apps/*`, `packages/*`) so it does not affect the monorepo
@@ -24,13 +27,16 @@ Authorization: Bearer <PASSWORD_RESET_DELIVERY_TOKEN>     # only if configured
 `PASSWORD_RESET_DELIVERY_URL` = this Worker's URL.
 `PASSWORD_RESET_DELIVERY_TOKEN` = `WORKER_AUTH_TOKEN`.
 
-## Routing (deterministic, single channel)
+## Routing (UAT: email-only)
 
 1. valid `email` present → **Resend** transactional email
-2. else valid `phone` (E.164) present → **Twilio** Programmable Messaging (SMS)
-3. else → generic non-2xx (never reveals account existence)
+2. no email (e.g. **phone-only account**) → generic **unsupported-delivery**
+   (`422`, non-2xx). **SMS is DEFERRED — FUTURE WORK** and is never routed.
+3. both contacts present → **email only** (never both).
 
-Both contacts present → **email only** (never both).
+The account model still allows phone-only accounts (registration/login
+semantics unchanged). Delivery for phone-only accounts is simply
+**unavailable until SMS is explicitly authorized later**.
 
 ## Behaviour / security
 
@@ -38,7 +44,8 @@ Both contacts present → **email only** (never both).
 - Requires `Authorization: Bearer WORKER_AUTH_TOKEN` (constant-time compare) → else `401`.
 - Rejects malformed JSON, wrong `purpose`, missing/invalid contacts, oversized body.
 - Reset link is built from the **fixed** `RESET_WEB_ORIGIN` (no open redirect):
-  `https://el-khabir-uat.vercel.app/reset-password?token=<token>`.
+  `https://el-khabir-uat.vercel.app/reset-password?token=<token>`. The request
+  cannot override the origin.
 - Provider success → `2xx`; provider failure → `502` (generic). Provider error
   bodies are never returned or logged.
 - **Never logs or persists** the raw token, the reset link, full email, full
@@ -50,13 +57,9 @@ Both contacts present → **email only** (never both).
 ## Secrets (names only — set via `wrangler secret put <NAME>`)
 
 ```
-WORKER_AUTH_TOKEN              shared bearer secret (also PASSWORD_RESET_DELIVERY_TOKEN)
-RESEND_API_KEY                 Resend API key
-RESEND_FROM_EMAIL              verified Resend sender identity (e.g. "الخبير <no-reply@…>")
-TWILIO_ACCOUNT_SID             Twilio account SID
-TWILIO_API_KEY_SID             Twilio API Key SID (preferred over Auth Token)
-TWILIO_API_KEY_SECRET          Twilio API Key Secret
-TWILIO_MESSAGING_SERVICE_SID   approved Messaging Service (or TWILIO_FROM)
+WORKER_AUTH_TOKEN       shared bearer secret (also PASSWORD_RESET_DELIVERY_TOKEN)
+RESEND_API_KEY          Resend API key
+RESEND_FROM_EMAIL       verified Resend sender identity (e.g. "الخبير <no-reply@…>")
 ```
 
 Non-secret variable (in `wrangler.toml`): `RESET_WEB_ORIGIN`.
@@ -64,29 +67,30 @@ Non-secret variable (in `wrangler.toml`): `RESET_WEB_ORIGIN`.
 ## Provider requirements
 
 - **Resend:** verified sender **domain** (DNS/DKIM) for the UAT sender.
-- **Twilio:** Programmable Messaging; **Egypt A2P Sender ID / Messaging Service
-  must be approved** (regulatory; may require documents + lead time). Do not
-  bypass registration; do not use an unapproved sender.
+- **SMS (Twilio), Egypt Sender ID:** **DEFERRED — FUTURE WORK.** Not provisioned.
 
 ## Local validation
 
 ```
-# typecheck
-tsc --noEmit -p tsconfig.json
-
-# pure contract/routing tests (no providers, no network)
-npm test        # compiles src/contract.ts -> dist-test/ and runs node --test
+tsc --noEmit -p tsconfig.json     # typecheck
+npm test                          # pure routing/contract + handler behaviour tests
 ```
 
 ## Deploy
 
 ```
-npx wrangler deploy         # from this directory
+npx wrangler deploy               # from this directory
 ```
 
 ## Operational failure behaviour
 
-If a provider fails or a required secret is missing, the Worker returns a
-generic non-2xx. The API already treats delivery failure in an enumeration-safe
-way (always `202` to the client; failure logged without the token), so a Worker
+If Resend fails or a required secret is missing, the Worker returns a generic
+non-2xx. The API already treats delivery failure in an enumeration-safe way
+(always `202` to the client; failure logged without the token), so a Worker
 outage never breaks the reset endpoint and never leaks whether an account exists.
+
+## SMS / phone-only delivery
+
+**DEFERRED — FUTURE WORK.** Phone-only accounts remain valid for
+authentication; password-reset delivery for them requires an SMS provider and
+(Egypt) a registered/approved Sender ID. Not in scope for the current UAT.

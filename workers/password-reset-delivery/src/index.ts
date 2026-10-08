@@ -1,11 +1,15 @@
 /**
  * EL-KHABIR — Password Reset Delivery Worker (entrypoint).
  *
- * A private backend relay implementing the application's existing
- * PASSWORD_RESET_DELIVERY contract and routing ONE message per request:
- *   email present  -> Resend transactional email
- *   else phone     -> Twilio Programmable Messaging (SMS)
- *   else           -> generic failure (never reveals account existence)
+ * Private backend relay implementing the application's existing
+ * PASSWORD_RESET_DELIVERY contract.
+ *
+ * UAT SCOPE (CTO decision): EMAIL-ONLY.
+ *   valid email -> Resend transactional email
+ *   no email    -> generic unsupported-delivery (non-2xx); SMS is DEFERRED
+ *                  and is never routed. The account model still allows
+ *                  phone-only accounts; delivery for them is simply
+ *                  unavailable until SMS is explicitly authorized.
  *
  * It never logs or persists the raw reset token, the reset link, full email,
  * full phone number, or provider credentials. Failures return a generic
@@ -26,17 +30,9 @@ export interface Env {
   WORKER_AUTH_TOKEN: string;
   /** Fixed, server-side web origin for reset links (no open redirect). */
   RESET_WEB_ORIGIN?: string;
-
-  /** Resend (email). */
+  /** Resend (email) — the only approved provider for UAT. */
   RESEND_API_KEY?: string;
   RESEND_FROM_EMAIL?: string;
-
-  /** Twilio (SMS). */
-  TWILIO_ACCOUNT_SID?: string;
-  TWILIO_API_KEY_SID?: string;
-  TWILIO_API_KEY_SECRET?: string;
-  TWILIO_MESSAGING_SERVICE_SID?: string;
-  TWILIO_FROM?: string;
 }
 
 const DEFAULT_WEB_ORIGIN = 'https://el-khabir-uat.vercel.app';
@@ -68,7 +64,7 @@ function json(status: number, body: unknown = GENERIC_FAIL): Response {
   });
 }
 
-// --- Provider calls ---------------------------------------------------------
+// --- Provider call (Resend only) --------------------------------------------
 
 function emailHtml(resetLink: string): string {
   return [
@@ -80,14 +76,6 @@ function emailHtml(resetLink: string): string {
     '<p>إذا لم تطلب إعادة تعيين كلمة المرور، تجاهل هذه الرسالة.</p>',
     '</div>',
   ].join('');
-}
-
-function smsBody(resetLink: string): string {
-  return (
-    'الخبير: لإعادة تعيين كلمة المرور استخدم الرابط التالي: ' +
-    resetLink +
-    ' الرابط صالح لفترة محدودة. إذا لم تطلب إعادة التعيين فتجاهل الرسالة.'
-  );
 }
 
 async function sendEmail(env: Env, to: string, resetLink: string): Promise<boolean> {
@@ -106,35 +94,6 @@ async function sendEmail(env: Env, to: string, resetLink: string): Promise<boole
     }),
   });
   return res.ok; // 2xx only; response body never read/logged
-}
-
-async function sendSms(env: Env, to: string, resetLink: string): Promise<boolean> {
-  const { TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET } = env;
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_API_KEY_SID || !TWILIO_API_KEY_SECRET) return false;
-
-  const params = new URLSearchParams();
-  params.set('To', to);
-  params.set('Body', smsBody(resetLink));
-  if (env.TWILIO_MESSAGING_SERVICE_SID) {
-    params.set('MessagingServiceSid', env.TWILIO_MESSAGING_SERVICE_SID);
-  } else if (env.TWILIO_FROM) {
-    params.set('From', env.TWILIO_FROM);
-  } else {
-    return false; // no approved sender configured
-  }
-
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(TWILIO_ACCOUNT_SID)}/Messages.json`,
-    {
-      method: 'POST',
-      headers: {
-        authorization: `Basic ${btoa(`${TWILIO_API_KEY_SID}:${TWILIO_API_KEY_SECRET}`)}`,
-        'content-type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    },
-  );
-  return res.status === 201 || (res.status >= 200 && res.status < 300);
 }
 
 // --- Entrypoint -------------------------------------------------------------
@@ -172,25 +131,24 @@ export default {
 
     const channel = routeContact(parsed.value.contact);
     if (channel === null) {
-      // Generic: callback callers never learn why (enumeration-safe upstream).
-      return json(400);
+      // Phone-only (or no usable email): SMS is DEFERRED for UAT. Generic
+      // unsupported-delivery result — never reveals account existence.
+      console.log(JSON.stringify({ event: 'password_reset_delivery', channel: 'unsupported', ok: false }));
+      return json(422);
     }
 
     const webOrigin = env.RESET_WEB_ORIGIN ?? DEFAULT_WEB_ORIGIN;
     const resetLink = buildResetLink(webOrigin, parsed.value.token);
 
     try {
-      const delivered =
-        channel === 'email'
-          ? await sendEmail(env, parsed.value.contact.email as string, resetLink)
-          : await sendSms(env, parsed.value.contact.phone as string, resetLink);
+      const delivered = await sendEmail(env, parsed.value.contact.email as string, resetLink);
 
       // Sanitized, PII-free, token-free log line.
-      console.log(JSON.stringify({ event: 'password_reset_delivery', channel, ok: delivered }));
+      console.log(JSON.stringify({ event: 'password_reset_delivery', channel: 'email', ok: delivered }));
 
       return delivered ? json(200, { status: 'accepted' }) : json(502);
     } catch {
-      console.log(JSON.stringify({ event: 'password_reset_delivery', channel, ok: false }));
+      console.log(JSON.stringify({ event: 'password_reset_delivery', channel: 'email', ok: false }));
       return json(502);
     }
   },

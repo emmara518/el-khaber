@@ -15,7 +15,7 @@ export interface DeliveryRequest {
   readonly token: string;
 }
 
-export type Channel = 'email' | 'phone';
+export type Channel = 'email';
 
 export const MAX_BODY_BYTES = 4096;
 export const RESET_PATH = '/reset-password';
@@ -29,21 +29,23 @@ export function isValidEmail(value: unknown): value is string {
   );
 }
 
-/** E.164-ish Egyptian/international mobile (the API stores canonical +E.164). */
+/**
+ * E.164-ish Egyptian/international mobile. Kept so phone-only payloads are
+ * still SCHEMA-valid (the account model supports phone-only), but SMS
+ * delivery is DEFERRED — routing never selects a phone channel.
+ */
 export function isValidPhone(value: unknown): value is string {
   return typeof value === 'string' && /^\+[1-9]\d{7,14}$/.test(value.trim());
 }
 
 /**
- * Deterministic channel routing (CTO rule): email wins when present,
- * otherwise phone, otherwise nothing. Never both.
+ * UAT routing (email-only, CTO decision): a valid email is the ONLY
+ * supported channel. A phone-only payload returns null → the Worker answers
+ * with a generic unsupported-delivery result. SMS is DEFERRED — never routed.
  */
 export function routeContact(contact: DeliveryRequest['contact']): Channel | null {
   if (contact !== null && typeof contact === 'object' && isValidEmail(contact.email)) {
     return 'email';
-  }
-  if (contact !== null && typeof contact === 'object' && isValidPhone(contact.phone)) {
-    return 'phone';
   }
   return null;
 }
