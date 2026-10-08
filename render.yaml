@@ -52,6 +52,8 @@ services:
         sync: false
       - key: PROOF_S3_REGION
         value: auto
+      - key: PROOF_S3_ENDPOINT
+        value: https://d7d91c1541b0477d145fce29389086e6.r2.cloudflarestorage.com
       - key: PROOF_S3_ACCESS_KEY_ID
         sync: false
       - key: PROOF_S3_SECRET_ACCESS_KEY
