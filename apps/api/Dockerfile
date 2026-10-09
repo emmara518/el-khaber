@@ -37,6 +37,8 @@ ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
+# Prisma's query engine needs libssl at runtime; the slim base omits it.
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 # Copy the fully-installed workspace (includes the generated Prisma client).

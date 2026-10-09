@@ -4,7 +4,11 @@
 // generated and applied via `prisma migrate dev` / `prisma migrate deploy`.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Deployment (Railway/containers) runs a runtime whose detected OpenSSL
+  // differs from the build image; ship both engines so the client resolves.
+  // This affects only client binary generation — no model/DB change.
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
