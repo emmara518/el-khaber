@@ -55,7 +55,11 @@ prod ref is different and is never configured here.
    `CORS_ORIGINS=https://el-khabir-uat.vercel.app`, `DATABASE_URL`,
    `DIRECT_URL` (khabir-dev), `JWT_ACCESS_SECRET`, `ADMIN_JWT_ACCESS_SECRET`,
    `PASSWORD_RESET_DELIVERY_URL`, `PASSWORD_RESET_DELIVERY_TOKEN`,
-   `PROOF_STORAGE_PROVIDER=s3` (+ `PROOF_S3_*` once R2 keys exist).
+    `PROOF_STORAGE_PROVIDER=s3`, `PROOF_S3_BUCKET=khabir-dev-proofs`,
+    `PROOF_S3_REGION=eu-west-1`,
+    `PROOF_S3_ENDPOINT=https://bayahdohjsocwizxfnnq.storage.supabase.co/storage/v1/s3`,
+    `PROOF_S3_ACCESS_KEY_ID`, `PROOF_S3_SECRET_ACCESS_KEY` (Supabase Storage
+    S3 keys; backend-only, bypass RLS — never sent to the frontend).
 
 2. Endpoints: `GET /api/v1/health` (liveness) and `GET /api/v1/ready`
    (DB readiness). Base URL `https://khabir-api-production-f165.up.railway.app`.
@@ -76,10 +80,11 @@ prod ref is different and is never configured here.
 4. Limitations & rollback:
    - **Trial credit:** Railway Trial ($5 / time-limited); the service stops
      when credit is exhausted. Not permanent hosting.
-   - **Proof/media storage:** `khabir-dev-proofs` (R2) bucket exists, but the
-     `PROOF_S3_ACCESS_KEY_ID` / `PROOF_S3_SECRET_ACCESS_KEY` secrets are not
-     configured → proof upload/download returns 500 (fail-closed). Core UAT
-     flows do not require it.
+   - **Proof/media storage:** Supabase Storage S3, private bucket
+     `khabir-dev-proofs` (5 MB limit; MIME `image/jpeg|image/png|image/webp`),
+     region `eu-west-1`, endpoint
+     `https://bayahdohjsocwizxfnnq.storage.supabase.co/storage/v1/s3`. Verified:
+     presigned upload `200`, confirm `200`, anonymous access `403` (private).
    - **Cold start:** first request after idle is slower (container wake).
    - **Rollback:** redeploy the previous Vercel production deployment
      (`vercel rollback` / promote the prior build) and/or redeploy the prior
@@ -95,8 +100,8 @@ prod ref is different and is never configured here.
 - **No checkout / order workflow**; **payment automation is not enabled**
   (manual payment → proof → review).
 - **Production deployment is not active yet.**
-- The API is served through a tunnel for this review; it depends on the
-  review machine staying online. A permanent host is a separate decision.
+- The API is a Railway **Trial** service (temporary credit); a permanent host
+  is a separate decision.
 
 ## 6. Client acceptance (verified)
 
