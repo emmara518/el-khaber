@@ -19,7 +19,7 @@ production launch and **must never** point at `khabir-prod`.
 | Database         | **khabir-dev** (Supabase ref `bayahdohjsocwizxfnnq`)           |
 | Production DB    | **not used** (`khabir-prod` ref `gvobmjqxpacpmemvjbvw`)        |
 | Web app          | Vercel static (Expo web export)                                |
-| API              | Local NestJS instance on `:3100`, exposed via HTTPS tunnel     |
+| API              | Render **Free** Web Service `khabir-api` (branch `review/final-production-release`) — URL recorded after provisioning |
 | Auth             | Real backend (`/auth/register`, `/auth/login`) — no fake auth  |
 
 **Production safety:** the API's `DATABASE_URL` points at `khabir-dev`; the
@@ -29,8 +29,10 @@ prod ref is different and is never configured here.
 
 - **Client UAT URL:** `https://el-khabir-uat.vercel.app` (the only UAT host;
   `khabir-uat.vercel.app` is an unrelated/404 host and must not be used).
-- **API URL:** the HTTPS tunnel for the local API (see §4). The web bundle
-  embeds `EXPO_PUBLIC_API_URL=<tunnel>/api/v1` at build time.
+- **API URL:** the Render Free API base (`https://<service>.onrender.com`)
+  followed by `/api/v1`. The web bundle embeds
+  `EXPO_PUBLIC_API_URL=<render-url>/api/v1` at build time. (The prior local
+  HTTPS tunnel is retired.)
 - **Canonical web artifact:** `apps/mobile/dist-web` — the single output
   that `export:web` writes and that `vercel.json` (`outputDirectory`) and
   `apps/mobile/.vercelignore` (`!dist-web/**`) both reference. No other
