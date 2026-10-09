@@ -36,24 +36,24 @@ completion. **`V2 approved` = nothing yet** (all items require CTO gates).
 
 Legend: `DELIVERED` · `PARTIAL` · `BLOCKED` · `NOT IMPLEMENTED` · `NEEDS CTO DECISION`
 
-| # | Area | Status | Evidence |
-|---|------|--------|----------|
-| 1 | Customer journey (login, catalog, fault guide, technician search, request, profile/location, notifications) | **DELIVERED** | API smoke 200 on `/me`, `/service-requests`, `/locations`, `/notifications`; public `/appliance-categories` (10), `/technicians`, `/faults`; e2e reset-page suite |
-| 2 | Technician journey (login, profile, services, requests, stats) | **DELIVERED** | API smoke 200 on `/technician/{profile,services,requests,stats}` |
-| 3 | Merchant journey (login, profile, products) | **DELIVERED** | API smoke 200 on `/merchant/profile`, `/merchant/products` |
-| 4 | Auth/session + password reset | **DELIVERED** | argon2id (19 MiB, t=2); JWT + DB principal re-check; refresh rotation/family-revoke; reset via Worker→Resend→mailbox; single-use/expiry tests (API 62/62) |
-| 5 | Service requests + status transitions | **PARTIAL** | Request list/detail present; technician transitions exist but **not exhaustively UI-verified** in UAT |
-| 6 | Subscriptions / entitlements / manual payments + proof | **DELIVERED (UAT)** | Proof upload-url 200 → S3 PUT 200 → confirm 200 (key bound), private bucket (anon 403), MIME/size enforced, cross-account 404 |
-| 7 | Media/proof storage | **DELIVERED (UAT)** | Supabase Storage S3 (private `khabir-dev-proofs`, 5 MB, jpeg/png/webp) |
-| 8 | Chat & notifications | **PARTIAL** | HTTP-based (not realtime); notifications read works; deep chat UI not re-verified in UAT |
-| 9 | Reviews & ratings | **PARTIAL** | Models/endpoints exist (docs/06); not exercised in UAT |
-| 10 | Admin dashboard | **NOT IMPLEMENTED (by design)** | docs/09 states admin ops are out-of-band; admin API exists, no UI |
-| 11 | API completeness & authorization | **DELIVERED** | Uniform 404 cross-account; ownership checks; guards + role decorators |
-| 12 | Database model / migrations | **DELIVERED (unchanged)** | 8 migrations; khabir-dev schema in sync; no drift introduced |
-| 13 | RLS / security advisors / PostGIS | **NEEDS CTO DECISION** | Not audited this cycle; do not change without a dedicated security pass |
-| 14 | Arabic RTL / i18n / a11y / responsive | **PARTIAL** | Arabic-first UI + RTL verified visually; a11y/responsive not systematically audited |
-| 15 | Automated tests / CI / e2e | **PARTIAL** | API 62, mobile 30, Worker 28, e2e Scenario A 4/4; CI green; role **UI** e2e thin |
-| 16 | Infra / env / observability / cost / recovery | **PARTIAL/BLOCKED** | Railway **Trial** (temporary); process-local rate limiting; no restore drill; observability basic |
+| #   | Area                                                                                                        | Status                          | Evidence                                                                                                                                                          |
+| --- | ----------------------------------------------------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Customer journey (login, catalog, fault guide, technician search, request, profile/location, notifications) | **DELIVERED**                   | API smoke 200 on `/me`, `/service-requests`, `/locations`, `/notifications`; public `/appliance-categories` (10), `/technicians`, `/faults`; e2e reset-page suite |
+| 2   | Technician journey (login, profile, services, requests, stats)                                              | **DELIVERED**                   | API smoke 200 on `/technician/{profile,services,requests,stats}`                                                                                                  |
+| 3   | Merchant journey (login, profile, products)                                                                 | **DELIVERED**                   | API smoke 200 on `/merchant/profile`, `/merchant/products`                                                                                                        |
+| 4   | Auth/session + password reset                                                                               | **DELIVERED**                   | argon2id (19 MiB, t=2); JWT + DB principal re-check; refresh rotation/family-revoke; reset via Worker→Resend→mailbox; single-use/expiry tests (API 62/62)         |
+| 5   | Service requests + status transitions                                                                       | **PARTIAL**                     | Request list/detail present; technician transitions exist but **not exhaustively UI-verified** in UAT                                                             |
+| 6   | Subscriptions / entitlements / manual payments + proof                                                      | **DELIVERED (UAT)**             | Proof upload-url 200 → S3 PUT 200 → confirm 200 (key bound), private bucket (anon 403), MIME/size enforced, cross-account 404                                     |
+| 7   | Media/proof storage                                                                                         | **DELIVERED (UAT)**             | Supabase Storage S3 (private `khabir-dev-proofs`, 5 MB, jpeg/png/webp)                                                                                            |
+| 8   | Chat & notifications                                                                                        | **PARTIAL**                     | HTTP-based (not realtime); notifications read works; deep chat UI not re-verified in UAT                                                                          |
+| 9   | Reviews & ratings                                                                                           | **PARTIAL**                     | Models/endpoints exist (docs/06); not exercised in UAT                                                                                                            |
+| 10  | Admin dashboard                                                                                             | **NOT IMPLEMENTED (by design)** | docs/09 states admin ops are out-of-band; admin API exists, no UI                                                                                                 |
+| 11  | API completeness & authorization                                                                            | **DELIVERED**                   | Uniform 404 cross-account; ownership checks; guards + role decorators                                                                                             |
+| 12  | Database model / migrations                                                                                 | **DELIVERED (unchanged)**       | 8 migrations; khabir-dev schema in sync; no drift introduced                                                                                                      |
+| 13  | RLS / security advisors / PostGIS                                                                           | **NEEDS CTO DECISION**          | Not audited this cycle; do not change without a dedicated security pass                                                                                           |
+| 14  | Arabic RTL / i18n / a11y / responsive                                                                       | **PARTIAL**                     | Arabic-first UI + RTL verified visually; a11y/responsive not systematically audited                                                                               |
+| 15  | Automated tests / CI / e2e                                                                                  | **PARTIAL**                     | API 62, mobile 30, Worker 28, e2e Scenario A 4/4; CI green; role **UI** e2e thin                                                                                  |
+| 16  | Infra / env / observability / cost / recovery                                                               | **PARTIAL/BLOCKED**             | Railway **Trial** (temporary); process-local rate limiting; no restore drill; observability basic                                                                 |
 
 ---
 
@@ -73,6 +73,7 @@ Legend: `DELIVERED` · `PARTIAL` · `BLOCKED` · `NOT IMPLEMENTED` · `NEEDS CTO
 ## 4. P0 / P1 issues (before public launch)
 
 **P0**
+
 1. **Exposed Resend API key** — rotation explicitly deferred; **must rotate**
    before production (send-only key; scope-limited but still exposed).
 2. **Temporary API host** — Railway Trial credit exhaustion takes the API
@@ -82,14 +83,9 @@ Legend: `DELIVERED` · `PARTIAL` · `BLOCKED` · `NOT IMPLEMENTED` · `NEEDS CTO
 4. **Secret/backup hygiene** — no automated DB restore drill; confirm Supabase
    backups/PITR and a tested restore.
 
-**P1**
-5. **Sender restriction** — `onboarding@resend.dev` is limited to the owner
-   email; production needs a verified sending domain (deliverability).
-6. **Security advisor + RLS review** — unverified; needs a dedicated audit.
-7. **Observability** — add structured error tracking/metrics/uptime alerts.
-8. **Access-token revocation** — stateless access tokens remain valid ≤15 min
-   after session revoke; document or add a token-version mechanism if required.
-9. **Test breadth** — role UI e2e and destructive-lifecycle e2e gaps.
+**P1** 5. **Sender restriction** — `onboarding@resend.dev` is limited to the owner
+email; production needs a verified sending domain (deliverability). 6. **Security advisor + RLS review** — unverified; needs a dedicated audit. 7. **Observability** — add structured error tracking/metrics/uptime alerts. 8. **Access-token revocation** — stateless access tokens remain valid ≤15 min
+after session revoke; document or add a token-version mechanism if required. 9. **Test breadth** — role UI e2e and destructive-lifecycle e2e gaps.
 
 ---
 
@@ -98,6 +94,7 @@ Legend: `DELIVERED` · `PARTIAL` · `BLOCKED` · `NOT IMPLEMENTED` · `NEEDS CTO
 **Mandatory (hardening / launch):** items 1–9 above.
 
 **Product opportunities (V2 recommended, not approved):**
+
 - Realtime messaging (replace HTTP polling).
 - Admin dashboard UI (replace out-of-band ops).
 - Automated payment proof review workflow + notifications.
@@ -167,18 +164,18 @@ Legend: `DELIVERED` · `PARTIAL` · `BLOCKED` · `NOT IMPLEMENTED` · `NEEDS CTO
 
 ## 12. Proposed V2 work packages (recommended, not approved)
 
-| ID | Work package | Deliverable | Definition of Done |
-|----|--------------|-------------|--------------------|
-| V2-00 | Security hygiene | Rotate Resend key; secret inventory; no exposed keys | Key rotated; scan clean; documented |
-| V2-01 | Durable API host | Move API off Trial to a funded host | Stable URL; readiness; rollback doc |
-| V2-02 | Shared-store throttling | Distributed rate-limit + lockout | Multi-replica safe; tests |
-| V2-03 | Email domain | Verified sending domain + sender | Non-owner recipients deliver |
-| V2-04 | Security/RLS audit | Advisor + RLS review + fixes | Findings closed or accepted |
-| V2-05 | Observability | Errors/metrics/uptime alerts | Alerts fire in a drill |
-| V2-06 | Role UI e2e breadth | C/T/M UI suites | Deterministic; CI green |
-| V2-07 | Realtime messaging | WS/SSE channel | Latency target; fallback |
-| V2-08 | Admin dashboard | Minimal ops UI | Core review actions work |
-| V2-09 | Backup/restore drill | Tested restore runbook | Documented RTO/RPO |
+| ID    | Work package            | Deliverable                                          | Definition of Done                  |
+| ----- | ----------------------- | ---------------------------------------------------- | ----------------------------------- |
+| V2-00 | Security hygiene        | Rotate Resend key; secret inventory; no exposed keys | Key rotated; scan clean; documented |
+| V2-01 | Durable API host        | Move API off Trial to a funded host                  | Stable URL; readiness; rollback doc |
+| V2-02 | Shared-store throttling | Distributed rate-limit + lockout                     | Multi-replica safe; tests           |
+| V2-03 | Email domain            | Verified sending domain + sender                     | Non-owner recipients deliver        |
+| V2-04 | Security/RLS audit      | Advisor + RLS review + fixes                         | Findings closed or accepted         |
+| V2-05 | Observability           | Errors/metrics/uptime alerts                         | Alerts fire in a drill              |
+| V2-06 | Role UI e2e breadth     | C/T/M UI suites                                      | Deterministic; CI green             |
+| V2-07 | Realtime messaging      | WS/SSE channel                                       | Latency target; fallback            |
+| V2-08 | Admin dashboard         | Minimal ops UI                                       | Core review actions work            |
+| V2-09 | Backup/restore drill    | Tested restore runbook                               | Documented RTO/RPO                  |
 
 Order by severity/dependency (V2-00…V2-04 first).
 
