@@ -1,0 +1,5 @@
+# Isolated TesterArmy e2e suite — keep runtime + report artifacts out of git.
+node_modules/
+.e2e/
+e2e-report/
+*.e2e.ts-snapshots/

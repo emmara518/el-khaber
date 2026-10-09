@@ -1,0 +1,15 @@
+{
+  "name": "khabir-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Isolated TesterArmy e2e suite for the Al-Khabir UAT web app (password reset). Standalone: NOT a pnpm workspace member and NOT part of any app build or runtime.",
+  "scripts": {
+    "test": "e2e run",
+    "test:reset": "e2e run tests/password-reset.e2e.ts"
+  },
+  "devDependencies": {
+    "e2e": "0.19.0",
+    "@e2e-dev/web": "0.14.0"
+  }
+}
