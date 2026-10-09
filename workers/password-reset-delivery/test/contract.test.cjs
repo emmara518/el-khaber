@@ -10,7 +10,7 @@ const {
   safeEqual,
 } = require('../dist-test/contract.js');
 
-const TOKEN = 'aBcD1234efGh5678';
+const TOKEN = 'aBcD1234efGh5678ijKl';
 const body = (contact, extra = {}) =>
   JSON.stringify({ purpose: 'password_reset', contact, token: TOKEN, ...extra });
 
@@ -53,6 +53,35 @@ test('oversized payload is rejected', () => {
 
 test('invalid phone (not E.164) and no email is rejected by schema', () => {
   assert.equal(parseDeliveryRequest(body({ phone: '01012345678' })).ok, false);
+});
+
+test('weak/placeholder token is rejected (can never become a reset link)', () => {
+  const b = JSON.stringify({ purpose: 'password_reset', contact: { email: 'u@example.com' }, token: 'testtoken123' });
+  assert.equal(parseDeliveryRequest(b).ok, false);
+});
+
+test('token shorter than the API minimum length is rejected', () => {
+  const b = JSON.stringify({ purpose: 'password_reset', contact: { email: 'u@example.com' }, token: 'aBcD1234efGh567' });
+  assert.equal(parseDeliveryRequest(b).ok, false);
+});
+
+test('token with non-base64url characters is rejected', () => {
+  const b = JSON.stringify({ purpose: 'password_reset', contact: { email: 'u@example.com' }, token: 'aBcD1234efGh5678ij/l' });
+  assert.equal(parseDeliveryRequest(b).ok, false);
+});
+
+test('a 64-char base64url token (API shape) is accepted and passed through verbatim', () => {
+  const apiToken = 'A'.repeat(64);
+  const b = JSON.stringify({ purpose: 'password_reset', contact: { email: 'u@example.com' }, token: apiToken });
+  const r = parseDeliveryRequest(b);
+  assert.equal(r.ok, true);
+  assert.equal(r.value.token, apiToken);
+});
+
+test('base64url charset (letters, digits, "-" and "_") is accepted', () => {
+  const tok = 'AbCdEf0123456789_-'.repeat(2); // 36 chars, valid charset
+  const b = JSON.stringify({ purpose: 'password_reset', contact: { email: 'u@example.com' }, token: tok });
+  assert.equal(parseDeliveryRequest(b).ok, true);
 });
 
 test('reset link is built from the FIXED origin and URL-encodes the token', () => {

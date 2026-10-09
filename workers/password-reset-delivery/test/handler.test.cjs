@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const worker = require('../dist-test/index.js').default;
 
 const TOKEN = 'tok';
-const TOKEN_VAL = 'aBcD1234efGh5678';
+const TOKEN_VAL = 'aBcD1234efGh5678ijKl';
 
 function env(over = {}) {
   return {
@@ -120,6 +120,22 @@ test('wrong purpose → 400', async () => {
   const body = JSON.stringify({ purpose: 'signup', contact: { email: 'u@example.com' }, token: TOKEN_VAL });
   const res = await worker.fetch(mkreq(body), env());
   assert.equal(res.status, 400);
+});
+
+test('placeholder/weak token → 400 with NO provider call (never emailed)', async () => {
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(null, { status: 200 });
+  };
+  const body = JSON.stringify({
+    purpose: 'password_reset',
+    contact: { email: 'u@example.com' },
+    token: 'testtoken123',
+  });
+  const res = await worker.fetch(mkreq(body), env());
+  assert.equal(res.status, 400);
+  assert.equal(calls, 0);
 });
 
 test('wrong method → 405', async () => {

@@ -68,7 +68,17 @@ export function parseDeliveryRequest(raw: string): { ok: true; value: DeliveryRe
   if (obj['purpose'] !== 'password_reset') {
     return { ok: false };
   }
-  if (typeof obj['token'] !== 'string' || obj['token'].length < 8 || obj['token'].length > 512) {
+  // The API issues 48-byte base64url tokens (64 chars) via `generateOpaqueToken`.
+  // Require the SAME shape here so a weak, guessable, or placeholder value
+  // (e.g. a manual test string) can never be turned into a clickable reset
+  // link, even if the Worker is called directly with a valid bearer token.
+  const token = obj['token'];
+  if (
+    typeof token !== 'string' ||
+    token.length < 20 ||
+    token.length > 512 ||
+    !/^[A-Za-z0-9_-]+$/.test(token)
+  ) {
     return { ok: false };
   }
   const contact = obj['contact'];
@@ -81,7 +91,7 @@ export function parseDeliveryRequest(raw: string): { ok: true; value: DeliveryRe
   if (!isValidEmail(email) && !isValidPhone(phone)) {
     return { ok: false };
   }
-  return { ok: true, value: { purpose: 'password_reset', contact: { email, phone }, token: obj['token'] } };
+  return { ok: true, value: { purpose: 'password_reset', contact: { email, phone }, token } };
 }
 
 /**

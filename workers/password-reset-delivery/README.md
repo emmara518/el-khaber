@@ -42,7 +42,9 @@ semantics unchanged). Delivery for phone-only accounts is simply
 
 - `POST /` only; other methods → `405`.
 - Requires `Authorization: Bearer WORKER_AUTH_TOKEN` (constant-time compare) → else `401`.
-- Rejects malformed JSON, wrong `purpose`, missing/invalid contacts, oversized body.
+- Rejects malformed JSON, wrong `purpose`, missing/invalid contacts, oversized body,
+  and a `token` that does not match the API shape (≥ 20 chars, base64url
+  `[A-Za-z0-9_-]`) — a weak/placeholder token can never become a reset link.
 - Reset link is built from the **fixed** `RESET_WEB_ORIGIN` (no open redirect):
   `https://el-khabir-uat.vercel.app/reset-password?token=<token>`. The request
   cannot override the origin.
