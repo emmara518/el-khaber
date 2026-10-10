@@ -30,9 +30,9 @@ import { ConflictException, AuthInvalidException, NotFoundException } from '../c
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
-import { LoginAttemptGuard } from './login-attempt.guard';
 import { hashPassword, verifyPassword } from './password';
 import { generateOpaqueToken, hashToken } from './token.util';
+import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 
 export interface RegisterInput {
   role: Role;
@@ -81,7 +81,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly loginAttempts: LoginAttemptGuard,
+    private readonly loginAttempts: SharedStoreLoginAttemptGuard,
   ) {}
 
   async register(input: RegisterInput, meta: AuthMetadata): Promise<AuthSessionDto> {
@@ -133,7 +133,7 @@ export class AuthService {
     // Failed-attempt protection (Task 10D): a locked (identifier, ip) pair
     // is rejected with the SAME canonical error as a wrong password so the
     // lock state can never be used to enumerate accounts.
-    if (this.loginAttempts.isLocked(identifier, ip)) {
+    if (await this.loginAttempts.isLocked(identifier, ip)) {
       throw new AuthInvalidException();
     }
 
@@ -148,7 +148,7 @@ export class AuthService {
     if (!user) {
       // Enumeration safety: unknown identifiers accumulate failures the
       // same way known ones do, keeping lock behavior constant.
-      this.loginAttempts.recordFailure(identifier, ip);
+      await this.loginAttempts.recordFailure(identifier, ip);
       // Constant-time-ish: still verify a dummy hash to reduce timing leak.
       await verifyPassword(
         '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -158,14 +158,14 @@ export class AuthService {
     }
     const ok = await verifyPassword(user.passwordHash, input.password);
     if (!ok) {
-      this.loginAttempts.recordFailure(identifier, ip);
+      await this.loginAttempts.recordFailure(identifier, ip);
       throw new AuthInvalidException();
     }
     if (user.status !== UserStatus.active) {
       throw new AuthInvalidException('Account is not active');
     }
 
-    this.loginAttempts.recordSuccess(identifier, ip);
+    await this.loginAttempts.recordSuccess(identifier, ip);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -226,6 +226,22 @@ export class AuthService {
     await this.prisma.refreshToken.updateMany({
       where: { familyId: record.familyId, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'logout' },
+    });
+    // Invalidate every access token issued to this user before the logout.
+    await this.revokeAllSessions(record.userId);
+  }
+
+  /**
+   * Invalidate every access token issued to the user before this call by
+   * incrementing tokenVersion. The guard rejects any JWT whose tokenVersion
+   * lags the database, so revocation takes effect on the next request
+   * rather than after the access-token TTL. Invoked on security events:
+   * logout, password reset, and account suspension.
+   */
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
     });
   }
 
@@ -319,8 +335,12 @@ export class AuthService {
     familyId?: string,
   ): Promise<AuthSessionDto> {
     const config = getConfig();
+    // Read the current tokenVersion from the database at issuance time so
+    // the access token always carries the latest revocation state, even
+    // if a security event bumped it concurrently with the login flow.
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userRef.id } });
     const accessToken = await this.jwt.signAsync(
-      { sub: userRef.id, role: userRef.role, status: userRef.status },
+      { sub: userRef.id, role: userRef.role, status: userRef.status, tokenVersion: user.tokenVersion },
       {
         secret: config.auth.accessSecret,
         issuer: config.auth.issuer,
@@ -343,8 +363,6 @@ export class AuthService {
         ipAddress: meta.ipAddress,
       },
     });
-
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userRef.id } });
 
     return {
       accessToken,

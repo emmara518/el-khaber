@@ -54,6 +54,11 @@ model User {
   passwordHash  String     @map("password_hash") @db.VarChar(255)
   role          UserRole
   status        UserStatus @default(active)
+  // Bumped on security events (logout, password reset, suspension) to
+  // invalidate every previously issued access token immediately. The
+  // column name intentionally matches the Prisma field name (no @map)
+  // so migration SQL, schema, and client agree on "tokenVersion".
+  tokenVersion  Int        @default(0)
   // Whether the user has verified the contact channel they registered with.
   // Foundation field only; verification flow belongs to a later task.
   phoneVerified Boolean    @default(false) @map("phone_verified")
@@ -86,6 +91,27 @@ model User {
   @@index([role])
   @@index([status])
   @@map("users")
+}
+
+// -----------------------------------------------------------------------------
+// Rate limiting (shared store for multi-instance safety)
+// -----------------------------------------------------------------------------
+// Implements fixed-window rate limiting with atomic upserts. Keys are scoped
+// by (policy, identifier, ip) to support per-route policies (auth vs default).
+// Fail-closed: if the database is unavailable, requests are rejected.
+
+model RateLimitBucket {
+  id        String   @id @default(uuid()) @db.Uuid
+  policy    String   @db.VarChar(64)          // e.g., "auth", "default"
+  identifier String  @db.VarChar(255)         // email/phone/IP composite
+  windowStart DateTime @map("window_start")   // Fixed window start
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([policy, identifier, windowStart])
+  @@index([policy, identifier])
+  @@map("rate_limit_buckets")
 }
 
 // -----------------------------------------------------------------------------
@@ -166,6 +192,9 @@ model AdminUser {
   passwordHash String     @map("password_hash") @db.VarChar(255)
   role         AdminRole
   status       UserStatus @default(active)
+  // Same immediate-revocation mechanism as User.tokenVersion; the admin
+  // guard rejects admin JWTs whose tokenVersion lags the database.
+  tokenVersion Int        @default(0)
   lastLoginAt  DateTime?  @map("last_login_at")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")

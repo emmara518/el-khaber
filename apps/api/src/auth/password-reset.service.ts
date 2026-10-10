@@ -10,6 +10,8 @@
  *     `usedAt`. Subsequent consumes fail.
  *   - On successful consume, ALL refresh-token families for the user
  *     are revoked. This forces re-authentication on every device.
+ *   - The user's tokenVersion is bumped in the same transaction, so every
+ *     previously issued access token is rejected on its next request.
  *   - The public `forgot-password` endpoint always returns 202 and
  *     never reveals whether the contact channel is registered.
  *   - Notification delivery is intentionally out of scope for this
@@ -168,10 +170,12 @@ export class PasswordResetService {
     const newPasswordHash = await hashPassword(input.newPassword);
 
     await this.prisma.$transaction(async (tx) => {
-      // Rotate the password.
+      // Rotate the password and bump tokenVersion in the same write: every
+      // access token issued before the reset is rejected by the guard on
+      // its next request (its tokenVersion lags the database).
       await tx.user.update({
         where: { id: record.userId },
-        data: { passwordHash: newPasswordHash },
+        data: { passwordHash: newPasswordHash, tokenVersion: { increment: 1 } },
       });
       // Mark this token used.
       await tx.passwordResetToken.update({

@@ -1,62 +1,59 @@
-import { Controller, Get, HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpStatus, Injectable } from '@nestjs/common';
 
-
-import { Public } from '../common/decorators';
-import { ApiEnvelopeError, ApiEnvelopeOk } from '../common/openapi/decorators';
+import { StructuredLogger } from '../common/structured-logger';
 import { PrismaService } from '../database/prisma.service';
 
-import type { ApiSuccess } from '@khabir/shared-types';
+interface HealthResponse {
+  status: 'ok';
+}
 
-/**
- * Health endpoints. Both are public.
- *
- * GET /health   — liveness. Returns 200 as long as the process is running.
- *                 Process-only by design; it must NOT depend on the database.
- * GET /ready    — readiness. Verifies required dependencies (database)
- *                 and returns 200 only when the API can serve requests.
- *                 Returns 503 with a standard error envelope otherwise.
- */
-@ApiTags('health')
-@Controller()
-export class HealthController {
-  private readonly logger = new Logger('Readiness');
+interface HealthErrorResponse {
+  status: 'error';
+  detail: string;
+}
+
+@Injectable()
+export class HealthService {
+  private readonly logger = new StructuredLogger(HealthService.name);
 
   constructor(private readonly prisma: PrismaService) {}
 
-  @Public()
-  @Get('health')
-  @ApiEnvelopeOk('HealthDto', 200, 'Liveness probe (process-level only).')
-  health(): ApiSuccess<{ status: 'ok'; service: 'api' }> {
-    return { data: { status: 'ok', service: 'api' } };
+  liveness(): HealthResponse {
+    return { status: 'ok' };
   }
 
-  @Public()
-  @Get('ready')
-  @ApiEnvelopeOk('ReadyDto', 200, 'Readiness probe (dependencies verified).')
-  @ApiEnvelopeError(503, 'A required dependency is unavailable (canonical error envelope).')
-  async ready(): Promise<ApiSuccess<{ status: 'ready'; checks: { database: 'ok' } }>> {
-    if (!this.prisma.isConnected()) {
-      try {
-        await this.prisma.$queryRaw`SELECT 1`;
-        // Connection is now healthy.
-      } catch (err) {
-        // The raw driver error may contain host/connection detail. Log it
-        // server-side only; the public probe returns a stable, safe marker.
-        const message = err instanceof Error ? err.message : 'database unreachable';
-        this.logger.error(`readiness check failed: ${message}`);
-        throw new HttpException(
-          {
-            error: {
-              code: 'INTERNAL_ERROR',
-              message: 'Service not ready',
-              fields: { database: 'unreachable' },
-            },
-          },
-          HttpStatus.SERVICE_UNAVAILABLE,
-        );
-      }
+  async readiness(): Promise<HealthResponse | HealthErrorResponse> {
+    try {
+      await this.prisma.$queryRaw`SELECT 1`;
+      return { status: 'ok' };
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'database unreachable';
+      this.logger.error('readiness check failed', {
+        event: 'health.readiness.failed',
+        durationMs: 0,
+        detail,
+      });
+      return { status: 'error', detail: 'Service not ready' };
     }
-    return { data: { status: 'ready', checks: { database: 'ok' } } };
+  }
+}
+
+@Controller('api/v1/health')
+export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
+
+  @Get('live')
+  live(): HealthResponse {
+    return this.healthService.liveness();
+  }
+
+  @Get('ready')
+  async ready(): Promise<HealthResponse> {
+    const result = await this.healthService.readiness();
+    if (result.status === 'error') {
+      const err = Object.assign(new Error(result.detail), { status: HttpStatus.SERVICE_UNAVAILABLE });
+      throw err;
+    }
+    return result;
   }
 }

@@ -19,12 +19,12 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 
-import { LoginAttemptGuard } from '../auth/login-attempt.guard';
 import { verifyPassword } from '../auth/password';
 import { generateOpaqueToken, hashToken } from '../auth/token.util';
 import { AuthInvalidException, NotFoundException } from '../common/errors';
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
+import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 
 export interface AdminLoginInput {
   email: string;
@@ -41,7 +41,7 @@ export class AdminAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
-    private readonly loginAttempts: LoginAttemptGuard,
+    private readonly loginAttempts: SharedStoreLoginAttemptGuard,
   ) {}
 
   async login(input: AdminLoginInput, meta: AdminMetadata): Promise<AuthSessionDto> {
@@ -50,13 +50,13 @@ export class AdminAuthService {
 
     // Same failed-attempt protection and enumeration-safe rejection as
     // the user login (Task 10D §6, §10).
-    if (this.loginAttempts.isLocked(identifier, ip)) {
+    if (await this.loginAttempts.isLocked(identifier, ip)) {
       throw new AuthInvalidException();
     }
 
     const admin = await this.prisma.adminUser.findUnique({ where: { email: input.email } });
     if (!admin) {
-      this.loginAttempts.recordFailure(identifier, ip);
+      await this.loginAttempts.recordFailure(identifier, ip);
       // Constant-time-ish: still verify a dummy hash.
       await verifyPassword(
         '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -66,14 +66,14 @@ export class AdminAuthService {
     }
     const ok = await verifyPassword(admin.passwordHash, input.password);
     if (!ok) {
-      this.loginAttempts.recordFailure(identifier, ip);
+      await this.loginAttempts.recordFailure(identifier, ip);
       throw new AuthInvalidException();
     }
     if (admin.status !== USER_STATUS.active) {
       throw new AuthInvalidException('Account is not active');
     }
 
-    this.loginAttempts.recordSuccess(identifier, ip);
+    await this.loginAttempts.recordSuccess(identifier, ip);
 
     await this.prisma.adminUser.update({
       where: { id: admin.id },
@@ -126,6 +126,20 @@ export class AdminAuthService {
       where: { familyId: record.familyId, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'logout' },
     });
+    // Invalidate every admin access token issued before the logout.
+    await this.revokeAllSessions(record.adminId);
+  }
+
+  /**
+   * Invalidate every admin access token issued before this call by
+   * incrementing tokenVersion — the same immediate-revocation mechanism
+   * as AuthService.revokeAllSessions, on the admin authority boundary.
+   */
+  async revokeAllSessions(adminId: string): Promise<void> {
+    await this.prisma.adminUser.update({
+      where: { id: adminId },
+      data: { tokenVersion: { increment: 1 } },
+    });
   }
 
   async findAdminById(id: string): Promise<AuthUserDto> {
@@ -156,8 +170,11 @@ export class AdminAuthService {
     familyId?: string,
   ): Promise<AuthSessionDto> {
     const config = getConfig();
+    // Read the current tokenVersion from the database at issuance time so
+    // the access token always carries the latest revocation state.
+    const admin = await this.prisma.adminUser.findUniqueOrThrow({ where: { id: adminRef.id } });
     const accessToken = await this.jwt.signAsync(
-      { sub: adminRef.id, role: adminRef.role, status: adminRef.status, kind: 'admin' },
+      { sub: adminRef.id, role: adminRef.role, status: adminRef.status, kind: 'admin', tokenVersion: admin.tokenVersion },
       {
         secret: config.adminAuth.accessSecret,
         issuer: config.adminAuth.issuer,
@@ -181,7 +198,6 @@ export class AdminAuthService {
       },
     });
 
-    const admin = await this.prisma.adminUser.findUniqueOrThrow({ where: { id: adminRef.id } });
     return {
       accessToken,
       refreshToken: rawRefresh,

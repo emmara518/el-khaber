@@ -750,6 +750,7 @@ export interface ApiError {
     code: ErrorCode;
     message: string;
     fields?: Record<string, string>;
+    requestId?: string;
   };
 }
 

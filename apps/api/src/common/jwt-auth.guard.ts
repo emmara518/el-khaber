@@ -41,6 +41,7 @@ interface JwtPayload {
   sub: string;
   role: string;
   status: string;
+  tokenVersion: number;
   iss: string;
   aud: string;
   iat: number;
@@ -93,24 +94,32 @@ export class JwtAuthGuard implements CanActivate {
 
     // Token claims are NOT trusted for authorization state. Re-check the
     // principal against the database so suspension and role changes take
-    // effect immediately, independent of the access-token TTL. (A password
-    // reset revokes refresh tokens immediately; access tokens still expire
-    // within their short TTL — see the tokenVersion note in the report.)
+    // effect immediately, independent of the access-token TTL. The same
+    // check enforces tokenVersion: any security event (logout, password
+    // reset, suspension) that invalidated the session's tokens bumps the
+    // database tokenVersion, and every older access token is rejected on
+    // its next request instead of lingering until its natural expiry.
     if (requiredKind === 'admin') {
       const admin = await this.prisma.adminUser.findUnique({
         where: { id: payload.sub },
-        select: { id: true, status: true },
+        select: { id: true, status: true, tokenVersion: true },
       });
       if (admin === null || admin.status !== 'active') {
         throw new AuthRequiredException();
       }
+      if (admin.tokenVersion !== payload.tokenVersion) {
+        throw new AuthRequiredException('Token has been revoked');
+      }
     } else {
       const principal = await this.prisma.user.findFirst({
         where: { id: payload.sub },
-        select: { id: true, role: true, status: true },
+        select: { id: true, role: true, status: true, tokenVersion: true },
       });
       if (principal === null || principal.status !== 'active') {
         throw new AuthRequiredException();
+      }
+      if (principal.tokenVersion !== payload.tokenVersion) {
+        throw new AuthRequiredException('Token has been revoked');
       }
       // The database is the source of truth for the role.
       payload = { ...payload, role: principal.role };

@@ -7,18 +7,13 @@
  */
 
 import { ERROR_CODE, type ApiError, type ErrorCode } from '@khabir/shared-types';
-import {
-  type ArgumentsHost,
-  Catch,
-  type ExceptionFilter,
-  HttpException,
-  Logger,
-} from '@nestjs/common';
+import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException } from '@nestjs/common';
 
 import { getConfig } from '../config/app.config';
 
 import { ApiException } from './errors';
-import { getRequestId } from './request-context';
+import { getRequestId, requestContext, REQUEST_ID_HEADER } from './request-context';
+import { StructuredLogger } from './structured-logger';
 
 import type { Request, Response } from 'express';
 
@@ -30,11 +25,13 @@ interface ErrorLogEntry {
   path: string;
   status: number;
   code: ErrorCode;
+  durationMs: number;
+  message: string;
 }
 
 @Catch()
 export class ApiExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(ApiExceptionFilter.name);
+  private readonly logger = new StructuredLogger(ApiExceptionFilter.name);
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -78,12 +75,20 @@ export class ApiExceptionFilter implements ExceptionFilter {
       message = 'Internal server error';
     }
 
-    this.log(req, status, code, stack);
+    const requestId = getRequestId() ?? req.requestId;
+    const store = requestContext.getStore();
+    const durationMs = store ? Date.now() - store.startedAt : 0;
 
+    this.log(req, status, code, durationMs, stack);
+
+    if (requestId !== undefined) {
+      res.setHeader(REQUEST_ID_HEADER, requestId);
+    }
     const body: ApiError = {
       error: {
         code,
         message,
+        requestId,
         ...(fields !== undefined ? { fields } : {}),
       },
     };
@@ -97,7 +102,7 @@ export class ApiExceptionFilter implements ExceptionFilter {
    * correlated log line. Path excludes the query string; bodies, headers,
    * and tokens are never logged. Unhandled 5xx additionally log the stack.
    */
-  private log(req: Request, status: number, code: ErrorCode, stack?: string): void {
+  private log(req: Request, status: number, code: ErrorCode, durationMs: number, stack?: string): void {
     const entry: ErrorLogEntry = {
       ts: new Date().toISOString(),
       level: status >= 500 ? 'error' : 'warn',
@@ -106,14 +111,37 @@ export class ApiExceptionFilter implements ExceptionFilter {
       path: req.path,
       status,
       code,
+      durationMs,
+      message: req.method + ' ' + req.path + ' -> ' + status,
     };
     const line = JSON.stringify(entry);
     if (status >= 500 && stack !== undefined) {
-      this.logger.error(`${line} — ${stack}`);
+      this.logger.error(line + ' — ' + stack, {
+        event: 'http.error',
+        durationMs,
+        status,
+        code,
+        method: req.method,
+        path: req.path,
+      });
     } else if (status >= 500) {
-      this.logger.error(line);
+      this.logger.error(line, {
+        event: 'http.error',
+        durationMs,
+        status,
+        code,
+        method: req.method,
+        path: req.path,
+      });
     } else {
-      this.logger.warn(line);
+      this.logger.warn(line, {
+        event: 'http.error',
+        durationMs,
+        status,
+        code,
+        method: req.method,
+        path: req.path,
+      });
     }
   }
 }
