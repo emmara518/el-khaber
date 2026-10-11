@@ -29,9 +29,6 @@ const requireCjs = createRequire(import.meta.url);
 const { PrismaService } = requireCjs('../dist/database/prisma.service') as {
   PrismaService: new (...args: unknown[]) => unknown;
 };
-const { LoginAttemptGuard } = requireCjs('../dist/auth/login-attempt.guard') as {
-  LoginAttemptGuard: new (...args: unknown[]) => { isLocked: (i: string, ip: string) => boolean; clearAll: () => void };
-};
 const {
   PASSWORD_RESET_DELIVERY,
 } = requireCjs('../dist/auth/password-reset-delivery.port') as {
@@ -120,8 +117,8 @@ describe('identity hardening e2e', () => {
     prisma.passwordResetTokens.length = 0;
     prisma.adminUsers.length = 0;
     prisma.adminRefreshTokens.length = 0;
+    prisma.rateLimitBuckets.length = 0;
     delivered.length = 0;
-    app.get(LoginAttemptGuard).clearAll();
   });
 
   describe('password reset delivery boundary', () => {
@@ -238,7 +235,7 @@ describe('identity hardening e2e', () => {
       expect(locked.status).toBe(401);
 
       // Simulate lock expiry (temporary lock -> automatic recovery).
-      app.get(LoginAttemptGuard).clearAll();
+      prisma.rateLimitBuckets.length = 0;
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')

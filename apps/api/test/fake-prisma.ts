@@ -71,6 +71,16 @@ interface PasswordResetRow {
   createdAt: Date;
 }
 
+interface RateLimitBucketRow {
+  id: string;
+  policy: string;
+  identifier: string;
+  windowStart: Date;
+  count: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // -----------------------------------------------------------------------------
 // Catalog / content models (Task 10E). Only the surface actually used by
 // the catalog services is implemented.
@@ -421,6 +431,7 @@ class FakePrismaClient {
   passwordResetTokens: PasswordResetRow[] = [];
   adminUsers: AdminRow[] = [];
   adminRefreshTokens: AdminRefreshRow[] = [];
+  rateLimitBuckets: RateLimitBucketRow[] = [];
   applianceCategories: ApplianceCategoryRow[] = [];
   faults: FaultRow[] = [];
   services: ServiceRow[] = [];
@@ -456,8 +467,40 @@ class FakePrismaClient {
     return Promise.resolve();
   }
 
-  $queryRaw(): Promise<unknown> {
-    return Promise.resolve([{ '?column?': 1 }]);
+  $queryRaw<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]> {
+    const sql = strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
+    if (sql.includes('INSERT INTO "rate_limit_buckets"') && sql.includes('ON CONFLICT')) {
+      const policyVal = values[0] as string;
+      const identifierVal = values[1] as string;
+      const windowStartVal = values[2] as Date;
+      const countVal = Number(values[3] ?? 1);
+
+        const existing = this.rateLimitBuckets.find(
+          (b) =>
+            b.policy === policyVal &&
+            b.identifier === identifierVal &&
+            b.windowStart.getTime() === windowStartVal.getTime(),
+        );
+
+      if (existing) {
+        existing.count += countVal;
+        existing.updatedAt = new Date();
+        return Promise.resolve([{ count: existing.count }] as unknown as T[]);
+      } else {
+        const newBucket: RateLimitBucketRow = {
+          id: randomUUID(),
+          policy: policyVal,
+          identifier: identifierVal,
+          windowStart: windowStartVal,
+          count: countVal,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        this.rateLimitBuckets.push(newBucket);
+        return Promise.resolve([{ count: countVal }] as unknown as T[]);
+      }
+    }
+    return Promise.resolve([{ '?column?': 1 }] as unknown as T[]);
   }
 
   /**
@@ -745,6 +788,56 @@ class FakePrismaClient {
         return r;
       });
       return { count };
+    },
+  };
+
+  rateLimitBucket = {
+    findUnique: async (args: {
+      where: { policy_identifier_windowStart: { policy: string; identifier: string; windowStart: Date } };
+    }): Promise<RateLimitBucketRow | null> => {
+      const { policy, identifier, windowStart } = args.where.policy_identifier_windowStart;
+      return (
+        this.rateLimitBuckets.find(
+          (b) =>
+            b.policy === policy &&
+            b.identifier === identifier &&
+            b.windowStart.getTime() === windowStart.getTime(),
+        ) ?? null
+      );
+    },
+    findMany: async (args?: {
+      where?: { policy?: string; identifier?: string; windowStart?: { lt?: Date } };
+    }): Promise<RateLimitBucketRow[]> => {
+      return this.rateLimitBuckets.filter((b) => {
+        if (args?.where?.policy !== undefined && b.policy !== args.where.policy) return false;
+        if (args?.where?.identifier !== undefined && b.identifier !== args.where.identifier) return false;
+        if (args?.where?.windowStart?.lt !== undefined && b.windowStart.getTime() >= args.where.windowStart.lt.getTime())
+          return false;
+        return true;
+      });
+    },
+    count: async (args?: {
+      where?: { policy?: string; identifier?: string; windowStart?: { lt?: Date } };
+    }): Promise<number> => {
+      return this.rateLimitBucket.findMany(args).then((r) => r.length);
+    },
+    deleteMany: async (args: {
+      where: { policy?: string; identifier?: string; windowStart?: Date | { lt?: Date } };
+    }): Promise<{ count: number }> => {
+      const before = this.rateLimitBuckets.length;
+      this.rateLimitBuckets = this.rateLimitBuckets.filter((b) => {
+        if (args.where.policy !== undefined && b.policy !== args.where.policy) return true;
+        if (args.where.identifier !== undefined && b.identifier !== args.where.identifier) return true;
+        if (args.where.windowStart !== undefined) {
+          if (args.where.windowStart instanceof Date) {
+            if (b.windowStart.getTime() !== args.where.windowStart.getTime()) return true;
+          } else if (args.where.windowStart.lt !== undefined) {
+            if (b.windowStart.getTime() >= args.where.windowStart.lt.getTime()) return true;
+          }
+        }
+        return false;
+      });
+      return { count: before - this.rateLimitBuckets.length };
     },
   };
 

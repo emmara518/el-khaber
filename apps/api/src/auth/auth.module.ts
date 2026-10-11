@@ -8,6 +8,7 @@ import { getConfig } from '../config/app.config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { HttpPasswordResetDelivery } from './http-password-reset-delivery';
+import { LoginAttemptGuard } from './login-attempt.guard';
 import {
   DeferredPasswordResetDelivery,
   PASSWORD_RESET_DELIVERY,
@@ -37,6 +38,7 @@ import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-
     PasswordResetService,
     RateLimitService,
     SharedStoreLoginAttemptGuard,
+    LoginAttemptGuard,
     // Provider-agnostic delivery boundary (Task 10D §4). When
     // PASSWORD_RESET_DELIVERY_URL is configured, a real HTTP webhook
     // adapter is used; otherwise the deferred no-op never claims delivery.
@@ -56,6 +58,6 @@ import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-
     // individual auth routes below.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
-  exports: [AuthService, PasswordResetService, RateLimitService, SharedStoreLoginAttemptGuard, JwtModule],
+  exports: [AuthService, PasswordResetService, RateLimitService, SharedStoreLoginAttemptGuard, LoginAttemptGuard, JwtModule],
 })
 export class AuthModule {}

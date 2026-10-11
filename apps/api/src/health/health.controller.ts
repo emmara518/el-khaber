@@ -1,10 +1,19 @@
 import { Controller, Get, HttpStatus, Injectable } from '@nestjs/common';
 
+import { Public } from '../common/decorators';
 import { StructuredLogger } from '../common/structured-logger';
 import { PrismaService } from '../database/prisma.service';
 
-interface HealthResponse {
+interface LivenessResponse {
   status: 'ok';
+  service: string;
+}
+
+interface ReadinessResponse {
+  status: 'ready';
+  checks: {
+    database: 'ok';
+  };
 }
 
 interface HealthErrorResponse {
@@ -18,14 +27,14 @@ export class HealthService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  liveness(): HealthResponse {
-    return { status: 'ok' };
+  liveness(): LivenessResponse {
+    return { status: 'ok', service: 'api' };
   }
 
-  async readiness(): Promise<HealthResponse | HealthErrorResponse> {
+  async readiness(): Promise<ReadinessResponse | HealthErrorResponse> {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
-      return { status: 'ok' };
+      return { status: 'ready', checks: { database: 'ok' } };
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'database unreachable';
       this.logger.error('readiness check failed', {
@@ -38,22 +47,29 @@ export class HealthService {
   }
 }
 
-@Controller('api/v1/health')
+@Public()
+@Controller()
 export class HealthController {
   constructor(private readonly healthService: HealthService) {}
 
-  @Get('live')
-  live(): HealthResponse {
-    return this.healthService.liveness();
+  @Get('health')
+  live(): { data: LivenessResponse } {
+    return { data: this.healthService.liveness() };
+  }
+
+  @Get('health/live')
+  liveAlias(): { data: LivenessResponse } {
+    return { data: this.healthService.liveness() };
   }
 
   @Get('ready')
-  async ready(): Promise<HealthResponse> {
-    const result = await this.healthService.readiness();
-    if (result.status === 'error') {
-      const err = Object.assign(new Error(result.detail), { status: HttpStatus.SERVICE_UNAVAILABLE });
-      throw err;
-    }
-    return result;
+  ready(): Promise<{ data: ReadinessResponse }> {
+    return this.healthService.readiness().then((result) => {
+      if (result.status === 'error') {
+        const err = Object.assign(new Error(result.detail), { status: HttpStatus.SERVICE_UNAVAILABLE });
+        throw err;
+      }
+      return { data: result };
+    });
   }
 }

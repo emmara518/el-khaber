@@ -132,9 +132,10 @@ describe('api foundation e2e', () => {
       expect(echoed).toMatch(/^[0-9a-f-]{36}$/u);
     });
 
-    it('does not echo the request id inside the error envelope (contract unchanged)', async () => {
+    it('includes the request id inside the error envelope (observability contract)', async () => {
       const res = await request(app.getHttpServer()).get('/api/v1/me').expect(401);
-      expect(res.body.error).not.toHaveProperty('requestId');
+      expect(res.body.error).toHaveProperty('requestId');
+      expect(res.body.error.requestId).toMatch(/^[0-9a-f-]{36}$/u);
       expect(res.body.error.code).toBe('AUTH_REQUIRED');
     });
   });

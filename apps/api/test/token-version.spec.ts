@@ -22,7 +22,7 @@ import { AdminAuthService } from '../src/admin/admin-auth.service';
 import { PasswordResetService } from '../src/auth/password-reset.service';
 import { hashPassword } from '../src/auth/password';
 import { hashToken } from '../src/auth/token.util';
-import { LoginAttemptGuard } from '../src/auth/login-attempt.guard';
+import { SharedStoreLoginAttemptGuard } from '../src/common/rate-limit/shared-store-login-attempt.guard';
 
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
@@ -37,12 +37,13 @@ const ADMIN_JWT_CONFIG = {
   signOptions: { issuer: 'khabir-admin-api', audience: 'khabir-admin' },
 } as const;
 
-function makeLoginAttempts(): LoginAttemptGuard {
+function makeLoginAttempts(): SharedStoreLoginAttemptGuard {
   return {
     isLocked: vi.fn(() => false),
     recordFailure: vi.fn(),
     recordSuccess: vi.fn(),
-  } as unknown as LoginAttemptGuard;
+    clearAll: vi.fn(),
+  } as unknown as SharedStoreLoginAttemptGuard;
 }
 
 function makeGuard(prisma: PrismaService, jwt: JwtService, adminKind = false): JwtAuthGuard {
