@@ -343,9 +343,38 @@ describe('api foundation e2e', () => {
       expect(res.body.data).toEqual({ status: 'ok', service: 'api' });
     });
 
+    it('GET /health/live returns process liveness', async () => {
+      const res = await request(app.getHttpServer()).get('/api/v1/health/live').expect(200);
+      expect(res.body.data).toEqual({ status: 'ok', service: 'api' });
+    });
+
     it('GET /ready verifies the database dependency', async () => {
       const res = await request(app.getHttpServer()).get('/api/v1/ready').expect(200);
       expect(res.body.data).toEqual({ status: 'ready', checks: { database: 'ok' } });
+    });
+
+    it('GET /ready returns 503 when database is unavailable', async () => {
+      const originalQueryRaw = prisma.$queryRaw;
+      prisma.$queryRaw = () => Promise.reject(new Error('connection refused'));
+      try {
+        const res = await request(app.getHttpServer()).get('/api/v1/ready').expect(503);
+        expect(res.body.error.code).toBe('SERVICE_UNAVAILABLE');
+        expect(res.body.error.message).toBe('Service not ready');
+        expect(res.body.error.requestId).toMatch(/^[0-9a-f-]{36}$/u);
+      } finally {
+        prisma.$queryRaw = originalQueryRaw;
+      }
+    });
+
+    it('GET /health returns 200 even when database is unavailable', async () => {
+      const originalQueryRaw = prisma.$queryRaw;
+      prisma.$queryRaw = () => Promise.reject(new Error('connection refused'));
+      try {
+        const res = await request(app.getHttpServer()).get('/api/v1/health').expect(200);
+        expect(res.body.data).toEqual({ status: 'ok', service: 'api' });
+      } finally {
+        prisma.$queryRaw = originalQueryRaw;
+      }
     });
   });
 

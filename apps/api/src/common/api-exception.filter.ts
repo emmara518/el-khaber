@@ -160,6 +160,8 @@ function mapStatusToCode(status: number): ErrorCode {
       return ERROR_CODE.CONFLICT;
     case 429:
       return ERROR_CODE.RATE_LIMITED;
+    case 503:
+      return ERROR_CODE.SERVICE_UNAVAILABLE;
     default:
       return ERROR_CODE.INTERNAL_ERROR;
   }

@@ -1,4 +1,4 @@
-import { Controller, Get, HttpStatus, Injectable } from '@nestjs/common';
+import { Controller, Get, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 
 import { Public } from '../common/decorators';
 import { StructuredLogger } from '../common/structured-logger';
@@ -16,11 +16,6 @@ interface ReadinessResponse {
   };
 }
 
-interface HealthErrorResponse {
-  status: 'error';
-  detail: string;
-}
-
 @Injectable()
 export class HealthService {
   private readonly logger = new StructuredLogger(HealthService.name);
@@ -31,7 +26,7 @@ export class HealthService {
     return { status: 'ok', service: 'api' };
   }
 
-  async readiness(): Promise<ReadinessResponse | HealthErrorResponse> {
+  async readiness(): Promise<ReadinessResponse> {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { status: 'ready', checks: { database: 'ok' } };
@@ -42,7 +37,7 @@ export class HealthService {
         durationMs: 0,
         detail,
       });
-      return { status: 'error', detail: 'Service not ready' };
+      throw new HttpException({ message: 'Service not ready' }, HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }
@@ -64,12 +59,6 @@ export class HealthController {
 
   @Get('ready')
   ready(): Promise<{ data: ReadinessResponse }> {
-    return this.healthService.readiness().then((result) => {
-      if (result.status === 'error') {
-        const err = Object.assign(new Error(result.detail), { status: HttpStatus.SERVICE_UNAVAILABLE });
-        throw err;
-      }
-      return { data: result };
-    });
+    return this.healthService.readiness().then((result) => ({ data: result }));
   }
 }
