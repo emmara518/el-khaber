@@ -1,0 +1,37 @@
+{
+  "$comment": "Narrow, expiring waivers enforced by scripts/audit-gate.mjs. Critical advisories can never be waived. Every entry must be re-reviewed before expiresAt.",
+  "entries": [
+    {
+      "id": "GHSA-5p2g-fcmc-qvqq",
+      "package": "image-size",
+      "justification": "Metro build-time asset dimension parser. Only project-controlled image assets are parsed; no attacker-supplied image reaches this code at runtime. Upstream has no 1.x fix and the 2.x major breaks Metro 0.81.",
+      "owner": "emmara518",
+      "expiresAt": "2026-11-20",
+      "remediation": "Re-evaluate with the Expo SDK upgrade (explicitly out of V2.1 scope)."
+    },
+    {
+      "id": "GHSA-w3rx-r6r6-pgpr",
+      "package": "image-size",
+      "justification": "Same Metro build-time parser as GHSA-5p2g-fcmc-qvqq. ICNS input is not accepted from users; assets are repository-controlled.",
+      "owner": "emmara518",
+      "expiresAt": "2026-11-20",
+      "remediation": "Re-evaluate with the Expo SDK upgrade (explicitly out of V2.1 scope)."
+    },
+    {
+      "id": "GHSA-86w9-cpqp-85rv",
+      "package": "node-forge",
+      "justification": "Reachable only through Expo CLI code-signing and the React Native dev middleware (developer machine). Not bundled into the API, admin, landing, or the exported web build. No patched version exists upstream.",
+      "owner": "emmara518",
+      "expiresAt": "2026-11-20",
+      "remediation": "Track Expo/React Native releases that drop selfsigned/node-forge; upgrade in a dedicated task."
+    },
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "justification": "Build-time glob matching in Metro/metro-file-map/jscodeshift. Patterns come from the repository, never from end users. No patched version exists upstream.",
+      "owner": "emmara518",
+      "expiresAt": "2026-11-20",
+      "remediation": "Re-evaluate with the Expo SDK upgrade; remove if micromatch/braces bump becomes available."
+    }
+  ]
+}

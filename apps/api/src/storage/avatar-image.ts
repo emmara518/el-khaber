@@ -53,7 +53,7 @@ export async function validateAndProcessAvatarImage(
   }
 
   const input = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
-  let pipeline: sharp.Sharp;
+  let pipeline: ReturnType<typeof sharp>;
   try {
     pipeline = sharp(input, { failOn: 'none' });
     // Force a full decode now so corrupt files fail HERE, not at store.

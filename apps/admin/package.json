@@ -2,7 +2,7 @@
   "name": "@khabir/admin",
   "version": "0.0.1",
   "private": true,
-  "description": "Internal admin dashboard for الخبير.",
+  "description": "Internal admin dashboard for Ø§Ù„Ø®Ø¨ÙŠØ±.",
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
@@ -16,7 +16,7 @@
     "@khabir/shared-types": "workspace:*",
     "@khabir/shared-validation": "workspace:*",
     "@khabir/ui-tokens": "workspace:*",
-    "next": "15.0.7",
+    "next": "15.5.28",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

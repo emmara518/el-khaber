@@ -32,6 +32,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Fail-closed production dependency gate. Critical findings are never
+      # waivable; high findings need an unexpired entry in
+      # security/audit-allowlist.json (ID, package, owner, justification,
+      # expiry). See scripts/audit-gate.mjs.
+      - name: Security audit gate
+        run: pnpm security:audit
+
       - name: Build shared packages
         run: pnpm --filter @khabir/shared-types --filter @khabir/shared-validation build
 
