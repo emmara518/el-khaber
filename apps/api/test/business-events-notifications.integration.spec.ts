@@ -1,7 +1,7 @@
 /**
  * REAL-DATABASE integration tests for Task 10M: business events wired to
  * the existing Notification persistence, exercised through the REAL
- * service classes (not a re-implementation) against verified khabir-dev.
+ * service classes (not a re-implementation) against the isolated test database.
  *
  * Coverage:
  *   - service-request transitions → counterparty notification (customer
@@ -17,32 +17,22 @@
  * real Supabase URL, reads .env WITHOUT mutating process.env.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
-import { parse } from 'dotenv';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { withTestPoolLimit } from './real-db-url';
+import { readTestDatabaseUrl, withTestPoolLimit } from './real-db-url';
 
 import { NotificationsService } from '../dist/notifications/notifications.service';
 import { ServiceRequestsService } from '../dist/service-requests/service-requests.service';
 import { SubscriptionsService } from '../dist/subscriptions/subscriptions.service';
 
-const envPath = join(__dirname, '..', '.env');
-let realDbUrl = '';
-try {
-  const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
-} catch {
-  realDbUrl = '';
-}
-const hasRealDb = /supabase\.com|supabase\.co/i.test(realDbUrl);
+const realDbUrl = withTestPoolLimit(readTestDatabaseUrl());
+const hasRealDb = realDbUrl !== '';
 
 const PROBE = 't10m-probe';
 
-describe.skipIf(!hasRealDb)('business event notifications (real khabir-dev)', () => {
+describe.skipIf(!hasRealDb)('business event notifications (isolated test database)', () => {
   let prisma: PrismaClient;
   let serviceRequests: ServiceRequestsService;
   let subscriptions: SubscriptionsService;
