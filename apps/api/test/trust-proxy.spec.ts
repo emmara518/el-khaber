@@ -77,6 +77,15 @@ describe('trust proxy configuration (AUD-007)', () => {
     expect(zero.config.trustProxyHops).toBe(0);
   });
 
+  it('rejects JWT secrets shorter than 32 characters', async () => {
+    await expect(loadConfig({ JWT_ACCESS_SECRET: 'short-secret' })).rejects.toThrow(
+      /at least 32 characters/,
+    );
+    await expect(loadConfig({ ADMIN_JWT_ACCESS_SECRET: 'short-admin' })).rejects.toThrow(
+      /at least 32 characters/,
+    );
+  });
+
   it('fails closed on malformed hop values', async () => {
     await expect(loadConfig({ TRUST_PROXY_HOPS: 'abc' })).rejects.toThrow(/Invalid number for TRUST_PROXY_HOPS/);
     await expect(loadConfig({ TRUST_PROXY_HOPS: '-1' })).rejects.toThrow(/Invalid number for TRUST_PROXY_HOPS/);

@@ -105,6 +105,17 @@ export function getConfig(): AppConfig {
   const env = (readString('NODE_ENV', 'development') as AppConfig['env']) ?? 'development';
   const accessSecret = requireString('JWT_ACCESS_SECRET');
   const adminAccessSecret = requireString('ADMIN_JWT_ACCESS_SECRET');
+  const JWT_SECRET_MIN_LENGTH = 32;
+  if (accessSecret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `JWT_ACCESS_SECRET must be at least ${String(JWT_SECRET_MIN_LENGTH)} characters.`,
+    );
+  }
+  if (adminAccessSecret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `ADMIN_JWT_ACCESS_SECRET must be at least ${String(JWT_SECRET_MIN_LENGTH)} characters.`,
+    );
+  }
   if (accessSecret === adminAccessSecret) {
     throw new Error('JWT_ACCESS_SECRET and ADMIN_JWT_ACCESS_SECRET must differ');
   }
