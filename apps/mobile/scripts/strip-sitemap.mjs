@@ -10,6 +10,7 @@
 
 import { existsSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -26,10 +27,10 @@ for (const target of targets) {
   if (existsSync(target)) {
     rmSync(target, { recursive: true, force: true });
     removed += 1;
-    console.log(`[strip-sitemap] removed ${target}`);
+    process.stdout.write(`[strip-sitemap] removed ${target}\n`);
   }
 }
 
 if (removed === 0) {
-  console.log('[strip-sitemap] no sitemap artifact present');
+  process.stdout.write('[strip-sitemap] no sitemap artifact present\n');
 }

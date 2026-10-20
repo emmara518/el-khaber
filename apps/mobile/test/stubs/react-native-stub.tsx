@@ -45,6 +45,36 @@ export const I18nManager = {
   forceRTL: () => undefined,
 };
 
+type AppStateValue = 'active' | 'background' | 'inactive';
+const appStateListeners = new Set<(state: AppStateValue) => void>();
+let appStateValue: AppStateValue = 'active';
+
+export const AppState = {
+  get currentState(): AppStateValue {
+    return appStateValue;
+  },
+  /** Test helper. */
+  setState(state: AppStateValue): void {
+    appStateValue = state;
+  },
+  /** Test helper. */
+  emit(state: AppStateValue): void {
+    appStateValue = state;
+    for (const listener of appStateListeners) listener(state);
+  },
+  addEventListener(
+    _type: 'change',
+    listener: (state: AppStateValue) => void,
+  ): { remove: () => void } {
+    appStateListeners.add(listener);
+    return {
+      remove: () => {
+        appStateListeners.delete(listener);
+      },
+    };
+  },
+};
+
 export const Dimensions = {
   get: () => ({ width: 390, height: 844, scale: 1, fontScale: 1 }),
 };
