@@ -13,7 +13,22 @@
  * - `stop()` cancels the interval and drops any in-flight result.
  */
 
-export const CHAT_POLL_INTERVAL_MS = 6000;
+/**
+ * Poll interval for the HTTP-only chat (V2.1).
+ *
+ * 15 s is the single agreed value across the V2.1 plan, the API docs,
+ * and this client. Rationale:
+ * - each poll costs up to 5 paginated GETs (long threads) and every GET
+ *   performs a mark-read UPDATE plus count/find queries server-side,
+ * - the messages endpoint is not rate-limited beyond authentication, so
+ *   the interval is the only throttle,
+ * - a 15 s worst-case reply latency is acceptable for a coordination
+ *   chat until Realtime (or a delta endpoint) replaces polling.
+ *
+ * Do not lower this without measured load evidence; revisit together
+ * with the Realtime feature flag (docs/17_V2_EXECUTION_TRACKER.md).
+ */
+export const CHAT_POLL_INTERVAL_MS = 15000;
 
 /**
  * Minimal foreground/background contract. Implemented by the React

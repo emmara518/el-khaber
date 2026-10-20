@@ -118,7 +118,7 @@ All suites include: full journey, 401 no-token, 401 role-reject tests. Skip with
 - Supabase Realtime uses PostgreSQL replication slots + WebSocket server
 - Requires enabling `realtime` publication on tables: `messages`, `conversations`, `notifications`
 - RLS policies apply to Realtime subscriptions (same as REST)
-- Current chat implementation uses HTTP polling (functional, no realtime dependency)
+- Current chat implementation uses HTTP polling (functional, no realtime dependency); the mobile client polls every 15 s only while the chat is visible and the app is active, with at most one request in flight (V2.1 contract)
 - Cost: Supabase Free tier includes 2M realtime messages/month
 - Risk: Free tier limits may be exceeded if user base grows
 
