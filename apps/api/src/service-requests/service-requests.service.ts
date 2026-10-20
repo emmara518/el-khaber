@@ -104,8 +104,11 @@ function toDetailDto(row: DetailRow): Omit<ServiceRequestDto, 'history'> {
       addressText: row.location.addressText,
       city: row.location.city,
       region: row.location.region,
-      latitude: Number(row.location.latitude),
-      longitude: Number(row.location.longitude),
+      // Label-only locations (legacy rows or technician-entered district
+      // names) have no coordinates. Never coerce NULL to (0,0): the client
+      // must fall back to the text address instead of the Gulf of Guinea.
+      latitude: row.location.latitude === null ? null : Number(row.location.latitude),
+      longitude: row.location.longitude === null ? null : Number(row.location.longitude),
     },
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
     acceptedAt: row.acceptedAt?.toISOString() ?? null,

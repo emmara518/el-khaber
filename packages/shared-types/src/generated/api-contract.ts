@@ -571,7 +571,7 @@ export interface ServiceRequestDto {
   faultId: string | null;
   history: Array<ServiceRequestStatusHistoryDto>;
   id: string;
-  location: { addressText: string | null; city: string | null; label: string | null; latitude: number; longitude: number; region: string | null };
+  location: { addressText: string | null; city: string | null; label: string | null; latitude: number | null; longitude: number | null; region: string | null };
   problemDescription: string;
   problemTitle: string | null;
   scheduledAt: string | null;

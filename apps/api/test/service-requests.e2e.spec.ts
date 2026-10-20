@@ -222,6 +222,48 @@ describe('service request lifecycle e2e', () => {
       ]);
     });
 
+    it('returns null coordinates for a label-only location (never 0,0)', async () => {
+      const customer = await register('customer', 'cust-null-coords@example.com');
+      const techId = seedVerifiedTechnician(
+        (await register('technician', 'tech-null-coords@example.com')).userId,
+      );
+      const locationId = uid();
+      prisma.locations.push({
+        id: locationId,
+        userId: customer.userId,
+        label: 'المنزل',
+        addressText: 'شارع عباس العقاد',
+        city: 'القاهرة',
+        region: 'القاهرة',
+        country: null,
+        latitude: null,
+        longitude: null,
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/service-requests')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          technician_id: techId,
+          appliance_category_id: CAT_ID,
+          service_id: SVC_ID,
+          problem_description: 'الغسالة لا تدور',
+          location_id: locationId,
+        })
+        .expect(201);
+
+      expect(res.body.data.location.latitude).toBeNull();
+      expect(res.body.data.location.longitude).toBeNull();
+      expect(res.body.data.location.addressText).toBe('شارع عباس العقاد');
+
+      const detail = await request(app.getHttpServer())
+        .get(`/api/v1/service-requests/${String(res.body.data.id)}`)
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .expect(200);
+      expect(detail.body.data.location.latitude).toBeNull();
+      expect(detail.body.data.location.longitude).toBeNull();
+    });
+
     it('supports the optional problem_title and the "other problem" case (no fault ref)', async () => {
       const customer = await register('customer', 'cust-title@example.com');
       const techId = seedVerifiedTechnician((await register('technician', 'tech-title@example.com')).userId);
