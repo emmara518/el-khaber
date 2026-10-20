@@ -12,9 +12,28 @@ concurrency:
 
 jobs:
   validate:
-    name: install · typecheck · lint · tests
+    name: install A� typecheck A� lint A� tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: khabir
+          POSTGRES_PASSWORD: khabir
+          POSTGRES_DB: khabir_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U khabir -d khabir_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      TEST_DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
 
     steps:
       - name: Checkout
@@ -48,6 +67,25 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @khabir/api exec prisma generate
 
+      # The integration specs resolve TEST_DATABASE_URL and refuse any
+      # non-isolated host (see apps/api/test/real-db-url.ts). Migrations are
+      # applied to the disposable service container before the suite runs.
+      # Supabase's anon/authenticated roles are referenced by one ACL
+      # migration; create them locally so the history replays faithfully.
+      - name: Bootstrap migration roles
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF; END \$\$;"
+
+      - name: Migrate isolated test database
+        run: pnpm --filter @khabir/api exec prisma migrate deploy
+
+      - name: Schema / migrations consistency
+        run: pnpm db:schema:check
+
+      # Reference-only, idempotent seed (no users/business data).
+      - name: Seed reference data
+        run: pnpm --filter @khabir/api db:seed
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -62,6 +100,15 @@ jobs:
 
       - name: Mobile tests
         run: pnpm --filter @khabir/mobile test
+
+      - name: Admin tests
+        run: pnpm --filter @khabir/admin test
+
+      - name: Admin build
+        run: pnpm --filter @khabir/admin build
+
+      - name: Landing build
+        run: pnpm --filter @khabir/landing build
 
   web-export:
     name: expo web export

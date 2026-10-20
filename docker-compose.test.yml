@@ -1,34 +1,26 @@
-# Isolated test database for the real-HTTP E2E suite (Task 10N).
-#
-# This stack is EPHEMERAL and LOCAL-ONLY. It provides the dedicated
-# `khabir_test` PostgreSQL + PostGIS instance the harness requires and is
-# completely separate from khabir-dev and production. It is never used by
-# the application runtime.
-#
+# Disposable PostgreSQL for local API integration/E2E tests.
+# Usage:
 #   docker compose -f docker-compose.test.yml up -d
-#   node apps/api/scripts/provision-test-db.mjs
-#
-# The bind port is non-default (55432) to avoid colliding with any local
-# PostgreSQL. Credentials here are throwaway test-only values and are not
-# secrets (they never leave the local machine / CI runner).
-
+#   DATABASE_URL=postgresql://khabir:khabir@localhost:5433/khabir_test \
+#     pnpm --filter @khabir/api exec prisma migrate deploy
+#   pnpm --filter @khabir/api test
+#   docker compose -f docker-compose.test.yml down -v
 services:
-  khabir-test-db:
-    image: postgis/postgis:15-3.4
-    container_name: khabir-test-db
-    restart: 'no'
+  test-db:
+    image: postgis/postgis:16-3.4
+    container_name: khabir-v21-test-db
     environment:
-      POSTGRES_USER: khabir_test
-      POSTGRES_PASSWORD: khabir_test_pw
+      POSTGRES_USER: khabir
+      POSTGRES_PASSWORD: khabir
       POSTGRES_DB: khabir_test
-      POSTGRES_INITDB_ARGS: '--encoding=UTF8'
     ports:
-      - '55432:5432'
-    tmpfs:
-      # Ephemeral storage: the database vanishes with the container.
-      - /var/lib/postgresql/data
+      - "5433:5432"
+    volumes:
+      - ./apps/api/prisma/test-db-init.sql:/docker-entrypoint-initdb.d/10-supabase-roles.sql:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U khabir_test -d khabir_test']
-      interval: 3s
+      test: ["CMD-SHELL", "pg_isready -U khabir -d khabir_test"]
+      interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data

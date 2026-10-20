@@ -94,3 +94,10 @@ apps/*/node_modules/.prisma/
 
 # Local audit artifacts
 audit-*.json
+
+# Test environment (never commit credentials)
+.env.test
+!.env.test.example
+
+# Local prisma diff scratch output
+schema-diff.sql

@@ -5,33 +5,23 @@
  * second mutation.
  *
  * Same contract as technician-service-areas.integration.spec.ts:
- * requires the verified khabir-dev connection (skips otherwise), reads
+ * requires the the isolated test database connection (skips otherwise), reads
  * .env WITHOUT mutating process.env, and cleans every probe row
  * (deterministic markers `t10f-probe`).
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
-import { parse } from 'dotenv';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { withTestPoolLimit } from './real-db-url';
+import { readTestDatabaseUrl, withTestPoolLimit } from './real-db-url';
 
-const envPath = join(__dirname, '..', '.env');
-let realDbUrl = '';
-try {
-  const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
-} catch {
-  realDbUrl = '';
-}
-const hasRealDb = /supabase\.com|supabase\.co/i.test(realDbUrl);
+const realDbUrl = withTestPoolLimit(readTestDatabaseUrl());
+const hasRealDb = realDbUrl !== '';
 
 const PROBE = 't10f-probe';
 
-describe.skipIf(!hasRealDb)('service request concurrency (real khabir-dev)', () => {
+describe.skipIf(!hasRealDb)('service request concurrency (isolated test database)', () => {
   let prisma: PrismaClient;
   let requestId = '';
   let techProfileId = '';

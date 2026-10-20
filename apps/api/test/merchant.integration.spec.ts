@@ -1,35 +1,25 @@
 /**
  * REAL-DATABASE integration tests for Merchant domain APIs (Task 10G):
  * profile onboarding persistence, product CRUD through the SERVICE layer,
- * ownership isolation, and slug uniqueness — against verified khabir-dev.
+ * ownership isolation, and slug uniqueness — against the isolated test database.
  *
  * Same contract as the other integration suites: skips without a real
  * Supabase URL, reads .env WITHOUT mutating process.env, and cleans every
  * probe row (probe users cascade to profiles/products).
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
-import { parse } from 'dotenv';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { withTestPoolLimit } from './real-db-url';
+import { readTestDatabaseUrl, withTestPoolLimit } from './real-db-url';
 
-const envPath = join(__dirname, '..', '.env');
-let realDbUrl = '';
-try {
-  const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
-} catch {
-  realDbUrl = '';
-}
-const hasRealDb = /supabase\.com|supabase\.co/i.test(realDbUrl);
+const realDbUrl = withTestPoolLimit(readTestDatabaseUrl());
+const hasRealDb = realDbUrl !== '';
 
 const PROBE = 't10g-probe';
 
-describe.skipIf(!hasRealDb)('merchant domain (real khabir-dev)', () => {
+describe.skipIf(!hasRealDb)('merchant domain (isolated test database)', () => {
   let prisma: PrismaClient;
 
 
