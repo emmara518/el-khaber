@@ -53,8 +53,20 @@ export class ApiClientError extends Error {
   }
 }
 
+export type RefreshOutcome = 'ok' | 'auth' | 'transient';
+
+export interface RefreshResult {
+  outcome: RefreshOutcome;
+  data?: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    user: unknown;
+  };
+}
+
 export class ApiClient {
-  private refreshing: Promise<boolean> | null = null;
+  private refreshing: Promise<RefreshResult> | null = null;
 
   constructor(private readonly config: ApiClientConfig) {}
 
@@ -112,13 +124,15 @@ export class ApiClient {
 
     let response = await doFetch();
     if (response.status === 401 && useAuth) {
-      const refreshed = await this.tryRefresh();
-      if (refreshed) {
+      const result = await this.refreshSession();
+      if (result.outcome === 'ok') {
         response = await doFetch();
-      } else {
+      } else if (result.outcome === 'auth') {
         this.config.onSessionLost?.();
         sessionLostHandler?.();
       }
+      // 'transient': the refresh could not be completed (network/timeout/5xx).
+      // Keep the session and let the caller retry.
     }
 
     const text = await response.text();
@@ -158,16 +172,18 @@ export class ApiClient {
 
     let response = await doFetch();
     if (response.status === 401 && useAuth) {
-      const refreshed = await this.tryRefresh();
-      if (refreshed) {
+      const result = await this.refreshSession();
+      if (result.outcome === 'ok') {
         response = await doFetch();
-      } else {
+      } else if (result.outcome === 'auth') {
         // Refresh definitively failed: the session is gone. Both hooks fire
         // so the config hook (tests/embedders) and the central registry
         // (auth store) invalidate through one path.
         this.config.onSessionLost?.();
         sessionLostHandler?.();
       }
+      // 'transient': network/timeout/5xx — do NOT clear a possibly valid
+      // session. The caller can retry once connectivity returns.
     }
 
     const text = await response.text();
@@ -184,27 +200,44 @@ export class ApiClient {
     return parsed as ApiSuccess<T>;
   }
 
-  private async tryRefresh(): Promise<boolean> {
+  /**
+   * Single-flight refresh shared by bootstrap and every concurrent 401.
+   *
+   * Outcomes:
+   *   - ok: rotated session persisted, access token updated.
+   *   - auth: the refresh token is definitively rejected (4xx except 429);
+   *     durable + in-memory credentials are cleared.
+   *   - transient: network error, timeout, 5xx, or 429. The stored session
+   *     is kept so a later retry can succeed.
+   */
+  async refreshSession(): Promise<RefreshResult> {
     if (this.refreshing !== null) {
       return this.refreshing;
     }
-    this.refreshing = (async () => {
+    this.refreshing = (async (): Promise<RefreshResult> => {
       const stored = await loadStoredSession();
       if (stored === null) {
         clearAccessToken();
-        return false;
+        return { outcome: 'auth' };
       }
       try {
         const res = await this.unauthenticatedRequest<{
           data: { accessToken: string; refreshToken: string; expiresIn: number; user: unknown };
         }>('POST', '/auth/refresh', { refreshToken: stored.refreshToken });
         await this.persist(res.data);
-        setAccessToken(res.data.accessToken);
-        return true;
-      } catch {
-        await clearStoredSession();
-        clearAccessToken();
-        return false;
+        return { outcome: 'ok', data: res.data };
+      } catch (error) {
+        if (
+          error instanceof ApiClientError &&
+          error.status >= 400 &&
+          error.status < 500 &&
+          error.status !== 429
+        ) {
+          await clearStoredSession();
+          clearAccessToken();
+          return { outcome: 'auth' };
+        }
+        return { outcome: 'transient' };
       } finally {
         this.refreshing = null;
       }

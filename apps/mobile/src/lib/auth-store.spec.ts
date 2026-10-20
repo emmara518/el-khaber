@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Auth store session-loss invalidation (WP-1A).
  *
  * Proves the central invalidation path: the store clears durable + in-memory
  * credentials and flips to `anonymous` (which the root AuthGate turns into a
  * /login redirect), it is idempotent, and the API client's session-loss signal
- * is actually wired to it — one path for customer, technician and merchant.
+ * is actually wired to it â€” one path for customer, technician and merchant.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -33,7 +33,7 @@ describe('auth store session loss (WP-1A)', () => {
   beforeEach(async () => {
     await clearStoredSession();
     clearAccessToken();
-    useAuthStore.setState({ status: 'unknown', user: null, expiresAt: null, error: null });
+    useAuthStore.setState({ status: 'unknown', connection: 'online', user: null, expiresAt: null, error: null });
   });
 
   afterEach(async () => {
@@ -100,5 +100,93 @@ describe('auth store session loss (WP-1A)', () => {
     expect(useAuthStore.getState().status).toBe('anonymous');
     expect(useAuthStore.getState().user).toBeNull();
     expect(getAccessToken()).toBeNull();
+  });
+});
+
+describe('auth store bootstrap resilience (M1)', () => {
+  beforeEach(async () => {
+    await clearStoredSession();
+    clearAccessToken();
+    useAuthStore.setState({
+      status: 'unknown',
+      connection: 'online',
+      user: null,
+      expiresAt: null,
+      error: null,
+    });
+  });
+
+  afterEach(async () => {
+    await clearStoredSession();
+    clearAccessToken();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the stored session and exposes a retryable offline state on network failure', async () => {
+    await storeSession({ refreshToken: 'refresh-1', user: { id: 'u1' } });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Network request failed')));
+
+    await useAuthStore.getState().bootstrap();
+
+    const state = useAuthStore.getState();
+    expect(state.status).toBe('unknown');
+    expect(state.connection).toBe('offline');
+    expect(state.error).toBeTruthy();
+    expect(await loadStoredSession()).not.toBeNull();
+  });
+
+  it('clears the session on a definitive refresh rejection', async () => {
+    await storeSession({ refreshToken: 'refresh-1', user: { id: 'u1' } });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        status: 401,
+        ok: false,
+        statusText: '',
+        text: async () => JSON.stringify({ error: { code: 'AUTH_INVALID', message: 'bad' } }),
+      }),
+    );
+
+    await useAuthStore.getState().bootstrap();
+
+    expect(useAuthStore.getState().status).toBe('anonymous');
+    expect(await loadStoredSession()).toBeNull();
+    expect(getAccessToken()).toBeNull();
+  });
+
+  it('shares one refresh across three concurrent bootstraps', async () => {
+    await storeSession({ refreshToken: 'refresh-1', user: { id: 'u1' } });
+    let refreshCalls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        expect(url).toContain('/auth/refresh');
+        refreshCalls += 1;
+        return {
+          status: 200,
+          ok: true,
+          statusText: '',
+          text: async () =>
+            JSON.stringify({
+              data: {
+                accessToken: 'fresh',
+                refreshToken: 'refresh-2',
+                expiresIn: 900,
+                user: sessionUser(),
+              },
+            }),
+        };
+      }),
+    );
+
+    await Promise.all([
+      useAuthStore.getState().bootstrap(),
+      useAuthStore.getState().bootstrap(),
+      useAuthStore.getState().bootstrap(),
+    ]);
+
+    expect(refreshCalls).toBe(1);
+    expect(useAuthStore.getState().status).toBe('authenticated');
   });
 });
