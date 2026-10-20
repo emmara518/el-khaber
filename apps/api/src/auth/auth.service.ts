@@ -204,11 +204,21 @@ export class AuthService {
       throw new AuthInvalidException('Account is not active');
     }
 
-    // Rotate: revoke the presented token, issue a new one in the same family.
-    await this.prisma.refreshToken.update({
-      where: { id: record.id },
+    // Rotate atomically: only the request that flips revoked_at from NULL to
+    // a timestamp may issue a successor. A concurrent request using the same
+    // token loses this conditional update (count === 0) and is handled as a
+    // replay, so one token can never produce two valid sessions.
+    const claimed = await this.prisma.refreshToken.updateMany({
+      where: { id: record.id, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'rotation' },
     });
+    if (claimed.count !== 1) {
+      await this.prisma.refreshToken.updateMany({
+        where: { familyId: record.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'family_replay' },
+      });
+      throw new AuthInvalidException('Refresh token replay detected');
+    }
 
     return this.issueSession(
       { id: user.id, role: user.role as Role, status: user.status as UserStatus },

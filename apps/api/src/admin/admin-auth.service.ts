@@ -104,10 +104,17 @@ export class AdminAuthService {
     if (record.admin.status !== USER_STATUS.active) {
       throw new AuthInvalidException('Account is not active');
     }
-    await this.prisma.adminRefreshToken.update({
-      where: { id: record.id },
+    const claimed = await this.prisma.adminRefreshToken.updateMany({
+      where: { id: record.id, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'rotation' },
     });
+    if (claimed.count !== 1) {
+      await this.prisma.adminRefreshToken.updateMany({
+        where: { familyId: record.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'family_replay' },
+      });
+      throw new AuthInvalidException('Refresh token replay detected');
+    }
     return this.issueSession(
       { id: record.admin.id, role: record.admin.role, status: record.admin.status as UserStatus },
       meta,
