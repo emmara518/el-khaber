@@ -24,7 +24,11 @@ export interface ApiClientConfig {
   baseUrl: string;
   /** Called when the session is definitively lost (refresh failed). */
   onSessionLost?: () => void;
+  /** Per-request timeout (V2.1 default: 15 seconds). */
+  timeoutMs?: number;
 }
+
+const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
  * Session-loss registry (WP-1A). The auth layer registers exactly ONE
@@ -68,7 +72,11 @@ export interface RefreshResult {
 export class ApiClient {
   private refreshing: Promise<RefreshResult> | null = null;
 
-  constructor(private readonly config: ApiClientConfig) {}
+  private readonly timeoutMs: number;
+
+  constructor(private readonly config: ApiClientConfig) {
+    this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  }
 
   get baseUrl(): string {
     return this.config.baseUrl;
@@ -115,11 +123,11 @@ export class ApiClient {
           headers['Authorization'] = `Bearer ${token}`;
         }
       }
-      return fetch(`${this.config.baseUrl}${path}`, {
+      return this.fetchWithTimeout(`${this.config.baseUrl}${path}`, {
         method,
         headers,
         body: form as unknown as BodyInit,
-      });
+      }, method, path);
     };
 
     let response = await doFetch();
@@ -135,14 +143,12 @@ export class ApiClient {
       // Keep the session and let the caller retry.
     }
 
-    const text = await response.text();
-    const parsed: ApiResponse<T> =
-      text.length > 0 ? (JSON.parse(text) as ApiResponse<T>) : ({} as ApiResponse<T>);
+    const parsed = await this.parseBody<T>(response);
 
     if (!response.ok || 'error' in parsed) {
       const errBody = (parsed as ApiError).error ?? {
         code: 'INTERNAL_ERROR',
-        message: response.statusText,
+        message: response.statusText || 'Unexpected server response',
       };
       throw new ApiClientError(response.status, errBody);
     }
@@ -163,11 +169,11 @@ export class ApiClient {
           headers['Authorization'] = `Bearer ${token}`;
         }
       }
-      return fetch(`${this.config.baseUrl}${path}`, {
+      return this.fetchWithTimeout(`${this.config.baseUrl}${path}`, {
         method,
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
-      });
+      }, method, path);
     };
 
     let response = await doFetch();
@@ -186,18 +192,69 @@ export class ApiClient {
       // session. The caller can retry once connectivity returns.
     }
 
-    const text = await response.text();
-    const parsed: ApiResponse<T> =
-      text.length > 0 ? (JSON.parse(text) as ApiResponse<T>) : ({} as ApiResponse<T>);
+    const parsed = await this.parseBody<T>(response);
 
     if (!response.ok || 'error' in parsed) {
       const errBody = (parsed as ApiError).error ?? {
         code: 'INTERNAL_ERROR',
-        message: response.statusText,
+        message: response.statusText || 'Unexpected server response',
       };
       throw new ApiClientError(response.status, errBody);
     }
     return parsed as ApiSuccess<T>;
+  }
+
+  /**
+   * Fetch with a real AbortController timeout. A hung request must never
+   * leave the UI waiting forever.
+   */
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit,
+    method: string,
+    path: string,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      return await fetch(url, { ...init, signal: controller.signal });
+    } catch (error) {
+      const aborted = (error as { name?: string }).name === 'AbortError';
+      // Safe diagnostics only: method + route, never headers/tokens/body.
+      console.warn('[api-client] transport failure', {
+        method,
+        path,
+        kind: aborted ? 'timeout' : 'network',
+      });
+      if (aborted) {
+        throw new ApiClientError(0, { code: 'INTERNAL_ERROR', message: 'Request timed out' });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Parse the canonical envelope WITHOUT assuming JSON. A proxy 502 HTML
+   * page or an empty body must become a controlled ApiClientError, never a
+   * JSON.parse crash.
+   */
+  private async parseBody<T>(response: Response): Promise<ApiResponse<T>> {
+    const text = await response.text();
+    if (text.trim().length === 0) {
+      return {} as ApiResponse<T>;
+    }
+    const contentType = response.headers?.get?.('content-type') ?? '';
+    const looksJson = contentType.includes('json') || /^\s*[{[]/.test(text);
+    if (!looksJson) {
+      return {} as ApiResponse<T>;
+    }
+    try {
+      return JSON.parse(text) as ApiResponse<T>;
+    } catch {
+      return {} as ApiResponse<T>;
+    }
   }
 
   /**
