@@ -2,9 +2,19 @@ name: ci
 
 on:
   push:
-    branches: [main, review/final-production-release]
+    branches: [main, release/v2.1.0-uat, review/final-production-release]
+  # The V2.1 work is reviewed as a stacked PR chain; every base branch in
+  # that stack must run CI, not only main.
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - release/v2.1.0-uat
+      - review/**
+      - wip/**
+      - fix/**
+      - feat/**
+      - test/**
+      - perf/**
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -12,13 +22,16 @@ concurrency:
 
 jobs:
   validate:
-    name: install A� typecheck A� lint A� tests
+    name: install / typecheck / lint / tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # PostGIS is required by the initial migration and the geography
+        # columns. This image is PostgreSQL 16 + PostGIS 3.4 and includes
+        # the contrib extensions uuid-ossp and pgcrypto.
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: khabir
           POSTGRES_PASSWORD: khabir
@@ -32,12 +45,41 @@ jobs:
           --health-retries 10
 
     env:
+      # Isolated, disposable CI database. NEVER point these at Supabase.
       DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      DIRECT_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
       TEST_DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Fail closed before any migration or test if the CI database config is
+      # missing or points at a shared/managed host.
+      - name: Assert isolated test database configuration
+        run: |
+          node - <<'NODE'
+          const { URL } = require('node:url');
+          const allowed = new Set(['localhost', '127.0.0.1', '::1', 'postgres', 'test-db']);
+          for (const key of ['DATABASE_URL', 'DIRECT_URL', 'TEST_DATABASE_URL']) {
+            const raw = process.env[key];
+            if (!raw) {
+              console.error(`${key} is required for CI integration coverage`);
+              process.exit(1);
+            }
+            const parsed = new URL(raw);
+            if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+              console.error(`${key} must use a PostgreSQL URL`);
+              process.exit(1);
+            }
+            const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+            if (/supabase\.(com|co|in)/i.test(host) || !allowed.has(host)) {
+              console.error(`${key} must target an isolated database host, got '${host}'`);
+              process.exit(1);
+            }
+          }
+          console.log('isolated CI database configuration OK');
+          NODE
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -67,6 +109,19 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @khabir/api exec prisma generate
 
+      # Prove the disposable image really provides every extension the
+      # migration history requires before touching the schema.
+      - name: Verify PostgreSQL extensions
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          SELECT extname FROM pg_extension
+           WHERE extname IN ('uuid-ossp', 'pgcrypto', 'postgis')
+           ORDER BY extname;
+          SQL
+
       # The integration specs resolve TEST_DATABASE_URL and refuse any
       # non-isolated host (see apps/api/test/real-db-url.ts). Migrations are
       # applied to the disposable service container before the suite runs.
@@ -93,8 +148,9 @@ jobs:
         run: pnpm lint
 
       # API tests run against the in-memory FakePrisma harness — no database
-      # or production secrets required. Real-DB integration specs self-skip
-      # without a Supabase DATABASE_URL.
+      # or production secrets required. Integration specs use the isolated
+      # PostgreSQL via TEST_DATABASE_URL; CI fails closed if it is omitted,
+      # and there is no Supabase fallback.
       - name: API tests
         run: pnpm --filter @khabir/api test
 
