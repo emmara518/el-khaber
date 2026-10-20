@@ -138,4 +138,7 @@ jobs:
         run: pnpm --filter @khabir/mobile export:web
 
       - name: Verify export output
-        run: test -f apps/mobile/dist-web/index.html
+        run: |
+          test -f apps/mobile/dist-web/index.html
+          test ! -e apps/mobile/dist-web/_sitemap.html
+          test ! -e apps/mobile/dist-web/_sitemap
