@@ -1282,8 +1282,10 @@ components:
               nullable: true
               type: string
             latitude:
+              nullable: true
               type: number
             longitude:
+              nullable: true
               type: number
             region:
               nullable: true
