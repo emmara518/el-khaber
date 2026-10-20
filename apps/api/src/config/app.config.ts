@@ -80,6 +80,12 @@ export interface AppConfig {
     readonly ttlSeconds: number;
     readonly max: number;
     readonly authMax: number;
+    /** Failed logins allowed per source IP within the IP window. */
+    readonly loginIpMax: number;
+    readonly loginIpTtlSeconds: number;
+    /** Failed logins allowed per account within the user window. */
+    readonly loginUserMax: number;
+    readonly loginUserTtlSeconds: number;
   };
   readonly identity: {
     /** Failed logins per (identifier, ip) before a temporary lock. */
@@ -132,8 +138,16 @@ export function getConfig(): AppConfig {
     },
     rateLimit: {
       ttlSeconds: readNumber('RATE_LIMIT_TTL', 60),
-      max: readNumber('RATE_LIMIT_MAX', 20),
+      // General request budget per IP per instance (V2.1 default: 120/min).
+      max: readNumber('RATE_LIMIT_MAX', 120),
+      // Brute-force budget for auth endpoints (login/register/refresh/reset).
       authMax: readNumber('AUTH_RATE_LIMIT_MAX', 10),
+      // Layered failed-login protection: one IP cannot burn an account's
+      // budget, and one account cannot be brute-forced across many IPs.
+      loginIpMax: readNumber('AUTH_LOGIN_IP_MAX', 5),
+      loginIpTtlSeconds: readNumber('AUTH_LOGIN_IP_TTL', 900),
+      loginUserMax: readNumber('AUTH_LOGIN_USER_MAX', 20),
+      loginUserTtlSeconds: readNumber('AUTH_LOGIN_USER_TTL', 3600),
     },
     identity: {
       // Provisional defaults pending CTO ratification (Task 10D §6):
