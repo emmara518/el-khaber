@@ -10,18 +10,15 @@
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useSafeBack } from '../components/use-safe-back';
 
+import { ApiTechnicianDataSource } from './api-technician-data-source';
 import { VerificationBadge } from './components/verification-badge';
-import {
-  buildServiceRequestHandoff,
-  findTechnician,
-  type Technician,
-} from './technician-types';
-import { useTechniciansViewModel } from './use-technicians-view-model';
+import { buildServiceRequestHandoff, type Technician } from './technician-types';
 
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
@@ -42,26 +39,73 @@ export default function TechnicianProfileScreen() {
     params.appliance === 'air_conditioner'
       ? (params.appliance as ApplianceSlug)
       : undefined;
-  const symptomId = typeof params.symptomId === 'string' && params.symptomId.length > 0 ? params.symptomId : undefined;
+  const symptomId =
+    typeof params.symptomId === 'string' && params.symptomId.length > 0
+      ? params.symptomId
+      : undefined;
 
-  const { status, data, error, retry } = useTechniciansViewModel();
-  const technician = data !== null ? findTechnician(data, id) : null;
+  // WP-Discovery: direct detail read — the profile never depends on the
+  // list window (a filtered list may not contain this technician).
+  const [attempt, setAttempt] = useState(0);
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [technician, setTechnician] = useState<Technician | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setStatus('loading');
+    setError(null);
+    new ApiTechnicianDataSource()
+      .getTechnicianDetail({ id })
+      .then((profile) => {
+        if (cancelled) return;
+        setTechnician(profile);
+        setStatus('loaded');
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setStatus('error');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, attempt]);
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
   const safeBack = useSafeBack('/(customer)/find-technician');
 
   return (
     <SafeAreaView edges={['top']} style={styles.root}>
       {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
       {status === 'error' ? (
-        <ListError title={t('discovery.error.title')} message={error?.message ?? ''} retryLabel={t('state.retry')} onRetry={retry} />
+        <ListError
+          title={t('discovery.error.title')}
+          message={error?.message ?? ''}
+          retryLabel={t('state.retry')}
+          onRetry={retry}
+        />
       ) : null}
       {status === 'loaded' ? (
         technician === null ? (
-          <ListEmpty brandAsset="no-results" icon="user" iconLabel="فني غير موجود" title={t('discovery.profile.missing')} body={t('discovery.profile.missingBody')} actionLabel={t('fault.back')} onAction={safeBack} />
+          <ListEmpty
+            brandAsset="no-results"
+            icon="user"
+            iconLabel="فني غير موجود"
+            title={t('discovery.profile.missing')}
+            body={t('discovery.profile.missingBody')}
+            actionLabel={t('fault.back')}
+            onAction={safeBack}
+          />
         ) : (
           <ProfileBody
             technician={technician}
             onRequestService={() =>
-              router.push(buildServiceRequestHandoff({ technicianId: technician.id, applianceSlug: appliance, symptomId }))
+              router.push(
+                buildServiceRequestHandoff({
+                  technicianId: technician.id,
+                  applianceSlug: appliance,
+                  symptomId,
+                }),
+              )
             }
             onBack={safeBack}
           />
@@ -71,7 +115,15 @@ export default function TechnicianProfileScreen() {
   );
 }
 
-function ProfileBody({ technician, onRequestService, onBack }: { technician: Technician; onRequestService: () => void; onBack: () => void }) {
+function ProfileBody({
+  technician,
+  onRequestService,
+  onBack,
+}: {
+  technician: Technician;
+  onRequestService: () => void;
+  onBack: () => void;
+}) {
   const { t } = useI18n();
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -79,11 +131,26 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
         eyebrow={technician.specialtiesAr.join(' · ')}
         title={technician.nameAr}
         body={joinNonEmpty([technician.experienceAr, technician.availabilityLabelAr])}
-        action={<SceneAction label={t('discovery.profile.requestService')} accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`} onPress={onRequestService} />}
+        action={
+          <SceneAction
+            label={t('discovery.profile.requestService')}
+            accessibilityLabel={`اطلب خدمة من ${technician.nameAr}`}
+            onPress={onRequestService}
+          />
+        }
         compact
       >
         <View style={styles.identity}>
-          <Avatar initials={technician.initialsAr} size={72} background={color.brand.gold} foreground={color.brand.navy} statusDot statusColor={technician.available ? color.success.DEFAULT : color.text.secondary} accessibilityLabel={`${technician.nameAr}${technician.available ? '، متاح' : '، مشغول حاليًا'}`} />
+          <Avatar
+            initials={technician.initialsAr}
+            imageUrl={technician.avatarUrl}
+            size={72}
+            background={color.brand.gold}
+            foreground={color.brand.navy}
+            statusDot
+            statusColor={technician.available ? color.success.DEFAULT : color.text.secondary}
+            accessibilityLabel={`${technician.nameAr}${technician.available ? '، متاح' : '، مشغول حاليًا'}`}
+          />
           <View style={styles.identityCopy}>
             <VerificationBadge verified={technician.verified} />
             <RatingStars rating={technician.rating} reviewCount={technician.reviewCount} />
@@ -91,10 +158,18 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
         </View>
       </SceneHero>
       <View style={styles.editorial}>
-        <SceneSection title={t('discovery.profile.about')} eyebrow="نبذة" brandAsset="certified-technician">
+        <SceneSection
+          title={t('discovery.profile.about')}
+          eyebrow="نبذة"
+          brandAsset="certified-technician"
+        >
           <Text style={styles.body}>{technician.aboutAr}</Text>
         </SceneSection>
-        <SceneSection title={t('discovery.profile.services')} eyebrow="ما يمكنه تقديمه" body="الخدمات مدرجة كما يقدمها الفني.">
+        <SceneSection
+          title={t('discovery.profile.services')}
+          eyebrow="ما يمكنه تقديمه"
+          body="الخدمات مدرجة كما يقدمها الفني."
+        >
           <View style={styles.services}>
             {technician.servicesAr.map((service) => (
               <View key={service} style={styles.serviceTag} accessibilityLabel={`خدمة: ${service}`}>
@@ -103,7 +178,11 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
             ))}
           </View>
         </SceneSection>
-        <SceneSection title={t('discovery.profile.reviews')} eyebrow="تجارب حقيقية" brandAsset="top-rated">
+        <SceneSection
+          title={t('discovery.profile.reviews')}
+          eyebrow="تجارب حقيقية"
+          brandAsset="top-rated"
+        >
           {technician.reviews.length === 0 ? (
             <Text style={styles.body}>{t('discovery.profile.noReviews')}</Text>
           ) : (
@@ -123,11 +202,23 @@ function ProfileBody({ technician, onRequestService, onBack }: { technician: Tec
         </SceneSection>
         <SceneSection title={t('discovery.profile.areas')} eyebrow="أين يعمل">
           <View style={styles.areaRow}>
-            <Icon name="map-pin" size={16} color={color.text.secondary} accessibilityLabel="مناطق الخدمة" />
-            <Text style={styles.body}>{technician.areasAr.join('، ')}</Text>
+            <Icon
+              name="map-pin"
+              size={16}
+              color={color.text.secondary}
+              accessibilityLabel="مناطق الخدمة"
+            />
+            <Text style={styles.body}>
+              {technician.areasAr.length > 0 ? technician.areasAr.join('، ') : '—'}
+            </Text>
           </View>
         </SceneSection>
-        <SceneSection title="تعامل بثقة" eyebrow="حلوانفية أولاً" brandAsset="verified" body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب." />
+        <SceneSection
+          title="تعامل بثقة"
+          eyebrow="حلوانفية أولاً"
+          brandAsset="verified"
+          body="بيانات الملف والتقييمات من سجل المنصة كما هي. راجع التخصص ومناطق الخدمة وتقييمات العملاء قبل تأكيد الطلب."
+        />
         <View style={styles.ctaFooter}>
           <SceneAction label={t('fault.back')} variant="secondary" onPress={onBack} />
         </View>
@@ -144,13 +235,42 @@ const styles = StyleSheet.create({
   identityCopy: { gap: spacing[2] },
   body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   services: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
-  serviceTag: { backgroundColor: color.brand.goldSoft, borderRadius: radius.pill, paddingHorizontal: spacing[4], paddingVertical: spacing[2], minHeight: 44, justifyContent: 'center' },
-  serviceText: { ...type.bodyMedium, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  serviceTag: {
+    backgroundColor: color.brand.goldSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2],
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  serviceText: {
+    ...type.bodyMedium,
+    color: color.brand.navy,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   reviews: { gap: spacing[3] },
-  review: { borderWidth: 1, borderColor: color.border.default, borderRadius: radius.lg, backgroundColor: color.surface.base, padding: spacing[4], gap: spacing[2] },
+  review: {
+    borderWidth: 1,
+    borderColor: color.border.default,
+    borderRadius: radius.lg,
+    backgroundColor: color.surface.base,
+    padding: spacing[4],
+    gap: spacing[2],
+  },
   reviewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  reviewAuthor: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
-  reviewDate: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  reviewAuthor: {
+    ...type.cardTitle,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  reviewDate: {
+    ...type.caption,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   areaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   ctaFooter: { gap: spacing[3], marginTop: spacing[5] },
 });

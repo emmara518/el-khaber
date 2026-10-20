@@ -129,12 +129,30 @@ describe('step machine', () => {
   });
 
   it('adds and removes photos without duplication', () => {
+    const attachment = {
+      id: 'p1',
+      uri: 'file:///tmp/photo-1.jpg',
+      fileName: 'photo-1.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: 1024,
+    };
     let state = INITIAL_SERVICE_REQUEST_STATE;
-    state = serviceRequestReducer(state, { type: 'ADD_PHOTO', photoId: 'p1', labelAr: 'صورة 1' });
-    state = serviceRequestReducer(state, { type: 'ADD_PHOTO', photoId: 'p1', labelAr: 'صورة 1' });
+    state = serviceRequestReducer(state, { type: 'ADD_PHOTO', photo: attachment });
+    state = serviceRequestReducer(state, { type: 'ADD_PHOTO', photo: attachment });
     expect(state.draft.photos).toHaveLength(1);
+    expect(state.draft.photos[0]?.uri).toBe(attachment.uri);
     state = serviceRequestReducer(state, { type: 'REMOVE_PHOTO', photoId: 'p1' });
     expect(state.draft.photos).toHaveLength(0);
+  });
+
+  it('sets and clears the preferred appointment without touching the draft (Track B1)', () => {
+    const iso = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    let state = serviceRequestReducer(stateWithDraft(), { type: 'SET_PREFERRED_AT', preferredAtISO: iso });
+    expect(state.draft.preferredAtISO).toBe(iso);
+    expect(state.draft.locationId).toBe('home');
+    state = serviceRequestReducer(state, { type: 'SET_PREFERRED_AT', preferredAtISO: null });
+    expect(state.draft.preferredAtISO).toBeNull();
+    expect(state.draft.descriptionAr).toBe(stateWithDraft().draft.descriptionAr);
   });
 });
 
@@ -160,6 +178,14 @@ describe('validation', () => {
     const other = { ...base, problemId: 'other', customProblemAr: 'قصير' };
     expect(validateStep(other, 'problem')).not.toBeNull();
     expect(validateStep({ ...other, customProblemAr: 'تسرب من الخلف منذ يومين' }, 'problem')).toBeNull();
+  });
+
+  it('blocks a stale preferred appointment at the appointment step and review (Track B1)', () => {
+    const stale = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const beyond = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+    expect(validateStep({ ...base, preferredAtISO: stale }, 'appointment')).not.toBeNull();
+    expect(validateStep({ ...base, preferredAtISO: beyond }, 'appointment')).not.toBeNull();
+    expect(validateStep(base, 'review')).toBeNull();
   });
 
   it('scopes problem options by appliance', async () => {

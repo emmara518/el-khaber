@@ -10,12 +10,23 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+  pickProfilePhotoFromLibrary,
+  profilePhotoSizeErrorAr,
+  takeProfilePhotoWithCamera,
+  type PickedPhoto,
+} from '../../lib/profile-photo';
+
+import {
   ApiPaymentsDataSource,
   type PaymentMethodConfig,
   type PaymentsDataSource,
   type PaymentSubmission,
+  type ProofUploadGrant,
 } from './api-payments-data-source';
-import { ApiSubscriptionsDataSource, type SubscriptionsDataSource } from './api-subscriptions-data-source';
+import {
+  ApiSubscriptionsDataSource,
+  type SubscriptionsDataSource,
+} from './api-subscriptions-data-source';
 import {
   canCancelRenewal,
   canSelectPlan,
@@ -29,6 +40,15 @@ import {
 } from './subscription-types';
 
 export type SubscriptionLoadStatus = 'loading' | 'loaded' | 'error';
+
+export type ProofStatus =
+  | 'idle'
+  | 'picking'
+  | 'ready'
+  | 'uploading'
+  | 'confirming'
+  | 'done'
+  | 'error';
 
 export interface SubscriptionViewState {
   readonly plans: ReadonlyArray<SubscriptionPlan>;
@@ -49,6 +69,18 @@ export interface SubscriptionViewState {
     transferReference: string;
   }) => void;
   readonly resetSubmit: () => void;
+  /** WP-Proof: proof-attach flow for one pending submission. */
+  readonly proofSubmissionId: string | null;
+  readonly pendingProofPhoto: PickedPhoto | null;
+  readonly proofStatus: ProofStatus;
+  readonly proofError: string | null;
+  readonly openProofFor: (submissionId: string) => void;
+  readonly pickProofLibrary: () => void;
+  readonly takeProofCamera: () => void;
+  readonly confirmProofUpload: () => void;
+  readonly retryProof: () => void;
+  readonly dismissProof: () => void;
+  readonly closeProof: () => void;
 }
 
 export function useSubscriptionViewModel(
@@ -56,8 +88,12 @@ export function useSubscriptionViewModel(
   source?: SubscriptionsDataSource,
   paymentsSource?: PaymentsDataSource,
 ): SubscriptionViewState {
-  const [subs] = useState<SubscriptionsDataSource>(() => source ?? new ApiSubscriptionsDataSource());
-  const [payments] = useState<PaymentsDataSource>(() => paymentsSource ?? new ApiPaymentsDataSource());
+  const [subs] = useState<SubscriptionsDataSource>(
+    () => source ?? new ApiSubscriptionsDataSource(),
+  );
+  const [payments] = useState<PaymentsDataSource>(
+    () => paymentsSource ?? new ApiPaymentsDataSource(),
+  );
   const [attempt, setAttempt] = useState(0);
   const [plans, setPlans] = useState<ReadonlyArray<SubscriptionPlan>>([]);
   const [current, setCurrent] = useState<CurrentSubscription | null>(null);
@@ -69,6 +105,11 @@ export function useSubscriptionViewModel(
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<PaymentSubmitStatus>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [proofSubmissionId, setProofSubmissionId] = useState<string | null>(null);
+  const [pendingProofPhoto, setPendingProofPhoto] = useState<PickedPhoto | null>(null);
+  const [proofGrant, setProofGrant] = useState<ProofUploadGrant | null>(null);
+  const [proofStatus, setProofStatus] = useState<ProofStatus>('idle');
+  const [proofError, setProofError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,9 +183,7 @@ export function useSubscriptionViewModel(
           setSubmissions(nextSubmissions);
           setSubmitStatus('success');
         } catch (err) {
-          setSubmitError(
-            err instanceof Error ? err.message : 'تعذر إرسال طلب الدفع. حاول مجددًا',
-          );
+          setSubmitError(err instanceof Error ? err.message : 'تعذر إرسال طلب الدفع. حاول مجددًا');
           setSubmitStatus('error');
         }
       })();
@@ -155,6 +194,123 @@ export function useSubscriptionViewModel(
   const resetSubmit = useCallback(() => {
     setSubmitStatus('idle');
     setSubmitError(null);
+  }, []);
+
+  const openProofFor = useCallback((submissionId: string) => {
+    setProofSubmissionId(submissionId);
+    setPendingProofPhoto(null);
+    setProofGrant(null);
+    setProofStatus('idle');
+    setProofError(null);
+  }, []);
+
+  const closeProof = useCallback(() => {
+    setProofSubmissionId(null);
+    setPendingProofPhoto(null);
+    setProofGrant(null);
+    setProofStatus('idle');
+    setProofError(null);
+  }, []);
+
+  const settlePickedProof = useCallback(
+    (photo: PickedPhoto | null, deniedMessage: string | null) => {
+      if (photo === null && deniedMessage === null) {
+        setProofStatus('idle');
+        return;
+      }
+      if (deniedMessage !== null) {
+        setProofError(deniedMessage);
+        setProofStatus('error');
+        return;
+      }
+      const sizeError = profilePhotoSizeErrorAr(photo?.sizeBytes ?? null);
+      if (sizeError !== null) {
+        setProofError(sizeError);
+        setProofStatus('error');
+        return;
+      }
+      setPendingProofPhoto(photo);
+      setProofStatus('ready');
+    },
+    [],
+  );
+
+  const pickProofLibrary = useCallback(() => {
+    setProofStatus('picking');
+    setProofError(null);
+    void (async () => {
+      const result = await pickProfilePhotoFromLibrary();
+      if (result.outcome === 'cancelled') {
+        setProofStatus('idle');
+      } else if (result.outcome === 'denied') {
+        settlePickedProof(null, result.messageAr);
+      } else {
+        settlePickedProof(result.photo, null);
+      }
+    })();
+  }, [settlePickedProof]);
+
+  const takeProofCamera = useCallback(() => {
+    setProofStatus('picking');
+    setProofError(null);
+    void (async () => {
+      const result = await takeProfilePhotoWithCamera();
+      if (result.outcome === 'cancelled') {
+        setProofStatus('idle');
+      } else if (result.outcome === 'denied') {
+        settlePickedProof(null, result.messageAr);
+      } else {
+        settlePickedProof(result.photo, null);
+      }
+    })();
+  }, [settlePickedProof]);
+
+  const runProofUpload = useCallback(
+    async (submissionId: string, photo: PickedPhoto, grant: ProofUploadGrant | null) => {
+      // Reuse an existing grant on retry (PUT is idempotent to the same
+      // key; re-requesting would orphan the previous key server-side).
+      const activeGrant =
+        grant ?? (await payments.requestProofUploadUrl({ submissionId, mimeType: photo.mimeType }));
+      if (grant === null) {
+        setProofGrant(activeGrant);
+      }
+      setProofStatus('uploading');
+      await payments.putProofBytes({ grant: activeGrant, photo });
+      setProofStatus('confirming');
+      await payments.confirmProof({ submissionId, storageKey: activeGrant.storageKey });
+      const nextSubmissions = await payments.getSubmissions({ role }).catch(() => submissions);
+      setSubmissions(nextSubmissions);
+      setProofStatus('done');
+    },
+    [payments, role, submissions],
+  );
+
+  const confirmProofUpload = useCallback(() => {
+    if (proofSubmissionId === null || pendingProofPhoto === null) return;
+    if (proofStatus === 'uploading' || proofStatus === 'confirming') return;
+    setProofError(null);
+    const submissionId = proofSubmissionId;
+    const photo = pendingProofPhoto;
+    const grant = proofGrant;
+    void (async () => {
+      try {
+        await runProofUpload(submissionId, photo, grant);
+      } catch (err) {
+        setProofError(err instanceof Error ? err.message : 'تعذر إرفاق الإثبات. حاول مجددًا.');
+        setProofStatus('error');
+      }
+    })();
+  }, [proofSubmissionId, pendingProofPhoto, proofGrant, proofStatus, runProofUpload]);
+
+  const retryProof = useCallback(() => {
+    setProofStatus('idle');
+    setProofError(null);
+    confirmProofUpload();
+  }, [confirmProofUpload]);
+
+  const dismissProof = useCallback(() => {
+    setProofStatus('idle');
+    setProofError(null);
   }, []);
 
   return {
@@ -172,6 +328,17 @@ export function useSubscriptionViewModel(
     cancelRenewal,
     submitPayment,
     resetSubmit,
+    proofSubmissionId,
+    pendingProofPhoto,
+    proofStatus,
+    proofError,
+    openProofFor,
+    pickProofLibrary,
+    takeProofCamera,
+    confirmProofUpload,
+    retryProof,
+    dismissProof,
+    closeProof,
   };
 }
 

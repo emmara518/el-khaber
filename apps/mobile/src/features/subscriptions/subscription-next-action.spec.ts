@@ -5,13 +5,29 @@ import { subscribeNextAction } from './subscription-types';
 import type { CurrentSubscription, SubscriptionPlan } from './subscription-types';
 
 function plan(overrides: Partial<SubscriptionPlan> = {}): SubscriptionPlan {
-  return { id: 'plan-free', code: 'FREE', nameAr: 'الباقة الأساسية', price: 0, currency: 'EGP', billingInterval: 'monthly', role: 'customer', ...overrides };
+  return {
+    id: 'plan-free',
+    code: 'FREE',
+    nameAr: 'الباقة الأساسية',
+    price: 0,
+    currency: 'EGP',
+    billingInterval: 'monthly',
+    role: 'customer',
+    ...overrides,
+  };
 }
 
 function current(overrides: Partial<CurrentSubscription> = {}): CurrentSubscription {
   return {
-    id: 'sub-1', status: 'active', statusAr: 'نشطة', planNameAr: 'باقة المحترف', planId: 'plan-pro',
-    price: 199, currency: 'EGP', billingInterval: 'monthly', renewalEnabled: true,
+    id: 'sub-1',
+    status: 'active',
+    statusAr: 'نشطة',
+    planNameAr: 'باقة المحترف',
+    planId: 'plan-pro',
+    price: 199,
+    currency: 'EGP',
+    billingInterval: 'monthly',
+    renewalEnabled: true,
     currentPeriodEnd: '2026-10-01T00:00:00.000Z',
     ...overrides,
   };
@@ -26,7 +42,10 @@ describe('subscription plan next-action mapping', () => {
   });
 
   it('reports renewal stopped for the current plan after cancel', () => {
-    const action = subscribeNextAction(plan({ id: 'plan-pro' }), current({ renewalEnabled: false }));
+    const action = subscribeNextAction(
+      plan({ id: 'plan-pro' }),
+      current({ renewalEnabled: false }),
+    );
     expect(action.labelAr).toContain('التجديد موقوف');
   });
 

@@ -26,17 +26,20 @@ export const NOTIFICATION_TYPE = {
   verification: 'verification',
 } as const;
 
-const REQUEST_STATUS_COPY: Record<ServiceRequestStatusValue, { titleAr: string; bodyAr: string }> = {
-  pending: { titleAr: 'طلب خدمة جديد', bodyAr: 'تم استلام طلب الخدمة وسيتم مراجعته.' },
-  accepted: { titleAr: 'تم قبول طلب الخدمة', bodyAr: 'قبل الفني طلبك وسيتم التواصل معك قريبًا.' },
-  on_the_way: { titleAr: 'الفني في الطريق', bodyAr: 'الفني في الطريق إليك الآن.' },
-  in_progress: { titleAr: 'بدأ تنفيذ الخدمة', bodyAr: 'بدأ الفني العمل على طلبك.' },
-  completed: { titleAr: 'تم إكمال الخدمة', bodyAr: 'تم إكمال طلبك. يمكنك تقييم الخدمة الآن.' },
-  cancelled: { titleAr: 'تم إلغاء طلب الخدمة', bodyAr: 'تم إلغاء طلب الخدمة.' },
-};
+const REQUEST_STATUS_COPY: Record<ServiceRequestStatusValue, { titleAr: string; bodyAr: string }> =
+  {
+    pending: { titleAr: 'طلب خدمة جديد', bodyAr: 'تم استلام طلب الخدمة وسيتم مراجعته.' },
+    accepted: { titleAr: 'تم قبول طلب الخدمة', bodyAr: 'قبل الفني طلبك وسيتم التواصل معك قريبًا.' },
+    on_the_way: { titleAr: 'الفني في الطريق', bodyAr: 'الفني في الطريق إليك الآن.' },
+    in_progress: { titleAr: 'بدأ تنفيذ الخدمة', bodyAr: 'بدأ الفني العمل على طلبك.' },
+    completed: { titleAr: 'تم إكمال الخدمة', bodyAr: 'تم إكمال طلبك. يمكنك تقييم الخدمة الآن.' },
+    cancelled: { titleAr: 'تم إلغاء طلب الخدمة', bodyAr: 'تم إلغاء طلب الخدمة.' },
+  };
 
 /** Content for a service-request status transition (docs/02 §3.12). */
-export function requestStatusNotification(toStatus: ServiceRequestStatusValue): NotificationContent {
+export function requestStatusNotification(
+  toStatus: ServiceRequestStatusValue,
+): NotificationContent {
   const copy = REQUEST_STATUS_COPY[toStatus];
   return {
     type: NOTIFICATION_TYPE.requestStatus,
@@ -45,12 +48,61 @@ export function requestStatusNotification(toStatus: ServiceRequestStatusValue): 
   };
 }
 
+/**
+ * Content for an admin technician assignment (WP-Admin-03, docs/09 §10).
+ * Same constrained `request_status` type; no internal ids in the copy.
+ */
+export function requestAssignedNotification(kind: 'technician' | 'customer'): NotificationContent {
+  return kind === 'technician'
+    ? {
+        type: NOTIFICATION_TYPE.requestStatus,
+        titleAr: 'تم إسناد طلب خدمة إليك',
+        bodyAr: 'أسندت إليك الإدارة طلب خدمة جديدًا. راجعه واقبله من قائمة الطلبات.',
+      }
+    : {
+        type: NOTIFICATION_TYPE.requestStatus,
+        titleAr: 'تم تعيين فني لطلبك',
+        bodyAr: 'عينت الإدارة فنيًا لطلب الخدمة الخاص بك. يمكنك متابعته والتواصل معه.',
+      };
+}
+
 /** Content for a subscription activation (admin manual grant, docs/08 §17). */
 export function subscriptionActivatedNotification(): NotificationContent {
   return {
     type: NOTIFICATION_TYPE.subscription,
     titleAr: 'تم تفعيل اشتراكك',
     bodyAr: 'تم تفعيل الاشتراك الخاص بك بنجاح.',
+  };
+}
+
+/**
+ * Content for a manual-payment approval (WP-Notifications).
+ * Same constrained `subscription` type; optional admin note appended to
+ * the body only (never the title). No ids or internal codes in the copy.
+ */
+export function paymentApprovedNotification(note?: string): NotificationContent {
+  const base = 'تم اعتماد عملية الدفع وتفعيل الاشتراك.';
+  const trimmed = note?.trim() ?? '';
+  return {
+    type: NOTIFICATION_TYPE.subscription,
+    titleAr: 'تم اعتماد عملية الدفع',
+    bodyAr: trimmed.length > 0 ? `${base} ملاحظة: ${trimmed}` : base,
+  };
+}
+
+/**
+ * Content for a manual-payment rejection (WP-Notifications, AUD-005).
+ * Same constrained `subscription` type; the admin-provided rejection REASON
+ * is always appended to the body ("السبب: …", never the title) so the user
+ * can fix and resubmit. No ids or internal codes in the copy.
+ */
+export function paymentRejectedNotification(reason?: string): NotificationContent {
+  const base = 'تم رفض إثبات الدفع. يمكنك إرسال طلب جديد أو التواصل مع الدعم.';
+  const trimmed = reason?.trim() ?? '';
+  return {
+    type: NOTIFICATION_TYPE.subscription,
+    titleAr: 'تم رفض إثبات الدفع',
+    bodyAr: trimmed.length > 0 ? `${base} السبب: ${trimmed}` : base,
   };
 }
 
@@ -87,13 +139,18 @@ const VERIFICATION_COPY: Record<VerificationDecision, string> = {
 /**
  * Content for an admin verification decision (WP-2B). The approved Arabic
  * copy is the only content; it fills both required fields so no additional
- * copy is invented.
+ * copy is invented. WP-Admin-02: an optional review reason is appended to
+ * the body (never the title) so the affected user sees why.
  */
-export function verificationNotification(status: VerificationDecision): NotificationContent {
+export function verificationNotification(
+  status: VerificationDecision,
+  reason?: string,
+): NotificationContent {
   const copy = VERIFICATION_COPY[status];
+  const trimmed = reason?.trim() ?? '';
   return {
     type: NOTIFICATION_TYPE.verification,
     titleAr: copy,
-    bodyAr: copy,
+    bodyAr: trimmed.length > 0 ? `${copy} السبب: ${trimmed}` : copy,
   };
 }

@@ -336,8 +336,14 @@ describe('subscriptions + manual payments e2e', () => {
       const rejected = await request(app.getHttpServer())
         .post(`/api/v1/admin/payments/submissions/${submissionId}/reject`)
         .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reason: 'الإيصال لا يتطابق مع المبلغ المطلوب' })
         .expect(200);
       expect(rejected.body.data.status).toBe('rejected');
+      // AUD-005: the reason is REQUIRED and flows to audit + notification.
+      expect(rejected.body.data.status).toBe('rejected');
+      const auditRows = prisma.auditLogRows.filter((a) => a.action === 'admin.payment.reject');
+      expect(auditRows.length).toBe(1);
+      expect(auditRows[0].afterJson).toMatchObject({ status: 'rejected' });
 
       // No subscription created; current = null.
       const current = await request(app.getHttpServer())
@@ -355,6 +361,40 @@ describe('subscriptions + manual payments e2e', () => {
         .set('Authorization', `Bearer ${customer.accessToken}`)
         .send({ plan_id: '99999999-0000-4000-8000-000000000002', method: 'instapay', transfer_reference: 'TRX-889' })
         .expect(201);
+    });
+
+    it('AUD-005: refuses a rejection without a reason (400, nothing changed)', async () => {
+      const customer = await register('customer', 's-rej-noreason@example.com');
+      const admin = await loginAdmin('s-rej-admin-2@example.com');
+      await request(app.getHttpServer())
+        .put('/api/v1/admin/payments/config/instapay')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ account_identifier: 'k@insta', display_name: 'الخبير', is_enabled: true })
+        .expect(200);
+      const submission = await request(app.getHttpServer())
+        .post('/api/v1/subscriptions')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({ plan_id: '99999999-0000-4000-8000-000000000002', method: 'instapay', transfer_reference: 'TRX-890' })
+        .expect(201);
+      const submissionId = submission.body.data.id as string;
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/admin/payments/submissions/${submissionId}/reject`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .expect(400);
+      await request(app.getHttpServer())
+        .post(`/api/v1/admin/payments/submissions/${submissionId}/reject`)
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .send({ reason: '' })
+        .expect(400);
+      // Nothing changed: still pending, no audit, no notification.
+      const queue = await request(app.getHttpServer())
+        .get('/api/v1/admin/payments/submissions')
+        .set('Authorization', `Bearer ${admin.accessToken}`)
+        .query({ status: 'pending' })
+        .expect(200);
+      expect(queue.body.data.map((s: { id: string }) => s.id)).toContain(submissionId);
+      expect(prisma.auditLogRows.some((a) => a.action === 'admin.payment.reject')).toBe(false);
     });
   });
 

@@ -27,7 +27,6 @@ import { useI18n } from '@/i18n/use-i18n';
 import {
   ActionButton,
   AppHeader,
-  Avatar,
   Card,
   Chip,
   FormField,
@@ -35,15 +34,12 @@ import {
   ListError,
   ListLoading,
   PageTitle,
+  ProfilePhotoSection,
   SectionHeading,
 } from '@/ui';
 import { type } from '@/ui/typography';
 
-export default function MerchantProfileScreen({
-  source,
-}: {
-  source?: MerchantProfileDataSource;
-}) {
+export default function MerchantProfileScreen({ source }: { source?: MerchantProfileDataSource }) {
   const { t } = useI18n();
   const router = useRouter();
   const vm = useMerchantProfileViewModel(source);
@@ -111,85 +107,106 @@ export default function MerchantProfileScreen({
         onPressAvatar={() => router.push('/(merchant)/profile')}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <PageTitle
-          eyebrow="ملف المتجر"
-          title={t('merchant.profile.title')}
-          body="هويتك التجارية وحالة التوثيق وبيانات التواصل."
-        />
-      </View>
-
-      <View style={styles.editorial}>
-      <Card
-        background={profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft}
-        borderColor={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold}
-        padded
-        style={styles.statusCard}
-      >
-        <View style={styles.statusIconWrap}>
-          <Icon
-            name={status.icon}
-            size={22}
-            color={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.navy}
-            accessibilityLabel={status.titleAr}
+        <View style={styles.header}>
+          <PageTitle
+            eyebrow="ملف المتجر"
+            title={t('merchant.profile.title')}
+            body="هويتك التجارية وحالة التوثيق وبيانات التواصل."
           />
         </View>
-        <View style={styles.statusText}>
-          <Text
-            accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`}
-            style={styles.statusTitle}
+
+        <View style={styles.editorial}>
+          <Card
+            background={
+              profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft
+            }
+            borderColor={
+              profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold
+            }
+            padded
+            style={styles.statusCard}
           >
-            {status.titleAr}
-          </Text>
-          <Text style={styles.muted}>{profile.verificationNoteAr || status.bodyAr}</Text>
+            <View style={styles.statusIconWrap}>
+              <Icon
+                name={status.icon}
+                size={22}
+                color={
+                  profile.verification === 'approved' ? color.success.DEFAULT : color.brand.navy
+                }
+                accessibilityLabel={status.titleAr}
+              />
+            </View>
+            <View style={styles.statusText}>
+              <Text
+                accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`}
+                style={styles.statusTitle}
+              >
+                {status.titleAr}
+              </Text>
+              <Text style={styles.muted}>{profile.verificationNoteAr || status.bodyAr}</Text>
+            </View>
+          </Card>
+
+          {needsUpdate ? (
+            <ActionButton
+              label={t('merchant.profile.updateData')}
+              onPress={() =>
+                router.push({ pathname: '/(merchant)/onboarding', params: { resume: '1' } })
+              }
+              style={styles.actionGap}
+            />
+          ) : null}
+
+          <Card
+            background={color.brand.navy}
+            borderColor={color.brand.navy}
+            padded
+            style={styles.hero}
+          >
+            <ProfilePhotoSection
+              imageUrl={profile.logoUrl}
+              pendingUri={vm.pendingPhoto?.uri ?? null}
+              initialsAr={profile.initialsAr}
+              nameAr={profile.businessNameAr}
+              status={vm.photoStatus}
+              error={vm.photoError}
+              onPickLibrary={vm.pickFromLibrary}
+              onTakeCamera={vm.takeWithCamera}
+              onConfirmUpload={vm.confirmPhotoUpload}
+              onCancelPending={vm.cancelPendingPhoto}
+              onDelete={vm.deletePhoto}
+              onRetry={vm.retryPhoto}
+              onDismissStatus={vm.dismissPhotoStatus}
+            />
+            <Text style={styles.name}>{profile.businessNameAr}</Text>
+            <Text style={styles.heroMeta}>{profile.cityAr}</Text>
+            <Text style={styles.heroBadge}>{status.titleAr}</Text>
+          </Card>
+
+          <SectionHeading title={t('merchant.profile.about')} />
+          <Card background={color.surface.base} padded>
+            <Text style={styles.body}>{profile.bioAr || '—'}</Text>
+            <Text style={styles.meta}>
+              {t('merchant.profile.phone')}: {profile.phoneAr || '—'}
+            </Text>
+          </Card>
+
+          <ActionButton
+            variant="secondary"
+            icon="edit-2"
+            label={t('merchant.profile.edit')}
+            onPress={vm.startEdit}
+            style={styles.actionGap}
+          />
+          <ActionButton
+            variant="secondary"
+            icon="settings"
+            label={t('merchant.settings.title')}
+            onPress={() => router.push('/(merchant)/settings')}
+            style={styles.actionGap}
+          />
+          <View style={styles.bottomSpacer} />
         </View>
-      </Card>
-
-      {needsUpdate ? (
-        <ActionButton
-          label={t('merchant.profile.updateData')}
-          onPress={() => router.push({ pathname: '/(merchant)/onboarding', params: { resume: '1' } })}
-          style={styles.actionGap}
-        />
-      ) : null}
-
-      <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.hero}>
-        <Avatar
-          initials={profile.initialsAr}
-          size={72}
-          background={color.brand.gold}
-          foreground={color.brand.navy}
-          accessibilityLabel={`شعار ${profile.businessNameAr}`}
-        />
-        <Text style={styles.name}>{profile.businessNameAr}</Text>
-        <Text style={styles.heroMeta}>{profile.cityAr}</Text>
-        <Text style={styles.heroBadge}>{status.titleAr}</Text>
-      </Card>
-
-      <SectionHeading title={t('merchant.profile.about')} />
-      <Card background={color.surface.base} padded>
-        <Text style={styles.body}>{profile.bioAr || '—'}</Text>
-        <Text style={styles.meta}>
-          {t('merchant.profile.phone')}: {profile.phoneAr || '—'}
-        </Text>
-      </Card>
-
-      <ActionButton
-        variant="secondary"
-        icon="edit-2"
-        label={t('merchant.profile.edit')}
-        onPress={vm.startEdit}
-        style={styles.actionGap}
-      />
-      <ActionButton
-        variant="secondary"
-        icon="settings"
-        label={t('merchant.settings.title')}
-        onPress={() => router.push('/(merchant)/settings')}
-        style={styles.actionGap}
-      />
-        <View style={styles.bottomSpacer} />
-      </View>
       </ScrollView>
     </View>
   );
@@ -236,85 +253,104 @@ function ProfileEditForm({
         onPressNotifications={() => router.push('/(merchant)/notifications')}
         onPressAvatar={() => router.push('/(merchant)/profile')}
       />
-      <ScrollView contentContainerStyle={[styles.content, styles.padded]} showsVerticalScrollIndicator={false}>
-      <PageTitle eyebrow="الملف الشخصي" title={t('merchant.profile.editTitle')} />
-      <View style={styles.form}>
-        <FormField
-          label={t('merchant.profile.name')}
-          value={draft.businessNameAr}
-          onChangeText={(text) => patch({ businessNameAr: text })}
-          error={errors.businessNameAr}
-        />
+      <ScrollView
+        contentContainerStyle={[styles.content, styles.padded]}
+        showsVerticalScrollIndicator={false}
+      >
+        <PageTitle eyebrow="الملف الشخصي" title={t('merchant.profile.editTitle')} />
+        <View style={styles.form}>
+          <FormField
+            label={t('merchant.profile.name')}
+            value={draft.businessNameAr}
+            onChangeText={(text) => patch({ businessNameAr: text })}
+            error={errors.businessNameAr}
+          />
 
-        <View>
-          <Text style={styles.label}>{t('merchant.profile.city')}</Text>
-          <View accessibilityRole="radiogroup" accessibilityLabel={t('merchant.profile.city')} style={styles.cities}>
-            {MERCHANT_CITY_OPTIONS.map((city) => {
-              const selected = draft.cityAr === city;
-              return (
-                <Chip
-                  key={city}
-                  label={city}
-                  selected={selected}
-                  accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
-                  onPress={() => patch({ cityAr: city })}
-                />
-              );
-            })}
+          <View>
+            <Text style={styles.label}>{t('merchant.profile.city')}</Text>
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel={t('merchant.profile.city')}
+              style={styles.cities}
+            >
+              {MERCHANT_CITY_OPTIONS.map((city) => {
+                const selected = draft.cityAr === city;
+                return (
+                  <Chip
+                    key={city}
+                    label={city}
+                    selected={selected}
+                    accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
+                    onPress={() => patch({ cityAr: city })}
+                  />
+                );
+              })}
+            </View>
+            {errors.cityAr ? (
+              <Text accessibilityRole="alert" style={styles.fieldError}>
+                {errors.cityAr}
+              </Text>
+            ) : null}
           </View>
-          {errors.cityAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.cityAr}
-            </Text>
-          ) : null}
-        </View>
 
-        <FormField
-          label={t('merchant.profile.bio')}
-          value={draft.bioAr}
-          onChangeText={(text) => patch({ bioAr: text })}
-          multiline
-          numberOfLines={4}
-        />
-
-        <FormField
-          label={t('merchant.profile.phone')}
-          value={draft.phoneAr}
-          onChangeText={(text) => patch({ phoneAr: text })}
-          keyboardType="phone-pad"
-          error={errors.phoneAr}
-        />
-      </View>
-      {saveStatus === 'error' ? (
-        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${saveError ?? ''}`} style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{saveError}</Text>
-        </View>
-      ) : null}
-      {saveStatus === 'saved' ? (
-        <View accessibilityRole="alert" style={styles.savedBanner}>
-          <Text style={styles.savedText}>{t('merchant.profile.saved')}</Text>
-        </View>
-      ) : null}
-      {saveStatus === 'saved' ? (
-        <ActionButton label={t('merchant.profile.backToProfile')} onPress={onDone} style={styles.actionGap} />
-      ) : (
-        <View style={styles.formActions}>
-          <ActionButton
-            label={saveStatus === 'error' ? t('merchant.profile.retrySave') : t('merchant.profile.save')}
-            loading={saving}
-            loadingLabel="جارٍ الحفظ"
-            onPress={saveStatus === 'error' ? () => onRetry(draft) : handleSave}
+          <FormField
+            label={t('merchant.profile.bio')}
+            value={draft.bioAr}
+            onChangeText={(text) => patch({ bioAr: text })}
+            multiline
+            numberOfLines={4}
           />
-          <ActionButton
-            variant="secondary"
-            label={t('merchant.profile.cancel')}
-            disabled={saving}
-            onPress={onCancel}
+
+          <FormField
+            label={t('merchant.profile.phone')}
+            value={draft.phoneAr}
+            onChangeText={(text) => patch({ phoneAr: text })}
+            keyboardType="phone-pad"
+            error={errors.phoneAr}
           />
         </View>
-      )}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        {saveStatus === 'error' ? (
+          <View
+            accessibilityRole="alert"
+            accessibilityLabel={`خطأ: ${saveError ?? ''}`}
+            style={styles.inlineError}
+          >
+            <Text style={styles.inlineErrorText}>{saveError}</Text>
+          </View>
+        ) : null}
+        {saveStatus === 'saved' ? (
+          <View accessibilityRole="alert" style={styles.savedBanner}>
+            <Text style={styles.savedText}>{t('merchant.profile.saved')}</Text>
+          </View>
+        ) : null}
+        {saveStatus === 'saved' ? (
+          <ActionButton
+            label={t('merchant.profile.backToProfile')}
+            onPress={onDone}
+            style={styles.actionGap}
+          />
+        ) : (
+          <View style={styles.formActions}>
+            <ActionButton
+              label={
+                saveStatus === 'error'
+                  ? t('merchant.profile.retrySave')
+                  : t('merchant.profile.save')
+              }
+              loading={saving}
+              loadingLabel="جارٍ الحفظ"
+              onPress={saveStatus === 'error' ? () => onRetry(draft) : handleSave}
+            />
+            <ActionButton
+              variant="secondary"
+              label={t('merchant.profile.cancel')}
+              disabled={saving}
+              onPress={onCancel}
+            />
+          </View>
+        )}
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </View>
   );
 }

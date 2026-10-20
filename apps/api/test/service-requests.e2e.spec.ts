@@ -26,6 +26,9 @@ const requireCjs = createRequire(import.meta.url);
 const { PrismaService } = requireCjs('../dist/database/prisma.service') as {
   PrismaService: new (...args: unknown[]) => unknown;
 };
+const { STORAGE_PORT } = requireCjs('../dist/storage/storage.port') as {
+  STORAGE_PORT: string;
+};
 
 const PASSWORD = 'sup3rsecretP4ss';
 const CAT_ID = 'aaaaaaaa-1111-4111-8111-111111111111';
@@ -42,6 +45,36 @@ function uid(): string {
 describe('service request lifecycle e2e', () => {
   let app: INestApplication;
   let prisma: FakePrismaClient;
+
+  // In-memory StoragePort for the media suite (Track B2): the test acts as
+  // the client PUT by writing into `objects` with the granted key.
+  const objects = new Map<string, { bytes: Uint8Array; mimeType: string }>();
+  const memoryStorage = {
+    provider: 'local' as const,
+    presignPut: async (key: string, mimeType: string) => ({
+      url: `memory://${key}`,
+      key,
+      expiresInSeconds: 300,
+      requiredHeaders: { 'Content-Type': mimeType },
+      maxBytes: 5 * 1024 * 1024,
+    }),
+    presignGet: async (key: string) => ({
+      url: `memory://${key}`,
+      key,
+      expiresInSeconds: 300,
+    }),
+    head: async (key: string) => {
+      const object = objects.get(key);
+      return object === undefined
+        ? { exists: false, sizeBytes: null, mimeType: null }
+        : { exists: true, sizeBytes: object.bytes.length, mimeType: object.mimeType };
+    },
+    readPrefix: async (key: string, maxBytes: number) =>
+      objects.get(key)?.bytes.slice(0, maxBytes) ?? null,
+    delete: async (key: string) => {
+      objects.delete(key);
+    },
+  };
 
   beforeAll(async () => {
     const dbUrl = process.env['DATABASE_URL'] ?? '';
@@ -72,6 +105,8 @@ describe('service request lifecycle e2e', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(prisma)
+      .overrideProvider(STORAGE_PORT)
+      .useValue(memoryStorage)
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -86,6 +121,8 @@ describe('service request lifecycle e2e', () => {
     prisma.technicianServices.length = 0;
     prisma.serviceRequests.length = 0;
     prisma.serviceRequestStatusHistoryStore.length = 0;
+    prisma.serviceRequestMediaRows.length = 0;
+    objects.clear();
     prisma.notificationRows.length = 0;
     prisma.locations.length = 0;
     prisma.applianceCategories.length = 0;
@@ -204,8 +241,67 @@ describe('service request lifecycle e2e', () => {
       expect(res.body.data.faultId).toBeNull();
     });
 
-    it('rejects a request targeting a location owned by another account (IDOR)', async () => {
-      const customer = await register('customer', 'cust-idor@example.com');
+    it('stores an optional PREFERRED appointment within the 14-day window (Track B1)', async () => {
+      const customer = await register('customer', 'cust-preferred@example.com');
+      const techId = seedVerifiedTechnician((await register('technician', 'tech-preferred@example.com')).userId);
+      const locationId = seedLocation(customer.userId);
+      const preferred = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      preferred.setMinutes(0, 0, 0);
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/service-requests')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          technician_id: techId,
+          appliance_category_id: CAT_ID,
+          problem_description: 'الغسالة لا تدور',
+          location_id: locationId,
+          scheduled_at: preferred.toISOString(),
+        })
+        .expect(201);
+      expect(res.body.data.scheduledAt).toBe(preferred.toISOString());
+    });
+
+    it('rejects a preferred appointment in the past (400, field-scoped)', async () => {
+      const customer = await register('customer', 'cust-preferred-past@example.com');
+      const techId = seedVerifiedTechnician((await register('technician', 'tech-preferred-past@example.com')).userId);
+      const locationId = seedLocation(customer.userId);
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/service-requests')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          technician_id: techId,
+          appliance_category_id: CAT_ID,
+          problem_description: 'الغسالة لا تدور',
+          location_id: locationId,
+          scheduled_at: new Date(Date.now() - 60_000).toISOString(),
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.fields.scheduled_at).toBeDefined();
+      expect(prisma.serviceRequests).toHaveLength(0);
+    });
+
+    it('rejects a preferred appointment beyond 14 days (400) and never books', async () => {
+      const customer = await register('customer', 'cust-preferred-far@example.com');
+      const techId = seedVerifiedTechnician((await register('technician', 'tech-preferred-far@example.com')).userId);
+      const locationId = seedLocation(customer.userId);
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/service-requests')
+        .set('Authorization', `Bearer ${customer.accessToken}`)
+        .send({
+          technician_id: techId,
+          appliance_category_id: CAT_ID,
+          problem_description: 'الغسالة لا تدور',
+          location_id: locationId,
+          scheduled_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+      expect(res.body.error.fields.scheduled_at).toContain('14');
+      expect(prisma.serviceRequests).toHaveLength(0);
+    });
+
+    it('rejects a request targeting a location owned by another account (IDOR)', async () => {      const customer = await register('customer', 'cust-idor@example.com');
       const techId = seedVerifiedTechnician((await register('technician', 'tech-idor@example.com')).userId);
       const res = await request(app.getHttpServer())
         .post('/api/v1/service-requests')
@@ -657,6 +753,173 @@ describe('service request lifecycle e2e', () => {
         .set('Authorization', `Bearer ${merchant.accessToken}`);
       expect(unauthorized.status).toBe(401);
       expect(prisma.notificationRows.filter((n) => n.userId === customer.userId)).toHaveLength(1);
+    });
+  });
+
+  describe('request media (Track B2)', () => {
+    const PNG_BYTES = new Uint8Array([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0,
+    ]);
+
+    it('owner uploads a photo; participants list and view it without storage keys', async () => {
+      const customer = await register('customer', 'cust-media@example.com');
+      const tech = await register('technician', 'tech-media@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(customer, techId);
+      const authCustomer = { Authorization: `Bearer ${customer.accessToken}` };
+
+      const grant = await request(app.getHttpServer())
+        .post(`/api/v1/service-requests/${created.id}/media/upload-url`)
+        .set(authCustomer)
+        .send({ mime_type: 'image/png' })
+        .expect(200);
+      const key = grant.body.data.storageKey as string;
+      expect(key.startsWith(`request-media/${customer.userId}/${created.id}/`)).toBe(true);
+      expect(key.endsWith('.png')).toBe(true);
+      expect(grant.body.data.uploadUrl).toBe(`memory://${key}`);
+
+      // Simulate the client PUT to the presigned URL.
+      objects.set(key, { bytes: PNG_BYTES, mimeType: 'image/png' });
+
+      const confirmed = await request(app.getHttpServer())
+        .post(`/api/v1/service-requests/${created.id}/media/confirm`)
+        .set(authCustomer)
+        .send({ storage_key: key })
+        .expect(201);
+      const mediaId = confirmed.body.data.id as string;
+      expect(confirmed.body.data).toMatchObject({
+        id: mediaId,
+        mimeType: 'image/png',
+        fileSize: PNG_BYTES.length,
+      });
+
+      const list = await request(app.getHttpServer())
+        .get(`/api/v1/service-requests/${created.id}/media`)
+        .set(authCustomer)
+        .expect(200);
+      expect(list.body.data).toHaveLength(1);
+      expect(list.body.data[0]).toMatchObject({ id: mediaId, mimeType: 'image/png' });
+      expect(list.body.data[0].storageKey).toBeUndefined();
+
+      const techAuth = { Authorization: `Bearer ${tech.accessToken}` };
+      const techList = await request(app.getHttpServer())
+        .get(`/api/v1/service-requests/${created.id}/media`)
+        .set(techAuth)
+        .expect(200);
+      expect(techList.body.data).toHaveLength(1);
+
+      const view = await request(app.getHttpServer())
+        .get(`/api/v1/service-requests/${created.id}/media/${mediaId}/url`)
+        .set(techAuth)
+        .expect(200);
+      expect(view.body.data).toMatchObject({ mediaId, downloadUrl: `memory://${key}` });
+
+      const actions = prisma.auditLogRows.map((row) => row.action);
+      expect(actions).toEqual(
+        expect.arrayContaining([
+          'user.service_request.media_upload_url',
+          'user.service_request.media_confirm',
+          'user.service_request.media_view',
+        ]),
+      );
+    });
+
+    it('rejects foreign uploads, foreign keys, outsider reads, and role mismatches', async () => {
+      const owner = await register('customer', 'cust-media-idor@example.com');
+      const stranger = await register('customer', 'cust-media-stranger@example.com');
+      const tech = await register('technician', 'tech-media-idor@example.com');
+      const merchant = await register('merchant', 'merchant-media@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(owner, techId);
+      const mediaUrl = `/api/v1/service-requests/${created.id}/media`;
+
+      await request(app.getHttpServer())
+        .post(`${mediaUrl}/upload-url`)
+        .set({ Authorization: `Bearer ${stranger.accessToken}` })
+        .send({ mime_type: 'image/png' })
+        .expect(404);
+
+      await request(app.getHttpServer())
+        .post(`${mediaUrl}/upload-url`)
+        .set({ Authorization: `Bearer ${merchant.accessToken}` })
+        .send({ mime_type: 'image/png' })
+        .expect(401);
+
+      const foreignKey = `request-media/${stranger.userId}/${created.id}/123e4567-e89b-42d3-a456-426614174000.png`;
+      const foreignConfirm = await request(app.getHttpServer())
+        .post(`${mediaUrl}/confirm`)
+        .set({ Authorization: `Bearer ${owner.accessToken}` })
+        .send({ storage_key: foreignKey });
+      expect(foreignConfirm.status).toBe(400);
+      expect(foreignConfirm.body.error.code).toBe('UPLOAD_REJECTED');
+
+      await request(app.getHttpServer())
+        .get(mediaUrl)
+        .set({ Authorization: `Bearer ${stranger.accessToken}` })
+        .expect(404);
+      expect(prisma.serviceRequestMediaRows).toHaveLength(0);
+    });
+
+    it('enforces the attachment limit and refuses cancelled requests', async () => {
+      const customer = await register('customer', 'cust-media-limit@example.com');
+      const tech = await register('technician', 'tech-media-limit@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(customer, techId);
+      const authCustomer = { Authorization: `Bearer ${customer.accessToken}` };
+      const mediaUrl = `/api/v1/service-requests/${created.id}/media`;
+
+      for (let i = 0; i < 5; i += 1) {
+        prisma.serviceRequestMediaRows.push({
+          id: uid(),
+          serviceRequestId: created.id,
+          uploadedByUserId: customer.userId,
+          storageKey: `request-media/${customer.userId}/${created.id}/${uid()}.png`,
+          mimeType: 'image/png',
+          fileSize: 16,
+          createdAt: new Date(),
+        });
+      }
+      const atLimit = await request(app.getHttpServer())
+        .post(`${mediaUrl}/upload-url`)
+        .set(authCustomer)
+        .send({ mime_type: 'image/png' });
+      expect(atLimit.status).toBe(409);
+
+      await request(app.getHttpServer())
+        .post(`/api/v1/service-requests/${created.id}/cancel`)
+        .set(authCustomer)
+        .expect(200);
+      const cancelled = await request(app.getHttpServer())
+        .post(`${mediaUrl}/upload-url`)
+        .set(authCustomer)
+        .send({ mime_type: 'image/png' });
+      expect(cancelled.status).toBe(409);
+    });
+
+    it('deletes a rejected upload (non-image content) instead of leaving an orphan', async () => {
+      const customer = await register('customer', 'cust-media-cleanup@example.com');
+      const tech = await register('technician', 'tech-media-cleanup@example.com');
+      const techId = seedVerifiedTechnician(tech.userId);
+      const created = await createRequest(customer, techId);
+      const authCustomer = { Authorization: `Bearer ${customer.accessToken}` };
+      const mediaUrl = `/api/v1/service-requests/${created.id}/media`;
+
+      const grant = await request(app.getHttpServer())
+        .post(`${mediaUrl}/upload-url`)
+        .set(authCustomer)
+        .send({ mime_type: 'image/png' })
+        .expect(200);
+      const key = grant.body.data.storageKey as string;
+      objects.set(key, { bytes: PNG_BYTES, mimeType: 'application/pdf' });
+
+      const rejected = await request(app.getHttpServer())
+        .post(`${mediaUrl}/confirm`)
+        .set(authCustomer)
+        .send({ storage_key: key });
+      expect(rejected.status).toBe(400);
+      expect(rejected.body.error.code).toBe('UPLOAD_REJECTED');
+      expect(objects.has(key)).toBe(false);
+      expect(prisma.serviceRequestMediaRows).toHaveLength(0);
     });
   });
 });

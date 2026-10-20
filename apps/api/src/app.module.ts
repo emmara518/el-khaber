@@ -5,6 +5,7 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE, Reflector } from '@ne
 import { AdminAuthModule } from './admin/admin-auth.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { AvatarModule } from './avatars/avatar.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ChatModule } from './chat/chat.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
@@ -33,6 +34,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     PrismaModule,
     AuthGuardModule,
     AuthModule,
+    AvatarModule,
     HealthModule,
     LocationsModule,
     MeModule,

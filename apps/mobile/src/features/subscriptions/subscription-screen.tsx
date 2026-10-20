@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -47,7 +48,8 @@ export default function SubscriptionScreen({ role }: { role: SubscriptionRole })
   const [reference, setReference] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const group = role === 'merchant' ? 'merchant' : role === 'technician' ? 'technician' : 'customer';
+  const group =
+    role === 'merchant' ? 'merchant' : role === 'technician' ? 'technician' : 'customer';
 
   function openPayment(plan: SubscriptionPlan): void {
     setSelectedPlan(plan);
@@ -85,119 +87,155 @@ export default function SubscriptionScreen({ role }: { role: SubscriptionRole })
         onPressAvatar={() => router.push(`/(${group})/profile`)}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      {vm.status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {vm.status === 'error' ? (
-        <ListError
-          title={t('subscription.error.title')}
-          message={vm.error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={vm.reload}
-        />
-      ) : null}
-      {vm.status === 'loaded' ? (
-        <>
-          <View style={styles.titleWrap}>
-            <PageTitle
-              eyebrow={t('subscription.eyebrow')}
-              title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'}
-              body={
-                current === null
-                  ? 'استعرض الباقات المتاحة. يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.'
-                  : 'يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة، ويمكنك متابعة حالة الاشتراك هنا.'
-              }
-            />
-          </View>
-          <View style={styles.sections}>
-            {current !== null ? (
-              <Card background={color.surface.base} padded style={styles.card}>
-                <Text style={styles.sectionTitle}>{t('subscription.active.title')}</Text>
-                <Text style={styles.planName}>{current.planNameAr}</Text>
-                <Text style={styles.metaText}>{t('subscription.current.label')}: {current.statusAr}</Text>
-                <Text style={styles.metaText}>
-                  {t('subscription.period.end.label')}: {formatPeriodEnd(current.currentPeriodEnd)}
-                </Text>
-                <Text style={styles.metaText}>
-                  {t('subscription.renewal.label')}: {current.renewalEnabled ? t('subscription.renewal.enabled') : t('subscription.renewal.disabled')}
-                </Text>
-                <Text style={styles.metaText}>
-                  {priceLineAr(current.price, current.currency, current.billingInterval)}
-                </Text>
-                {canCancelRenewal(current) ? (
-                  <>
-                    {vm.cancelError !== null ? (
-                      <Text accessibilityRole="alert" style={styles.error}>
-                        {vm.cancelError}
-                      </Text>
-                    ) : null}
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={t('subscription.cancel.action')}
-                      disabled={vm.cancelling}
-                      onPress={vm.cancelRenewal}
-                      style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-                    >
-                      {vm.cancelling ? (
-                        <ActivityIndicator accessibilityLabel={t('state.loading')} color={color.brand.navy} />
-                      ) : (
-                        <Text style={styles.secondaryText}>{t('subscription.cancel.action')}</Text>
-                      )}
-                    </Pressable>
-                  </>
-                ) : null}
-              </Card>
-            ) : null}
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('subscription.plans.title')}</Text>
-              {vm.plans.length === 0 ? (
-                <Card background={color.surface.base} padded>
-                  <Text style={styles.muted}>{t('subscription.noPlans')}</Text>
-                </Card>
-              ) : (
-                vm.plans.map((plan) => (
-                  <PlanCard
-                    key={plan.id}
-                    plan={plan}
-                    isCurrent={current?.status === 'active' && current.planId === plan.id}
-                    selectable={canSelectPlan(plan, current)}
-                    nextLabel={subscribeNextAction(plan, current).labelAr}
-                    selectLabel={t('subscription.select.action')}
-                    onSelect={() => openPayment(plan)}
-                  />
-                ))
-              )}
+        {vm.status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+        {vm.status === 'error' ? (
+          <ListError
+            title={t('subscription.error.title')}
+            message={vm.error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={vm.reload}
+          />
+        ) : null}
+        {vm.status === 'loaded' ? (
+          <>
+            <View style={styles.titleWrap}>
+              <PageTitle
+                eyebrow={t('subscription.eyebrow')}
+                title={current?.planNameAr ?? 'لا يوجد اشتراك نشط'}
+                body={
+                  current === null
+                    ? 'استعرض الباقات المتاحة. يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.'
+                    : 'يتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة، ويمكنك متابعة حالة الاشتراك هنا.'
+                }
+              />
             </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('subscription.requests.title')}</Text>
-              {vm.submissions.length === 0 ? (
-                <Card background={color.surface.base} padded>
-                  <Text style={styles.muted}>{t('subscription.noRequests')}</Text>
+            <View style={styles.sections}>
+              {current !== null ? (
+                <Card background={color.surface.base} padded style={styles.card}>
+                  <Text style={styles.sectionTitle}>{t('subscription.active.title')}</Text>
+                  <Text style={styles.planName}>{current.planNameAr}</Text>
+                  <Text style={styles.metaText}>
+                    {t('subscription.current.label')}: {current.statusAr}
+                  </Text>
+                  <Text style={styles.metaText}>
+                    {t('subscription.period.end.label')}:{' '}
+                    {formatPeriodEnd(current.currentPeriodEnd)}
+                  </Text>
+                  <Text style={styles.metaText}>
+                    {t('subscription.renewal.label')}:{' '}
+                    {current.renewalEnabled
+                      ? t('subscription.renewal.enabled')
+                      : t('subscription.renewal.disabled')}
+                  </Text>
+                  <Text style={styles.metaText}>
+                    {priceLineAr(current.price, current.currency, current.billingInterval)}
+                  </Text>
+                  {canCancelRenewal(current) ? (
+                    <>
+                      {vm.cancelError !== null ? (
+                        <Text accessibilityRole="alert" style={styles.error}>
+                          {vm.cancelError}
+                        </Text>
+                      ) : null}
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={t('subscription.cancel.action')}
+                        disabled={vm.cancelling}
+                        onPress={vm.cancelRenewal}
+                        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+                      >
+                        {vm.cancelling ? (
+                          <ActivityIndicator
+                            accessibilityLabel={t('state.loading')}
+                            color={color.brand.navy}
+                          />
+                        ) : (
+                          <Text style={styles.secondaryText}>
+                            {t('subscription.cancel.action')}
+                          </Text>
+                        )}
+                      </Pressable>
+                    </>
+                  ) : null}
                 </Card>
-              ) : (
-                vm.submissions.map((submission) => (
-                  <Card key={submission.id} background={color.surface.base} padded style={styles.card}>
-                    <Text style={styles.metaText}>{t('subscription.current.label')}: {submission.statusAr}</Text>
-                    <Text style={styles.muted}>{t('subscription.reference.label')}: {submission.transferReference}</Text>
+              ) : null}
+
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('subscription.plans.title')}</Text>
+                {vm.plans.length === 0 ? (
+                  <Card background={color.surface.base} padded>
+                    <Text style={styles.muted}>{t('subscription.noPlans')}</Text>
                   </Card>
-                ))
-              )}
-            </View>
-          </View>
-        </>
-      ) : null}
+                ) : (
+                  vm.plans.map((plan) => (
+                    <PlanCard
+                      key={plan.id}
+                      plan={plan}
+                      isCurrent={current?.status === 'active' && current.planId === plan.id}
+                      selectable={canSelectPlan(plan, current)}
+                      nextLabel={subscribeNextAction(plan, current).labelAr}
+                      selectLabel={t('subscription.select.action')}
+                      onSelect={() => openPayment(plan)}
+                    />
+                  ))
+                )}
+              </View>
 
-      <PaymentDialog
-        vm={vm}
-        plan={selectedPlan}
-        method={chosenMethod}
-        reference={reference}
-        localError={localError}
-        onSelectMethod={setChosenMethod}
-        onChangeReference={setReference}
-        onSubmit={submitPayment}
-        onClose={closePayment}
-      />
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>{t('subscription.requests.title')}</Text>
+                {vm.submissions.length === 0 ? (
+                  <Card background={color.surface.base} padded>
+                    <Text style={styles.muted}>{t('subscription.noRequests')}</Text>
+                  </Card>
+                ) : (
+                  vm.submissions.map((submission) => (
+                    <Card
+                      key={submission.id}
+                      background={color.surface.base}
+                      padded
+                      style={styles.card}
+                    >
+                      <Text style={styles.metaText}>
+                        {t('subscription.current.label')}: {submission.statusAr}
+                      </Text>
+                      <Text style={styles.muted}>
+                        {t('subscription.reference.label')}: {submission.transferReference}
+                      </Text>
+                      <Text style={styles.muted}>
+                        {submission.hasProof
+                          ? 'الإثبات: مرفق، بانتظار مراجعة الإدارة.'
+                          : 'الإثبات: غير مرفق بعد.'}
+                      </Text>
+                      {submission.status === 'pending' && !submission.hasProof ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`إرفاق إثبات الدفع للطلب ${submission.transferReference}`}
+                          onPress={() => vm.openProofFor(submission.id)}
+                          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
+                        >
+                          <Text style={styles.secondaryText}>إرفاق إثبات الدفع</Text>
+                        </Pressable>
+                      ) : null}
+                    </Card>
+                  ))
+                )}
+              </View>
+            </View>
+          </>
+        ) : null}
+
+        <PaymentDialog
+          vm={vm}
+          plan={selectedPlan}
+          method={chosenMethod}
+          reference={reference}
+          localError={localError}
+          onSelectMethod={setChosenMethod}
+          onChangeReference={setReference}
+          onSubmit={submitPayment}
+          onClose={closePayment}
+        />
+        <ProofDialog vm={vm} />
       </ScrollView>
     </View>
   );
@@ -292,8 +330,15 @@ function PaymentDialog({
           {succeeded ? (
             <>
               <View style={styles.successBox}>
-                <Icon name="check-circle" size={18} color={color.success.DEFAULT} accessibilityLabel="تم" />
-                <Text style={styles.muted}>تم إرسال طلب الدفع. سيتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.</Text>
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={color.success.DEFAULT}
+                  accessibilityLabel="تم"
+                />
+                <Text style={styles.muted}>
+                  تم إرسال طلب الدفع. سيتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.
+                </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -320,7 +365,11 @@ function PaymentDialog({
                         accessibilityLabel={`${t('subscription.method.label')}: ${option.displayName}${selected ? '، مُحدّد' : ''}`}
                         accessibilityState={{ selected, checked: selected }}
                         onPress={() => onSelectMethod(option.method)}
-                        style={({ pressed }) => [styles.method, selected && styles.methodSelected, pressed && styles.pressed]}
+                        style={({ pressed }) => [
+                          styles.method,
+                          selected && styles.methodSelected,
+                          pressed && styles.pressed,
+                        ]}
                       >
                         <Text style={[styles.methodText, selected && styles.methodTextSelected]}>
                           {option.displayName}
@@ -333,7 +382,8 @@ function PaymentDialog({
 
               {selectedMethodConfig !== null ? (
                 <Text style={styles.muted}>
-                  {t('subscription.method.details')}: {selectedMethodConfig.displayName} — {selectedMethodConfig.accountIdentifier}
+                  {t('subscription.method.details')}: {selectedMethodConfig.displayName} —{' '}
+                  {selectedMethodConfig.accountIdentifier}
                 </Text>
               ) : null}
 
@@ -352,10 +402,14 @@ function PaymentDialog({
               />
 
               {localError !== null ? (
-                <Text accessibilityRole="alert" style={styles.error}>{localError}</Text>
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {localError}
+                </Text>
               ) : null}
               {vm.submitError !== null ? (
-                <Text accessibilityRole="alert" style={styles.error}>{vm.submitError}</Text>
+                <Text accessibilityRole="alert" style={styles.error}>
+                  {vm.submitError}
+                </Text>
               ) : null}
 
               <Text style={styles.note}>{t('subscription.note')}</Text>
@@ -367,13 +421,22 @@ function PaymentDialog({
                   accessibilityState={{ disabled: submitting, busy: submitting }}
                   onPress={onSubmit}
                   disabled={submitting}
-                  style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.primary,
+                    submitting && styles.disabled,
+                    pressed && !submitting && styles.pressed,
+                  ]}
                 >
                   {submitting ? (
-                    <ActivityIndicator accessibilityLabel={t('state.loading')} color={color.surface.base} />
+                    <ActivityIndicator
+                      accessibilityLabel={t('state.loading')}
+                      color={color.surface.base}
+                    />
                   ) : (
                     <Text style={styles.primaryText}>
-                      {vm.submitStatus === 'error' ? t('subscription.submit.retry') : t('subscription.submit.action')}
+                      {vm.submitStatus === 'error'
+                        ? t('subscription.submit.retry')
+                        : t('subscription.submit.action')}
                     </Text>
                   )}
                 </Pressable>
@@ -396,7 +459,161 @@ function PaymentDialog({
 }
 
 function formatPeriodEnd(iso: string): string {
-  return new Date(iso).toLocaleDateString('ar-EG', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('ar-EG', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+/**
+ * Proof-attach dialog (WP-Proof): pick a receipt photo (gallery/camera),
+ * preview it, upload through grant → PUT → confirm, with honest states.
+ * Opens per pending submission; closes归零 state via vm.closeProof.
+ */
+function ProofDialog({ vm }: { vm: SubscriptionViewState }) {
+  if (vm.proofSubmissionId === null) return null;
+  const busy =
+    vm.proofStatus === 'picking' ||
+    vm.proofStatus === 'uploading' ||
+    vm.proofStatus === 'confirming';
+  const working = vm.proofStatus === 'uploading' || vm.proofStatus === 'confirming';
+
+  return (
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      accessibilityLabel="إرفاق إثبات الدفع"
+      onRequestClose={vm.closeProof}
+    >
+      <View style={styles.scrim}>
+        <Card background={color.surface.base} padded style={styles.dialog}>
+          <Text accessibilityRole="header" style={styles.dialogTitle}>
+            إرفاق إثبات الدفع
+          </Text>
+          <Text style={styles.muted}>
+            صوّر إيصال التحويل أو اختره من المعرض، ثم أكّد الرفع. تُراجع الإدارة الإثبات قبل
+            التفعيل.
+          </Text>
+
+          {vm.proofStatus === 'done' ? (
+            <>
+              <View style={styles.successBox}>
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={color.success.DEFAULT}
+                  accessibilityLabel="تم"
+                />
+                <Text style={styles.muted}>
+                  تم إرفاق الإثبات. سيتم تفعيل الاشتراك بعد مراجعة الدفع من الإدارة.
+                </Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="إغلاق"
+                onPress={vm.closeProof}
+                style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+              >
+                <Text style={styles.primaryText}>إغلاق</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              {vm.pendingProofPhoto !== null ? (
+                <>
+                  <Image
+                    source={{ uri: vm.pendingProofPhoto.uri }}
+                    style={styles.preview}
+                    accessibilityLabel="معاينة صورة الإثبات"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="تأكيد رفع الإثبات"
+                    onPress={vm.confirmProofUpload}
+                    disabled={busy}
+                    style={({ pressed }) => [
+                      styles.primary,
+                      busy && styles.disabled,
+                      pressed && !busy && styles.pressed,
+                    ]}
+                  >
+                    {working ? (
+                      <ActivityIndicator
+                        accessibilityLabel="جارٍ الرفع"
+                        color={color.surface.base}
+                      />
+                    ) : (
+                      <Text style={styles.primaryText}>تأكيد الرفع</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="اختيار صورة أخرى"
+                    onPress={vm.pickProofLibrary}
+                    disabled={busy}
+                    style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.secondaryText}>اختيار صورة أخرى</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <View style={styles.dialogActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="اختيار من المعرض"
+                    onPress={vm.pickProofLibrary}
+                    disabled={busy}
+                    style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.secondaryText}>المعرض</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="التقاط بالكاميرا"
+                    onPress={vm.takeProofCamera}
+                    disabled={busy}
+                    style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.secondaryText}>الكاميرا</Text>
+                  </Pressable>
+                </View>
+              )}
+
+              {vm.proofStatus === 'picking' ? (
+                <ActivityIndicator accessibilityLabel="جارٍ الاختيار" color={color.brand.navy} />
+              ) : null}
+              {vm.proofStatus === 'error' ? (
+                <>
+                  <Text accessibilityRole="alert" style={styles.error}>
+                    {vm.proofError}
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="إعادة محاولة الرفع"
+                    onPress={vm.retryProof}
+                    style={({ pressed }) => [styles.primary, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.primaryText}>إعادة المحاولة</Text>
+                  </Pressable>
+                </>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="إغلاق"
+                onPress={vm.closeProof}
+                disabled={working}
+                style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
+              >
+                <Text style={styles.secondaryText}>إغلاق</Text>
+              </Pressable>
+            </>
+          )}
+        </Card>
+      </View>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -405,14 +622,35 @@ const styles = StyleSheet.create({
   titleWrap: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
   sections: { paddingHorizontal: spacing[5], gap: spacing[4] },
   section: { gap: spacing[3] },
-  sectionTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  sectionTitle: {
+    ...type.h3,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   card: { gap: spacing[1], marginBottom: spacing[3] },
   planName: { ...type.h3, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
-  metaText: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  metaText: {
+    ...type.body,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   muted: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   error: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
-  note: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  fieldLabel: { ...type.bodyMedium, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', marginTop: spacing[2] },
+  note: {
+    ...type.caption,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  fieldLabel: {
+    ...type.bodyMedium,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: spacing[2],
+  },
   primary: {
     backgroundColor: color.brand.navy,
     borderRadius: radius.md,
@@ -470,10 +708,32 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  successBox: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2] },
-  scrim: { flex: 1, backgroundColor: color.overlay.scrim, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing[6] },
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[2],
+  },
+  preview: {
+    width: '100%',
+    height: 220,
+    borderRadius: radius.md,
+    backgroundColor: color.surface.subtle,
+  },
+  scrim: {
+    flex: 1,
+    backgroundColor: color.overlay.scrim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing[6],
+  },
   dialog: { width: '100%', maxWidth: 460, gap: spacing[2] },
-  dialogTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  dialogTitle: {
+    ...type.h3,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   dialogActions: { flexDirection: 'row', direction: 'rtl', gap: spacing[3], marginTop: spacing[3] },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.6 },

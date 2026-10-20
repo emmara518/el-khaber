@@ -4,19 +4,33 @@
  * membership is derived from the service request, server-side.
  */
 
-import { sendMessageSchema, paginationSchema, type SendMessageInput } from '@khabir/shared-validation';
+import {
+  sendMessageSchema,
+  paginationSchema,
+  type SendMessageInput,
+} from '@khabir/shared-validation';
 import { Body, Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-
 import { CurrentUser, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
-import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody, ApiZodQuery } from '../common/openapi/decorators';
+import {
+  ApiEnvelopeError,
+  ApiEnvelopeOk,
+  ApiZodBody,
+  ApiZodQuery,
+} from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { ChatService } from './chat.service';
 
-import type { ApiMeta, ApiSuccess, ConversationDto, ConversationSummaryDto, MessageDto } from '@khabir/shared-types';
+import type {
+  ApiMeta,
+  ApiSuccess,
+  ConversationDto,
+  ConversationSummaryDto,
+  MessageDto,
+} from '@khabir/shared-types';
 
 @ApiTags('chat')
 @ApiBearerAuth('bearer')
@@ -30,7 +44,11 @@ export class ChatController {
 
   /** Documented flow: Tracking/Active Service → Chat (lazy conversation). */
   @Get('service-requests/:id/conversation')
-  @ApiEnvelopeOk('ConversationDto', 200, 'Authorized conversation (lazily created on first access).')
+  @ApiEnvelopeOk(
+    'ConversationDto',
+    200,
+    'Authorized conversation (lazily created on first access).',
+  )
   async getForRequest(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
@@ -40,7 +58,11 @@ export class ChatController {
 
   /** Phase D: product inquiry → merchant conversation (customer/technician). */
   @Get('products/:id/conversation')
-  @ApiEnvelopeOk('ConversationDto', 200, 'Authorized product conversation (lazily created on first access).')
+  @ApiEnvelopeOk(
+    'ConversationDto',
+    200,
+    'Authorized product conversation (lazily created on first access).',
+  )
   async getForProduct(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
@@ -48,13 +70,28 @@ export class ChatController {
     return { data: await this.chat.getForProduct({ id: user.id, role: user.role }, id) };
   }
 
-  /** The caller's conversations (merchant/messages list; any participant). */
+  /**
+   * The caller's conversations (unified inbox for customer, technician,
+   * and merchant). Paginated, newest activity first; each item carries
+   * the real peer identity, latest message (+ timestamp), unread count,
+   * and thread context. No conversation is created by listing.
+   */
   @Get('conversations')
-  @ApiEnvelopeOk('ConversationSummaryDto', 200, 'Conversations the caller participates in (newest first).')
+  @ApiZodQuery(paginationSchema)
+  @ApiEnvelopeOk(
+    'ConversationSummaryDto',
+    200,
+    'Conversations the caller participates in (newest first).',
+  )
   async listConversations(
     @CurrentUser() user: RequestUser,
-  ): Promise<ApiSuccess<ConversationSummaryDto[]>> {
-    return { data: await this.chat.listConversations({ id: user.id, role: user.role }) };
+    @Query(new ZodValidationPipe(paginationSchema)) query: { page: number; limit: number },
+  ): Promise<ApiSuccess<ConversationSummaryDto[]> & { meta: ApiMeta }> {
+    const { items, meta } = await this.chat.listConversations(
+      { id: user.id, role: user.role },
+      query,
+    );
+    return { data: items, meta };
   }
 
   @Get('conversations/:id/messages')

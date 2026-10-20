@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createLocationSchema,
+  createServiceRequestSchema,
   emailSchema,
   forgotPasswordSchema,
   loginSchema,
@@ -140,5 +141,47 @@ describe('shared validation', () => {
     expect(create.required ?? []).toEqual(['label']);
     const update = zodToJsonSchema(updateLocationSchema) as { required?: string[] };
     expect(update.required).toBeUndefined();
+  });
+
+  describe('createServiceRequestSchema preferred appointment (Track B1)', () => {
+    const base = {
+      technician_id: '11111111-1111-4111-8111-111111111111',
+      appliance_category_id: '22222222-2222-4222-8222-222222222222',
+      problem_description: 'الغسالة لا تدور',
+      location_id: '33333333-3333-4333-8333-333333333333',
+    };
+
+    it('keeps scheduled_at optional (coordinate by phone stays valid)', () => {
+      const parsed = createServiceRequestSchema.parse(base);
+      expect(parsed.scheduled_at).toBeUndefined();
+    });
+
+    it('accepts a future preferred time within 14 days', () => {
+      const preferred = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+      const parsed = createServiceRequestSchema.parse({
+        ...base,
+        scheduled_at: preferred.toISOString(),
+      });
+      expect(parsed.scheduled_at?.toISOString()).toBe(preferred.toISOString());
+    });
+
+    it('rejects past times and the horizon with field-scoped issues', () => {
+      const past = createServiceRequestSchema.safeParse({
+        ...base,
+        scheduled_at: new Date(Date.now() - 60_000).toISOString(),
+      });
+      expect(past.success).toBe(false);
+      if (!past.success) {
+        expect(past.error.issues[0]?.path).toEqual(['scheduled_at']);
+      }
+      const beyond = createServiceRequestSchema.safeParse({
+        ...base,
+        scheduled_at: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      });
+      expect(beyond.success).toBe(false);
+      if (!beyond.success) {
+        expect(beyond.error.issues[0]?.message).toContain('14');
+      }
+    });
   });
 });

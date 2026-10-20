@@ -22,12 +22,13 @@ describe('technician messages contract', () => {
         return {
           conversations: [
             {
-              id: 'req-1',
+              id: 'conv-1',
               peerNameAr: CUSTOMER_NAME_FALLBACK_AR,
               initialsAr: 'ا',
-              applianceAr: 'مكيف',
-              lastMessageAr: '',
+              avatarUrl: null,
+              lastMessageAr: 'مرحبًا',
               timeAr: 'اليوم',
+              unreadCount: 1,
               orderRefAr: 'صيانة',
             },
           ],

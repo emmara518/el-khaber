@@ -36,6 +36,7 @@ import {
   ListError,
   ListLoading,
   PageTitle,
+  ProfilePhotoSection,
   RatingStars,
   SectionHeading,
 } from '@/ui';
@@ -116,11 +117,18 @@ export default function TechnicianProfileScreen({
 
         <Card background={color.surface.base} padded style={styles.identity}>
           <View style={styles.identityRow}>
-            <Avatar initials={profile.initialsAr} size={56} accessibilityLabel={`الصورة الرمزية لـ ${profile.displayNameAr}`} />
+            <Avatar
+              initials={profile.initialsAr}
+              imageUrl={vm.pendingPhoto?.uri ?? profile.avatarUrl}
+              size={56}
+              accessibilityLabel={`الصورة الرمزية لـ ${profile.displayNameAr}`}
+            />
             <View style={styles.identityCopy}>
               <Text style={styles.name}>{profile.displayNameAr}</Text>
               <Text style={styles.meta} numberOfLines={1}>
-                {[profile.specialtiesAr[0], profile.areasAr.join('، ')].filter((p) => p).join(' · ') || '—'}
+                {[profile.specialtiesAr[0], profile.areasAr.join('، ')]
+                  .filter((p) => p)
+                  .join(' · ') || '—'}
               </Text>
             </View>
             <View style={styles.roleArt} accessibilityRole="image" accessibilityLabel="فني">
@@ -129,9 +137,31 @@ export default function TechnicianProfileScreen({
           </View>
         </Card>
 
+        <Card background={color.surface.base} padded style={styles.card}>
+          <ProfilePhotoSection
+            imageUrl={profile.avatarUrl}
+            pendingUri={vm.pendingPhoto?.uri ?? null}
+            initialsAr={profile.initialsAr}
+            nameAr={profile.displayNameAr}
+            status={vm.photoStatus}
+            error={vm.photoError}
+            onPickLibrary={vm.pickFromLibrary}
+            onTakeCamera={vm.takeWithCamera}
+            onConfirmUpload={vm.confirmPhotoUpload}
+            onCancelPending={vm.cancelPendingPhoto}
+            onDelete={vm.deletePhoto}
+            onRetry={vm.retryPhoto}
+            onDismissStatus={vm.dismissPhotoStatus}
+          />
+        </Card>
+
         <Card
-          background={profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft}
-          borderColor={profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold}
+          background={
+            profile.verification === 'approved' ? color.success.soft : color.brand.goldSoft
+          }
+          borderColor={
+            profile.verification === 'approved' ? color.success.DEFAULT : color.brand.gold
+          }
           padded
           style={styles.statusCard}
         >
@@ -144,7 +174,10 @@ export default function TechnicianProfileScreen({
             />
           </View>
           <View style={styles.statusText}>
-            <Text accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`} style={styles.statusTitle}>
+            <Text
+              accessibilityLabel={`حالة التوثيق: ${status.titleAr}. ${status.bodyAr}`}
+              style={styles.statusTitle}
+            >
               {status.titleAr}
             </Text>
             <Text style={styles.muted}>{profile.verificationNoteAr || status.bodyAr}</Text>
@@ -154,7 +187,9 @@ export default function TechnicianProfileScreen({
         {(profile.verification === 'rejected' || profile.verification === 'action_required') && (
           <ActionButton
             label={t('tech.profile.updateData')}
-            onPress={() => router.push({ pathname: '/(technician)/onboarding', params: { resume: '1' } })}
+            onPress={() =>
+              router.push({ pathname: '/(technician)/onboarding', params: { resume: '1' } })
+            }
           />
         )}
 
@@ -163,11 +198,21 @@ export default function TechnicianProfileScreen({
           <Card background={color.surface.base} padded style={styles.card}>
             <Text style={styles.body}>{profile.bioAr || 'لم تُضف نبذة مهنية بعد'}</Text>
             <View style={styles.valueRow}>
-              <Icon name="phone" size={16} color={color.text.secondary} accessibilityLabel="الهاتف" />
+              <Icon
+                name="phone"
+                size={16}
+                color={color.text.secondary}
+                accessibilityLabel="الهاتف"
+              />
               <Text style={styles.value}>{profile.phoneAr || '—'}</Text>
             </View>
             <View style={styles.valueRow}>
-              <Icon name="award" size={16} color={color.text.secondary} accessibilityLabel="الخبرة" />
+              <Icon
+                name="award"
+                size={16}
+                color={color.text.secondary}
+                accessibilityLabel="الخبرة"
+              />
               <Text style={styles.value}>
                 {profile.experienceYears === null ? '—' : `${profile.experienceYears} سنوات خبرة`}
               </Text>
@@ -180,7 +225,9 @@ export default function TechnicianProfileScreen({
           <ChipRow items={profile.servicesAr} emptyLabel={t('tech.profile.emptyServices')} />
           <Text style={styles.chipGroupLabel}>{t('tech.profile.appliances')}</Text>
           <ChipRow
-            items={profile.appliances.map((s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s)}
+            items={profile.appliances.map(
+              (s) => APPLIANCE_OPTIONS.find((a) => a.slug === s)?.titleAr ?? s,
+            )}
             emptyLabel="—"
           />
         </View>
@@ -201,7 +248,12 @@ export default function TechnicianProfileScreen({
         </View>
 
         {profile.verification === 'approved' && (
-          <ActionButton variant="primary" icon="edit-2" label={t('tech.profile.edit')} onPress={vm.startEdit} />
+          <ActionButton
+            variant="primary"
+            icon="edit-2"
+            label={t('tech.profile.edit')}
+            onPress={vm.startEdit}
+          />
         )}
         <ActionButton
           variant="secondary"
@@ -269,7 +321,10 @@ function ProfileEditForm({
   }
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <ScrollView
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -322,7 +377,11 @@ function ProfileEditForm({
           />
         </View>
         {saveStatus === 'error' ? (
-          <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${saveError ?? ''}`} style={styles.inlineError}>
+          <View
+            accessibilityRole="alert"
+            accessibilityLabel={`خطأ: ${saveError ?? ''}`}
+            style={styles.inlineError}
+          >
             <Text style={styles.inlineErrorText}>{saveError}</Text>
           </View>
         ) : null}
@@ -332,7 +391,11 @@ function ProfileEditForm({
           </View>
         ) : null}
         {saveStatus === 'saved' ? (
-          <ActionButton label={t('tech.profile.backToProfile')} onPress={onDone} style={styles.blockGap} />
+          <ActionButton
+            label={t('tech.profile.backToProfile')}
+            onPress={onDone}
+            style={styles.blockGap}
+          />
         ) : (
           <View style={styles.formActions}>
             <ActionButton
@@ -341,7 +404,12 @@ function ProfileEditForm({
               loadingLabel="جارٍ الحفظ"
               onPress={saveStatus === 'error' ? () => onRetry(draft) : handleSave}
             />
-            <ActionButton variant="secondary" label={t('tech.profile.cancel')} disabled={saving} onPress={onCancel} />
+            <ActionButton
+              variant="secondary"
+              label={t('tech.profile.cancel')}
+              disabled={saving}
+              onPress={onCancel}
+            />
           </View>
         )}
         <View style={styles.bottomSpacer} />
@@ -353,7 +421,12 @@ function ProfileEditForm({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surface.subtle },
   flex: { flex: 1 },
-  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  content: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[8],
+    gap: spacing[4],
+  },
   section: { gap: spacing[3] },
   card: { gap: spacing[2] },
   identity: { gap: spacing[2] },
@@ -378,13 +451,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statusText: { flex: 1, gap: spacing[1] },
-  statusTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  statusTitle: {
+    ...type.cardTitle,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   muted: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   valueRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
-  value: { ...type.bodyMedium, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
-  meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  chipGroupLabel: { ...type.label, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl', marginTop: spacing[1] },
+  value: {
+    ...type.bodyMedium,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    flexShrink: 1,
+  },
+  meta: {
+    ...type.caption,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  chipGroupLabel: {
+    ...type.label,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: spacing[1],
+  },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2] },
   chip: {
     backgroundColor: color.surface.base,
@@ -408,7 +503,12 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     marginTop: spacing[3],
   },
-  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  inlineErrorText: {
+    ...type.body,
+    color: color.error.DEFAULT,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   savedBanner: {
     backgroundColor: color.success.soft,
     borderWidth: 1,
@@ -417,6 +517,11 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     marginTop: spacing[3],
   },
-  savedText: { ...type.bodyMedium, color: color.success.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  savedText: {
+    ...type.bodyMedium,
+    color: color.success.DEFAULT,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   bottomSpacer: { height: spacing[2] },
 });

@@ -9,7 +9,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { paginationSchema } from '@khabir/shared-validation';
 
-import { AuthKind, CurrentUser, type RequestUser } from '../common/decorators';
+import { AuthKind, AdminRoles, CurrentUser, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -43,17 +43,33 @@ type ServiceRequestAdminListQuery = z.infer<typeof serviceRequestListQuery>;
 
 const setVerificationBody = z.object({
   status: z.enum(['pending', 'verified', 'rejected', 'suspended']),
+  // WP-Admin-02: review reason — required for rejected/suspended
+  // (enforced in the service), audited, and notified to the user.
+  reason: z.string().trim().min(4).max(500).optional(),
 });
+type SetVerificationBody = z.infer<typeof setVerificationBody>;
 
 const setRequestStatusBody = z.object({
   status: z.enum(['pending', 'accepted', 'on_the_way', 'in_progress', 'completed', 'cancelled']),
 });
 type SetRequestStatusBody = z.infer<typeof setRequestStatusBody>;
 
+const assignRequestBody = z.object({
+  technician_id: z.string().uuid(),
+});
+type AssignRequestBody = z.infer<typeof assignRequestBody>;
+
 const auditListQuery = paginationSchema.extend({
   entity_type: z.string().trim().min(1).max(64).optional(),
 });
 type AuditListQuery = z.infer<typeof auditListQuery>;
+
+// WP-Admin-04: removal is irreversible (no moderation state exists), so a
+// review reason is REQUIRED — stored in the audit trail (docs/09 §11/§17).
+const removeReviewBody = z.object({
+  reason: z.string().trim().min(4).max(500),
+});
+type RemoveReviewBody = z.infer<typeof removeReviewBody>;
 
 @ApiTags('admin')
 @ApiBearerAuth('bearer')
@@ -69,8 +85,10 @@ export class AdminController {
   ) {}
 
   // --- Dashboard metrics (docs/09 §4) --------------------------------------
+  // Read-only platform counts: every active admin role (docs/09 §19).
 
   @Get('metrics')
+  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin', 'finance_admin')
   @ApiEnvelopeOk('AdminMetricsDto', 200, 'Platform counts (no decorative metrics).')
   async metrics(): Promise<ApiSuccess<Payload>> {
     return { data: await this.operations.metrics() };
@@ -79,6 +97,7 @@ export class AdminController {
   // --- User management (docs/09 §5) ----------------------------------------
 
   @Get('users')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiZodQuery(usersListQuery)
   @ApiEnvelopeOk('AdminUserDto', 200, 'Users (search by email/phone, filter role/status).')
   async listUsers(
@@ -89,6 +108,7 @@ export class AdminController {
   }
 
   @Get('users/:id')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiEnvelopeOk('AdminUserDetailDto', 200, 'User detail with role-appropriate profile + counts.')
   @ApiEnvelopeError(404, 'User not found.')
   async getUser(@Param('id') id: string): Promise<ApiSuccess<Payload>> {
@@ -98,6 +118,7 @@ export class AdminController {
   // --- Verification state machine (docs/09 §6) ------------------------------
 
   @Get('technicians')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiZodQuery(technicianListQuery)
   @ApiEnvelopeOk('AdminTechnicianDto', 200, 'Technician profiles (verification filter).')
   async listTechnicians(
@@ -115,18 +136,28 @@ export class AdminController {
 
   @Post('technicians/:id/verification')
   @HttpCode(200)
+  @AdminRoles('super_admin', 'operations_admin')
   @ApiEnvelopeOk('AdminVerificationResultDto', 200, 'Verification status set (audited).')
   @ApiEnvelopeError(404, 'Technician profile not found.')
   @ApiEnvelopeError(409, 'Verification status already set.')
   async setTechnicianVerification(
     @CurrentUser() admin: RequestUser,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(setVerificationBody)) body: { status: string },
+    @Body(new ZodValidationPipe(setVerificationBody)) body: SetVerificationBody,
   ): Promise<ApiSuccess<Payload>> {
-    return { data: await this.operations.setVerification(admin.id, 'technician', id, body.status as never) };
+    return {
+      data: await this.operations.setVerification(
+        admin.id,
+        'technician',
+        id,
+        body.status as never,
+        body.reason,
+      ),
+    };
   }
 
   @Get('merchants')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiZodQuery(technicianListQuery)
   @ApiEnvelopeOk('AdminMerchantDto', 200, 'Merchant profiles (verification filter).')
   async listMerchants(
@@ -144,20 +175,30 @@ export class AdminController {
 
   @Post('merchants/:id/verification')
   @HttpCode(200)
+  @AdminRoles('super_admin', 'operations_admin')
   @ApiEnvelopeOk('AdminVerificationResultDto', 200, 'Verification status set (audited).')
   @ApiEnvelopeError(404, 'Merchant profile not found.')
   @ApiEnvelopeError(409, 'Verification status already set.')
   async setMerchantVerification(
     @CurrentUser() admin: RequestUser,
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(setVerificationBody)) body: { status: string },
+    @Body(new ZodValidationPipe(setVerificationBody)) body: SetVerificationBody,
   ): Promise<ApiSuccess<Payload>> {
-    return { data: await this.operations.setVerification(admin.id, 'merchant', id, body.status as never) };
+    return {
+      data: await this.operations.setVerification(
+        admin.id,
+        'merchant',
+        id,
+        body.status as never,
+        body.reason,
+      ),
+    };
   }
 
   // --- Service-request operations (docs/09 §10) ----------------------------
 
   @Get('service-requests')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiZodQuery(serviceRequestListQuery)
   @ApiEnvelopeOk('AdminServiceRequestDto', 200, 'All service requests (status filter).')
   async listServiceRequests(
@@ -169,7 +210,12 @@ export class AdminController {
 
   @Post('service-requests/:id/status')
   @HttpCode(200)
-  @ApiEnvelopeOk('AdminStatusOverrideResultDto', 200, 'Status override (audited; history + notification).')
+  @AdminRoles('super_admin', 'operations_admin')
+  @ApiEnvelopeOk(
+    'AdminStatusOverrideResultDto',
+    200,
+    'Status override (audited; history + notification).',
+  )
   @ApiEnvelopeError(404, 'Service request not found.')
   @ApiEnvelopeError(409, 'Unsupported status / unchanged.')
   async setServiceRequestStatus(
@@ -180,9 +226,28 @@ export class AdminController {
     return { data: await this.operations.setServiceRequestStatus(admin.id, id, body.status) };
   }
 
+  @Post('service-requests/:id/assign')
+  @HttpCode(200)
+  @AdminRoles('super_admin', 'operations_admin')
+  @ApiEnvelopeOk(
+    'AdminAssignResultDto',
+    200,
+    'Technician assigned to a pending request (audited; both parties notified).',
+  )
+  @ApiEnvelopeError(404, 'Service request or technician not found.')
+  @ApiEnvelopeError(409, 'Request not pending / technician not verified / unchanged / stale.')
+  async assignServiceRequest(
+    @CurrentUser() admin: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(assignRequestBody)) body: AssignRequestBody,
+  ): Promise<ApiSuccess<Payload>> {
+    return { data: await this.operations.assignServiceRequest(admin.id, id, body.technician_id) };
+  }
+
   // --- Review moderation (docs/09 §11) -------------------------------------
 
   @Get('reviews')
+  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin')
   @ApiZodQuery(paginationSchema)
   @ApiEnvelopeOk('AdminReviewDto', 200, 'All reviews (moderation queue).')
   async listReviews(
@@ -194,18 +259,25 @@ export class AdminController {
 
   @Post('reviews/:id/remove')
   @HttpCode(200)
-  @ApiEnvelopeOk('AdminReviewRemoveResultDto', 200, 'Review removed per policy (audited; metrics recomputed).')
+  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin')
+  @ApiEnvelopeOk(
+    'AdminReviewRemoveResultDto',
+    200,
+    'Review removed per policy (audited; metrics recomputed).',
+  )
   @ApiEnvelopeError(404, 'Review not found.')
   async removeReview(
     @CurrentUser() admin: RequestUser,
     @Param('id') id: string,
+    @Body(new ZodValidationPipe(removeReviewBody)) body: RemoveReviewBody,
   ): Promise<ApiSuccess<Payload>> {
-    return { data: await this.operations.removeReview(admin.id, id) };
+    return { data: await this.operations.removeReview(admin.id, id, body.reason) };
   }
 
   // --- Audit-log read (docs/09 §17) ----------------------------------------
 
   @Get('audit-logs')
+  @AdminRoles('super_admin', 'operations_admin')
   @ApiZodQuery(auditListQuery)
   @ApiEnvelopeOk('AuditLogDto', 200, 'Audit trail (entity-type filter; newest first).')
   async listAuditLogs(

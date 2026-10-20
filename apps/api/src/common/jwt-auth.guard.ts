@@ -23,6 +23,7 @@ import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
 import {
+  ADMIN_ROLES_METADATA_KEY,
   AUTH_KIND_METADATA_KEY,
   IS_PUBLIC_KEY,
   ROLES_METADATA_KEY,
@@ -32,10 +33,6 @@ import {
 import { AuthRequiredException } from './errors';
 
 import type { Request } from 'express';
-
-
-
-
 
 interface JwtPayload {
   sub: string;
@@ -65,10 +62,11 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
 
-    const requiredKind = this.reflector.getAllAndOverride<AuthKind>(AUTH_KIND_METADATA_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]) ?? 'user';
+    const requiredKind =
+      this.reflector.getAllAndOverride<AuthKind>(AUTH_KIND_METADATA_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? 'user';
 
     const req = context.switchToHttp().getRequest<Request & { user?: RequestUser }>();
     const header = req.headers['authorization'];
@@ -83,7 +81,8 @@ export class JwtAuthGuard implements CanActivate {
     const config = getConfig();
     const audience = requiredKind === 'admin' ? config.adminAuth.audience : config.auth.audience;
     const issuer = requiredKind === 'admin' ? config.adminAuth.issuer : config.auth.issuer;
-    const secret = requiredKind === 'admin' ? config.adminAuth.accessSecret : config.auth.accessSecret;
+    const secret =
+      requiredKind === 'admin' ? config.adminAuth.accessSecret : config.auth.accessSecret;
 
     let payload: JwtPayload;
     try {
@@ -99,10 +98,11 @@ export class JwtAuthGuard implements CanActivate {
     // reset, suspension) that invalidated the session's tokens bumps the
     // database tokenVersion, and every older access token is rejected on
     // its next request instead of lingering until its natural expiry.
+    let adminRole: string | null = null;
     if (requiredKind === 'admin') {
       const admin = await this.prisma.adminUser.findUnique({
         where: { id: payload.sub },
-        select: { id: true, status: true, tokenVersion: true },
+        select: { id: true, role: true, status: true, tokenVersion: true },
       });
       if (admin === null || admin.status !== 'active') {
         throw new AuthRequiredException();
@@ -110,6 +110,11 @@ export class JwtAuthGuard implements CanActivate {
       if (admin.tokenVersion !== payload.tokenVersion) {
         throw new AuthRequiredException('Token has been revoked');
       }
+      // The database is the source of truth for the admin role too
+      // (WP-Admin-01): a role change or suspension applies on the next
+      // request even when the access token still carries the old claim.
+      payload = { ...payload, role: admin.role };
+      adminRole = admin.role;
     } else {
       const principal = await this.prisma.user.findFirst({
         where: { id: payload.sub },
@@ -131,6 +136,22 @@ export class JwtAuthGuard implements CanActivate {
     );
     if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(payload.role)) {
       throw new AuthRequiredException();
+    }
+
+    // WP-Admin-01: admin-role matrix (docs/09_ADMIN.md §19). Only
+    // evaluated for the admin authority; same 401 (never role leakage).
+    if (requiredKind === 'admin') {
+      const requiredAdminRoles = this.reflector.getAllAndOverride<string[] | undefined>(
+        ADMIN_ROLES_METADATA_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (
+        requiredAdminRoles !== undefined &&
+        requiredAdminRoles.length > 0 &&
+        (adminRole === null || !requiredAdminRoles.includes(adminRole))
+      ) {
+        throw new AuthRequiredException();
+      }
     }
 
     req.user = {

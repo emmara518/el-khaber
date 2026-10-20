@@ -7,7 +7,7 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { AuthKind, CurrentUser, type RequestUser } from '../common/decorators';
+import { AuthKind, AdminRoles, CurrentUser, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk } from '../common/openapi/decorators';
 
@@ -29,7 +29,12 @@ export class AdminProofController {
 
   /** GET /admin/payments/submissions/:id/proof-url — short-lived proof view URL. */
   @Get('submissions/:id/proof-url')
-  @ApiEnvelopeOk('ProofDownloadUrlDto', 200, 'Short-lived presigned GET for the bound proof (audited).')
+  @AdminRoles('super_admin', 'finance_admin')
+  @ApiEnvelopeOk(
+    'ProofDownloadUrlDto',
+    200,
+    'Short-lived presigned GET for the bound proof (audited).',
+  )
   @ApiEnvelopeError(404, 'Submission not found or no proof attached.')
   async proofUrl(
     @CurrentUser() admin: RequestUser,

@@ -5,15 +5,15 @@ import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } fr
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 
 import { DiscoveryEmptyState } from './components/discovery-empty-state';
 import { TechnicianResultCard } from './components/technician-result-card';
 import {
   ACTIVE_APPLIANCE_FILTERS,
-  applyTechnicianFilters,
   activeFilterCount,
+  AREA_OPTIONS,
+  buildTechnicianListQuery,
   EMPTY_TECHNICIAN_FILTERS,
   RATING_OPTIONS,
   resolveSearchContext,
@@ -22,12 +22,21 @@ import {
 import { useTechniciansViewModel } from './use-technicians-view-model';
 
 import type { FaultGuideData } from '../fault-guide/fault-guide-types';
+import type { ServiceDto } from '@khabir/shared-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { categoryIdBySlug, getCatalogServices } from '@/lib/catalog-reference';
 import { Card, Chip, ListError, ListLoading, PageTitle, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
 
+/**
+ * Technician search (WP-Discovery): every filter is a server criterion.
+ * The screen resolves UI selections to catalog ids (appliance slug →
+ * category UUID, specialty chip → service UUID, symptom → fault UUID),
+ * debounces free text, and renders the API result as returned — no
+ * client-side re-filtering that could hide valid matches.
+ */
 export default function TechnicianSearchScreen() {
   const { t } = useI18n();
   const router = useRouter();
@@ -43,7 +52,9 @@ export default function TechnicianSearchScreen() {
   const [draft, setDraft] = useState<TechnicianSearchFilters>(EMPTY_TECHNICIAN_FILTERS);
   const [panelOpen, setPanelOpen] = useState(false);
   const [contextApplied, setContextApplied] = useState(false);
-  const { status, data, retry } = useTechniciansViewModel({ availableOnly: filters.availableOnly });
+  const [faultId, setFaultId] = useState<string | null>(null);
+  const [catalogServices, setCatalogServices] = useState<ReadonlyArray<ServiceDto>>([]);
+  const [applianceCategoryId, setApplianceCategoryId] = useState<string | null>(null);
 
   useEffect(() => {
     if (symptomId.length === 0) return;
@@ -53,14 +64,47 @@ export default function TechnicianSearchScreen() {
       .then((loadedGuide) => {
         if (!cancelled) setGuide(loadedGuide);
       })
-      // Supporting context only (prefilters the appliance + shows a banner).
-      // A failure degrades truthfully to "no context" — the technician
-      // discovery list below has its own explicit loading/error state.
+      // Supporting context only (prefilters the appliance/fault + shows
+      // a banner). A failure degrades truthfully to "no context" — the
+      // technician discovery list below has its own explicit
+      // loading/error state.
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, [symptomId]);
+
+  // Catalog services feed the specialty chips (id + name, no invention).
+  useEffect(() => {
+    let cancelled = false;
+    getCatalogServices()
+      .then((services) => {
+        if (!cancelled) setCatalogServices(services);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Selected appliance slug → catalog category UUID (null when unknown).
+  useEffect(() => {
+    if (filters.appliance === null) {
+      setApplianceCategoryId(null);
+      return;
+    }
+    let cancelled = false;
+    categoryIdBySlug(filters.appliance)
+      .then((id) => {
+        if (!cancelled) setApplianceCategoryId(id);
+      })
+      .catch(() => {
+        if (!cancelled) setApplianceCategoryId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.appliance]);
 
   const context = useMemo(
     () => (guide !== null ? resolveSearchContext(guide, symptomId) : null),
@@ -72,45 +116,93 @@ export default function TechnicianSearchScreen() {
       setContextApplied(true);
       setFilters((current) => ({ ...current, appliance: context.applianceSlug }));
       setDraft((current) => ({ ...current, appliance: context.applianceSlug }));
+      // The guide symptom is a real fault UUID in production (synthetic
+      // in fixtures) — sent as `fault_id` only when UUID-shaped.
+      setFaultId(context.faultId);
     }
   }, [context, contextApplied]);
 
-  const results = useMemo(
-    () => (data !== null ? applyTechnicianFilters(data, filters) : []),
-    [data, filters],
+  // Debounced free text: live typing must not storm the API.
+  const [debouncedQuery, setDebouncedQuery] = useState(filters.query);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(filters.query), 400);
+    return () => clearTimeout(timer);
+  }, [filters.query]);
+
+  const { status, data, retry } = useTechniciansViewModel(
+    buildTechnicianListQuery({
+      query: debouncedQuery,
+      applianceCategoryId,
+      serviceId: filters.serviceId,
+      faultId,
+      minRating: filters.minRating,
+      area: filters.area,
+      availableOnly: filters.availableOnly,
+    }),
   );
-  const specialtyOptions = useMemo(
-    () => [...new Set((data ?? []).flatMap((technician) => technician.specialtiesAr))]
-      .filter((specialty) => specialty.trim().length > 0),
-    [data],
-  );
-  const areaOptions = useMemo(
-    () => [...new Set((data ?? []).flatMap((technician) => technician.areasAr))]
-      .filter((area) => area.trim().length > 0),
-    [data],
-  );
+  // WP-Discovery: the server is the source of truth — results render as
+  // returned, never re-filtered client-side.
+  const results = data ?? [];
+  const specialtyOptions = useMemo(() => {
+    const scoped =
+      applianceCategoryId !== null
+        ? catalogServices.filter((s) => s.applianceCategoryId === applianceCategoryId)
+        : catalogServices;
+    const seen = new Set<string>();
+    return scoped.filter((s) => {
+      if (seen.has(s.nameAr)) return false;
+      seen.add(s.nameAr);
+      return true;
+    });
+  }, [catalogServices, applianceCategoryId]);
   const activeCount = activeFilterCount(filters);
   const selectedApplianceLabel = ACTIVE_APPLIANCE_FILTERS.find(
     (option) => option.value === filters.appliance,
   )?.labelAr;
-  const applianceLabel = filters.appliance === null
-    ? 'جهازك'
-    : context !== null && context.applianceSlug === filters.appliance && context.applianceTitleAr.length > 0
-      ? context.applianceTitleAr
-      : selectedApplianceLabel ?? 'جهازك';
+  const applianceLabel =
+    filters.appliance === null
+      ? 'جهازك'
+      : context !== null &&
+          context.applianceSlug === filters.appliance &&
+          context.applianceTitleAr.length > 0
+        ? context.applianceTitleAr
+        : (selectedApplianceLabel ?? 'جهازك');
+  const selectedSpecialtyName =
+    specialtyOptions.find((s) => s.id === filters.serviceId)?.nameAr ?? filters.specialty;
   const activeSummary = [
     filters.query.trim().length > 0 ? `البحث: ${filters.query.trim()}` : null,
     filters.appliance !== null ? applianceLabel : null,
-    filters.specialty,
+    selectedSpecialtyName,
     filters.area,
     filters.minRating !== null ? `التقييم: ${filters.minRating} فأعلى` : null,
     filters.availableOnly ? 'المتاحون فقط' : null,
   ].filter((label): label is string => label !== null);
 
+  function selectAppliance(value: TechnicianSearchFilters['appliance']) {
+    // A new appliance resets the service selection (services are scoped
+    // per appliance server-side) and drops a stale fault context.
+    setFilters((current) => ({
+      ...current,
+      appliance: value,
+      specialty: null,
+      serviceId: null,
+    }));
+    setDraft((current) => ({
+      ...current,
+      appliance: value,
+      specialty: null,
+      serviceId: null,
+    }));
+    if (context === null || value !== context.applianceSlug) {
+      setFaultId(null);
+    }
+  }
+
   function clearAll() {
     Keyboard.dismiss();
     setFilters(EMPTY_TECHNICIAN_FILTERS);
     setDraft(EMPTY_TECHNICIAN_FILTERS);
+    setFaultId(null);
     setPanelOpen(false);
   }
 
@@ -129,7 +221,9 @@ export default function TechnicianSearchScreen() {
         >
           <Icon name="arrow-right" size={24} color={color.surface.base} />
         </Pressable>
-        <Text accessibilityRole="header" style={styles.navigationTitle}>{t('discovery.title')}</Text>
+        <Text accessibilityRole="header" style={styles.navigationTitle}>
+          {t('discovery.title')}
+        </Text>
         <Icon name="search" size={22} color={color.brand.gold} />
       </View>
       <ScrollView
@@ -146,211 +240,247 @@ export default function TechnicianSearchScreen() {
             body={`ابحث عن خدمة ${applianceLabel}، وقارن التخصصات ومناطق الخدمة قبل اختيار الفني.`}
           />
         </View>
-        <View style={styles.editorial} onLayout={(event) => { editorialOffset.current = event.nativeEvent.layout.y; }}>
-        {context !== null && filters.appliance === context.applianceSlug ? (
-          <View style={styles.context}>
-            <Icon name="info" size={18} color={color.brand.navy} />
-            <Text style={styles.contextText}>بحث من دليل الأعطال: {context.symptomTitleAr}</Text>
-          </View>
-        ) : null}
         <View
-          style={styles.searchSection}
-          onLayout={(event) => { searchOffset.current = event.nativeEvent.layout.y; }}
+          style={styles.editorial}
+          onLayout={(event) => {
+            editorialOffset.current = event.nativeEvent.layout.y;
+          }}
         >
-          <Text accessibilityRole="header" style={styles.sectionTitle}>ابحث حسب احتياجك</Text>
-          <View style={styles.searchRow}>
-            <Icon name="search" size={20} color={color.text.secondary} />
-            <TextInput
-              ref={searchRef}
-              accessibilityLabel="ابحث باسم الفني أو التخصص أو الخدمة"
-              placeholder="اسم الفني أو التخصص أو الخدمة"
-              placeholderTextColor={color.text.secondary}
-              value={filters.query}
-              onChangeText={(query) => setFilters((current) => ({ ...current, query }))}
-              style={styles.search}
-              textAlign="right"
-              returnKeyType="search"
-              onSubmitEditing={() => Keyboard.dismiss()}
-            />
-            {filters.query.length > 0 ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="مسح نص البحث"
-                onPress={() => setFilters((current) => ({ ...current, query: '' }))}
-                style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-              >
-                <Icon name="x" size={20} color={color.text.secondary} />
-              </Pressable>
-            ) : null}
-          </View>
-          <View accessibilityRole="radiogroup" accessibilityLabel="تصفية حسب الجهاز" style={styles.applianceObjects}>
-            {ACTIVE_APPLIANCE_FILTERS.map((option) => (
-              <SceneObject
-                key={option.value ?? 'all'}
-                title={option.labelAr}
-                brandAsset={option.value ? applianceBrandAsset(option.value) : undefined}
-                selected={filters.appliance === option.value}
-                accessibilityLabel={`تصفية حسب الجهاز: ${option.labelAr}`}
-                onPress={() => {
-                  setFilters((current) => ({ ...current, appliance: option.value }));
-                  setDraft((current) => ({ ...current, appliance: option.value }));
-                }}
-              />
-            ))}
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('discovery.filters')}
-            accessibilityState={{ expanded: panelOpen }}
-            aria-expanded={panelOpen}
-            onPress={() => {
-              Keyboard.dismiss();
-              setDraft(filters);
-              setPanelOpen((open) => !open);
-            }}
-            style={({ pressed }) => [styles.filterToggle, pressed && styles.pressed]}
-          >
-            <Icon name="sliders" size={20} color={color.brand.navy} />
-            <Text style={styles.filterToggleText}>{t('discovery.filters')}</Text>
-            <Icon name={panelOpen ? 'chevron-up' : 'chevron-down'} size={20} color={color.brand.navy} />
-          </Pressable>
-          {activeCount > 0 ? (
-            <View style={styles.summary}>
-              <Text style={styles.summaryText}>التصفية الحالية: {activeSummary.join('، ')}</Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="مسح كل المرشحات والبحث"
-                onPress={clearAll}
-                style={({ pressed }) => [styles.summaryReset, pressed && styles.pressed]}
-              >
-                <Icon name="rotate-ccw" size={16} color={color.brand.navy} />
-                <Text style={styles.resetText}>إعادة ضبط</Text>
-              </Pressable>
+          {context !== null && filters.appliance === context.applianceSlug ? (
+            <View style={styles.context}>
+              <Icon name="info" size={18} color={color.brand.navy} />
+              <Text style={styles.contextText}>بحث من دليل الأعطال: {context.symptomTitleAr}</Text>
             </View>
           ) : null}
-          {panelOpen ? (
-            <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
-              <Card background={color.surface.base} padded style={styles.panel}>
-                {specialtyOptions.length > 0 ? (
-                  <FilterGroup label="التخصص والخدمة">
-                    {specialtyOptions.map((specialty) => (
-                      <Chip
-                        key={specialty}
-                        label={specialty}
-                        selectionMode="multiple"
-                        selected={draft.specialty === specialty}
-                        accessibilityLabel={`التخصص والخدمة: ${specialty}`}
-                        onPress={() => setDraft((current) => ({
-                          ...current,
-                          specialty: current.specialty === specialty ? null : specialty,
-                        }))}
-                      />
-                    ))}
-                  </FilterGroup>
-                ) : null}
-                {areaOptions.length > 0 ? (
+          <View
+            style={styles.searchSection}
+            onLayout={(event) => {
+              searchOffset.current = event.nativeEvent.layout.y;
+            }}
+          >
+            <Text accessibilityRole="header" style={styles.sectionTitle}>
+              ابحث حسب احتياجك
+            </Text>
+            <View style={styles.searchRow}>
+              <Icon name="search" size={20} color={color.text.secondary} />
+              <TextInput
+                ref={searchRef}
+                accessibilityLabel="ابحث باسم الفني أو التخصص أو الخدمة"
+                placeholder="اسم الفني أو التخصص أو الخدمة"
+                placeholderTextColor={color.text.secondary}
+                value={filters.query}
+                onChangeText={(query) => setFilters((current) => ({ ...current, query }))}
+                style={styles.search}
+                textAlign="right"
+                returnKeyType="search"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
+              {filters.query.length > 0 ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="مسح نص البحث"
+                  onPress={() => setFilters((current) => ({ ...current, query: '' }))}
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                >
+                  <Icon name="x" size={20} color={color.text.secondary} />
+                </Pressable>
+              ) : null}
+            </View>
+            <View
+              accessibilityRole="radiogroup"
+              accessibilityLabel="تصفية حسب الجهاز"
+              style={styles.applianceObjects}
+            >
+              {ACTIVE_APPLIANCE_FILTERS.map((option) => (
+                <SceneObject
+                  key={option.value ?? 'all'}
+                  title={option.labelAr}
+                  brandAsset={option.value ? applianceBrandAsset(option.value) : undefined}
+                  selected={filters.appliance === option.value}
+                  accessibilityLabel={`تصفية حسب الجهاز: ${option.labelAr}`}
+                  onPress={() => selectAppliance(option.value)}
+                />
+              ))}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('discovery.filters')}
+              accessibilityState={{ expanded: panelOpen }}
+              aria-expanded={panelOpen}
+              onPress={() => {
+                Keyboard.dismiss();
+                setDraft(filters);
+                setPanelOpen((open) => !open);
+              }}
+              style={({ pressed }) => [styles.filterToggle, pressed && styles.pressed]}
+            >
+              <Icon name="sliders" size={20} color={color.brand.navy} />
+              <Text style={styles.filterToggleText}>{t('discovery.filters')}</Text>
+              <Icon
+                name={panelOpen ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={color.brand.navy}
+              />
+            </Pressable>
+            {activeCount > 0 ? (
+              <View style={styles.summary}>
+                <Text style={styles.summaryText}>التصفية الحالية: {activeSummary.join('، ')}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="مسح كل المرشحات والبحث"
+                  onPress={clearAll}
+                  style={({ pressed }) => [styles.summaryReset, pressed && styles.pressed]}
+                >
+                  <Icon name="rotate-ccw" size={16} color={color.brand.navy} />
+                  <Text style={styles.resetText}>إعادة ضبط</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {panelOpen ? (
+              <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
+                <Card background={color.surface.base} padded style={styles.panel}>
+                  {specialtyOptions.length > 0 ? (
+                    <FilterGroup label="التخصص والخدمة">
+                      {specialtyOptions.map((service) => (
+                        <Chip
+                          key={service.id}
+                          label={service.nameAr}
+                          selectionMode="multiple"
+                          selected={draft.serviceId === service.id}
+                          accessibilityLabel={`التخصص والخدمة: ${service.nameAr}`}
+                          onPress={() =>
+                            setDraft((current) => ({
+                              ...current,
+                              specialty: current.serviceId === service.id ? null : service.nameAr,
+                              serviceId: current.serviceId === service.id ? null : service.id,
+                            }))
+                          }
+                        />
+                      ))}
+                    </FilterGroup>
+                  ) : null}
                   <FilterGroup label="مناطق الخدمة">
-                    {areaOptions.map((area) => (
+                    {AREA_OPTIONS.map((area) => (
                       <Chip
                         key={area}
                         label={area}
                         selectionMode="multiple"
                         selected={draft.area === area}
                         accessibilityLabel={`مناطق الخدمة: ${area}`}
-                        onPress={() => setDraft((current) => ({ ...current, area: current.area === area ? null : area }))}
+                        onPress={() =>
+                          setDraft((current) => ({
+                            ...current,
+                            area: current.area === area ? null : area,
+                          }))
+                        }
                       />
                     ))}
                   </FilterGroup>
-                ) : null}
-                <FilterGroup label="التقييم">
-                  {RATING_OPTIONS.map((option) => (
+                  <FilterGroup label="التقييم">
+                    {RATING_OPTIONS.map((option) => (
+                      <Chip
+                        key={option.labelAr}
+                        label={option.labelAr}
+                        selectionMode="multiple"
+                        selected={draft.minRating === option.value}
+                        accessibilityLabel={`التقييم: ${option.labelAr}`}
+                        onPress={() =>
+                          setDraft((current) => ({ ...current, minRating: option.value }))
+                        }
+                      />
+                    ))}
+                  </FilterGroup>
+                  <FilterGroup label="التوفر">
                     <Chip
-                      key={option.labelAr}
-                      label={option.labelAr}
+                      label="المتاحون فقط"
                       selectionMode="multiple"
-                      selected={draft.minRating === option.value}
-                      accessibilityLabel={`التقييم: ${option.labelAr}`}
-                      onPress={() => setDraft((current) => ({ ...current, minRating: option.value }))}
+                      selected={draft.availableOnly}
+                      accessibilityLabel="التوفر: المتاحون فقط"
+                      onPress={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          availableOnly: !current.availableOnly,
+                        }))
+                      }
                     />
-                  ))}
-                </FilterGroup>
-                <FilterGroup label="التوفر">
-                  <Chip
-                    label="المتاحون فقط"
-                    selectionMode="multiple"
-                    selected={draft.availableOnly}
-                    accessibilityLabel="التوفر: المتاحون فقط"
-                    onPress={() => setDraft((current) => ({ ...current, availableOnly: !current.availableOnly }))}
-                  />
-                </FilterGroup>
-                <View style={styles.panelActions}>
-                  <SceneAction
-                    label={t('discovery.apply')}
-                    style={styles.panelAction}
+                  </FilterGroup>
+                  <View style={styles.panelActions}>
+                    <SceneAction
+                      label={t('discovery.apply')}
+                      style={styles.panelAction}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        setFilters((current) => ({
+                          ...draft,
+                          query: current.query,
+                          appliance: current.appliance,
+                        }));
+                        setPanelOpen(false);
+                      }}
+                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="مسح كل المرشحات والبحث"
+                      onPress={clearAll}
+                      style={({ pressed }) => [styles.reset, pressed && styles.pressed]}
+                    >
+                      <Text style={styles.resetText}>{t('discovery.clear')}</Text>
+                    </Pressable>
+                  </View>
+                </Card>
+              </Animated.View>
+            ) : null}
+          </View>
+          {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+          {status === 'error' ? (
+            <ListError
+              title={t('discovery.error.title')}
+              message="لم نتمكن من تحميل قائمة الفنيين الآن. تحقق من اتصالك بالإنترنت وحاول مرة أخرى."
+              retryLabel={t('state.retry')}
+              onRetry={retry}
+            />
+          ) : null}
+          {status === 'loaded' && data !== null ? (
+            results.length === 0 ? (
+              <DiscoveryEmptyState
+                hasActiveFilters={activeCount > 0}
+                catalogEmpty={data.length === 0}
+                onClearFilters={clearAll}
+                onRetry={retry}
+                onGuide={() => {
+                  Keyboard.dismiss();
+                  router.push('/(customer)/maintenance');
+                }}
+              />
+            ) : (
+              <SceneSection
+                style={styles.list}
+                title={`نتائج البحث (${results.length})`}
+                eyebrow="قارن ثم اختر"
+                body="تعرّف على التخصص والخدمات ومناطق العمل من الملف الشخصي."
+              >
+                {results.map((technician) => (
+                  <TechnicianResultCard
+                    key={technician.id}
+                    technician={technician}
                     onPress={() => {
                       Keyboard.dismiss();
-                      setFilters((current) => ({ ...draft, query: current.query, appliance: current.appliance }));
-                      setPanelOpen(false);
+                      router.push({
+                        pathname: '/(customer)/technician/[id]',
+                        params: {
+                          id: technician.id,
+                          ...(filters.appliance !== null ? { appliance: filters.appliance } : {}),
+                          ...(context !== null && filters.appliance === context.applianceSlug
+                            ? { symptomId: context.symptomId }
+                            : {}),
+                        },
+                      });
                     }}
                   />
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="مسح كل المرشحات والبحث"
-                    onPress={clearAll}
-                    style={({ pressed }) => [styles.reset, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.resetText}>{t('discovery.clear')}</Text>
-                  </Pressable>
-                </View>
-              </Card>
-            </Animated.View>
+                ))}
+              </SceneSection>
+            )
           ) : null}
-        </View>
-        {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-        {status === 'error' ? (
-          <ListError
-            title={t('discovery.error.title')}
-            message="لم نتمكن من تحميل قائمة الفنيين الآن. تحقق من اتصالك بالإنترنت وحاول مرة أخرى."
-            retryLabel={t('state.retry')}
-            onRetry={retry}
-          />
-        ) : null}
-        {status === 'loaded' && data !== null ? (
-          results.length === 0 ? (
-            <DiscoveryEmptyState
-              hasActiveFilters={activeCount > 0}
-              catalogEmpty={data.length === 0}
-              onClearFilters={clearAll}
-              onRetry={retry}
-              onGuide={() => {
-                Keyboard.dismiss();
-                router.push('/(customer)/maintenance');
-              }}
-            />
-          ) : (
-            <SceneSection style={styles.list} title={`نتائج البحث (${results.length})`} eyebrow="قارن ثم اختر" body="تعرّف على التخصص والخدمات ومناطق العمل من الملف الشخصي.">
-              {results.map((technician) => (
-                <TechnicianResultCard
-                  key={technician.id}
-                  technician={technician}
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    router.push({
-                      pathname: '/(customer)/technician/[id]',
-                      params: {
-                        id: technician.id,
-                        ...(filters.appliance !== null ? { appliance: filters.appliance } : {}),
-                        ...(context !== null && filters.appliance === context.applianceSlug
-                          ? { symptomId: context.symptomId }
-                          : {}),
-                      },
-                    });
-                  }}
-                />
-              ))}
-            </SceneSection>
-          )
-        ) : null}
         </View>
       </ScrollView>
     </View>

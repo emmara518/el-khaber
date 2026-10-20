@@ -71,7 +71,12 @@ describe('ApiClient session handling (WP-1A)', () => {
       .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'AUTH_REQUIRED', message: 'no' } }))
       .mockResolvedValueOnce(
         jsonResponse(200, {
-          data: { accessToken: 'fresh', refreshToken: 'refresh-2', expiresIn: 900, user: { id: 'u1' } },
+          data: {
+            accessToken: 'fresh',
+            refreshToken: 'refresh-2',
+            expiresIn: 900,
+            user: { id: 'u1' },
+          },
         }),
       )
       .mockResolvedValueOnce(jsonResponse(200, { data: { ok: true } }));
@@ -94,7 +99,9 @@ describe('ApiClient session handling (WP-1A)', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'AUTH_REQUIRED', message: 'no' } }))
-      .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'AUTH_INVALID', message: 'bad' } }));
+      .mockResolvedValueOnce(
+        jsonResponse(401, { error: { code: 'AUTH_INVALID', message: 'bad' } }),
+      );
     vi.stubGlobal('fetch', fetchMock);
     const lost = vi.fn();
     setSessionLostHandler(lost);
@@ -132,5 +139,56 @@ describe('ApiClient session handling (WP-1A)', () => {
     expect(refreshCalls).toBe(1);
     expect(lost.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(lost.mock.calls.length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('ApiClient multipart upload (WP-01)', () => {
+  beforeEach(async () => {
+    await clearStoredSession();
+    clearAccessToken();
+  });
+
+  afterEach(async () => {
+    await clearStoredSession();
+    clearAccessToken();
+    setSessionLostHandler(null);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('sends FormData raw with auth but WITHOUT a manual Content-Type (boundary intact)', async () => {
+    setAccessToken('access-1');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(200, { data: { avatarUrl: 'https://cdn/x.png' } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const form = new FormData();
+    form.append('file', new Blob(['bytes'], { type: 'image/png' }), 'a.png');
+    const client = new ApiClient({ baseUrl: BASE });
+    const res = await client.upload<{ avatarUrl: string }>('POST', '/me/avatar', form);
+
+    expect(res.data.avatarUrl).toBe('https://cdn/x.png');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [
+      string,
+      { headers?: Record<string, string>; body?: unknown },
+    ];
+    expect(url).toBe(`${BASE}/me/avatar`);
+    expect(init?.headers?.Authorization).toBe('Bearer access-1');
+    // The boundary must be set by fetch itself — any manual value breaks it.
+    expect(init?.headers?.['Content-Type']).toBeUndefined();
+    expect(init?.body).toBe(form);
+  });
+
+  it('keeps JSON requests on application/json (upload path changes nothing)', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(200, { data: { ok: true } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new ApiClient({ baseUrl: BASE });
+    await client.request('POST', '/thing', { a: 1 });
+
+    const init = fetchMock.mock.calls[0]?.[1] as { headers?: Record<string, string> } | undefined;
+    expect(init?.headers?.['Content-Type']).toBe('application/json');
   });
 });

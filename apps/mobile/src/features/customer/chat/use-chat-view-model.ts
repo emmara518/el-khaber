@@ -11,11 +11,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiChatDataSource } from './api-chat-data-source';
 import {
   markMessage,
+  mergeChatMessages,
   withPendingMessage,
   type ChatDataSource,
   type ChatMessage,
   type ChatRole,
 } from './chat-types';
+import {
+  ALWAYS_ACTIVE_APP_STATE,
+  CHAT_POLL_INTERVAL_MS,
+  startMessagePolling,
+  type ChatAppState,
+} from './message-polling';
 
 export type ChatLoadStatus = 'loading' | 'loaded' | 'error';
 
@@ -36,6 +43,7 @@ export function useChatViewModel(
   conversationId: string,
   role: ChatRole = 'customer',
   source: ChatDataSource = new ApiChatDataSource(),
+  appState: ChatAppState = ALWAYS_ACTIVE_APP_STATE,
 ): ChatViewModel {
   // Stabilize the source across renders so the loader never
   // re-triggers from an inline default.
@@ -68,6 +76,27 @@ export function useChatViewModel(
       cancelled = true;
     };
   }, [stableSource, role, conversationId, attempt]);
+
+  // Poll while the dialog is mounted; pause in the background. A
+  // successful poll also recovers a failed initial load.
+  useEffect(() => {
+    const polling = startMessagePolling<ReadonlyArray<ChatMessage>>({
+      intervalMs: CHAT_POLL_INTERVAL_MS,
+      fetch: () => stableSource.getMessages({ role, conversationId }),
+      onData: (history) => {
+        setMessages((current) => mergeChatMessages(current, history));
+        setLoadStatus('loaded');
+        setLoadError(null);
+      },
+      onError: () => undefined,
+      isActive: appState.isActive,
+    });
+    const unsubscribe = appState.subscribe(() => polling.refresh());
+    return () => {
+      polling.stop();
+      unsubscribe();
+    };
+  }, [stableSource, role, conversationId, appState]);
 
   const deliver = useCallback(
     (pendingId: string, textAr: string) => {

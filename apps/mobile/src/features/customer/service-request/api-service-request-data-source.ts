@@ -13,13 +13,17 @@
  * `location_id`). No mock fallback: a failed location call surfaces an
  * honest error.
  *
+ * Preferred appointment (Track B1): there is no availability engine or
+ * slot inventory. The optional `scheduled_at` is the customer's PREFERRED
+ * visit time (future, within 14 days) that the technician confirms by
+ * phone. The API re-validates the window authoritatively.
+ *
  * REMAINING CONTRACT GAPS (reported — NOT invented around):
- * - Appointment slots: no slot inventory API exists; the step stays
- *   on its documented "coordinate by phone" (optional) semantics and
- *   omits `scheduled_at`.
  * - `service_id`: the request form does not select a service entry
  *   (the fault already links services server-side), so it is omitted.
  */
+
+import * as FileSystem from 'expo-file-system';
 
 import { getApi } from '../../../lib/api-client';
 import { toUserMessage } from '../../../lib/api-error';
@@ -34,21 +38,29 @@ import {
   ServiceRequestSubmissionError,
   type ServiceRequestDataSource,
   type ServiceRequestFormData,
+  type ServiceRequestPhotoUploadGrant,
   type ServiceRequestSubmission,
 } from './mock-service-request-data-source';
+import { preferredAppointmentError } from './preferred-appointment';
+
 
 import type {
-  AppointmentSlot,
   ProblemOption,
+  RequestAttachment,
   RequestLocation,
   ServiceRequestDraft,
 } from './service-request-types';
-import type { FaultSummaryDto, LocationDto } from '@khabir/shared-types';
+import type {
+  FaultSummaryDto,
+  LocationDto,
+  ServiceRequestMediaUploadUrlDto,
+} from '@khabir/shared-types';
 
 export { ServiceRequestSubmissionError };
 export type {
   ServiceRequestDataSource,
   ServiceRequestFormData,
+  ServiceRequestPhotoUploadGrant,
   ServiceRequestSubmission,
 } from './mock-service-request-data-source';
 
@@ -56,6 +68,13 @@ const SUBMIT_FALLBACK_AR = 'فشل إرسال الطلب. تحقق من الات
 const LOCATION_MISSING_AR = 'اختر موقع تقديم الخدمة أو أضف موقعًا جديدًا';
 const LOCATION_LOAD_FALLBACK_AR = 'تعذر تحميل المواقع. تحقق من الاتصال وحاول مجددًا';
 const LOCATION_CREATE_FALLBACK_AR = 'تعذر حفظ الموقع. تحقق من الاتصال وحاول مجددًا';
+
+const LOCAL_UPLOAD_SCHEME = 'local://';
+const LOCAL_UPLOAD_BLOCKED_AR =
+  'الرفع المحلي غير مدعوم في هذه البيئة. شغّل الخادم مع تخزين S3 للحصول على روابط رفع حقيقية.';
+const PHOTO_GRANT_FALLBACK_AR = 'تعذر تجهيز رفع الصور. تحقق من الاتصال وحاول مجددًا';
+const PHOTO_PUT_FALLBACK_AR = 'تعذر رفع الصورة. تحقق من الاتصال وحاول مجددًا';
+const PHOTO_CONFIRM_FALLBACK_AR = 'تعذر تأكيد رفع الصورة. حاول مجددًا';
 
 /** Maps a backend LocationDto → the form's RequestLocation shape. */
 export function mapLocation(dto: LocationDto, isDefault: boolean): RequestLocation {
@@ -102,13 +121,7 @@ export async function mapProblemOptions(): Promise<ReadonlyArray<ProblemOption>>
 export class ApiServiceRequestDataSource implements ServiceRequestDataSource {
   async getFormData(_input: { role: 'customer' }): Promise<ServiceRequestFormData> {
     const [problems, locations] = await Promise.all([mapProblemOptions(), this.loadLocations()]);
-    return {
-      problems,
-      locations,
-      // CONTRACT GAP: no appointment-slot inventory exists; the
-      // "coordinate by phone" choice remains the valid default.
-      slots: [] as ReadonlyArray<AppointmentSlot>,
-    };
+    return { problems, locations };
   }
 
   /** Reads the customer's owned locations (real API). */
@@ -157,6 +170,10 @@ export class ApiServiceRequestDataSource implements ServiceRequestDataSource {
     if (applianceCategoryId === null) {
       throw new ServiceRequestSubmissionError('بيانات الطلب غير مكتملة');
     }
+    const appointmentError = preferredAppointmentError(draft.preferredAtISO);
+    if (appointmentError !== null) {
+      throw new ServiceRequestSubmissionError(appointmentError);
+    }
     const resolvedTitle = await this.resolveProblemTitle(draft);
     const body = {
       technician_id: draft.technicianId,
@@ -168,6 +185,7 @@ export class ApiServiceRequestDataSource implements ServiceRequestDataSource {
       problem_description:
         draft.descriptionAr.trim().length > 0 ? draft.descriptionAr.trim() : resolvedTitle,
       location_id: draft.locationId,
+      ...(draft.preferredAtISO !== null ? { scheduled_at: draft.preferredAtISO } : {}),
     };
     try {
       const res = await getApi().request<{
@@ -182,6 +200,78 @@ export class ApiServiceRequestDataSource implements ServiceRequestDataSource {
       };
     } catch (err: unknown) {
       throw new ServiceRequestSubmissionError(toUserMessage(err, SUBMIT_FALLBACK_AR));
+    }
+  }
+
+  /**
+   * Grants a presigned PUT for one photo of an EXISTING request (Track B2).
+   * The storage key is server-generated; the client never picks it.
+   */
+  async requestPhotoUploadUrl(input: {
+    requestId: string;
+    mimeType: string;
+  }): Promise<ServiceRequestPhotoUploadGrant> {
+    try {
+      const res = await getApi().request<ServiceRequestMediaUploadUrlDto>(
+        'POST',
+        `/service-requests/${encodeURIComponent(input.requestId)}/media/upload-url`,
+        { mime_type: input.mimeType },
+      );
+      return {
+        uploadUrl: res.data.uploadUrl,
+        storageKey: res.data.storageKey,
+        requiredHeaders: res.data.requiredHeaders ?? {},
+        maxBytes: res.data.maxBytes,
+        expiresInSeconds: res.data.expiresInSeconds,
+        mimeType: res.data.mimeType,
+      };
+    } catch (err: unknown) {
+      throw new Error(toUserMessage(err, PHOTO_GRANT_FALLBACK_AR));
+    }
+  }
+
+  /**
+   * Raw binary PUT to the presigned URL (expo-file-system — FormData would
+   * break the signed Content-Type). The `local://` adapter can never receive
+   * bytes, so it is refused explicitly instead of failing silently.
+   */
+  async putPhotoBytes(input: {
+    grant: ServiceRequestPhotoUploadGrant;
+    photo: RequestAttachment;
+  }): Promise<void> {
+    if (input.grant.uploadUrl.startsWith(LOCAL_UPLOAD_SCHEME)) {
+      throw new Error(LOCAL_UPLOAD_BLOCKED_AR);
+    }
+    try {
+      const result = await FileSystem.uploadAsync(input.grant.uploadUrl, input.photo.uri, {
+        httpMethod: 'PUT',
+        uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+        headers: {
+          ...input.grant.requiredHeaders,
+          'Content-Type': input.photo.mimeType,
+        },
+      });
+      if (result.status < 200 || result.status >= 300) {
+        throw new Error(`PUT failed with status ${String(result.status)}`);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message === LOCAL_UPLOAD_BLOCKED_AR) {
+        throw err;
+      }
+      throw new Error(toUserMessage(err, PHOTO_PUT_FALLBACK_AR));
+    }
+  }
+
+  /** Confirms the uploaded object; the server HEAD-verifies before persisting. */
+  async confirmPhoto(input: { requestId: string; storageKey: string }): Promise<void> {
+    try {
+      await getApi().request<ServiceRequestMediaUploadUrlDto>(
+        'POST',
+        `/service-requests/${encodeURIComponent(input.requestId)}/media/confirm`,
+        { storage_key: input.storageKey },
+      );
+    } catch (err: unknown) {
+      throw new Error(toUserMessage(err, PHOTO_CONFIRM_FALLBACK_AR));
     }
   }
 

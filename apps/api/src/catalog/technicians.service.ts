@@ -10,20 +10,17 @@
  *   - `sort` accepts only `rating` — a ranking signal explicitly
  *     documented in docs/06_DATABASE.md §10 (verification status,
  *     entitlements, rating). No invented ranking algorithm.
- *   - Geo params (lat/lng/radius) are documented in 07 but NOT
- *     implemented: the frozen 10B schema has no technician
- *     location/service-area model (DATABASE MODEL GAP reported to the
- *     CTO — a schema addition requires explicit approval).
+ *   - Area matching uses service-area LABELS (containment), not geo:
+ *     coordinates stay write-only on the technician profile and are
+ *     never queried for discovery (docs/07_API.md §6).
  *   - Pricing (priceFrom) is not exposed: pricing semantics are not
  *     approved (docs/06_DATABASE.md §9).
  *   - Private data (userId, contact channels, admin notes) is never
  *     selected.
  */
 
-
 import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
-
 
 import { PrismaService } from '../database/prisma.service';
 
@@ -46,6 +43,12 @@ const SERVICES_INCLUDE = {
       },
     },
   },
+  // Public area labels only (no coordinates): the discovery list and
+  // profile show where a technician works; matching uses the same
+  // labels (docs/07_API.md §6).
+  serviceAreas: {
+    select: { labelAr: true },
+  },
 } satisfies Prisma.TechnicianProfileInclude;
 
 type TechnicianWithServices = Prisma.TechnicianProfileGetPayload<{
@@ -65,6 +68,7 @@ function toPublicDto(row: TechnicianWithServices): TechnicianPublicDto {
     ratingAverage: row.ratingAverage === null ? null : Number(row.ratingAverage),
     ratingCount: row.ratingCount,
     services: row.services.map((s) => ({ service: s.service })),
+    areasAr: row.serviceAreas.map((a) => a.labelAr),
   };
 }
 
@@ -75,8 +79,17 @@ export class TechniciansService {
   async list(
     query: TechnicianListQuery,
   ): Promise<{ items: TechnicianPublicDto[]; meta: ReturnType<typeof buildPageMeta> }> {
-    const { page, limit, q, appliance_category_id, service_id, fault_id, rating_min, availability } =
-      query;
+    const {
+      page,
+      limit,
+      q,
+      appliance_category_id,
+      service_id,
+      fault_id,
+      rating_min,
+      availability,
+      area,
+    } = query;
 
     const serviceFilters: Prisma.TechnicianServiceWhereInput[] = [{ isActive: true }];
     if (service_id !== undefined) {
@@ -101,6 +114,12 @@ export class TechniciansService {
         : {}),
       ...(rating_min !== undefined ? { ratingAverage: { gte: rating_min } } : {}),
       ...(availability !== undefined ? { availabilityStatus: availability } : {}),
+      // Area matching is LABEL containment (docs/07_API.md §6), not geo:
+      // technician area labels ('القاهرة – مدينة نصر') match the selected
+      // district ('مدينة نصر'). No coordinates are invented or queried.
+      ...(area !== undefined
+        ? { serviceAreas: { some: { labelAr: { contains: area, mode: 'insensitive' } } } }
+        : {}),
       services: { some: { AND: serviceFilters } },
     };
 

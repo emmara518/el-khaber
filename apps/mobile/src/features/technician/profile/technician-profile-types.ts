@@ -12,14 +12,12 @@
  * `/technician/services`.
  */
 
+import type { PickedPhoto } from '../../../lib/profile-photo';
+
 /** The three supported home-appliance slugs (server-seeded categories). */
 export type TechnicianApplianceSlug = 'washing_machine' | 'refrigerator' | 'air_conditioner';
 
-export type TechnicianVerificationStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'action_required';
+export type TechnicianVerificationStatus = 'pending' | 'approved' | 'rejected' | 'action_required';
 
 export interface TechnicianProfile {
   readonly displayNameAr: string;
@@ -27,6 +25,11 @@ export interface TechnicianProfile {
   readonly phoneAr: string;
   readonly bioAr: string;
   readonly experienceYears: number | null;
+  /**
+   * WP-01: server-issued public avatar URL (GET /technician/profile
+   * `avatarUrl`) or null when absent. Never a storage key.
+   */
+  readonly avatarUrl: string | null;
   /** Derived from attached services' catalog categories (read-only). */
   readonly specialtiesAr: ReadonlyArray<string>;
   /** Derived from attached services' catalog categories (read-only). */
@@ -53,6 +56,8 @@ export interface TechnicianProfileDataSource {
   getProfile(input: { role: 'technician' }): Promise<TechnicianProfile>;
   saveProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile>;
   submitVerificationProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile>;
+  uploadAvatar(input: { role: 'technician'; photo: PickedPhoto }): Promise<TechnicianProfile>;
+  deleteAvatar(input: { role: 'technician' }): Promise<TechnicianProfile>;
 }
 
 /**
@@ -94,11 +99,12 @@ export const AREA_OPTIONS: ReadonlyArray<string> = [
   'المنوفية – شبين الكوم',
 ];
 
-export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: TechnicianApplianceSlug; titleAr: string }> = [
-  { slug: 'washing_machine', titleAr: 'غسالات' },
-  { slug: 'refrigerator', titleAr: 'ثلاجات' },
-  { slug: 'air_conditioner', titleAr: 'تكييفات' },
-];
+export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: TechnicianApplianceSlug; titleAr: string }> =
+  [
+    { slug: 'washing_machine', titleAr: 'غسالات' },
+    { slug: 'refrigerator', titleAr: 'ثلاجات' },
+    { slug: 'air_conditioner', titleAr: 'تكييفات' },
+  ];
 
 /** Mirrors shared-validation phoneSchema (7–15 digits, optional +). */
 const PHONE_RE = /^\+?[0-9]{7,15}$/u;
@@ -109,7 +115,9 @@ export function validateTechnicianPhone(phone: string): string | null {
   return PHONE_RE.test(v) ? null : 'رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا';
 }
 
-export function validateProfileDraft(draft: TechnicianProfileDraft): Partial<Record<string, string>> {
+export function validateProfileDraft(
+  draft: TechnicianProfileDraft,
+): Partial<Record<string, string>> {
   const errors: Partial<Record<string, string>> = {};
   if (draft.displayNameAr.trim().length < 2) errors.displayNameAr = 'أدخل الاسم (حرفان على الأقل)';
   const phoneError = validateTechnicianPhone(draft.phoneAr);

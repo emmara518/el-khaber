@@ -11,20 +11,33 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-
-
 import { profileLocationLabel } from './location-label';
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { joinNonEmpty } from '@/lib/api-format';
 import { useAuthStore } from '@/lib/auth-store';
-import { ActionButton, AppHeader, Avatar, Card, Icon, ListError, ListLoading, MenuDivider, MenuRow, PageTitle, Pill, StatTile, type } from '@/ui';
+import {
+  ActionButton,
+  AppHeader,
+  Card,
+  Icon,
+  ListError,
+  ListLoading,
+  MenuDivider,
+  MenuRow,
+  PageTitle,
+  Pill,
+  ProfilePhotoSection,
+  StatTile,
+  type,
+} from '@/ui';
 
 export default function CustomerProfileScreen() {
   const { t } = useI18n();
   const router = useRouter();
-  const { status, data, error, retry } = useCustomerProfileViewModel();
+  const vm = useCustomerProfileViewModel();
+  const { status, data, error, retry } = vm;
   const logout = useAuthStore((s) => s.logout);
 
   // The API exposes no customer city/district yet (reported gap). Build the
@@ -38,91 +51,118 @@ export default function CustomerProfileScreen() {
         onPressAvatar={() => router.push('/(customer)/profile')}
       />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.editorial}>
-        <PageTitle eyebrow="حسابي" title={t('profile.title')} body="بياناتك وطلباتك واشتراكك في مكان واحد." />
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          asset="fault_empty"
-          title={t('requests.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data ? (
-        <>
-          <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.hero}>
-            <Avatar
-              initials={data.initialsAr}
-              size={72}
-              background={color.brand.gold}
-              foreground={color.brand.navy}
-              accessibilityLabel={`الصورة الرمزية لـ ${data.displayNameAr}`}
-            />
-            <Text style={styles.name}>{data.displayNameAr}</Text>
-            <Text style={styles.meta}>
-              {joinNonEmpty([data.phoneAr, data.memberSinceAr])}
-            </Text>
-            <Pill
-              background={color.brand.navyDeep}
-              color={color.brand.goldSoft}
-              accessibilityLabel={
-                locationLabel !== null ? `الموقع: ${locationLabel}` : t('profile.location.none')
-              }
-              leading={
-                <Icon
-                  name="map-pin"
-                  size={14}
-                  color={color.brand.goldSoft}
-                  accessibilityLabel="الموقع"
-                />
-              }
-            >
-              {locationLabel ?? t('profile.location.none')}
-            </Pill>
-          </Card>
-
-          <View style={styles.stats}>
-            <StatTile icon="clipboard" value={data.activeOrdersCount} label="طلبات نشطة" />
-            <StatTile icon="check-circle" value={data.completedOrdersCount} label="طلبات مكتملة" />
-          </View>
-
-          <Card background={color.surface.base} style={styles.menu}>
-            <MenuRow
-              icon="clipboard"
-              label={t('profile.menu.orders')}
-              onPress={() => router.push('/(customer)/requests')}
-            />
-            <MenuDivider />
-            <MenuRow
-              icon="search"
-              label={t('discovery.title')}
-              onPress={() => router.push('/(customer)/find-technician')}
-            />
-            <MenuDivider />
-            <MenuRow
-              icon="bell"
-              label={t('profile.menu.notifications')}
-              onPress={() => router.push('/(customer)/notifications')}
-            />
-            <MenuDivider />
-            <MenuRow icon="award" label={t('profile.menu.subscription')} onPress={() => router.push('/(customer)/subscription')} />
-            <MenuDivider />
-            <MenuRow icon="headphones" label={t('profile.menu.support')} hint={data.supportHoursAr} />
-          </Card>
-
-          <ActionButton
-            variant="destructive"
-            icon="log-out"
-            label={t('profile.menu.logout')}
-            onPress={() => void logout()}
-            style={styles.logoutAction}
+        <View style={styles.editorial}>
+          <PageTitle
+            eyebrow="حسابي"
+            title={t('profile.title')}
+            body="بياناتك وطلباتك واشتراكك في مكان واحد."
           />
-        </>
-      ) : null}
-        <View style={styles.bottomSpacer} />
-      </View>
+          {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+          {status === 'error' ? (
+            <ListError
+              asset="fault_empty"
+              title={t('requests.error.title')}
+              message={error?.message ?? ''}
+              retryLabel={t('state.retry')}
+              onRetry={retry}
+            />
+          ) : null}
+          {status === 'loaded' && data ? (
+            <>
+              <Card
+                background={color.brand.navy}
+                borderColor={color.brand.navy}
+                padded
+                style={styles.hero}
+              >
+                <ProfilePhotoSection
+                  imageUrl={data.avatarUrl}
+                  pendingUri={vm.pendingPhoto?.uri ?? null}
+                  initialsAr={data.initialsAr}
+                  nameAr={data.displayNameAr}
+                  status={vm.photoStatus}
+                  error={vm.photoError}
+                  onPickLibrary={vm.pickFromLibrary}
+                  onTakeCamera={vm.takeWithCamera}
+                  onConfirmUpload={vm.confirmPhotoUpload}
+                  onCancelPending={vm.cancelPendingPhoto}
+                  onDelete={vm.deletePhoto}
+                  onRetry={vm.retryPhoto}
+                  onDismissStatus={vm.dismissPhotoStatus}
+                />
+                <Text style={styles.name}>{data.displayNameAr}</Text>
+                <Text style={styles.meta}>{joinNonEmpty([data.phoneAr, data.memberSinceAr])}</Text>
+                <Pill
+                  background={color.brand.navyDeep}
+                  color={color.brand.goldSoft}
+                  accessibilityLabel={
+                    locationLabel !== null ? `الموقع: ${locationLabel}` : t('profile.location.none')
+                  }
+                  leading={
+                    <Icon
+                      name="map-pin"
+                      size={14}
+                      color={color.brand.goldSoft}
+                      accessibilityLabel="الموقع"
+                    />
+                  }
+                >
+                  {locationLabel ?? t('profile.location.none')}
+                </Pill>
+              </Card>
+
+              <View style={styles.stats}>
+                <StatTile icon="clipboard" value={data.activeOrdersCount} label="طلبات نشطة" />
+                <StatTile
+                  icon="check-circle"
+                  value={data.completedOrdersCount}
+                  label="طلبات مكتملة"
+                />
+              </View>
+
+              <Card background={color.surface.base} style={styles.menu}>
+                <MenuRow
+                  icon="clipboard"
+                  label={t('profile.menu.orders')}
+                  onPress={() => router.push('/(customer)/requests')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="search"
+                  label={t('discovery.title')}
+                  onPress={() => router.push('/(customer)/find-technician')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="bell"
+                  label={t('profile.menu.notifications')}
+                  onPress={() => router.push('/(customer)/notifications')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="award"
+                  label={t('profile.menu.subscription')}
+                  onPress={() => router.push('/(customer)/subscription')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="headphones"
+                  label={t('profile.menu.support')}
+                  hint={data.supportHoursAr}
+                />
+              </Card>
+
+              <ActionButton
+                variant="destructive"
+                icon="log-out"
+                label={t('profile.menu.logout')}
+                onPress={() => void logout()}
+                style={styles.logoutAction}
+              />
+            </>
+          ) : null}
+          <View style={styles.bottomSpacer} />
+        </View>
       </ScrollView>
     </View>
   );

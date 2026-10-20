@@ -22,10 +22,15 @@ export default defineConfig({
       // Node-env test stub for the native keychain module (see
       // test/stubs/expo-secure-store-stub.ts). Production resolution
       // is unchanged; the app uses the real module.
-      'expo-secure-store': path.resolve(
-        __dirname,
-        'test/stubs/expo-secure-store-stub.ts',
-      ),
+      'expo-secure-store': path.resolve(__dirname, 'test/stubs/expo-secure-store-stub.ts'),
+      // Node-env test stub for the native image picker (WP-01, see
+      // test/stubs/expo-image-picker-stub.ts). Same rationale: unit
+      // tests exercise pure helpers, never native UI.
+      'expo-image-picker': path.resolve(__dirname, 'test/stubs/expo-image-picker-stub.ts'),
+      // Node-env test stub for raw file upload (WP-Proof, see
+      // test/stubs/expo-file-system-stub.ts): presigned PUTs are
+      // exercised with mocked responses, never native code.
+      'expo-file-system': path.resolve(__dirname, 'test/stubs/expo-file-system-stub.ts'),
     },
   },
   test: {

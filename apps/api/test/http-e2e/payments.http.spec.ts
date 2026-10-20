@@ -122,6 +122,7 @@ describe('HTTP E2E — payment flows', () => {
     await request(ctx.app.getHttpServer())
       .post(`${base}/admin/payments/submissions/${submissionId}/reject`)
       .set(auth(admin))
+      .send({ reason: 'الإيصال غير مقروء' })
       .expect(200);
 
     const current = await request(ctx.app.getHttpServer())

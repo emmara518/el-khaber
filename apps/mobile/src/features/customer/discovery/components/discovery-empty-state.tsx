@@ -27,7 +27,6 @@ import { BrandImage } from '@/ui/brand-image';
 import { Icon } from '@/ui/icon';
 import { type } from '@/ui/typography';
 
-
 export function DiscoveryEmptyState({
   hasActiveFilters,
   catalogEmpty,
@@ -44,31 +43,44 @@ export function DiscoveryEmptyState({
   const { t } = useI18n();
   const enter = useSharedValue(0);
 
-  enter.value = withDelay(80, withTiming(1, { duration: 460, easing: Easing.out(Easing.cubic), reduceMotion: ReduceMotion.System }));
+  enter.value = withDelay(
+    80,
+    withTiming(1, {
+      duration: 460,
+      easing: Easing.out(Easing.cubic),
+      reduceMotion: ReduceMotion.System,
+    }),
+  );
 
   const enterStyle = useAnimatedStyle(() => ({
     opacity: enter.value,
     transform: [{ translateY: (1 - enter.value) * 22 }],
   }));
 
-  const title = catalogEmpty
-    ? 'لا يوجد فنيون متاحون حالياً'
-    : t('discovery.empty.title');
+  const title = catalogEmpty ? 'لا يوجد فنيون متاحون حالياً' : t('discovery.empty.title');
   const body = catalogEmpty
     ? 'تُبنى قائمة الفنيين تدريجياً مع انضمام فنيين معتمدين. يمكنك تشخيص جهازك من دليل الأعطال في الوقت الحالي.'
     : t('discovery.empty.body');
 
   return (
-    <Reanimated.View accessibilityRole="alert" accessibilityLabel={title} style={[styles.root, enterStyle]}>
+    <Reanimated.View
+      accessibilityRole="alert"
+      accessibilityLabel={title}
+      style={[styles.root, enterStyle]}
+    >
       <View style={styles.art}>
         <BrandImage
           name={catalogEmpty ? 'no-requests' : 'no-results'}
           size={132}
-          accessibilityLabel={catalogEmpty ? 'لا يوجد فنيون متاحون' : 'لا توجد نتائج مطابقة للبحث الحالي'}
+          accessibilityLabel={
+            catalogEmpty ? 'لا يوجد فنيون متاحون' : 'لا توجد نتائج مطابقة للبحث الحالي'
+          }
         />
       </View>
 
-      <Text accessibilityRole="header" style={styles.title}>{title}</Text>
+      <Text accessibilityRole="header" style={styles.title}>
+        {title}
+      </Text>
       <Text style={styles.body}>{body}</Text>
 
       <View style={styles.hints}>
@@ -97,10 +109,20 @@ export function DiscoveryEmptyState({
           accessibilityRole="button"
           accessibilityLabel="فتح دليل الأعطال"
           onPress={onGuide}
-          style={({ pressed }) => [styles.btn, hasActiveFilters ? styles.btnGhost : styles.btnPrimary, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.btn,
+            hasActiveFilters ? styles.btnGhost : styles.btnPrimary,
+            pressed && styles.pressed,
+          ]}
         >
-          <Icon name="book" size={16} color={hasActiveFilters ? color.brand.navy : color.surface.base} />
-          <Text style={hasActiveFilters ? styles.btnGhostText : styles.btnPrimaryText}>دليل الأعطال</Text>
+          <Icon
+            name="book"
+            size={16}
+            color={hasActiveFilters ? color.brand.navy : color.surface.base}
+          />
+          <Text style={hasActiveFilters ? styles.btnGhostText : styles.btnPrimaryText}>
+            دليل الأعطال
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"

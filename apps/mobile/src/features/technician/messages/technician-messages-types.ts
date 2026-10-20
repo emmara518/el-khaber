@@ -1,12 +1,9 @@
 /**
- * Technician Messages — conversation list contracts (T-G).
+ * Technician Messages — conversation list contracts (T-G, WP-Inbox).
  *
- * There is NO "list my conversations" endpoint: conversations are 1:1
- * with service requests and are created lazily on first open
- * (docs/07_API.md §11). The list is composed from the technician's
- * role-scoped requests that already have an assigned technician
- * (i.e. non-pending ones). Opening a thread resolves the real
- * conversation through the shared chat adapter.
+ * Backed by the real unified inbox (`GET /conversations`): the
+ * technician sees their threads with the real latest message,
+ * server-authoritative unread count, and order context.
  *
  * The counterparty is the customer, whose identity the API deliberately
  * does not expose (privacy by contract) — the honest generic label is
@@ -14,13 +11,17 @@
  */
 
 export interface TechnicianConversationItem {
-  /** The service-request id; also the chat key source. */
+  /** Real conversation id; the chat key is `conv-<id>`. */
   readonly id: string;
   readonly peerNameAr: string;
   readonly initialsAr: string;
-  readonly applianceAr: string;
-  readonly lastMessageAr: string;
+  /** Customer avatar when set (null keeps the initials fallback). */
+  readonly avatarUrl: string | null;
+  /** Real latest message (null when the thread has no messages yet). */
+  readonly lastMessageAr: string | null;
   readonly timeAr: string;
+  readonly unreadCount: number;
+  /** Thread context from the server (order title), never fabricated. */
   readonly orderRefAr: string;
 }
 
