@@ -6,7 +6,7 @@
  * paths are verifiable without touching shipped UI.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiChatDataSource } from './api-chat-data-source';
 import {
@@ -22,6 +22,7 @@ import {
   CHAT_POLL_INTERVAL_MS,
   startMessagePolling,
   type ChatAppState,
+  type MessagePolling,
 } from './message-polling';
 
 export type ChatLoadStatus = 'loading' | 'loaded' | 'error';
@@ -30,6 +31,8 @@ export interface ChatViewModel {
   loadStatus: ChatLoadStatus;
   loadError: Error | null;
   reload: () => void;
+  /** Refresh the history now (focus return) without a loading flash. */
+  refresh: () => void;
   messages: ReadonlyArray<ChatMessage>;
   draft: string;
   setDraft: (text: string) => void;
@@ -44,6 +47,7 @@ export function useChatViewModel(
   role: ChatRole = 'customer',
   source: ChatDataSource = new ApiChatDataSource(),
   appState: ChatAppState = ALWAYS_ACTIVE_APP_STATE,
+  isFocused: () => boolean = () => true,
 ): ChatViewModel {
   // Stabilize the source across renders so the loader never
   // re-triggers from an inline default.
@@ -79,6 +83,8 @@ export function useChatViewModel(
 
   // Poll while the dialog is mounted; pause in the background. A
   // successful poll also recovers a failed initial load.
+  const pollingRef = useRef<MessagePolling | null>(null);
+
   useEffect(() => {
     const polling = startMessagePolling<ReadonlyArray<ChatMessage>>({
       intervalMs: CHAT_POLL_INTERVAL_MS,
@@ -89,14 +95,21 @@ export function useChatViewModel(
         setLoadError(null);
       },
       onError: () => undefined,
-      isActive: appState.isActive,
+      // Never poll while the screen is blurred or the app is backgrounded.
+      isActive: () => appState.isActive() && isFocused(),
     });
+    pollingRef.current = polling;
     const unsubscribe = appState.subscribe(() => polling.refresh());
     return () => {
       polling.stop();
+      pollingRef.current = null;
       unsubscribe();
     };
-  }, [stableSource, role, conversationId, appState]);
+  }, [stableSource, role, conversationId, appState, isFocused]);
+
+  const refresh = useCallback(() => {
+    pollingRef.current?.refresh();
+  }, []);
 
   const deliver = useCallback(
     (pendingId: string, textAr: string) => {
@@ -144,6 +157,7 @@ export function useChatViewModel(
     loadStatus,
     loadError,
     reload,
+    refresh,
     messages,
     draft,
     setDraft,

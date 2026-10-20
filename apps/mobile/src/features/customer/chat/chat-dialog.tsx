@@ -6,7 +6,8 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -91,8 +92,26 @@ export function ChatBody({
   source?: ChatDataSource;
   role?: ChatRole;
 }) {
-  const vm = useChatViewModel(conversationId, role, source, reactNativeAppState);
+  const focusRef = useRef(true);
+  const firstFocus = useRef(true);
+  const isFocused = useCallback(() => focusRef.current, []);
+  const vm = useChatViewModel(conversationId, role, source, reactNativeAppState, isFocused);
   const scrollRef = useRef<ScrollView>(null);
+  const refresh = vm.refresh;
+
+  // No polling while the dialog's screen is blurred. Returning to the
+  // screen refreshes immediately instead of waiting for the next tick.
+  useFocusEffect(
+    useCallback(() => {
+      const isFirst = firstFocus.current;
+      firstFocus.current = false;
+      focusRef.current = true;
+      if (!isFirst) refresh();
+      return () => {
+        focusRef.current = false;
+      };
+    }, [refresh]),
+  );
 
   return (
     <View style={styles.body}>

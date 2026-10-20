@@ -16,6 +16,7 @@ import type { ChatDataSource } from '../chat/chat-types';
 import type { RatingDataSource } from '../rating/rating-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
 import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { Avatar, Icon, StatusBadge, statusBrandAsset, type } from '@/ui';
 import { SceneAction, SceneHero, SceneSection } from '@/ui/cinematic';
@@ -29,6 +30,7 @@ export default function OrderTrackingScreen({ requestId, orderSource, chatSource
   const { t } = useI18n();
   const router = useRouter();
   const { status, data, error, retry } = useOrderViewModel(requestId, orderSource);
+  useRefreshOnFocus(retry);
   const [chatOpen, setChatOpen] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}
