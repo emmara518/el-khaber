@@ -8,6 +8,26 @@
     "node": ">=20.11.0"
   },
   "pnpm": {
+    "overrides": {
+      "@nestjs/platform-express>multer": "2.4.0",
+      "express>proxy-addr": "2.0.8",
+      "express>path-to-regexp": "0.1.13",
+      "@nestjs/platform-express>express": "4.22.3",
+      "sharp": "0.35.5",
+      "js-yaml": "4.3.2",
+      "lodash": "4.18.1",
+      "postcss": "8.5.31",
+      "source-map-js": "1.2.2",
+      "@expo/cli>tar": "7.5.22",
+      "cacache>tar": "7.5.22",
+      "shell-quote": "1.11.0",
+      "undici": "6.28.1",
+      "@xmldom/xmldom": "0.8.15",
+      "brace-expansion@1": "1.1.20",
+      "brace-expansion@2": "2.1.6",
+      "compression": "1.8.2",
+      "fast-uri": "3.1.7"
+    },
     "onlyBuiltDependencies": [
       "@nestjs/core",
       "@expo/cli",
@@ -28,6 +48,8 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",
+    "audit:prod": "pnpm audit --prod --audit-level=high",
+    "security:audit": "node scripts/audit-gate.mjs",
     "db:migrate:dev": "pnpm --filter @khabir/api prisma:migrate:dev",
     "db:migrate:deploy": "pnpm --filter @khabir/api prisma:migrate:deploy",
     "db:studio": "pnpm --filter @khabir/api prisma:studio",

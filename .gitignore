@@ -91,3 +91,6 @@ apps/mobile/dist-web/
 # Generated Prisma client (re-generated on install)
 packages/*/node_modules/.prisma/
 apps/*/node_modules/.prisma/
+
+# Local audit artifacts
+audit-*.json
