@@ -192,3 +192,57 @@ describe('ApiClient multipart upload (WP-01)', () => {
     expect(init?.headers?.['Content-Type']).toBe('application/json');
   });
 });
+
+describe('ApiClient transport resilience (M1)', () => {
+  beforeEach(async () => {
+    await clearStoredSession();
+    clearAccessToken();
+  });
+
+  afterEach(async () => {
+    await clearStoredSession();
+    clearAccessToken();
+    setSessionLostHandler(null);
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the session when refresh fails with a network error', async () => {
+    setAccessToken('expired');
+    await storeSession({ refreshToken: 'refresh-1', user: { id: 'u1' } });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'AUTH_REQUIRED', message: 'no' } }))
+      .mockRejectedValueOnce(new TypeError('Network request failed'));
+    vi.stubGlobal('fetch', fetchMock);
+    const lost = vi.fn();
+    setSessionLostHandler(lost);
+
+    const client = new ApiClient({ baseUrl: BASE });
+    await expect(client.request('GET', '/thing')).rejects.toBeDefined();
+
+    expect(await loadStoredSession()).not.toBeNull();
+    expect(getAccessToken()).toBe('expired');
+    expect(lost).not.toHaveBeenCalled();
+  });
+
+  it('keeps the session when refresh fails with a 5xx', async () => {
+    setAccessToken('expired');
+    await storeSession({ refreshToken: 'refresh-1', user: { id: 'u1' } });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { error: { code: 'AUTH_REQUIRED', message: 'no' } }))
+      .mockResolvedValueOnce(
+        jsonResponse(503, { error: { code: 'INTERNAL_ERROR', message: 'unavailable' } }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+    const lost = vi.fn();
+    setSessionLostHandler(lost);
+
+    const client = new ApiClient({ baseUrl: BASE });
+    await expect(client.request('GET', '/thing')).rejects.toBeDefined();
+
+    expect(await loadStoredSession()).not.toBeNull();
+    expect(lost).not.toHaveBeenCalled();
+  });
+});
