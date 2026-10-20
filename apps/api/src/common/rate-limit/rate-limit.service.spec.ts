@@ -22,13 +22,44 @@ describe('RateLimitService raw insert', () => {
     const call = queryRaw.mock.calls[0] as unknown as [TemplateStringsArray, ...unknown[]];
     const sql = call[0].join('?');
     const values = call.slice(1);
+    const normalizedSql = sql.replace(/\s+/g, ' ');
 
-    expect(sql).toContain('"id"');
-    expect(sql).toContain('"updated_at"');
-    expect(sql).toContain('ON CONFLICT ("policy", "identifier", "window_start")');
-    expect(values[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    const insert = normalizedSql.match(
+      /INSERT\s+INTO\s+"rate_limit_buckets"\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i,
+    );
+    expect(insert).not.toBeNull();
+
+    const insertColumns = (insert?.[1] ?? '')
+      .split(',')
+      .map((column) => column.trim().replaceAll('"', ''));
+
+    const insertValues = (insert?.[2] ?? '').split(',').map((value) => value.trim());
+
+    expect(insertColumns).toEqual([
+      'id',
+      'policy',
+      'identifier',
+      'window_start',
+      'count',
+      'updated_at',
+    ]);
+
+    // Prove the ID and updated_at are bound VALUES, not column names alone.
+    expect(insertValues).toEqual(['?::uuid', '?', '?', '?', '1', '?']);
+
+    expect(values[0]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
     expect(values[1]).toBe('auth');
     expect(values[2]).toBe('127.0.0.1');
+    expect(values[3]).toBeInstanceOf(Date);
     expect(values[4]).toBeInstanceOf(Date);
+
+    // Preserve atomic counter increment and conflict-window semantics.
+    expect(normalizedSql).toContain(
+      'ON CONFLICT ("policy", "identifier", "window_start") DO UPDATE',
+    );
+    expect(normalizedSql).toMatch(/SET "count" = "rate_limit_buckets"\."count" \+ 1/i);
+    expect(normalizedSql).toMatch(/"updated_at" = now\(\)/i);
   });
 });
