@@ -282,6 +282,32 @@ describe('auth e2e', () => {
     expect(after.status).toBe(401);
   });
 
+  it('POST /auth/refresh is atomic: concurrent reuse yields one winner and one 401', async () => {
+    const reg = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', email: 'race@example.com', password: 'sup3rsecretP4ss' })
+      .expect(201);
+    const refreshToken: string = reg.body.data.refreshToken;
+
+    const [first, second] = await Promise.all([
+      request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refreshToken }),
+      request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refreshToken }),
+    ]);
+
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([200, 401]);
+    const loser = first.status === 401 ? first : second;
+    expect(loser.body.error.code).toBe('AUTH_INVALID');
+
+    const original = prisma.refreshTokens.find((row) => row.tokenHash === sha256(refreshToken));
+    expect(original?.revokedAt).not.toBeNull();
+    expect(original?.revokedReason).toBe('rotation');
+
+    // A single presented token can never leave two live sessions behind.
+    const live = prisma.refreshTokens.filter((row) => row.revokedAt === null);
+    expect(live.length).toBeLessThanOrEqual(1);
+  });
+
   it('POST /auth/logout revokes the family; subsequent refresh fails', async () => {
     const reg = await request(app.getHttpServer())
       .post('/api/v1/auth/register')

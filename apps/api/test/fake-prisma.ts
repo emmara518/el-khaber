@@ -718,14 +718,15 @@ class FakePrismaClient {
       return this.refreshTokens[idx];
     },
     updateMany: async (args: {
-      where: { familyId?: string; userId?: string; revokedAt: null };
+      where: { id?: string; familyId?: string; userId?: string; revokedAt: null };
       data: Partial<RefreshRow>;
     }): Promise<{ count: number }> => {
       let count = 0;
       this.refreshTokens = this.refreshTokens.map((r) => {
+        const idMatch = args.where.id === undefined || r.id === args.where.id;
         const familyMatch = args.where.familyId === undefined || r.familyId === args.where.familyId;
         const userMatch = args.where.userId === undefined || r.userId === args.where.userId;
-        if (familyMatch && userMatch && r.revokedAt === null) {
+        if (idMatch && familyMatch && userMatch && r.revokedAt === null) {
           count += 1;
           return { ...r, ...args.data };
         }
@@ -895,14 +896,15 @@ class FakePrismaClient {
       return this.adminRefreshTokens[idx];
     },
     updateMany: async (args: {
-      where: { familyId?: string; adminId?: string; revokedAt: null };
+      where: { id?: string; familyId?: string; adminId?: string; revokedAt: null };
       data: Partial<AdminRefreshRow>;
     }): Promise<{ count: number }> => {
       let count = 0;
       this.adminRefreshTokens = this.adminRefreshTokens.map((r) => {
+        const idMatch = args.where.id === undefined || r.id === args.where.id;
         const familyMatch = args.where.familyId === undefined || r.familyId === args.where.familyId;
         const adminMatch = args.where.adminId === undefined || r.adminId === args.where.adminId;
-        if (familyMatch && adminMatch && r.revokedAt === null) {
+        if (idMatch && familyMatch && adminMatch && r.revokedAt === null) {
           count += 1;
           return { ...r, ...args.data };
         }
