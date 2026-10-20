@@ -448,6 +448,12 @@ owns the product). There are no arbitrary user-to-user conversations.
 `Message.readAt` backs server-authoritative unread counts; opening a
 conversation marks the peer's messages read. No realtime: HTTP only.
 
+Client polling contract (V2.1): the mobile client polls this history only while
+the chat screen is visible and the app is in the foreground — at most one
+request in flight, every **15 seconds**. Polling is the only throttle here: the
+endpoint has no rate limit beyond authentication, and each GET also performs
+the read-mark UPDATE.
+
 ### GET `/service-requests/:id/conversation`
 
 Returns the authorized service-request conversation (lazily created on first
