@@ -12,9 +12,9 @@
  *   1. process.env.TEST_DATABASE_URL
  *   2. DATABASE_URL from apps/api/.env.test (parsed, never mutating process.env)
  *
- * An absent URL means "integration specs skip". A present URL that is not
- * allowlisted throws immediately: configuration mistakes must be loud, not
- * silently skipped.
+ * An absent URL means "integration specs skip" for a local developer. In CI
+ * it is a hard failure: integration coverage must not silently disappear.
+ * A present URL that is not allowlisted throws immediately.
  */
 
 import { readFileSync } from 'node:fs';
@@ -68,7 +68,11 @@ export function assertIsolatedTestDatabaseUrl(raw: string, source: string): stri
   return value;
 }
 
-/** Reads the isolated test URL, or '' when none is configured. */
+function isCi(): boolean {
+  return process.env['CI'] === 'true' || process.env['GITHUB_ACTIONS'] === 'true';
+}
+
+/** Reads the isolated test URL, or '' when none is configured locally. */
 export function readTestDatabaseUrl(): string {
   const fromEnv = assertIsolatedTestDatabaseUrl(
     process.env['TEST_DATABASE_URL'] ?? '',
@@ -76,6 +80,14 @@ export function readTestDatabaseUrl(): string {
   );
   if (fromEnv !== '') {
     return fromEnv;
+  }
+
+  // CI must always run the integration coverage against a disposable
+  // database. Do not fall back to .env.test or silently skip.
+  if (isCi()) {
+    throw new Error(
+      'CI integration tests require TEST_DATABASE_URL pointing at an isolated PostgreSQL host.',
+    );
   }
 
   try {
