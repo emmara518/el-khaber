@@ -1,3 +1,4 @@
+require('./qa-guard.cjs').assertQaSeedAllowed(__filename);
 /**
  * EL-KHABIR — QA seed for the shared QA/dev PostgreSQL database.
  *

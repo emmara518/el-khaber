@@ -9,6 +9,7 @@ import { PrismaClient } from '@prisma/client';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
+require('./qa-guard.cjs').assertQaSeedAllowed(import.meta.url);
 const { hashPassword } = require('../dist/auth/password');
 
 const url = process.env.DATABASE_URL;

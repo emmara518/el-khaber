@@ -197,3 +197,43 @@ product CRUD→subscription payment + proof upload→logout), Admin (login→
 dashboard→verifications→service requests→payment review approve/reject→
 grants→notifications→audit log). Payment proof: upload → admin secure view →
 reject → resubmit → approve → entitlement ACTIVE.
+
+---
+
+## 8. Admin provisioning and QA seed safety (V2.1)
+
+### Create an admin (out-of-band only)
+
+There is no public admin-registration endpoint. Provision from an interactive TTY:
+
+``sh
+cd apps/api
+ALLOW_ADMIN_CREATE=true pnpm admin:create
+``sh
+
+- The password is typed with echo disabled; it is never accepted from argv,
+  an environment variable, or piped stdin.
+- Minimum 14 characters with at least one letter and one digit.
+- Role must be one of: super_admin, operations_admin, content_admin,
+  support_admin. The legacy finance_admin value cannot be provisioned.
+- Creation writes an admin.provision.create row to the audit log.
+- Never paste the password into a ticket, chat, or shell history.
+
+### Seed / QA scripts
+
+Every seed and QA write script requires ALL of:
+
+1. ALLOW_QA_SEED=true (explicit per-run opt-in),
+2. NODE_ENV not equal to production,
+3. a DATABASE_URL whose parsed host is loopback, postgres (CI), or
+   	est-db (docker-compose). Supabase/shared hosts are always rejected.
+
+The guard lives in pps/api/scripts/qa-guard.cjs; it is not a URL substring
+check. Use docker-compose.test.yml for a disposable local database.
+
+### QA account purge (approval required)
+
+pps/api/scripts/purge-qa-accounts.ts only inspects @qa.khabir.app`naccounts by default. It deletes only when ALLOW_QA_PURGE=true is set AND
+--confirm is passed, and it refuses production. A human owner must approve
+the action before it is run.
+

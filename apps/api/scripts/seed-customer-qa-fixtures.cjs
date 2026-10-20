@@ -1,3 +1,4 @@
+require('./qa-guard.cjs').assertQaSeedAllowed(__filename);
 /**
  * EL-KHABIR — Customer QA fixture seed (blocker closure PHASE 6).
  *
