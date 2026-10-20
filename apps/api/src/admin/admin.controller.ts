@@ -88,7 +88,7 @@ export class AdminController {
   // Read-only platform counts: every active admin role (docs/09 §19).
 
   @Get('metrics')
-  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin', 'finance_admin')
+  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin')
   @ApiEnvelopeOk('AdminMetricsDto', 200, 'Platform counts (no decorative metrics).')
   async metrics(): Promise<ApiSuccess<Payload>> {
     return { data: await this.operations.metrics() };
@@ -259,7 +259,7 @@ export class AdminController {
 
   @Post('reviews/:id/remove')
   @HttpCode(200)
-  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin')
+  @AdminRoles('super_admin', 'content_admin')
   @ApiEnvelopeOk(
     'AdminReviewRemoveResultDto',
     200,

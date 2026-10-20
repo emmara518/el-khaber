@@ -23,7 +23,6 @@ import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
 import {
-  ADMIN_ROLES_METADATA_KEY,
   AUTH_KIND_METADATA_KEY,
   IS_PUBLIC_KEY,
   ROLES_METADATA_KEY,
@@ -140,19 +139,9 @@ export class JwtAuthGuard implements CanActivate {
 
     // WP-Admin-01: admin-role matrix (docs/09_ADMIN.md §19). Only
     // evaluated for the admin authority; same 401 (never role leakage).
-    if (requiredKind === 'admin') {
-      const requiredAdminRoles = this.reflector.getAllAndOverride<string[] | undefined>(
-        ADMIN_ROLES_METADATA_KEY,
-        [context.getHandler(), context.getClass()],
-      );
-      if (
-        requiredAdminRoles !== undefined &&
-        requiredAdminRoles.length > 0 &&
-        (adminRole === null || !requiredAdminRoles.includes(adminRole))
-      ) {
-        throw new AuthRequiredException();
-      }
-    }
+    // Admin role matrix is enforced by AdminRolesGuard (default deny).
+    // Keeping it out of this guard avoids two sources of truth.
+    void adminRole;
 
     req.user = {
       id: payload.sub,
