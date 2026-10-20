@@ -65,14 +65,14 @@ export class AdminPaymentsController {
   // --- Payment destination configuration (CTO contract §1.3) ---------------
 
   @Get('config')
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin')
   @ApiEnvelopeOk('PaymentMethodConfigDto', 200, 'All configured manual payment destinations.')
   async getConfig(@CurrentUser() _admin: RequestUser): Promise<ApiSuccess<Payload[]>> {
     return { data: await this.payments.adminListConfig() };
   }
 
   @Put('config/:method')
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin')
   @ApiZodBody(adminPaymentConfigUpsertSchema)
   @ApiEnvelopeOk('PaymentMethodConfigDto', 200, 'Payment destination upserted (audited).')
   async upsertConfig(
@@ -93,7 +93,7 @@ export class AdminPaymentsController {
   // --- Payment review (CTO contract §1.5) ----------------------------------
 
   @Get('submissions')
-  @AdminRoles('super_admin', 'operations_admin', 'support_admin', 'finance_admin')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiZodQuery(adminSubmissionListQuerySchema)
   @ApiEnvelopeOk(
     'PaymentSubmissionDto',
@@ -109,7 +109,7 @@ export class AdminPaymentsController {
   }
 
   @Get('submissions/:id')
-  @AdminRoles('super_admin', 'operations_admin', 'support_admin', 'finance_admin')
+  @AdminRoles('super_admin', 'operations_admin', 'support_admin')
   @ApiEnvelopeOk('PaymentSubmissionDto', 200, 'Submission detail (incl. typed proof reference).')
   @ApiEnvelopeError(404, 'Payment submission not found.')
   async detail(@Param('id') id: string): Promise<ApiSuccess<Payload>> {
@@ -118,7 +118,7 @@ export class AdminPaymentsController {
 
   @Post('submissions/:id/approve')
   @HttpCode(200)
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin')
   @ApiZodBody(adminPaymentApproveSchema)
   @ApiEnvelopeOk(
     'PaymentApprovalResultDto',
@@ -137,7 +137,7 @@ export class AdminPaymentsController {
 
   @Post('submissions/:id/reject')
   @HttpCode(200)
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin')
   @ApiZodBody(adminPaymentRejectSchema)
   @ApiEnvelopeOk(
     'PaymentRejectResultDto',
@@ -170,7 +170,7 @@ export class AdminGrantsController {
   /** MANUAL SUBSCRIPTION GRANT (CTO contract §1.7): no payment record. */
   @Post('subscriptions/grant')
   @HttpCode(201)
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin')
   @ApiZodBody(adminGrantSubscriptionSchema)
   @ApiEnvelopeOk('AdminGrantResultDto', 201, 'ACTIVE subscription granted manually (audited).')
   @ApiEnvelopeError(404, 'User or plan not found.')
@@ -187,7 +187,7 @@ export class AdminGrantsController {
   /** MANUAL ENTITLEMENT GRANT (CTO contract §1.8): documented codes only. */
   @Post('entitlements/grant')
   @HttpCode(201)
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin')
   @ApiZodBody(adminGrantEntitlementSchema)
   @ApiEnvelopeOk('AdminGrantResultDto', 201, 'Entitlement granted manually (audited).')
   @ApiEnvelopeError(404, 'User or entitlement not found.')

@@ -251,57 +251,58 @@ describe('admin governance e2e (WP-Admin-01…04)', () => {
         .post(`/api/v1/admin/technicians/${TECH_PROFILE}/verification`)
         .set(admin)
         .send({ status: 'verified' })
-        .expect(401);
+        .expect(403);
       await request(app.getHttpServer())
         .post(`/api/v1/admin/service-requests/${REQUEST_PENDING}/status`)
         .set(admin)
         .send({ status: 'cancelled' })
-        .expect(401);
-      await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set(admin).expect(401);
+        .expect(403);
+      await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set(admin).expect(403);
       await request(app.getHttpServer())
         .get('/api/v1/admin/payments/config')
         .set(admin)
-        .expect(401);
+        .expect(403);
       await request(app.getHttpServer())
         .post(`/api/v1/admin/service-requests/${REQUEST_PENDING}/assign`)
         .set(admin)
         .send({ technician_id: TECH_PROFILE })
-        .expect(401);
+        .expect(403);
     });
 
     it('content_admin reads reviews but cannot verify, list users, or read audit', async () => {
       const admin = auth('content_admin');
       await request(app.getHttpServer()).get('/api/v1/admin/reviews').set(admin).expect(200);
-      await request(app.getHttpServer()).get('/api/v1/admin/users').set(admin).expect(401);
-      await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set(admin).expect(401);
+      await request(app.getHttpServer()).get('/api/v1/admin/users').set(admin).expect(403);
+      await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set(admin).expect(403);
       await request(app.getHttpServer())
         .post(`/api/v1/admin/technicians/${TECH_PROFILE}/verification`)
         .set(admin)
         .send({ status: 'verified' })
-        .expect(401);
+        .expect(403);
     });
 
-    it('finance_admin manages payments config but cannot verify or override requests', async () => {
+    it('finance_admin is legacy and has no privileged route (only /admin/me)', async () => {
       const admin = auth('finance_admin');
+      await request(app.getHttpServer()).get('/api/v1/admin/me').set(admin).expect(200);
       await request(app.getHttpServer())
         .get('/api/v1/admin/payments/config')
         .set(admin)
-        .expect(200);
+        .expect(403);
       await request(app.getHttpServer())
         .get('/api/v1/admin/payments/submissions')
         .set(admin)
-        .expect(200);
+        .expect(403);
       await request(app.getHttpServer())
         .post(`/api/v1/admin/technicians/${TECH_PROFILE}/verification`)
         .set(admin)
         .send({ status: 'verified' })
-        .expect(401);
+        .expect(403);
       await request(app.getHttpServer())
         .post(`/api/v1/admin/service-requests/${REQUEST_PENDING}/status`)
         .set(admin)
         .send({ status: 'cancelled' })
-        .expect(401);
-      await request(app.getHttpServer()).get('/api/v1/admin/users').set(admin).expect(401);
+        .expect(403);
+      await request(app.getHttpServer()).get('/api/v1/admin/users').set(admin).expect(403);
     });
 
     it('operations_admin verifies and overrides but cannot touch payments config or grants', async () => {
@@ -315,12 +316,12 @@ describe('admin governance e2e (WP-Admin-01…04)', () => {
       await request(app.getHttpServer())
         .get('/api/v1/admin/payments/config')
         .set(admin)
-        .expect(401);
+        .expect(403);
       await request(app.getHttpServer())
         .post('/api/v1/admin/subscriptions/grant')
         .set(admin)
         .send({ user_id: 'cust-1', plan_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' })
-        .expect(401);
+        .expect(403);
     });
 
     it('role changes apply on the next request (DB-authoritative, not token claim)', async () => {
@@ -331,7 +332,7 @@ describe('admin governance e2e (WP-Admin-01…04)', () => {
       if (row !== undefined) {
         row.role = 'support_admin';
       }
-      await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set(admin).expect(401);
+      await request(app.getHttpServer()).get('/api/v1/admin/audit-logs').set(admin).expect(403);
     });
   });
 
@@ -423,7 +424,7 @@ describe('admin governance e2e (WP-Admin-01…04)', () => {
 
   describe('WP-Admin-04: review removal requires a reason', () => {
     it('rejects removal without a reason; with reason it removes, audits, and recomputes metrics', async () => {
-      const admin = auth('operations_admin');
+      const admin = auth('content_admin');
       await request(app.getHttpServer())
         .post(`/api/v1/admin/reviews/${REVIEW_ID}/remove`)
         .set(admin)
@@ -451,20 +452,26 @@ describe('admin governance e2e (WP-Admin-01…04)', () => {
       });
     });
 
-    it('support_admin can remove with reason; content_admin cannot verify technicians', async () => {
+    it('content_admin moderates reviews; support_admin is read-only and cannot verify technicians', async () => {
       const support = auth('support_admin');
       await request(app.getHttpServer())
         .post(`/api/v1/admin/reviews/${REVIEW_ID}/remove`)
         .set(support)
-        .send({ reason: 'محتوى مسيء' })
-        .expect(200);
+        .send({ reason: 'U.O-O�U^U% U.O3USO�' })
+        .expect(403);
 
       const content = auth('content_admin');
+      await request(app.getHttpServer())
+        .post(`/api/v1/admin/reviews/${REVIEW_ID}/remove`)
+        .set(content)
+        .send({ reason: 'U.O-O�U^U% U.O3USO�' })
+        .expect(200);
+
       await request(app.getHttpServer())
         .post(`/api/v1/admin/technicians/${TECH_PROFILE}/verification`)
         .set(content)
         .send({ status: 'verified' })
-        .expect(401);
+        .expect(403);
     });
   });
 });

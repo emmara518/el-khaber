@@ -14,7 +14,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 
-import { AuthKind, CurrentUser, Public, type RequestUser } from '../common/decorators';
+import { AdminRoles, AuthKind, CurrentUser, Public, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -99,6 +99,9 @@ export class AdminMeController {
   constructor(private readonly auth: AdminAuthService) {}
 
   @Get()
+  // Identity is available to every active admin role (including the legacy
+  // finance_admin) so the panel can render the correct navigation.
+  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin', 'finance_admin')
   async me(@CurrentUser() _current: RequestUser): Promise<ApiSuccess<MeDto>> {
     // Current user's id is derived from the verified JWT (request.user).
     // The actual admin record is fetched server-side.

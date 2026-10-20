@@ -29,7 +29,7 @@ export class AdminProofController {
 
   /** GET /admin/payments/submissions/:id/proof-url — short-lived proof view URL. */
   @Get('submissions/:id/proof-url')
-  @AdminRoles('super_admin', 'finance_admin')
+  @AdminRoles('super_admin', 'operations_admin')
   @ApiEnvelopeOk(
     'ProofDownloadUrlDto',
     200,
