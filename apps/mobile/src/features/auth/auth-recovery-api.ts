@@ -12,10 +12,8 @@
 
 import { getApi } from '@/lib/api-client';
 
-export async function requestPasswordRecovery(input: {
-  phone?: string;
-  email?: string;
-}): Promise<void> {
+// V2.1: email-only recovery (SMS/WhatsApp are out of scope).
+export async function requestPasswordRecovery(input: { email: string }): Promise<void> {
   await getApi().unauthenticatedRequest('POST', '/auth/forgot-password', input);
 }
 

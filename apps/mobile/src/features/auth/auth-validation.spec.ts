@@ -130,9 +130,10 @@ describe('register validation states', () => {
 });
 
 describe('forgot/reset validation states', () => {
-  it('requires an identity for forgot-password', () => {
-    expect(hasErrors(validateForgotInput({ identity: '' }))).toBe(true);
-    expect(hasErrors(validateForgotInput({ identity: '0512345678' }))).toBe(false);
+  it('requires a valid email for forgot-password (V2.1 email-only)', () => {
+    expect(hasErrors(validateForgotInput({ email: '' }))).toBe(true);
+    expect(hasErrors(validateForgotInput({ email: 'not-an-email' }))).toBe(true);
+    expect(hasErrors(validateForgotInput({ email: 'user@example.com' }))).toBe(false);
   });
 
   it('requires a plausible token and matching confirmation for reset', () => {

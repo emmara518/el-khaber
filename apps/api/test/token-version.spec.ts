@@ -174,7 +174,11 @@ describe('JwtAuthGuard tokenVersion verification', () => {
       $transaction: vi.fn(async (fn: (txArg: unknown) => Promise<unknown>) => fn(tx)),
     } as unknown as PrismaService;
 
-    const resetService = new PasswordResetService(prisma, { sendPasswordReset: vi.fn() });
+    const resetService = new PasswordResetService(
+      prisma,
+      { checkLimit: vi.fn() } as never,
+      { sendPasswordReset: vi.fn() },
+    );
     await resetService.consumeReset({ token: 'reset-token', newPassword: 'newPassw0rd!' });
 
     // The reset bumped tokenVersion; the pre-reset access token is now stale.

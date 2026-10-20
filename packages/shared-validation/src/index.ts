@@ -78,14 +78,11 @@ export const logoutSchema = z.object({
 export type LogoutInput = z.infer<typeof logoutSchema>;
 
 /** Forgot password: contact channel. */
-export const forgotPasswordSchema = z
-  .object({
-    phone: phoneSchema.optional(),
-    email: emailSchema.optional(),
-  })
-  .refine((v) => Boolean(v.phone) || Boolean(v.email), {
-    message: 'phone or email is required',
-  });
+// V2.1: password recovery is EMAIL-ONLY. SMS/WhatsApp channels are out of
+// scope for this release (see the V2.1 release decisions).
+export const forgotPasswordSchema = z.object({
+  email: emailSchema,
+});
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
