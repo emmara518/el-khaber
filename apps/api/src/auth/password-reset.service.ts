@@ -14,20 +14,25 @@
  *     previously issued access token is rejected on its next request.
  *   - The public `forgot-password` endpoint always returns 202 and
  *     never reveals whether the contact channel is registered.
- *   - Notification delivery is intentionally out of scope for this
- *     task (CTO amendment). The service returns the raw token so a
- *     future notification adapter can deliver it. In production the
- *     controller must NOT include the token in the HTTP response.
+ *   - Delivery is email-only in V2.1 and runs in the background: the HTTP
+ *     response never waits for the provider and never contains the token.
+ *   - A new request invalidates every outstanding token for the account.
+ *   - Known and unknown accounts share the same response shape and a
+ *     minimum response time, so timing cannot be used for enumeration.
  *
  * Source: docs/05_TECH_ARCHITECTURE.md §6; docs/07_API.md §4.
  */
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { AuthInvalidException, ValidationException } from '../common/errors';
+import { RateLimitService } from '../common/rate-limit/rate-limit.service';
+import {
+  AuthInvalidException,
+  RateLimitedException,
+  ValidationException,
+} from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
-import { phoneVariants } from './auth.service';
 import { hashPassword } from './password';
 import {
   PASSWORD_RESET_DELIVERY,
@@ -36,8 +41,7 @@ import {
 import { generateOpaqueToken, hashToken } from './token.util';
 
 export interface PasswordResetRequestInput {
-  email?: string;
-  phone?: string;
+  email: string;
 }
 
 export interface PasswordResetConfirmInput {
@@ -50,90 +54,96 @@ export interface PasswordResetRequestResult {
   accepted: true;
   /** Whether a reset token was actually issued. */
   issued: boolean;
-  /**
-   * The raw reset token. Present only when `issued` is true.
-   * Intended for the notification adapter. MUST NOT be included in
-   * any HTTP response. The controller must only return `accepted`.
-   */
-  rawToken?: string;
 }
 
 const DEFAULT_RESET_TTL_SECONDS = 30 * 60;
+const MAX_RESET_TTL_SECONDS = 30 * 60;
+/** Response-timing floor shared by known and unknown accounts. */
+const MIN_RESPONSE_MS = 150;
 
 @Injectable()
 export class PasswordResetService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly rateLimit: RateLimitService,
     @Inject(PASSWORD_RESET_DELIVERY)
     private readonly delivery: PasswordResetDeliveryPort,
   ) {}
 
   /**
    * Always returns `accepted: true` regardless of whether a user matched.
-   * `issued` reflects whether a reset token was stored.
-   *
-   * The raw token is returned ONLY to the caller (intended to be the
-   * notification adapter). The HTTP controller MUST NOT include it in
-   * the response.
+   * `issued` reflects whether a reset token was stored. The raw token is
+   * handed only to the background delivery adapter; it is never returned
+   * in an HTTP response or logged.
    */
   async requestReset(input: PasswordResetRequestInput): Promise<PasswordResetRequestResult> {
-    if (!input.email && !input.phone) {
-      throw new ValidationException('phone or email is required');
-    }
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          // Same canonical matching rule as login: a user who typed a
-          // local/international variant of their number must be found
-          // (canonical ∪ raw), never silently missed.
-          ...(input.phone !== undefined
-            ? phoneVariants(input.phone).map((p) => ({ phone: p }))
-            : []),
-          ...(input.email !== undefined ? [{ email: input.email }] : []),
-        ],
-      },
-    });
-    if (!user) {
-      return { accepted: true, issued: false };
+    const startedAt = Date.now();
+    const email = input.email.trim().toLowerCase();
+    if (email.length === 0) {
+      throw new ValidationException('email is required');
     }
 
-    const ttlSeconds = Number.parseInt(
+    // Per-email budget (per-IP is enforced by AuthRateLimitGuard). Keyed by
+    // the submitted address, so unknown accounts consume the same budget and
+    // the limit never reveals whether an account exists.
+    const limit = await this.rateLimit.checkLimit('password-reset', email);
+    if (!limit.allowed) {
+      throw new RateLimitedException('Too many reset requests. Try again later.');
+    }
+
+    const user = await this.prisma.user.findFirst({ where: { email } });
+
+    if (user !== null) {
+      // A new request invalidates every outstanding token for the account:
+      // only the most recent email can be used.
+      await this.prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+
+      const ttlSeconds = this.resetTtlSeconds();
+      const rawToken = generateOpaqueToken(48);
+      const tokenHash = hashToken(rawToken);
+      const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
+
+      await this.prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash, expiresAt },
+      });
+
+      // Background delivery: the HTTP response must not wait for the email
+      // provider. The token never reaches an HTTP response or a log line.
+      void this.delivery
+        .sendPasswordReset({
+          contact: { email: user.email ?? undefined },
+          rawToken,
+        })
+        .catch((error: unknown) => {
+          const status = error instanceof Error ? error.name : 'unknown error';
+          new Logger(PasswordResetService.name).warn(
+            `password reset delivery failed (token not logged): ${status}`,
+          );
+        });
+    }
+
+    // Equalize the practical response time of known and unknown accounts.
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < MIN_RESPONSE_MS) {
+      await new Promise((resolve) => setTimeout(resolve, MIN_RESPONSE_MS - elapsed));
+    }
+
+    return { accepted: true, issued: user !== null };
+  }
+
+  private resetTtlSeconds(): number {
+    const parsed = Number.parseInt(
       process.env['PASSWORD_RESET_TTL_SECONDS'] ?? String(DEFAULT_RESET_TTL_SECONDS),
       10,
     );
-    const rawToken = generateOpaqueToken(48);
-    const tokenHash = hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
-
-    await this.prisma.passwordResetToken.create({
-      data: {
-        userId: user.id,
-        tokenHash,
-        expiresAt,
-      },
-    });
-
-    // Delivery boundary (Task 10D §4): hand the raw token to the
-    // provider-agnostic delivery port. The token never reaches an HTTP
-    // response or a log line — only the delivery adapter sees it.
-    // A delivery-provider outage must not turn the enumeration-safe 202
-    // into a 500; the failure is logged WITHOUT the token.
-    try {
-      await this.delivery.sendPasswordReset({
-        contact: {
-          phone: user.phone ?? undefined,
-          email: user.email ?? undefined,
-        },
-        rawToken,
-      });
-    } catch (error: unknown) {
-      const status = error instanceof Error ? error.message : 'unknown error';
-      new Logger(PasswordResetService.name).warn(
-        `password reset delivery failed (token not logged): ${status}`,
-      );
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return DEFAULT_RESET_TTL_SECONDS;
     }
-
-    return { accepted: true, issued: true, rawToken };
+    // V2.1 hard ceiling: a reset link must never outlive 30 minutes.
+    return Math.min(parsed, MAX_RESET_TTL_SECONDS);
   }
 
   /**
@@ -155,12 +165,9 @@ export class PasswordResetService {
       throw new AuthInvalidException('Invalid or expired reset token');
     }
     if (record.usedAt !== null) {
-      // Token reuse: refuse and revoke any other outstanding tokens for
-      // this user as a defense-in-depth measure.
-      await this.prisma.passwordResetToken.updateMany({
-        where: { userId: record.userId, usedAt: null },
-        data: { usedAt: new Date() },
-      });
+      // Replay of an already-consumed token is rejected. Do NOT revoke the
+      // user's current outstanding token here: possession of an old email
+      // must not let anyone invalidate the newest reset link (DoS vector).
       throw new AuthInvalidException('Reset token has already been used');
     }
     if (record.expiresAt.getTime() <= Date.now()) {

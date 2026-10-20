@@ -11,7 +11,6 @@ import { View } from 'react-native';
 import { requestPasswordRecovery, toArabicAuthError } from '../src/features/auth/auth-recovery-api';
 import {
   hasErrors,
-  splitIdentity,
   validateForgotInput,
   type AuthFieldErrors,
 } from '../src/features/auth/auth-validation';
@@ -21,20 +20,20 @@ import { AuthScreen } from '../src/features/auth/components/auth-screen';
 
 export default function ForgotPasswordRoute() {
   const router = useRouter();
-  const [identity, setIdentity] = useState('');
+  const [email, setEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
   const [loading, setLoading] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
 
   async function handleSubmit() {
-    const errors = validateForgotInput({ identity });
+    const errors = validateForgotInput({ email });
     setFieldErrors(errors);
     setFailure(null);
     if (hasErrors(errors)) return;
     setLoading(true);
     try {
-      await requestPasswordRecovery(splitIdentity(identity));
+      await requestPasswordRecovery({ email: email.trim().toLowerCase() });
       setSent(true);
     } catch (err) {
       setFailure(toArabicAuthError(err, 'فشل إرسال تعليمات الاستعادة. حاول مجددًا'));
@@ -44,18 +43,19 @@ export default function ForgotPasswordRoute() {
   }
 
   return (
-    <AuthScreen title="استعادة كلمة المرور" subtitle="أدخل رقم هاتفك أو بريدك الإلكتروني وسنرسل لك تعليمات الاستعادة">
+    <AuthScreen title="استعادة كلمة المرور" subtitle="أدخل بريدك الإلكتروني وسنرسل لك تعليمات الاستعادة">
       {sent ? <AuthAlert kind="success" message="تم إرسال تعليمات الاستعادة إن كان الحساب موجودًا." /> : null}
       {failure !== null ? <AuthAlert kind="error" message={failure} /> : null}
       <AuthField
-        label="رقم الهاتف أو البريد الإلكتروني"
-        inputLabel="رقم الهاتف أو البريد الإلكتروني"
-        placeholder="01xxxxxxxxx أو name@mail.com"
-        value={identity}
-        onChangeText={setIdentity}
-        error={fieldErrors.identity}
+        label="البريد الإلكتروني"
+        inputLabel="البريد الإلكتروني"
+        placeholder="name@mail.com"
+        value={email}
+        onChangeText={setEmail}
+        error={fieldErrors.email}
         autoCapitalize="none"
-        autoComplete="username"
+        autoComplete="email"
+        keyboardType="email-address"
         editable={!sent}
       />
       {!sent ? (

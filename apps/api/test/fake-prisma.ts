@@ -553,10 +553,21 @@ class FakePrismaClient {
 
   user = {
     findFirst: async (args: {
-      where: { OR?: Array<{ phone?: string } | { email?: string } | { id: string }>; id?: string };
+      where: {
+        OR?: Array<{ phone?: string } | { email?: string } | { id: string }>;
+        id?: string;
+        email?: string;
+        phone?: string;
+      };
     }): Promise<UserRow | null> => {
       if (args.where.id !== undefined) {
         return this.users.find((u) => u.id === args.where.id) ?? null;
+      }
+      if (args.where.email !== undefined) {
+        return this.users.find((u) => u.email === args.where.email) ?? null;
+      }
+      if (args.where.phone !== undefined) {
+        return this.users.find((u) => u.phone === args.where.phone) ?? null;
       }
       for (const u of this.users) {
         for (const cond of args.where.OR ?? []) {

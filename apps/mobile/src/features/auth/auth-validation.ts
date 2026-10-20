@@ -80,10 +80,14 @@ export function validateRegisterInput(input: {
   return errors;
 }
 
-export function validateForgotInput(input: { identity: string }): AuthFieldErrors {
+export function validateForgotInput(input: { email: string }): AuthFieldErrors {
   const errors: AuthFieldErrors = {};
-  const identityError = validateIdentity(input.identity);
-  if (identityError !== null) errors.identity = identityError;
+  const email = input.email.trim();
+  if (email.length === 0) {
+    errors.email = 'أدخل البريد الإلكتروني';
+  } else if (!isEmailLike(email)) {
+    errors.email = 'أدخل بريدًا إلكترونيًا صحيحًا';
+  }
   return errors;
 }
 

@@ -123,6 +123,11 @@ describe('identity hardening e2e', () => {
     delivered.length = 0;
   });
 
+  async function flushDelivery(): Promise<void> {
+    // Delivery is intentionally fire-and-forget; give the microtask a turn.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+
   describe('password reset delivery boundary', () => {
     it('hands the raw token ONLY to the delivery port — never in the HTTP response', async () => {
       await register(app, { email: 'reset1@example.com' });
@@ -134,6 +139,7 @@ describe('identity hardening e2e', () => {
       // Response reveals nothing but acceptance.
       expect(res.body).toEqual({ data: { accepted: true } });
       expect(JSON.stringify(res.body)).not.toMatch(/eyJ|token/i);
+      await flushDelivery();
       // The delivery port received the raw token.
       expect(delivered).toHaveLength(1);
       expect(delivered[0]?.contact.email).toBe('reset1@example.com');
@@ -149,17 +155,13 @@ describe('identity hardening e2e', () => {
       expect(delivered).toHaveLength(0);
     });
 
-    it('accepts a local/international variant of the registered phone (WP-1B)', async () => {
+    it('rejects phone-only recovery in V2.1 (email-only)', async () => {
       await register(app, { phone: '+201555555555' });
-      const res = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .post('/api/v1/auth/forgot-password')
         .send({ phone: '01555555555' })
-        .expect(202);
-      expect(res.body).toEqual({ data: { accepted: true } });
-      // The account was resolved through the canonical matching rule and the
-      // reset token reached the delivery port.
-      expect(delivered).toHaveLength(1);
-      expect(delivered[0]?.contact.phone).toBe('+201555555555');
+        .expect(400);
+      expect(delivered).toHaveLength(0);
     });
 
     it('completes the loop: delivered token resets the password and invalidates every session', async () => {
@@ -174,6 +176,7 @@ describe('identity hardening e2e', () => {
         .post('/api/v1/auth/forgot-password')
         .send({ email: 'reset2@example.com' })
         .expect(202);
+      await flushDelivery();
       const rawToken = delivered[0]?.rawToken ?? '';
 
       await request(app.getHttpServer())
@@ -198,6 +201,52 @@ describe('identity hardening e2e', () => {
         .send({ email: 'reset2@example.com', password: 'brandnewP4ssw0rd' })
         .expect(200);
       expect(newLogin.body.data.accessToken).toBeTypeOf('string');
+    });
+
+    it('a new request invalidates the previous reset token', async () => {
+      await register(app, { email: 'rotate-reset@example.com' });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'rotate-reset@example.com' })
+        .expect(202);
+      await flushDelivery();
+      const firstToken = delivered[0]?.rawToken ?? '';
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'rotate-reset@example.com' })
+        .expect(202);
+      await flushDelivery();
+      const secondToken = delivered[1]?.rawToken ?? '';
+      expect(secondToken).not.toBe(firstToken);
+
+      // The older email is dead the moment a newer one is requested.
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token: firstToken, password: 'brandnewP4ssw0rd' })
+        .expect(401);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token: secondToken, password: 'brandnewP4ssw0rd' })
+        .expect(204);
+    });
+
+    it('rate limits repeated reset requests per email', async () => {
+      await register(app, { email: 'limit-reset@example.com' });
+
+      for (let i = 0; i < 3; i += 1) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/forgot-password')
+          .send({ email: 'limit-reset@example.com' })
+          .expect(202);
+      }
+
+      const fourth = await request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'limit-reset@example.com' });
+      expect(fourth.status).toBe(429);
     });
   });
 

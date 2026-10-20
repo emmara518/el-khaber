@@ -72,9 +72,10 @@ describe('shared validation', () => {
     expect(() => refreshSchema.parse({ refreshToken: 'short' })).toThrow();
   });
 
-  it('forgotPasswordSchema requires phone OR email', () => {
+  it('forgotPasswordSchema requires an email (V2.1 email-only)', () => {
     expect(forgotPasswordSchema.parse({ email: 'a@b.com' })).toBeTruthy();
     expect(() => forgotPasswordSchema.parse({})).toThrow();
+    expect(() => forgotPasswordSchema.parse({ phone: '+201001112233' })).toThrow();
   });
 
   it('resetPasswordSchema requires a strong new password', () => {
