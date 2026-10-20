@@ -11,10 +11,16 @@
 
 import { Body, Controller, Get, HttpCode, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 
-import { AdminRoles, AuthKind, CurrentUser, Public, type RequestUser } from '../common/decorators';
+import {
+  AdminRoles,
+  AuthKind,
+  AuthThrottle,
+  CurrentUser,
+  Public,
+  type RequestUser,
+} from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -49,7 +55,7 @@ export class AdminAuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @Throttle({ auth: {} })
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(adminLoginSchema))
   @ApiZodBody(adminLoginSchema)
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Admin session issued (separate authority).')
@@ -64,7 +70,7 @@ export class AdminAuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
-  @Throttle({ auth: {} })
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(adminRefreshSchema))
   @ApiZodBody(adminRefreshSchema)
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Rotated admin session issued.')
@@ -81,7 +87,6 @@ export class AdminAuthController {
   @Public()
   @Post('logout')
   @HttpCode(204)
-  @Throttle({ auth: {} })
   @UsePipes(new ZodValidationPipe(adminLogoutSchema))
   @ApiZodBody(adminLogoutSchema)
   async logout(@Body() body: AdminLogoutInput): Promise<void> {

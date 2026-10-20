@@ -29,9 +29,8 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 
-import { Public } from '../common/decorators';
+import { AuthThrottle, Public } from '../common/decorators';
 import {
   ApiEnvelopeError,
   ApiEnvelopeOk,
@@ -46,7 +45,7 @@ import type { ApiSuccess, AuthSessionDto } from '@khabir/shared-types';
 import type { Request } from 'express';
 
 // Tighter rate limit on auth-sensitive endpoints per docs/05_TECH_ARCHITECTURE.md §6.
-const authThrottle = (): MethodDecorator => Throttle({ auth: {} });
+
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,7 +58,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(201)
-  @authThrottle()
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(registerSchema))
   @ApiZodBody(registerSchema)
   @ApiEnvelopeOk('AuthSessionDto', 201, 'Account created; session issued.')
@@ -77,7 +76,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @authThrottle()
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(loginSchema))
   @ApiZodBody(loginSchema)
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Session issued.')
@@ -95,7 +94,7 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
-  @authThrottle()
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(refreshSchema))
   @ApiZodBody(refreshSchema)
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Rotated session issued.')
@@ -112,7 +111,6 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(204)
-  @authThrottle()
   @UsePipes(new ZodValidationPipe(logoutSchema))
   @ApiZodBody(logoutSchema)
   @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
@@ -123,7 +121,7 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(202)
-  @authThrottle()
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(forgotPasswordSchema))
   @ApiZodBody(forgotPasswordSchema)
   @ApiEnvelopeOk('AcceptedDto', 202, 'Always 202; never reveals whether the account exists.')
@@ -144,7 +142,7 @@ export class AuthController {
   @Public()
   @Post('reset-password')
   @HttpCode(204)
-  @authThrottle()
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(resetPasswordSchema))
   @ApiZodBody(resetPasswordSchema)
   @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')

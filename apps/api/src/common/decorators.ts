@@ -27,6 +27,16 @@ export const AdminRoles = (...roles: AdminRole[]): MethodDecorator & ClassDecora
   SetMetadata(ADMIN_ROLES_METADATA_KEY, roles);
 
 /** Mark a route as public (skips JwtAuthGuard). */
+/**
+ * Marks an auth-sensitive route (login/register/refresh/forgot/reset) for
+ * the PostgreSQL-backed auth rate limit. The limit is applied ONLY to
+ * marked routes, unlike a named @nestjs/throttler bucket which would apply
+ * globally.
+ */
+export const AUTH_THROTTLE_METADATA_KEY = 'khabir:authThrottle';
+export const AuthThrottle = (): MethodDecorator & ClassDecorator =>
+  SetMetadata(AUTH_THROTTLE_METADATA_KEY, true);
+
 export const IS_PUBLIC_KEY = 'khabir:isPublic';
 export const Public = (): MethodDecorator & ClassDecorator => SetMetadata(IS_PUBLIC_KEY, true);
 

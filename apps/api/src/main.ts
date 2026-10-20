@@ -32,12 +32,14 @@ async function bootstrap(): Promise<void> {
   const config = getConfig();
   const logger = new Logger('Bootstrap');
 
-  // Topology compatibility notice (docs/11 §7.2, updated AUD-007):
-  // Rate limiting and failed-login lockout are backed by the PostgreSQL
-  // shared store (rate_limit_buckets / login attempt rows via Prisma) —
-  // NOT in-memory anymore. MULTI_INSTANCE=true is therefore safe to boot
-  // with any number of instances; SHARED_STORE_URL is treated as a legacy,
-  // unused flag and only recorded here for log continuity.
+  // Topology facts (docs/11 §7.2, updated AUD-007):
+  //   - HTTP request throttling (@nestjs/throttler) uses its DEFAULT
+  //     in-process storage. Each API instance therefore has its own budget:
+  //     N instances multiply the effective per-IP request rate by N.
+  //   - Failed-login lockout IS shared through PostgreSQL
+  //     (rate_limit_buckets via RateLimitService), so lock state is global.
+  // MULTI_INSTANCE=true is allowed for the shared lockout, but the request
+  // budget must be sized with the instance count in mind.
   const multiInstance = (process.env['MULTI_INSTANCE'] ?? '').trim().toLowerCase() === 'true';
   const sharedStore = (process.env['SHARED_STORE_URL'] ?? '').trim();
   if (multiInstance) {
@@ -48,7 +50,7 @@ async function bootstrap(): Promise<void> {
         event: 'topology-multi-instance',
         sharedStoreLegacy: sharedStore.length > 0,
         message:
-          'MULTI_INSTANCE=true. Rate limiting and failed-login lockout use the PostgreSQL shared store, so horizontal scaling is safe. SHARED_STORE_URL is legacy/unused.',
+          'MULTI_INSTANCE=true. Failed-login lockout is PostgreSQL-backed and shared. HTTP request throttling is per-instance (in-memory): the effective per-IP request budget is multiplied by the instance count. SHARED_STORE_URL is legacy/unused.',
       }),
     );
   }
@@ -132,10 +134,10 @@ async function bootstrap(): Promise<void> {
     );
   }
 
-  // Multi-instance note (docs/11 §7.2): rate limiting and failed-login
-  // lockout are PostgreSQL-backed (shared via the database), so scaling
-  // horizontally is supported. This notice only keeps the topology fact
-  // visible in production logs on every boot.
+  // Multi-instance note (docs/11 §7.2): failed-login lockout is
+  // PostgreSQL-backed (shared via the database). HTTP request throttling
+  // is per-instance in-memory. This notice keeps the real topology visible
+  // in production logs on every boot.
   if (config.env === 'production') {
     logger.warn(
       JSON.stringify({
@@ -146,7 +148,7 @@ async function bootstrap(): Promise<void> {
         replicas: (process.env['REPLICAS'] ?? '1').trim(),
         multiInstance,
         message:
-          'Rate limiting and failed-login lockout use the PostgreSQL shared store (Prisma). Multi-instance deployments are supported; SHARED_STORE_URL is legacy/unused.',
+          'Failed-login lockout uses the PostgreSQL shared store (Prisma). HTTP request throttling is per-instance in-memory; size RATE_LIMIT_MAX/AUTH_RATE_LIMIT_MAX for the number of instances. SHARED_STORE_URL is legacy/unused.',
       }),
     );
   }

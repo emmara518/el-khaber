@@ -22,27 +22,41 @@ export class SharedStoreLoginAttemptGuard {
    * Uses the 'login' policy: 5 failures within 900s window triggers lockout.
    */
   async isLocked(identifier: string, ip: string): Promise<boolean> {
-    const key = this.key(identifier, ip);
-    const result = await this.rateLimit.peekLimit('login', key);
-    return !result.allowed;
+    const [pair, perIp, perUser] = await Promise.all([
+      this.rateLimit.peekLimit('login', this.key(identifier, ip)),
+      this.rateLimit.peekLimit('login-ip', ip),
+      this.rateLimit.peekLimit('login-user', identifier),
+    ]);
+    return !pair.allowed || !perIp.allowed || !perUser.allowed;
   }
 
   /**
-   * Record a failed authentication attempt for this (identifier, ip).
-   * Uses the 'login' policy with atomic increment.
+   * Record a failed authentication attempt in all three independent
+   * budgets:
+   *   - (identifier, ip): 5 failures / 15 min — immediate lock for this pair;
+   *   - ip: 5 failures / 15 min — stops spraying many accounts from one host;
+   *   - identifier: 20 failures / 60 min across every IP — stops distributed
+   *     brute force without letting one IP lock the account for everyone.
+   * Budgets auto-expire; there is no permanent lock.
    */
   async recordFailure(identifier: string, ip: string): Promise<void> {
-    const key = this.key(identifier, ip);
-    await this.rateLimit.checkLimit('login', key);
+    await Promise.all([
+      this.rateLimit.checkLimit('login', this.key(identifier, ip)),
+      this.rateLimit.checkLimit('login-ip', ip),
+      this.rateLimit.checkLimit('login-user', identifier),
+    ]);
   }
 
   /**
-   * Record a successful authentication: reset the failure window.
-   * Deletes the bucket so the next failure starts a fresh window.
+   * Record a successful authentication: clears the pair and the account
+   * budget. The source-IP budget is intentionally NOT cleared — otherwise
+   * an attacker could reset it by logging into their own account.
    */
   async recordSuccess(identifier: string, ip: string): Promise<void> {
-    const key = this.key(identifier, ip);
-    await this.rateLimit.resetLimit('login', key);
+    await Promise.all([
+      this.rateLimit.resetLimit('login', this.key(identifier, ip)),
+      this.rateLimit.resetLimit('login-user', identifier),
+    ]);
   }
 
   /** Test/operational hook: clear all login attempt state. */

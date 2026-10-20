@@ -108,6 +108,8 @@ describe('identity hardening e2e', () => {
 
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix(getConfig().globalPrefix);
+    // Mirror production proxy trust so per-IP tests can vary the client IP.
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
     await app.init();
   });
 
@@ -244,19 +246,37 @@ describe('identity hardening e2e', () => {
       expect(res.body.data.accessToken).toBeTypeOf('string');
     });
 
-    it('does not lock a fresh identifier that was never attacked', async () => {
+    it('does not lock a fresh identifier from a different IP', async () => {
       await register(app, { email: 'fresh@example.com' });
-      // Fail against a different identifier.
+      // Five failures against a different identifier from IP A.
       for (let i = 0; i < 5; i += 1) {
         await request(app.getHttpServer())
           .post('/api/v1/auth/login')
+          .set('X-Forwarded-For', '203.0.113.60')
+          .send({ email: 'other@example.com', password: 'wrong-password' });
+      }
+      // A fresh identifier from IP B is unaffected (account budget is 5/20).
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .set('X-Forwarded-For', '203.0.113.61')
+        .send({ email: 'fresh@example.com', password: PASSWORD })
+        .expect(200);
+      expect(res.body.data.user.email).toBe('fresh@example.com');
+    });
+
+    it('blocks a fresh identifier on an IP that burned its failure budget', async () => {
+      await register(app, { email: 'fresh-same-ip@example.com' });
+      for (let i = 0; i < 5; i += 1) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .set('X-Forwarded-For', '203.0.113.62')
           .send({ email: 'other@example.com', password: 'wrong-password' });
       }
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/login')
-        .send({ email: 'fresh@example.com', password: PASSWORD })
-        .expect(200);
-      expect(res.body.data.user.email).toBe('fresh@example.com');
+        .set('X-Forwarded-For', '203.0.113.62')
+        .send({ email: 'fresh-same-ip@example.com', password: PASSWORD });
+      expect(res.status).toBe(401);
     });
   });
 

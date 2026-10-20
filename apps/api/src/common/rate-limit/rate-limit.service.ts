@@ -47,7 +47,32 @@ export class RateLimitService {
       ['default', { name: 'default', max: config.rateLimit.max, ttlSeconds: config.rateLimit.ttlSeconds }],
       ['auth', { name: 'auth', max: config.rateLimit.authMax, ttlSeconds: config.rateLimit.ttlSeconds }],
       ['password-reset', { name: 'password-reset', max: 3, ttlSeconds: 900 }],
-      ['login', { name: 'login', max: 5, ttlSeconds: 900 }],
+      // (identifier, IP) immediate lock, plus two independent budgets:
+      // per source IP and per account (across IPs).
+      [
+        'login',
+        {
+          name: 'login',
+          max: config.identity.maxFailedLogins,
+          ttlSeconds: config.identity.failureLockSeconds,
+        },
+      ],
+      [
+        'login-ip',
+        {
+          name: 'login-ip',
+          max: config.rateLimit.loginIpMax,
+          ttlSeconds: config.rateLimit.loginIpTtlSeconds,
+        },
+      ],
+      [
+        'login-user',
+        {
+          name: 'login-user',
+          max: config.rateLimit.loginUserMax,
+          ttlSeconds: config.rateLimit.loginUserTtlSeconds,
+        },
+      ],
       // WP-01: profile-image uploads are server-processed (sharp) and
       // storage-backed — a dedicated anti-flood policy per uploader.
       ['avatar', { name: 'avatar', max: 10, ttlSeconds: 900 }],

@@ -152,13 +152,16 @@ describe('SharedStoreLoginAttemptGuard', () => {
     await expect(guard.isLocked('victim@example.com', '10.0.0.2')).resolves.toBe(false);
   });
 
-  it('tracks different identifiers independently', async () => {
+  it('the per-IP budget covers every identifier on that host', async () => {
     const guard = makeSharedGuard();
     for (let i = 0; i < 6; i += 1) {
       await guard.recordFailure('a@example.com', '1.1.1.1');
     }
     await expect(guard.isLocked('a@example.com', '1.1.1.1')).resolves.toBe(true);
-    await expect(guard.isLocked('b@example.com', '1.1.1.1')).resolves.toBe(false);
+    // Same host, different account: blocked by the IP budget.
+    await expect(guard.isLocked('b@example.com', '1.1.1.1')).resolves.toBe(true);
+    // Different host, different account: not blocked.
+    await expect(guard.isLocked('b@example.com', '2.2.2.2')).resolves.toBe(false);
   });
 
   it('uses composite key identifier|ip', async () => {
