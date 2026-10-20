@@ -19,6 +19,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
+    "admin:create": "ts-node --transpile-only scripts/create-admin.ts",
+    "qa:purge-accounts": "ts-node --transpile-only scripts/purge-qa-accounts.ts",
     "clean": "rm -rf dist .turbo",
     "gen:openapi": "ts-node --transpile-only scripts/generate-openapi.ts"
   },
