@@ -37,6 +37,7 @@ import { TermsCheckbox } from '../src/features/auth/components/terms-checkbox';
 import { isRole } from '../src/features/auth/role-routing';
 import { ROLE_OPTIONS } from '../src/features/auth/roles';
 import { useAuthStore } from '../src/lib/auth-store';
+import { FEATURE_FLAGS } from '../src/lib/feature-flags';
 import {
   REGISTRATION_HERO_ASPECT_RATIO,
   registrationAssets,
@@ -119,8 +120,12 @@ export default function RegisterRoute() {
 
       <RoleContextCard option={option} onChangeRole={() => router.replace('/account-type')} />
 
-      <OrDivider label="أو تابع باستخدام" />
-      <SocialAuthButtons onProvider={handleSocial} disabled={loading} />
+      {FEATURE_FLAGS.socialAuth ? (
+        <>
+          <OrDivider label="أو تابع باستخدام" />
+          <SocialAuthButtons onProvider={handleSocial} disabled={loading} />
+        </>
+      ) : null}
       {notice ? <AuthAlert kind="info" message={notice} /> : null}
 
       <OrDivider label="أو أنشئ حسابًا جديدًا" />

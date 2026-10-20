@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "build": "expo prebuild --no-install",
-    "export:web": "expo export --platform web --output-dir dist-web",
+    "export:web": "expo export --platform web --output-dir dist-web && node scripts/strip-sitemap.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
