@@ -17,6 +17,13 @@ import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Component-level tests (e.g. the root Error Boundary) import .tsx files.
+  // Without an explicit JSX transform Vite's SSR parser receives raw JSX and
+  // fails before the test module can load.
+  esbuild: {
+    jsx: 'automatic',
+    jsxImportSource: 'react',
+  },
   resolve: {
     alias: {
       // Node-env test stub for the native keychain module (see
@@ -31,6 +38,10 @@ export default defineConfig({
       // test/stubs/expo-file-system-stub.ts): presigned PUTs are
       // exercised with mocked responses, never native code.
       'expo-file-system': path.resolve(__dirname, 'test/stubs/expo-file-system-stub.ts'),
+      // React Native ships Flow syntax that Rollup's SSR parser cannot read.
+      // Component tests need host-element shapes only; production/Metro use
+      // the real module.
+      'react-native': path.resolve(__dirname, 'test/stubs/react-native-stub.tsx'),
     },
   },
   test: {

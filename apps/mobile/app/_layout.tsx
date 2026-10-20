@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { groupForSegments, resolveRouteForSession } from '../src/features/auth/role-routing';
 import { useI18n } from '../src/i18n/use-i18n';
 import { useAuthStore } from '../src/lib/auth-store';
+import { AppErrorBoundary } from '../src/ui/app-error-boundary';
 import { useAppFonts } from '../src/ui/fonts';
 
 /**
@@ -40,13 +41,15 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <AuthGate />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#FFFFFF' },
-          }}
-        />
+        <AppErrorBoundary>
+          <AuthGate />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#FFFFFF' },
+            }}
+          />
+        </AppErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

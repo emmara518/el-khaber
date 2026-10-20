@@ -245,4 +245,49 @@ describe('ApiClient transport resilience (M1)', () => {
     expect(await loadStoredSession()).not.toBeNull();
     expect(lost).not.toHaveBeenCalled();
   });
+
+  it('turns an HTML 502 into a controlled ApiClientError (no JSON.parse crash)', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      status: 502,
+      ok: false,
+      statusText: 'Bad Gateway',
+      headers: { get: () => 'text/html' },
+      text: async () => '<html><body>Bad Gateway</body></html>',
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new ApiClient({ baseUrl: BASE });
+    try {
+      await client.request('GET', '/thing');
+      throw new Error('expected rejection');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect((error as ApiClientError).status).toBe(502);
+      expect((error as ApiClientError).code).toBe('INTERNAL_ERROR');
+    }
+  });
+
+  it('aborts a hung request at the configured timeout', async () => {
+    const fetchMock = vi.fn(
+      (_url: string, init: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener('abort', () => {
+            const error = new Error('aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const client = new ApiClient({ baseUrl: BASE, timeoutMs: 25 });
+    try {
+      await client.request('GET', '/slow');
+      throw new Error('expected rejection');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect((error as ApiClientError).code).toBe('INTERNAL_ERROR');
+      expect((error as ApiClientError).message).toContain('timed out');
+    }
+  });
 });
