@@ -83,14 +83,14 @@ const TABS: ReadonlyArray<{ id: Tab; labelAr: string; Icon: typeof IconDashboard
  * API enforces every mutation with 401 regardless of what the UI shows.
  */
 const TAB_ROLES: Record<Tab, ReadonlyArray<string>> = {
-  metrics: ['super_admin', 'operations_admin', 'content_admin', 'support_admin', 'finance_admin'],
+  metrics: ['super_admin', 'operations_admin', 'content_admin', 'support_admin'],
   users: ['super_admin', 'operations_admin', 'support_admin'],
   technicians: ['super_admin', 'operations_admin', 'support_admin'],
   merchants: ['super_admin', 'operations_admin', 'support_admin'],
   requests: ['super_admin', 'operations_admin', 'support_admin'],
   reviews: ['super_admin', 'operations_admin', 'content_admin', 'support_admin'],
-  payments: ['super_admin', 'operations_admin', 'support_admin', 'finance_admin'],
-  grants: ['super_admin', 'finance_admin'],
+  payments: ['super_admin', 'operations_admin', 'support_admin'],
+  grants: ['super_admin'],
   notify: ['super_admin', 'operations_admin', 'support_admin'],
   audit: ['super_admin', 'operations_admin'],
 };
@@ -1097,7 +1097,7 @@ function Actions({
   onDetail: (id: string) => void;
 }) {
   const canVerify = role === 'super_admin' || role === 'operations_admin';
-  const canDecidePayment = role === 'super_admin' || role === 'finance_admin';
+  const canDecidePayment = role === 'super_admin';
   if (tab === 'users') {
     return <StatusBadge label={statusLabel(row.status)} />;
   }

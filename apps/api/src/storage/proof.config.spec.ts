@@ -82,6 +82,13 @@ describe('readProofStorageConfig', () => {
     expect(config.maxBytes).toBe(1048576);
   });
 
+  it('caps the proof URL lifetime at 5 minutes', () => {
+    snapshot();
+    process.env['PROOF_URL_TTL_SECONDS'] = '600';
+    const config = readProofStorageConfig();
+    expect(config.urlTtlSeconds).toBe(DEFAULT_PROOF_URL_TTL_SECONDS);
+  });
+
   it('rejects unknown providers and non-positive numbers', () => {
     snapshot();
     process.env['PROOF_STORAGE_PROVIDER'] = 'supabase';
