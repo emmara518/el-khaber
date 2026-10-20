@@ -2,18 +2,26 @@
  * NotificationListScreen — one shared notification center for every role.
  *
  * The backend contract is role-agnostic (`GET /notifications`,
+ * `GET /notifications/unread-count`, `GET|PUT /notifications/preferences`,
  * `POST /notifications/:id/read`, `POST /notifications/read-all`); only the
  * navigation targets and copy differ per role. This component renders the
- * canonical AppHeader → PageTitle → mark-all → cards composition so the
- * three role screens cannot drift apart.
+ * canonical AppHeader → PageTitle → preferences → mark-all → cards
+ * composition so the three role screens cannot drift apart.
+ *
+ * WP-Notifications: paginated (load-more, deduped), server-authoritative
+ * unread count, deep-link navigation from the server `dataJson` payload,
+ * and the server-backed preferences card.
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { resolveNotificationTarget } from './notification-navigation';
+import { NotificationPreferencesCard } from './notification-preferences-card';
 import { useNotificationsViewModel } from './use-notifications-view-model';
 
-import type { NotificationItem } from './notifications-data-source';
+import type { NotificationItem, NotificationsDataSource } from './notifications-data-source';
 
 import { AppHeader, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle } from '@/ui';
 import { type } from '@/ui/typography';
@@ -27,6 +35,11 @@ export interface NotificationListScreenProps {
   emptyBody: string;
   onPressNotifications: () => void;
   onPressAvatar: () => void;
+  /**
+   * Testability seam (preview/screenshot harnesses only): overrides the
+   * API-backed source. Production callers omit it and hit the server.
+   */
+  source?: NotificationsDataSource;
 }
 
 export function NotificationListScreen({
@@ -38,8 +51,22 @@ export function NotificationListScreen({
   emptyBody,
   onPressNotifications,
   onPressAvatar,
+  source,
 }: NotificationListScreenProps) {
-  const vm = useNotificationsViewModel(role);
+  const vm = useNotificationsViewModel(role, source);
+  const router = useRouter();
+
+  const openNotification = (item: NotificationItem) => {
+    // Read-state updates only after the server confirms (ViewModel);
+    // navigation itself is immediate so the tap always opens the
+    // destination. A failed mark-read keeps the item unread (truthful)
+    // and surfaces `mutationError` on return.
+    vm.markRead(item.id);
+    const target = resolveNotificationTarget(role, { type: item.type, dataJson: item.dataJson });
+    if (target !== null) {
+      router.push(target as never);
+    }
+  };
 
   return (
     <View style={styles.root}>
@@ -47,6 +74,8 @@ export function NotificationListScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.editorial}>
           <PageTitle eyebrow={eyebrow} title={title} body={body} />
+
+          <NotificationPreferencesCard role={role} source={source} />
 
           {vm.status === 'loading' ? <ListLoading label="جارٍ تحميل الإشعارات" brandAsset="no-requests" /> : null}
           {vm.status === 'error' ? (
@@ -86,9 +115,26 @@ export function NotificationListScreen({
                 ) : null}
                 <View style={styles.list}>
                   {vm.data.map((item) => (
-                    <NotificationRow key={item.id} item={item} onPress={() => vm.markRead(item.id)} />
+                    <NotificationRow key={item.id} item={item} onPress={() => openNotification(item)} />
                   ))}
                 </View>
+                {vm.hasMore ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={vm.loadingMore ? 'جارٍ تحميل المزيد' : 'تحميل المزيد من الإشعارات'}
+                    onPress={vm.loadMore}
+                    disabled={vm.loadingMore}
+                    style={({ pressed }) => [
+                      styles.loadMore,
+                      pressed && styles.pressed,
+                      vm.loadingMore && styles.disabled,
+                    ]}
+                  >
+                    <Text style={styles.loadMoreText}>
+                      {vm.loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </>
             )
           ) : null}
@@ -162,6 +208,17 @@ const styles = StyleSheet.create({
   itemBody: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   time: { ...type.caption, color: color.text.secondary, marginTop: spacing[1], textAlign: 'right' },
   unreadDot: { width: 10, height: 10, borderRadius: radius.pill, backgroundColor: color.brand.navy, marginTop: spacing[1] },
+  loadMore: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    backgroundColor: color.surface.base,
+  },
+  loadMoreText: { ...type.label, color: color.brand.navy },
+  disabled: { opacity: 0.6 },
   pressed: { opacity: 0.85 },
   bottomSpacer: { height: spacing[2] },
 });

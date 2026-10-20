@@ -93,7 +93,9 @@ describe('ApiSubscriptionsDataSource (WP-6)', () => {
     expect(current?.planNameAr).toBe('الباقة الأساسية');
     expect(current?.currency).toBe('EGP');
     // WP-7 D7: entitlement codes are never fetched/transported.
-    expect(requestMock.mock.calls.some((c) => String(c[1]).includes('/me/entitlements'))).toBe(false);
+    expect(requestMock.mock.calls.some((c) => String(c[1]).includes('/me/entitlements'))).toBe(
+      false,
+    );
   });
 
   it('reads the merchant current-subscription alias and unwraps { subscription }', async () => {
@@ -142,7 +144,11 @@ describe('ApiPaymentsDataSource (WP-6)', () => {
       transferReference: 'TRX-1',
     });
     expect(submission.statusAr).toBe('قيد المراجعة');
-    const [method, path, body] = requestMock.mock.calls[0] as [string, string, Record<string, unknown>];
+    const [method, path, body] = requestMock.mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
     expect(method).toBe('POST');
     expect(path).toBe('/subscriptions');
     expect(body).toEqual({ plan_id: 'p1', method: 'instapay', transfer_reference: 'TRX-1' });
@@ -158,5 +164,98 @@ describe('ApiPaymentsDataSource (WP-6)', () => {
       transferReference: 'TRX-1',
     });
     expect(requestMock.mock.calls[0]?.[1]).toBe('/merchant/subscription/payment');
+  });
+});
+
+describe('ApiPaymentsDataSource proof flow (WP-Proof)', () => {
+  it('requests an upload grant with the declared MIME only', async () => {
+    requestMock.mockResolvedValueOnce({
+      data: {
+        submissionId: 'sub1',
+        storageKey: 'payment-proofs/u/sub/uuid.png',
+        uploadUrl: 'https://s3.example.com/put',
+        requiredHeaders: { 'Content-Type': 'image/png' },
+        mimeType: 'image/png',
+        maxBytes: 5242880,
+        expiresInSeconds: 300,
+      },
+    });
+    const grant = await new ApiPaymentsDataSource().requestProofUploadUrl({
+      submissionId: 'sub1',
+      mimeType: 'image/png',
+    });
+    const [method, path, body] = requestMock.mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(method).toBe('POST');
+    expect(path).toBe('/subscriptions/sub1/proof-upload-url');
+    expect(body).toEqual({ mime_type: 'image/png' });
+    expect(grant.storageKey).toBe('payment-proofs/u/sub/uuid.png');
+    expect(grant.requiredHeaders).toEqual({ 'Content-Type': 'image/png' });
+  });
+
+  it('refuses non-routable local upload URLs with an honest error', async () => {
+    const source = new ApiPaymentsDataSource();
+    await expect(
+      source.putProofBytes({
+        grant: {
+          uploadUrl: 'local://payment-proofs/u/sub/uuid.png?expires_in=300',
+          storageKey: 'payment-proofs/u/sub/uuid.png',
+          requiredHeaders: {},
+          maxBytes: 1,
+          expiresInSeconds: 300,
+          mimeType: 'image/png',
+        },
+        photo: { uri: 'file:///x.png', fileName: 'x.png', mimeType: 'image/png', sizeBytes: 10 },
+      }),
+    ).rejects.toThrow('بيئة التطوير المحلية');
+  });
+
+  it('PUTs bytes to the presigned URL and confirms the server-issued key', async () => {
+    // expo-file-system is stubbed (vitest alias) to answer 200 — the
+    // no-throw below proves the grant/PUT/confirm wiring, not the
+    // native uploader.
+    const source = new ApiPaymentsDataSource();
+    await source.putProofBytes({
+      grant: {
+        uploadUrl: 'https://s3.example.com/put',
+        storageKey: 'payment-proofs/u/sub/uuid.png',
+        requiredHeaders: { 'Content-Type': 'image/png' },
+        maxBytes: 5242880,
+        expiresInSeconds: 300,
+        mimeType: 'image/png',
+      },
+      photo: { uri: 'file:///x.png', fileName: 'x.png', mimeType: 'image/png', sizeBytes: 10 },
+    });
+
+    requestMock.mockResolvedValueOnce({
+      data: { ...submissionDto(), proofStorageKey: 'payment-proofs/u/sub/uuid.png' },
+    });
+    const confirmed = await source.confirmProof({
+      submissionId: 'sub1',
+      storageKey: 'payment-proofs/u/sub/uuid.png',
+    });
+    const [method, path, body] = requestMock.mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(method).toBe('POST');
+    expect(path).toBe('/subscriptions/sub1/proof-confirm');
+    expect(body).toEqual({ storage_key: 'payment-proofs/u/sub/uuid.png' });
+    expect(confirmed.hasProof).toBe(true);
+  });
+
+  it('maps submissions without proof as proof-less', async () => {
+    requestMock.mockResolvedValueOnce({ data: submissionDto() });
+    const submission = await new ApiPaymentsDataSource().submitPayment({
+      role: 'customer',
+      planId: 'p1',
+      method: 'instapay',
+      transferReference: 'TRX-1',
+    });
+    expect(submission.hasProof).toBe(false);
   });
 });

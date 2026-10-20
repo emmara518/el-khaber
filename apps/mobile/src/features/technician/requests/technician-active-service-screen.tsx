@@ -154,8 +154,8 @@ export default function TechnicianActiveServiceScreen({
           </View>
           {request.appointmentAr !== null ? (
             <View style={styles.valueRow}>
-              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel="الموعد" />
-              <Text style={styles.value}>{request.appointmentAr}</Text>
+              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel={t('tech.request.appointment')} />
+              <Text style={styles.value}>{`${t('tech.request.appointment')}: ${request.appointmentAr}`}</Text>
             </View>
           ) : null}
         </Card>

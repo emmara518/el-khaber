@@ -148,7 +148,7 @@ export default function TechnicianRequestDetailScreen({
               <Text style={styles.value}>{request.locationAr || '—'}</Text>
             </View>
             <View style={styles.valueRow}>
-              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel="الموعد" />
+              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel={t('tech.request.appointment')} />
               <Text style={styles.value}>{request.appointmentAr ?? '—'}</Text>
             </View>
             <View style={styles.valueRow}>

@@ -21,6 +21,7 @@
 import { getApi } from '../../../lib/api-client';
 import { toUserMessage } from '../../../lib/api-error';
 import { buildQuery, drainPages } from '../../../lib/api-query';
+import { buildAvatarFormData, type PickedPhoto } from '../../../lib/profile-photo';
 
 import { MerchantProfileSaveError } from './mock-merchant-profile-data-source';
 
@@ -30,7 +31,7 @@ import type {
   MerchantProfileDraft,
   MerchantVerificationStatus,
 } from './merchant-profile-types';
-import type { LocationDto, MerchantProfileDto } from '@khabir/shared-types';
+import type { LocationDto, MerchantLogoUploadDto, MerchantProfileDto } from '@khabir/shared-types';
 
 export { MerchantProfileSaveError };
 
@@ -65,6 +66,7 @@ export function mapMerchantProfile(dto: MerchantProfileDto | null, cityAr = ''):
       cityAr: '',
       verification: 'action_required',
       verificationNoteAr: 'أكمل بيانات متجرك لعرضها للعملاء.',
+      logoUrl: null,
     };
   }
   const businessName = dto.businessName ?? '';
@@ -76,6 +78,8 @@ export function mapMerchantProfile(dto: MerchantProfileDto | null, cityAr = ''):
     cityAr,
     verification: mapVerificationStatus(dto.verificationStatus),
     verificationNoteAr: '',
+    // WP-01: server-issued public URL (null when absent).
+    logoUrl: dto.logoUrl,
   };
 }
 
@@ -125,7 +129,10 @@ export class ApiMerchantProfileDataSource implements MerchantProfileDataSource {
     }
   }
 
-  async saveProfile(input: { role: 'merchant'; profile: MerchantProfileDraft }): Promise<MerchantProfile> {
+  async saveProfile(input: {
+    role: 'merchant';
+    profile: MerchantProfileDraft;
+  }): Promise<MerchantProfile> {
     return this.persist(input.profile);
   }
 
@@ -153,6 +160,34 @@ export class ApiMerchantProfileDataSource implements MerchantProfileDataSource {
       }
       const res = await getApi().request<MerchantProfileDto>('PATCH', '/merchant/profile', body);
       return mapMerchantProfile(res.data, cityAr);
+    } catch (err: unknown) {
+      throw new MerchantProfileSaveError(toUserMessage(err, SAVE_FALLBACK_AR));
+    }
+  }
+
+  /**
+   * WP-01: uploads the logo through multipart POST
+   * /merchant/profile/logo, then re-reads the profile so the returned
+   * state is server truth (never a local optimistic claim).
+   */
+  async uploadLogo(input: { role: 'merchant'; photo: PickedPhoto }): Promise<MerchantProfile> {
+    try {
+      await getApi().upload<MerchantLogoUploadDto>(
+        'POST',
+        '/merchant/profile/logo',
+        buildAvatarFormData(input.photo),
+      );
+      return this.getProfile({ role: 'merchant' });
+    } catch (err: unknown) {
+      throw new MerchantProfileSaveError(toUserMessage(err, SAVE_FALLBACK_AR));
+    }
+  }
+
+  /** WP-01: idempotent logo delete, then server-truth re-read. */
+  async deleteLogo(_input: { role: 'merchant' }): Promise<MerchantProfile> {
+    try {
+      await getApi().request('DELETE', '/merchant/profile/logo');
+      return this.getProfile({ role: 'merchant' });
     } catch (err: unknown) {
       throw new MerchantProfileSaveError(toUserMessage(err, SAVE_FALLBACK_AR));
     }

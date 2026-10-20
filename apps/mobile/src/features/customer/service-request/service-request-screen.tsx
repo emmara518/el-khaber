@@ -6,9 +6,9 @@
  * One draft machine: Next/Back/Edit preserve everything; changing
  * the appliance clears only dependent problem picks. Technician,
  * appliance, and symptom prefill from the handoff; a general path
- * works with no symptom. Photos use a typed mock-picker boundary
- * (no libraries, no uploads). Submission goes through
- * `ServiceRequestDataSource.submitRequest()` (mock adapter).
+ * works with no symptom. Photos are picked from the library/camera
+ * (Track B2) and uploaded AFTER creation (grant → PUT → confirm);
+ * a failed photo never loses the created request.
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -32,14 +33,31 @@ import { ApiTechnicianDataSource } from '../discovery/api-technician-data-source
 import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-source';
 import { orderReferenceLabel } from '../orders/order-reference';
 
+import {
+  pickDraftPhotoFromLibrary,
+  takeDraftPhotoWithCamera,
+  type DraftPhotoPickResult,
+} from './draft-photos';
+import {
+  PREFERRED_PERIODS,
+  composePreferredAtISO,
+  formatPreferredAppointmentAr,
+  preferredAppointmentDays,
+  preferredAppointmentError,
+  preferredDayIdFromISO,
+  preferredPeriodIdFromISO,
+  type PreferredPeriodId,
+} from './preferred-appointment';
 import { ServiceRequestProgress } from './service-request-progress';
 import { REQUEST_SCENES } from './service-request-scenes';
 import {
   DESCRIPTION_MAX,
   NAV_ICONS,
   OTHER_PROBLEM_ID,
+  PHOTOS_MAX,
   STEP_INDEX,
   problemsForAppliance,
+  type RequestAttachment,
   type ServiceRequestDraft,
   type ServiceRequestHandoff,
   type ServiceRequestStep,
@@ -168,17 +186,69 @@ export default function ServiceRequestScreen({
     );
   }
 
-  if (vm.submitStatus === 'success' && vm.submission !== null) {
+  if (vm.submission !== null && vm.submitStatus !== 'error') {
     const submission = vm.submission;
+    const photosTotal = vm.machine.draft.photos.length;
+    const failedCount = vm.failedPhotos.length;
+    const partial = failedCount > 0;
+    const uploading = vm.submitStatus === 'uploading';
+    const retryBusy = uploading && partial;
+    const initialUpload = uploading && !partial;
+    const done = vm.uploadProgress?.done ?? 0;
+    const uploadedCount = photosTotal - failedCount;
     return (
       <ScrollView contentContainerStyle={styles.content}>
-        <SceneHero compact asset="service_request_success" eyebrow="تم إرسال الطلب" title={t('request.success.title')} body="يمكنك الآن متابعة حالة الطلب ورد الفني. إرسال الطلب لا يعني تأكيد موعد الزيارة."
-          action={<SceneAction label={t('request.success.track')} onPress={() => router.replace({ pathname: '/(customer)/requests/[id]', params: { id: submission.requestId } })} />}
+        <SceneHero
+          compact
+          asset="service_request_success"
+          eyebrow={initialUpload || partial ? 'تم إنشاء الطلب' : 'تم إرسال الطلب'}
+          title={initialUpload ? t('request.success.uploading') : t('request.success.title')}
+          body={
+            initialUpload
+              ? `جارٍ رفع الصور… (${String(done)} من ${String(photosTotal)})`
+              : 'يمكنك الآن متابعة حالة الطلب ورد الفني. إرسال الطلب لا يعني تأكيد موعد الزيارة.'
+          }
+          {...(initialUpload
+            ? {}
+            : {
+                action: (
+                  <SceneAction
+                    label={t('request.success.track')}
+                    disabled={retryBusy}
+                    onPress={() =>
+                      router.replace({
+                        pathname: '/(customer)/requests/[id]',
+                        params: { id: submission.requestId },
+                      })
+                    }
+                  />
+                ),
+              })}
         />
-        <SceneSection title={technician.nameAr} eyebrow={orderReferenceLabel(submission.requestId)} body={submission.createdAtAr}>
-          <Text style={styles.contextValue}>{vm.machine.draft.appliance ? APPLIANCE_TITLES[vm.machine.draft.appliance] : ''}</Text>
-          <SceneAction variant="secondary" label={t('request.success.orders')} onPress={() => router.replace('/(customer)/requests')} />
-        </SceneSection>
+        {partial ? (
+          <SceneSection
+            title={t('request.success.partialTitle')}
+            body={`تم إنشاء الطلب، ولم تُرفع ${String(failedCount)} من ${String(photosTotal)} صورة. يمكنك إعادة المحاولة الآن أو المتابعة وسيظهر الطلب للفني.`}
+          >
+            <SceneAction
+              icon="arrow-up"
+              label={t('request.success.retryPhotos')}
+              loading={retryBusy}
+              loadingLabel={t('request.success.uploading')}
+              onPress={vm.retryUploads}
+            />
+            <SceneAction variant="secondary" disabled={retryBusy} label={t('request.success.orders')} onPress={() => router.replace('/(customer)/requests')} />
+          </SceneSection>
+        ) : null}
+        {!initialUpload ? (
+          <SceneSection title={technician.nameAr} eyebrow={orderReferenceLabel(submission.requestId)} body={submission.createdAtAr}>
+            <Text style={styles.contextValue}>{vm.machine.draft.appliance ? APPLIANCE_TITLES[vm.machine.draft.appliance] : ''}</Text>
+            {!partial && photosTotal > 0 ? (
+              <Text style={styles.contextValue}>{`تم رفع ${String(uploadedCount)} من ${String(photosTotal)} صورة`}</Text>
+            ) : null}
+            <SceneAction variant="secondary" disabled={retryBusy} label={t('request.success.orders')} onPress={() => router.replace('/(customer)/requests')} />
+          </SceneSection>
+        ) : null}
       </ScrollView>
     );
   }
@@ -240,9 +310,12 @@ export default function ServiceRequestScreen({
           />
         ) : null}
         {step === 'photos' ? (
-          <SceneSection title={t('request.photos.title')} body={t('request.photos.continueBody')}>
-            <SceneAction label={t('request.photos.editDescription')} variant="secondary" icon="arrow-left" onPress={() => vm.dispatch({ type: 'GOTO', step: 'description' })} />
-          </SceneSection>
+          <PhotosStep
+            photos={draft.photos}
+            onAdd={(photo) => vm.dispatch({ type: 'ADD_PHOTO', photo })}
+            onRemove={(photoId) => vm.dispatch({ type: 'REMOVE_PHOTO', photoId })}
+            onEditDescription={() => vm.dispatch({ type: 'GOTO', step: 'description' })}
+          />
         ) : null}
         {step === 'location' ? (
           <LocationStep
@@ -256,9 +329,8 @@ export default function ServiceRequestScreen({
         ) : null}
         {step === 'appointment' ? (
           <AppointmentStep
-            draft={draft}
-            slots={vm.formData.slots}
-            onSelect={(slotId) => vm.dispatch({ type: 'SET_APPOINTMENT', slotId })}
+            preferredAtISO={draft.preferredAtISO}
+            onSelect={(preferredAtISO) => vm.dispatch({ type: 'SET_PREFERRED_AT', preferredAtISO })}
           />
         ) : null}
         {step === 'review' ? (
@@ -267,9 +339,9 @@ export default function ServiceRequestScreen({
             technicianName={technician.nameAr}
             problems={vm.formData.problems}
             locations={vm.formData.locations}
-            slots={vm.formData.slots}
             submitStatus={vm.submitStatus}
             submitError={vm.submitError}
+            uploadProgress={vm.uploadProgress}
             onGoto={(target) => vm.dispatch({ type: 'GOTO', step: target })}
             onSubmit={vm.submit}
             onRetrySubmit={() => {
@@ -284,7 +356,7 @@ export default function ServiceRequestScreen({
       {step !== 'review' ? (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing[4]) }]}>
           <SceneAction style={{ flex: 1 }} variant="secondary" icon={NAV_ICONS.back} label={t('request.back')} disabled={step === 'appliance'} onPress={() => vm.dispatch({ type: 'BACK' })} />
-          <SceneAction style={{ flex: 2 }} icon={NAV_ICONS.next} label={step === 'photos' ? t('request.photos.continue') : t('request.next')} onPress={() => vm.dispatch({ type: 'NEXT' })} />
+          <SceneAction style={{ flex: 2 }} icon={NAV_ICONS.next} label={step === 'photos' && draft.photos.length === 0 ? t('request.photos.continue') : t('request.next')} onPress={() => vm.dispatch({ type: 'NEXT' })} />
         </View>
       ) : null}
     </KeyboardAvoidingView>
@@ -564,28 +636,44 @@ function LocationStep({
 }
 
 function AppointmentStep({
-  draft,
-  slots,
+  preferredAtISO,
   onSelect,
 }: {
-  draft: ServiceRequestDraft;
-  slots: ReadonlyArray<{ id: string; dayAr: string; timeAr: string; available: boolean }>;
-  onSelect: (slotId: string | null) => void;
+  preferredAtISO: string | null;
+  onSelect: (preferredAtISO: string | null) => void;
 }) {
   const { t } = useI18n();
+  const days = useMemo(() => preferredAppointmentDays(), []);
+  const selectedDayId = preferredDayIdFromISO(preferredAtISO);
+  const selectedPeriodId = preferredPeriodIdFromISO(preferredAtISO);
+  const error = preferredAppointmentError(preferredAtISO);
+
+  const pickDay = (dayId: string) => {
+    const next = composePreferredAtISO(dayId, selectedPeriodId ?? 'morning');
+    if (next !== null) onSelect(next);
+  };
+
+  const pickPeriod = (periodId: PreferredPeriodId) => {
+    const dayId = selectedDayId ?? days[0]?.id;
+    if (dayId === undefined) return;
+    const next = composePreferredAtISO(dayId, periodId);
+    if (next !== null) onSelect(next);
+  };
+
   return (
     <View>
       <SectionHeading title={t('request.appointment.title')} />
+      <Text style={styles.appointmentNote}>{t('request.appointment.preferenceNote')}</Text>
       <View accessibilityRole="radiogroup" accessibilityLabel={t('request.appointment.title')} style={styles.options}>
         <Pressable
           accessibilityRole="radio"
-          accessibilityLabel={`${t('request.appointment.phone')}${draft.appointmentSlotId === null ? '، محدد حاليًا' : ''}`}
-          accessibilityState={{ selected: draft.appointmentSlotId === null, checked: draft.appointmentSlotId === null }}
-          aria-checked={draft.appointmentSlotId === null}
+          accessibilityLabel={`${t('request.appointment.phone')}${preferredAtISO === null ? '، محدد حاليًا' : ''}`}
+          accessibilityState={{ selected: preferredAtISO === null, checked: preferredAtISO === null }}
+          aria-checked={preferredAtISO === null}
           onPress={() => onSelect(null)}
           style={({ pressed }) => [
             styles.listOption,
-            draft.appointmentSlotId === null && styles.optionSelected,
+            preferredAtISO === null && styles.optionSelected,
             pressed && styles.pressed,
           ]}
         >
@@ -595,42 +683,167 @@ function AppointmentStep({
               <Text style={styles.listOptionText}>{t('request.appointment.phone')}</Text>
             </View>
           </View>
-          {draft.appointmentSlotId === null ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
+          {preferredAtISO === null ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
         </Pressable>
-        {slots.map((slot) => {
-          const selected = draft.appointmentSlotId === slot.id;
+      </View>
+
+      <Text style={styles.fieldLabel}>{t('request.appointment.day')}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dayStrip}
+        style={styles.dayStripScroll}
+      >
+        {days.map((day) => {
+          const selected = selectedDayId === day.id;
           return (
             <Pressable
-              key={slot.id}
+              key={day.id}
               accessibilityRole="radio"
-              accessibilityLabel={`موعد: ${slot.dayAr}، ${slot.timeAr}${slot.available ? '' : '، غير متاح'}${selected ? '، محدد حاليًا' : ''}`}
-              accessibilityState={{ selected, checked: selected, disabled: !slot.available }}
+              accessibilityLabel={`موعد مفضل: ${day.relativeAr}، ${day.dateAr}${selected ? '، محدد حاليًا' : ''}`}
+              accessibilityState={{ selected, checked: selected }}
               aria-checked={selected}
-              aria-disabled={!slot.available}
-              accessibilityHint={slot.available ? undefined : t('request.appointment.unavailable')}
-              onPress={() => onSelect(slot.id)}
-              disabled={!slot.available}
+              onPress={() => pickDay(day.id)}
               style={({ pressed }) => [
-                styles.listOption,
-                selected && styles.optionSelected,
-                !slot.available && styles.disabled,
-                pressed && slot.available && styles.pressed,
+                styles.dayChip,
+                selected && styles.dayChipSelected,
+                pressed && styles.pressed,
               ]}
             >
-              <View style={styles.locationText}>
-                <Text style={styles.listOptionText}>
-                  {slot.dayAr} · {slot.timeAr}
-                </Text>
-                {!slot.available ? (
-                  <Text style={styles.unavailable}>{t('request.appointment.unavailable')}</Text>
-                ) : null}
-              </View>
-              {selected ? <Icon name="check" size={16} color={color.brand.navy} accessibilityLabel="محدد" /> : null}
+              <Text style={[styles.dayChipRelative, selected && styles.dayChipTextSelected]}>{day.relativeAr}</Text>
+              <Text style={[styles.dayChipDate, selected && styles.dayChipTextSelected]}>{day.dateAr}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <Text style={styles.fieldLabel}>{t('request.appointment.period')}</Text>
+      <View accessibilityRole="radiogroup" accessibilityLabel={t('request.appointment.period')} style={styles.periodRow}>
+        {PREFERRED_PERIODS.map((period) => {
+          const selected = selectedPeriodId === period.id;
+          return (
+            <Pressable
+              key={period.id}
+              accessibilityRole="radio"
+              accessibilityLabel={`فترة مفضلة: ${period.labelAr}${selected ? '، محددة حاليًا' : ''}`}
+              accessibilityState={{ selected, checked: selected }}
+              aria-checked={selected}
+              onPress={() => pickPeriod(period.id)}
+              style={({ pressed }) => [
+                styles.periodChip,
+                selected && styles.periodChipSelected,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.periodChipText, selected && styles.dayChipTextSelected]}>{period.labelAr}</Text>
             </Pressable>
           );
         })}
       </View>
+
+      {error !== null ? (
+        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${error}`} style={styles.inlineError}>
+          <Text style={styles.inlineErrorText}>{error}</Text>
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+function PhotosStep({
+  photos,
+  onAdd,
+  onRemove,
+  onEditDescription,
+}: {
+  photos: ReadonlyArray<RequestAttachment>;
+  onAdd: (photo: RequestAttachment) => void;
+  onRemove: (photoId: string) => void;
+  onEditDescription: () => void;
+}) {
+  const { t } = useI18n();
+  const [pickError, setPickError] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
+  const atLimit = photos.length >= PHOTOS_MAX;
+
+  const pick = (run: () => Promise<DraftPhotoPickResult>): void => {
+    if (picking || atLimit) return;
+    setPicking(true);
+    setPickError(null);
+    void run()
+      .then((result) => {
+        if (result.outcome === 'picked') {
+          onAdd(result.photo);
+        } else if (result.outcome === 'denied' || result.outcome === 'tooLarge') {
+          setPickError(result.messageAr);
+        }
+      })
+      .catch(() => {
+        setPickError('تعذر فتح الصور. حاول مجددًا');
+      })
+      .finally(() => {
+        setPicking(false);
+      });
+  };
+
+  return (
+    <SceneSection title={t('request.photos.title')} body={t('request.photos.continueBody')}>
+      {pickError !== null ? (
+        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${pickError}`} style={styles.inlineError}>
+          <Text style={styles.inlineErrorText}>{pickError}</Text>
+        </View>
+      ) : null}
+      {photos.length === 0 ? (
+        <Text style={styles.photosEmpty}>{t('request.photos.empty')}</Text>
+      ) : (
+        <View style={styles.photosGrid}>
+          {photos.map((photo) => (
+            <View key={photo.id} style={styles.photoTile}>
+              <Image
+                source={{ uri: photo.uri }}
+                style={styles.photoImage}
+                resizeMode="cover"
+                accessible
+                accessibilityLabel={photo.fileName}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('request.photos.remove')}
+                onPress={() => onRemove(photo.id)}
+                hitSlop={8}
+                style={({ pressed }) => [styles.photoRemove, pressed && styles.pressed]}
+              >
+                <Icon name="x" size={14} color={color.surface.base} accessible={false} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+      <Text style={styles.photosCounter}>{`${String(photos.length)} من ${String(PHOTOS_MAX)} صور`}</Text>
+      <View style={styles.photosActions}>
+        <SceneAction
+          icon="image"
+          label={t('request.photos.library')}
+          disabled={picking || atLimit}
+          loading={picking}
+          loadingLabel="جارٍ فتح الصور…"
+          onPress={() => pick(pickDraftPhotoFromLibrary)}
+          style={{ flex: 1 }}
+        />
+        <SceneAction
+          variant="secondary"
+          icon="camera"
+          label={t('request.photos.camera')}
+          disabled={picking || atLimit}
+          onPress={() => pick(takeDraftPhotoWithCamera)}
+          style={{ flex: 1 }}
+        />
+      </View>
+      {atLimit ? (
+        <Text style={styles.photosHint}>{`بلغت الحد الأقصى (${String(PHOTOS_MAX)} صور). أزل صورة لإضافة غيرها.`}</Text>
+      ) : null}
+      <SceneAction label={t('request.photos.editDescription')} variant="secondary" icon="arrow-right" onPress={onEditDescription} />
+    </SceneSection>
   );
 }
 
@@ -639,9 +852,9 @@ function ReviewStep({
   technicianName,
   problems,
   locations,
-  slots,
   submitStatus,
   submitError,
+  uploadProgress,
   onGoto,
   onSubmit,
   onRetrySubmit,
@@ -650,9 +863,9 @@ function ReviewStep({
   technicianName: string;
   problems: ReadonlyArray<{ id: string; titleAr: string }>;
   locations: ReadonlyArray<{ id: string; labelAr: string; detailAr: string }>;
-  slots: ReadonlyArray<{ id: string; dayAr: string; timeAr: string }>;
-  submitStatus: 'idle' | 'submitting' | 'success' | 'error';
+  submitStatus: 'idle' | 'submitting' | 'uploading' | 'success' | 'partial' | 'error';
   submitError: string | null;
+  uploadProgress: { readonly done: number; readonly total: number } | null;
   onGoto: (step: ServiceRequestStep) => void;
   onSubmit: () => void;
   onRetrySubmit: () => void;
@@ -663,7 +876,6 @@ function ReviewStep({
       ? draft.customProblemAr
       : (problems.find((p) => p.id === draft.problemId)?.titleAr ?? t('request.review.noProblem'));
   const location = locations.find((l) => l.id === draft.locationId);
-  const slot = slots.find((s) => s.id === draft.appointmentSlotId);
   const rows: ReadonlyArray<{ key: string; label: string; value: string; step: ServiceRequestStep }> = [
     { key: 'tech', label: t('request.review.technician'), value: technicianName, step: 'appliance' },
     {
@@ -696,11 +908,16 @@ function ReviewStep({
     {
       key: 'slot',
       label: t('request.review.appointment'),
-      value: slot ? `${slot.dayAr} · ${slot.timeAr}` : t('request.appointment.phone'),
+      value:
+        draft.preferredAtISO !== null
+          ? `${formatPreferredAppointmentAr(draft.preferredAtISO)} · ${t('request.appointment.preferenceShort')}`
+          : t('request.appointment.phone'),
       step: 'appointment',
     },
   ];
+  const uploading = submitStatus === 'uploading';
   const submitting = submitStatus === 'submitting';
+  const busy = submitting || uploading;
   return (
     <View>
       <SectionHeading title={t('request.review.title')} />
@@ -715,8 +932,8 @@ function ReviewStep({
               accessibilityRole="button"
               accessibilityLabel={`${t('request.edit')} ${row.label}`}
               onPress={() => onGoto(row.step)}
-              disabled={submitting}
-              accessibilityState={{ disabled: submitting }}
+              disabled={busy}
+              accessibilityState={{ disabled: busy }}
               style={styles.reviewEdit}
             >
               <Text style={styles.reviewEditText}>{t('request.edit')}</Text>
@@ -729,7 +946,16 @@ function ReviewStep({
           <Text style={styles.inlineErrorText}>{submitError}</Text>
         </View>
       ) : null}
-      <SceneAction label={t(submitStatus === 'error' ? 'request.retrySubmit' : 'request.submit')} loading={submitting} loadingLabel="جارٍ إرسال الطلب…" onPress={submitStatus === 'error' ? onRetrySubmit : onSubmit} />
+      <SceneAction
+        label={t(submitStatus === 'error' ? 'request.retrySubmit' : 'request.submit')}
+        loading={busy}
+        loadingLabel={
+          uploading
+            ? `جارٍ رفع الصور… (${String(uploadProgress?.done ?? 0)}/${String(uploadProgress?.total ?? 0)})`
+            : 'جارٍ إرسال الطلب…'
+        }
+        onPress={submitStatus === 'error' ? onRetrySubmit : onSubmit}
+      />
     </View>
   );
 }
@@ -881,11 +1107,85 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
     textAlign: 'right',
   },
-  unavailable: {
-    ...type.caption,
-    color: color.error.DEFAULT,
-    marginTop: spacing[1],
+  appointmentNote: {
+    ...type.body,
+    color: color.text.secondary,
     textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: spacing[2],
+    marginBottom: spacing[3],
+  },
+  fieldLabel: {
+    ...type.cardTitle,
+    color: color.text.primary,
+    textAlign: 'right',
+    marginTop: spacing[5],
+    marginBottom: spacing[2],
+  },
+  dayStripScroll: {
+    marginHorizontal: -spacing[5],
+  },
+  dayStrip: {
+    flexDirection: 'row',
+    gap: spacing[2],
+    paddingHorizontal: spacing[5],
+  },
+  dayChip: {
+    minWidth: 96,
+    minHeight: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing[1],
+    backgroundColor: color.surface.base,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[3],
+    paddingVertical: spacing[2],
+  },
+  dayChipSelected: {
+    borderColor: color.brand.gold,
+    borderWidth: 2,
+    backgroundColor: color.brand.goldSoft,
+  },
+  dayChipRelative: {
+    ...type.bodyMedium,
+    color: color.text.primary,
+    writingDirection: 'rtl',
+  },
+  dayChipDate: {
+    ...type.caption,
+    color: color.text.secondary,
+    writingDirection: 'rtl',
+  },
+  dayChipTextSelected: {
+    color: color.brand.navy,
+  },
+  periodRow: {
+    flexDirection: 'row',
+    gap: spacing[2],
+  },
+  periodChip: {
+    flex: 1,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.surface.base,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[2],
+  },
+  periodChipSelected: {
+    borderColor: color.brand.gold,
+    borderWidth: 2,
+    backgroundColor: color.brand.goldSoft,
+  },
+  periodChipText: {
+    ...type.caption,
+    color: color.text.primary,
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
   emptyHint: {
     ...type.body,
@@ -1004,12 +1304,6 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: color.text.primary,
   },
-  photoRemove: {
-    minHeight: 44,
-    minWidth: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   secondary: {
     borderWidth: 1,
     borderColor: color.border.default,
@@ -1028,6 +1322,58 @@ const styles = StyleSheet.create({
   },
   review: {
     gap: 0,
+  },
+  photosEmpty: {
+    ...type.body,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    paddingVertical: spacing[3],
+  },
+  photosGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[3],
+    paddingVertical: spacing[3],
+  },
+  photoTile: {
+    width: 96,
+    height: 96,
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    backgroundColor: color.surface.subtle,
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: spacing[1],
+    left: spacing[1],
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: color.text.primary,
+  },
+  photosCounter: {
+    ...type.caption,
+    color: color.text.secondary,
+    textAlign: 'right',
+  },
+  photosActions: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    gap: spacing[3],
+    marginTop: spacing[3],
+  },
+  photosHint: {
+    ...type.caption,
+    color: color.text.secondary,
+    textAlign: 'right',
+    marginTop: spacing[2],
   },
   reviewRow: {
     flexDirection: 'row',

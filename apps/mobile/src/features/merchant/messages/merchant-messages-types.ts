@@ -10,10 +10,14 @@ export interface MerchantConversationItem {
   /** Real conversation id; the chat key is `conv-<id>`. */
   readonly id: string;
   readonly peerNameAr: string;
+  /** Server-issued public avatar URL (null when the peer has none). */
+  readonly peerAvatarUrl: string | null;
   readonly lastMessageAr: string | null;
   readonly unreadCount: number;
   readonly updatedAtAr: string;
   readonly productId: string | null;
+  /** Thread context from the server (product name), never fabricated. */
+  readonly contextTitleAr: string | null;
 }
 
 export interface MerchantMessagesViewModel {

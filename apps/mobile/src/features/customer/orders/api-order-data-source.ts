@@ -26,10 +26,55 @@ import {
   TECHNICIAN_NAME_FALLBACK_AR,
 } from '../../../lib/request-labels';
 
-import { buildTimeline, type OrderDataSource, type OrderDetail } from './order-detail-types';
+import { buildTimeline, type OrderDataSource, type OrderDetail, type OrderPhoto } from './order-detail-types';
 
 import type { CustomerRequestStatus } from '../requests/customer-requests-types';
-import type { ServiceRequestDto } from '@khabir/shared-types';
+import type {
+  ServiceRequestDto,
+  ServiceRequestMediaDto,
+  ServiceRequestMediaUrlDto,
+} from '@khabir/shared-types';
+
+/** Cap thumbnails on the tracking screen; the API returns the full list. */
+const PHOTO_PREVIEW_MAX = 8;
+
+async function loadOrderPhotos(requestId: string): Promise<{
+  photos: ReadonlyArray<OrderPhoto>;
+  photosUnavailable: boolean;
+}> {
+  let items: ReadonlyArray<ServiceRequestMediaDto>;
+  try {
+    const res = await getApi().request<ServiceRequestMediaDto[]>(
+      'GET',
+      `/service-requests/${encodeURIComponent(requestId)}/media`,
+    );
+    items = res.data;
+  } catch {
+    // Could not check — report unavailable instead of faking "no photos".
+    return { photos: [], photosUnavailable: true };
+  }
+  const photos = await Promise.all(
+    items.slice(0, PHOTO_PREVIEW_MAX).map(async (item): Promise<OrderPhoto> => {
+      let url: string | null = null;
+      try {
+        const grant = await getApi().request<ServiceRequestMediaUrlDto>(
+          'GET',
+          `/service-requests/${encodeURIComponent(requestId)}/media/${encodeURIComponent(item.id)}/url`,
+        );
+        url = grant.data.downloadUrl;
+      } catch {
+        url = null;
+      }
+      return {
+        id: item.id,
+        mimeType: item.mimeType,
+        createdAtAr: formatArDateTime(item.createdAt),
+        url,
+      };
+    }),
+  );
+  return { photos, photosUnavailable: false };
+}
 
 /** Real history records → timeline timestamp map (status → formatted). */
 function timestampsFromHistory(dto: ServiceRequestDto): Partial<Record<CustomerRequestStatus, string>> {
@@ -61,6 +106,7 @@ export async function mapOrderDetail(dto: ServiceRequestDto): Promise<OrderDetai
     (dto.problemTitle ?? dto.problemDescription ?? '').trim().length > 0
       ? (dto.problemTitle ?? dto.problemDescription ?? '').trim()
       : applianceAr;
+  const { photos, photosUnavailable } = await loadOrderPhotos(dto.id);
   return {
     requestId: dto.id,
     technicianId: dto.technicianId,
@@ -73,6 +119,8 @@ export async function mapOrderDetail(dto: ServiceRequestDto): Promise<OrderDetai
     locationAr: locationParts.join(' – '),
     appointmentAr: dto.scheduledAt !== null ? formatArDateTime(dto.scheduledAt) : null,
     timeline: buildTimeline(dto.status, timestampsFromHistory(dto)),
+    photos,
+    photosUnavailable,
   };
 }
 

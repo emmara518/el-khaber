@@ -15,8 +15,8 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 
-import { PrismaService } from '../../database/prisma.service';
 import { getConfig } from '../../config/app.config';
+import { PrismaService } from '../../database/prisma.service';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -48,6 +48,9 @@ export class RateLimitService {
       ['auth', { name: 'auth', max: config.rateLimit.authMax, ttlSeconds: config.rateLimit.ttlSeconds }],
       ['password-reset', { name: 'password-reset', max: 3, ttlSeconds: 900 }],
       ['login', { name: 'login', max: 5, ttlSeconds: 900 }],
+      // WP-01: profile-image uploads are server-processed (sharp) and
+      // storage-backed — a dedicated anti-flood policy per uploader.
+      ['avatar', { name: 'avatar', max: 10, ttlSeconds: 900 }],
     ]);
   }
 

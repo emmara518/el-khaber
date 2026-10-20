@@ -8,10 +8,13 @@ function dto(overrides: Partial<ConversationSummaryDto> = {}): ConversationSumma
   return {
     id: 'conv-1',
     peerNameAr: 'عميل',
+    peerAvatarUrl: null,
     lastMessageAr: 'هل المنتج متوفر؟',
+    lastMessageAt: '2026-02-01T10:05:00.000Z',
     unreadCount: 2,
     productId: 'p-1',
     serviceRequestId: null,
+    contextTitleAr: 'فلتر تكييف',
     updatedAt: '2026-02-01T10:00:00.000Z',
     ...overrides,
   };
@@ -23,11 +26,19 @@ describe('mapMerchantConversation', () => {
     expect(mapped).toMatchObject({
       id: 'conv-1',
       peerNameAr: 'عميل',
+      peerAvatarUrl: null,
       lastMessageAr: 'هل المنتج متوفر؟',
       unreadCount: 2,
       productId: 'p-1',
+      contextTitleAr: 'فلتر تكييف',
     });
     expect(mapped.updatedAtAr.length).toBeGreaterThan(0);
+  });
+
+  it('prefers the last-message timestamp over the thread timestamp', () => {
+    const mapped = mapMerchantConversation(dto());
+    const fallback = mapMerchantConversation(dto({ lastMessageAt: null }));
+    expect(mapped.updatedAtAr).not.toBe(fallback.updatedAtAr);
   });
 
   it('preserves a truthful null last message and zero unread', () => {

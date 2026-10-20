@@ -13,7 +13,7 @@ export const REQUEST_SCENES: Record<ServiceRequestStep, { title: string; body: s
   description: { title: 'التفاصيل تصنع فرقًا', body: 'متى بدأت المشكلة؟ وما الذي يحدث عند التشغيل؟ الوصف اختياري.', asset: 'service_request_service' },
   photos: { title: 'الصور والمرفقات', body: 'هذه الخطوة اختيارية. رفع الصور غير متاح حاليًا؛ يمكنك المتابعة دون مرفقات.', asset: 'service_request_service' },
   location: { title: 'أين نقدم الخدمة؟', body: 'اختر عنوانًا محفوظًا أو أضف موقع الخدمة هنا.', asset: 'service_request_service' },
-  appointment: { title: 'لنرتب الزيارة', body: 'لا تتوفر مواعيد للحجز داخل التطبيق حاليًا. يُنسّق الموعد هاتفيًا مع الفني.', asset: 'technician_availability' },
+  appointment: { title: 'لنرتب الزيارة', body: 'اقترح موعدًا مفضلًا (اختياري) ويؤكده الفني هاتفيًا. لا يوجد حجز مؤكد داخل التطبيق.', asset: 'technician_availability' },
   review: { title: 'كل التفاصيل، قبل الإرسال', body: 'راجع الجهاز والعطل والعنوان. لن يُرسل الطلب إلا عند تأكيدك.', asset: 'service_request_confirmation' },
 };
 

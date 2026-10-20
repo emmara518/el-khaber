@@ -130,7 +130,9 @@ export class TechnicianSelfService {
     const data: Prisma.TechnicianProfileUpdateManyMutationInput = {
       ...(input.display_name !== undefined ? { displayName: input.display_name } : {}),
       ...(input.bio !== undefined ? { bio: input.bio } : {}),
-      ...(input.avatar_url !== undefined ? { avatarUrl: input.avatar_url } : {}),
+      // WP-01: `avatar_url` is no longer text-writable (removed from the
+      // schema). Profile photos change exclusively through the multipart
+      // POST /technician/profile/avatar endpoint (AvatarService).
       ...(input.experience_years !== undefined ? { experienceYears: input.experience_years } : {}),
       // WP-4: manual availability (available | unavailable only — `busy` is
       // rejected by the request schema and never writable here).

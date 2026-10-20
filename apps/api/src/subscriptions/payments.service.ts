@@ -23,6 +23,11 @@ import { Injectable } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { ConflictException, NotFoundException, ValidationException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
+import {
+  paymentApprovedNotification,
+  paymentRejectedNotification,
+} from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
 
 import { provisionalPeriodEnd } from './subscription-period';
 
@@ -86,6 +91,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -360,14 +366,17 @@ export class PaymentsService {
             } as never,
           },
         });
-        await tx.notification.create({
-          data: {
-            userId: submission.userId,
-            type: 'subscription',
-            titleAr: 'تم اعتماد عملية الدفع',
-            bodyAr: 'تم اعتماد عملية الدفع وتفعيل الاشتراك.' + (note !== undefined ? ` ملاحظة: ${note}` : ''),
+        // WP-Notifications: preference-gated via NotificationsService
+        // (same tx → atomic with approval), Arabic copy centralized,
+        // navigation payload carries ids only (no PII).
+        await this.notifications.create(
+          submission.userId,
+          {
+            ...paymentApprovedNotification(note),
+            dataJson: { submissionId: id, subscriptionId: subscription.id },
           },
-        });
+          tx,
+        );
         return { subscriptionId: subscription.id } as const;
       },
       { maxWait: 10_000, timeout: 20_000 },
@@ -388,12 +397,13 @@ export class PaymentsService {
 
   /**
    * ADMIN rejection: never activates a subscription; preserves history;
-   * notifies the user (documented operational message).
+   * notifies the user with the REQUIRED rejection reason (AUD-005 — the
+   * reason drives both the audit trail entry and the Arabic message).
    */
   async adminReject(
     adminId: string,
     id: string,
-    note: string | undefined,
+    reason: string,
   ): Promise<Record<string, unknown>> {
     const result = await this.prisma.$transaction(
       async (tx) => {
@@ -421,20 +431,21 @@ export class PaymentsService {
             afterJson: {
               status: 'rejected',
               userId: submission.userId,
-              ...(note !== undefined ? { note } : {}),
+              reason,
             } as never,
           },
         });
-        await tx.notification.create({
-          data: {
-            userId: submission.userId,
-            type: 'subscription',
-            titleAr: 'تم رفض إثبات الدفع',
-            bodyAr:
-              'تم رفض إثبات الدفع. يمكنك إرسال طلب جديد أو التواصل مع الدعم.' +
-              (note !== undefined ? ` ملاحظة: ${note}` : ''),
+        // WP-Notifications: preference-gated via NotificationsService
+        // (same tx → atomic with rejection), Arabic copy centralized,
+        // navigation payload carries ids only (no PII).
+        await this.notifications.create(
+          submission.userId,
+          {
+            ...paymentRejectedNotification(reason),
+            dataJson: { submissionId: id },
           },
-        });
+          tx,
+        );
         return 'rejected' as const;
       },
       { maxWait: 10_000, timeout: 20_000 },

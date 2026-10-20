@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 
 
+import { reactNativeAppState } from './chat-app-state';
 import { useChatViewModel } from './use-chat-view-model';
 
 import type { ChatDataSource, ChatMessage, ChatRole } from './chat-types';
@@ -59,14 +60,16 @@ export function ChatDialog({
     >
       <View style={styles.scrim}>
         <View style={styles.sheet}>
-          <ChatBody
-            conversationId={conversationId}
-            technicianNameAr={peer}
-            serviceTitle={serviceTitle}
-            onClose={onClose}
-            source={source}
-            role={role}
-          />
+          {visible ? (
+            <ChatBody
+              conversationId={conversationId}
+              technicianNameAr={peer}
+              serviceTitle={serviceTitle}
+              onClose={onClose}
+              source={source}
+              role={role}
+            />
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -88,7 +91,7 @@ export function ChatBody({
   source?: ChatDataSource;
   role?: ChatRole;
 }) {
-  const vm = useChatViewModel(conversationId, role, source);
+  const vm = useChatViewModel(conversationId, role, source, reactNativeAppState);
   const scrollRef = useRef<ScrollView>(null);
 
   return (

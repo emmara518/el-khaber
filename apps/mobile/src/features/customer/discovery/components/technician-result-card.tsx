@@ -40,7 +40,13 @@ export function TechnicianResultCard({
         <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
           <Card borderRadius={radius.xl} style={styles.card}>
             <View style={styles.monogramPanel}>
-              <Avatar initials={content.initials} size={64} background={color.brand.goldSoft} foreground={color.brand.navy} />
+              <Avatar
+                initials={content.initials}
+                imageUrl={technician.avatarUrl}
+                size={64}
+                background={color.brand.goldSoft}
+                foreground={color.brand.navy}
+              />
               <View style={styles.visualContext}>
                 <Text style={styles.visualLabel}>الخدمات والأجهزة</Text>
                 <Text style={styles.visualCaption}>صورة توضيحية للخدمة</Text>
@@ -117,8 +123,18 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   visualContext: { flex: 1, gap: spacing[1] },
-  visualLabel: { ...type.bodyMedium, color: color.surface.base, textAlign: 'right', writingDirection: 'rtl' },
-  visualCaption: { ...type.caption, color: color.border.default, textAlign: 'right', writingDirection: 'rtl' },
+  visualLabel: {
+    ...type.bodyMedium,
+    color: color.surface.base,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  visualCaption: {
+    ...type.caption,
+    color: color.border.default,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   serviceImage: { width: 72, height: 80, alignItems: 'center', justifyContent: 'center' },
   body: {
     padding: spacing[5],

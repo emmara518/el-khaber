@@ -6,15 +6,25 @@
 import { createParamDecorator, type ExecutionContext, SetMetadata } from '@nestjs/common';
 
 import type { Role } from '@khabir/shared-types';
+import type { AdminRole } from '@prisma/client';
 import type { Request } from 'express';
-
 
 export const ROLES_METADATA_KEY = 'khabir:roles';
 export const AUTH_KIND_METADATA_KEY = 'khabir:authKind';
+export const ADMIN_ROLES_METADATA_KEY = 'khabir:adminRoles';
 
 /** Restrict a route to one or more roles. */
 export const Roles = (...roles: Role[]): MethodDecorator & ClassDecorator =>
   SetMetadata(ROLES_METADATA_KEY, roles);
+
+/**
+ * Restrict an ADMIN route to one or more admin roles (WP-Admin-01,
+ * docs/09_ADMIN.md §19). Enforced server-side by JwtAuthGuard against
+ * the database role (never the token claim alone). A mismatch returns
+ * the same 401 as any auth failure — accepted roles are never leaked.
+ */
+export const AdminRoles = (...roles: AdminRole[]): MethodDecorator & ClassDecorator =>
+  SetMetadata(ADMIN_ROLES_METADATA_KEY, roles);
 
 /** Mark a route as public (skips JwtAuthGuard). */
 export const IS_PUBLIC_KEY = 'khabir:isPublic';

@@ -1,15 +1,14 @@
 /**
- * Technician discovery read endpoints (Task 10E).
+ * Technician discovery read endpoints (Task 10E, WP-Discovery).
  * Public per docs/07_API.md §6. Filters: q, appliance_category_id,
- * service_id, fault_id, rating_min, availability, sort (=rating only),
- * pagination. Geo params are documented but not implemented (DATABASE
- * MODEL GAP — reported to the CTO).
+ * service_id, fault_id, rating_min (decimals allowed), availability,
+ * area (service-area label containment, NOT geo), sort (=rating only),
+ * pagination.
  */
 
 import { technicianListQuerySchema, type TechnicianListQuery } from '@khabir/shared-validation';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-
 
 import { Public } from '../common/decorators';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';

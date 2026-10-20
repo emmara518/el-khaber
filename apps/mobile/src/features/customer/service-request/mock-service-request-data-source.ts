@@ -10,8 +10,8 @@
  */
 
 import type {
-  AppointmentSlot,
   ProblemOption,
+  RequestAttachment,
   RequestLocation,
   ServiceRequestDraft,
 } from './service-request-types';
@@ -19,7 +19,16 @@ import type {
 export interface ServiceRequestFormData {
   readonly problems: ReadonlyArray<ProblemOption>;
   readonly locations: ReadonlyArray<RequestLocation>;
-  readonly slots: ReadonlyArray<AppointmentSlot>;
+}
+
+/** Presigned PUT grant for one request photo (Track B2). */
+export interface ServiceRequestPhotoUploadGrant {
+  readonly storageKey: string;
+  readonly uploadUrl: string;
+  readonly requiredHeaders: Record<string, string>;
+  readonly mimeType: string;
+  readonly maxBytes: number;
+  readonly expiresInSeconds: number;
 }
 
 export interface ServiceRequestSubmission {
@@ -40,6 +49,19 @@ export interface ServiceRequestDataSource {
   /** Creates an owned location (Task REM-001) and returns it selectable. */
   createLocation(input: { labelAr: string; addressAr: string }): Promise<RequestLocation>;
   submitRequest(draft: ServiceRequestDraft): Promise<ServiceRequestSubmission>;
+  /**
+   * Photo uploads (Track B2) — only valid AFTER the request id exists:
+   * grant (server-chosen key) → raw PUT → confirm. Sequential by design.
+   */
+  requestPhotoUploadUrl(input: {
+    requestId: string;
+    mimeType: string;
+  }): Promise<ServiceRequestPhotoUploadGrant>;
+  putPhotoBytes(input: {
+    grant: ServiceRequestPhotoUploadGrant;
+    photo: RequestAttachment;
+  }): Promise<void>;
+  confirmPhoto(input: { requestId: string; storageKey: string }): Promise<void>;
 }
 
 const FORM_FIXTURE: ServiceRequestFormData = {
@@ -59,12 +81,6 @@ const FORM_FIXTURE: ServiceRequestFormData = {
   locations: [
     { id: 'home', labelAr: 'المنزل', detailAr: 'القاهرة – حي مدينة نصر، شارع عباس العقاد', isDefault: true },
     { id: 'office', labelAr: 'المكتب', detailAr: 'القاهرة – حي المعادي، شارع التحرير', isDefault: false },
-  ],
-  slots: [
-    { id: 'slot-today-am', dayAr: 'اليوم', timeAr: '٩:٠٠ – ١٢:٠٠ صباحًا', available: true },
-    { id: 'slot-today-pm', dayAr: 'اليوم', timeAr: '٤:٠٠ – ٧:٠٠ مساءً', available: true },
-    { id: 'slot-tomorrow-am', dayAr: 'غدًا', timeAr: '٩:٠٠ – ١٢:٠٠ صباحًا', available: true },
-    { id: 'slot-tomorrow-pm', dayAr: 'غدًا', timeAr: '٤:٠٠ – ٧:٠٠ مساءً', available: false },
   ],
 };
 
@@ -106,5 +122,42 @@ export class MockServiceRequestDataSource implements ServiceRequestDataSource {
       technicianId: draft.technicianId,
       createdAtAr: 'اليوم',
     };
+  }
+
+  async requestPhotoUploadUrl(input: {
+    requestId: string;
+    mimeType: string;
+  }): Promise<ServiceRequestPhotoUploadGrant> {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    if (this.mode === 'failing') {
+      throw new Error('تعذر تجهيز رفع الصور. حاول مجددًا');
+    }
+    const extension =
+      input.mimeType === 'image/png' ? 'png' : input.mimeType === 'image/webp' ? 'webp' : 'jpg';
+    return {
+      storageKey: `mock/request-media/${input.requestId}/${String(Date.now())}.${extension}`,
+      uploadUrl: `mock://upload/${input.requestId}`,
+      requiredHeaders: { 'Content-Type': input.mimeType },
+      mimeType: input.mimeType,
+      maxBytes: 5 * 1024 * 1024,
+      expiresInSeconds: 300,
+    };
+  }
+
+  async putPhotoBytes(_input: {
+    grant: ServiceRequestPhotoUploadGrant;
+    photo: RequestAttachment;
+  }): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    if (this.mode === 'failing') {
+      throw new Error('تعذر رفع الصورة. تحقق من الاتصال وحاول مجددًا');
+    }
+  }
+
+  async confirmPhoto(_input: { requestId: string; storageKey: string }): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    if (this.mode === 'failing') {
+      throw new Error('تعذر تأكيد رفع الصورة. حاول مجددًا');
+    }
   }
 }

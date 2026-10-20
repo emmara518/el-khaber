@@ -12,7 +12,11 @@
  * Source: docs/07_API.md §14–§15, docs/08_SUBSCRIPTIONS.md.
  */
 
-import type { CurrentSubscriptionDto, PaymentSubmissionDto, SubscriptionPlanDto } from '@khabir/shared-types';
+import type {
+  CurrentSubscriptionDto,
+  PaymentSubmissionDto,
+  SubscriptionPlanDto,
+} from '@khabir/shared-types';
 
 export type SubscriptionRole = 'customer' | 'technician' | 'merchant';
 export type PaymentMethod = 'instapay' | 'vodafone_cash';
@@ -113,7 +117,10 @@ export function canCancelRenewal(current: CurrentSubscription): boolean {
 }
 
 /** A plan is selectable only when it is not the current active plan. */
-export function canSelectPlan(plan: SubscriptionPlan, current: CurrentSubscription | null): boolean {
+export function canSelectPlan(
+  plan: SubscriptionPlan,
+  current: CurrentSubscription | null,
+): boolean {
   return current?.status === 'active' ? plan.id !== current.planId : true;
 }
 

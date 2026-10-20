@@ -15,6 +15,13 @@ export interface AcceptedDto {
 }
 
 /**
+ * Admin technician assignment result (WP-Admin-03).
+ */
+export interface AdminAssignResultDto {
+  [key: string]: unknown;
+}
+
+/**
  * Admin manual grant result (subscription or entitlement grant).
  */
 export interface AdminGrantResultDto {
@@ -150,6 +157,7 @@ export interface AuthSessionDto {
  * Public user record. Never includes credentials.
  */
 export interface AuthUserDto {
+  avatarUrl: string | null;
   createdAt: string;
   email: string | null;
   emailVerified: boolean;
@@ -158,6 +166,13 @@ export interface AuthUserDto {
   phoneVerified: boolean;
   role: Role;
   status: UserStatus;
+}
+
+/**
+ * WP-01: profile-image upload result (POST /me/avatar, POST /technician/profile/avatar). `avatarUrl` is the server-issued stable public URL persisted on the caller's profile — never a storage key or client-supplied link.
+ */
+export interface AvatarUploadDto {
+  avatarUrl: string;
 }
 
 /**
@@ -172,11 +187,14 @@ export interface ConversationDto {
 }
 
 /**
- * A conversation the caller participates in (merchant/messages list). peerNameAr is the other party; lastMessageAr is the real latest message (null when none); unreadCount counts messages not sent by the caller and not yet read.
+ * A conversation the caller participates in (unified inbox). peerNameAr is the other party (real display/business name where available, generic role label otherwise — never invented); peerAvatarUrl is their public profile image (null when absent). lastMessageAr/lastMessageAt are the real latest message (null when none); unreadCount counts messages not sent by the caller and not yet read; contextTitleAr is the order title or product name.
  */
 export interface ConversationSummaryDto {
+  contextTitleAr: string | null;
   id: string;
   lastMessageAr: string | null;
+  lastMessageAt: string | null;
+  peerAvatarUrl: string | null;
   peerNameAr: string;
   productId: string | null;
   serviceRequestId: string | null;
@@ -217,7 +235,7 @@ export interface CreateReviewDto {
 }
 
 /**
- * Customer request creation payload (docs/07_API.md §7). problem_title is OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case without inventing diagnostic conclusions. The request is created with status=pending, targeted at the chosen verified technician.
+ * Customer request creation payload (docs/07_API.md §7). problem_title is OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case without inventing diagnostic conclusions. The request is created with status=pending, targeted at the chosen verified technician. scheduled_at is an OPTIONAL PREFERRED visit time (future, up to 14 days ahead): there is no availability engine and no booking is created — the technician confirms the visit by phone.
  */
 export interface CreateServiceRequestDto {
   appliance_category_id: string;
@@ -259,7 +277,7 @@ export type ErrorCode = 'AUTH_REQUIRED' | 'AUTH_INVALID' | 'FORBIDDEN' | 'NOT_FO
  * Canonical error envelope (docs/07_API.md §3).
  */
 export interface ErrorResponse {
-  error: { code: ErrorCode; fields?: Record<string, string>; message: string };
+  error: { code: ErrorCode; fields?: Record<string, string>; message: string; requestId?: string };
 }
 
 /**
@@ -333,6 +351,13 @@ export interface MeSubscriptionDto {
 }
 
 /**
+ * WP-01: store-logo upload result (POST /merchant/profile/logo). `logoUrl` is the server-issued stable public URL persisted on the caller's merchant profile — never a storage key or client-supplied link.
+ */
+export interface MerchantLogoUploadDto {
+  logoUrl: string;
+}
+
+/**
  * A merchant-owned catalog product (status: active | suspended).
  */
 export interface MerchantProductDto {
@@ -377,7 +402,7 @@ export interface MessageDto {
 }
 
 /**
- * A persisted notification for the authenticated recipient. 	ype is an open string until product trigger types are ratified; no delivery provider exists (persistence + read APIs only).
+ * A persisted notification for the authenticated recipient. 	type is an open string until product trigger types are ratified; no delivery provider exists (persistence + read APIs only).
  */
 export interface NotificationDto {
   bodyAr: string;
@@ -387,6 +412,14 @@ export interface NotificationDto {
   readAt: string | null;
   titleAr: string;
   type: string;
+}
+
+/**
+ * Own notification delivery preferences (WP-Notifications). Only the two USER-TOGGLABLE families exist as keys: requestStatus (maintenance request updates) and subscription (subscription + payment-review updates). Verification decisions + admin operational messages are MANDATORY and have no key. Absent row ≡ all true.
+ */
+export interface NotificationPreferencesDto {
+  requestStatus: boolean;
+  subscription: boolean;
 }
 
 export type PaymentApprovalResultDto = PaymentReviewResultDto;
@@ -549,6 +582,38 @@ export interface ServiceRequestDto {
   updatedAt: string;
 }
 
+/**
+ * Attached photo metadata for a service request. Binaries live in private object storage; storage keys are never exposed to clients.
+ */
+export interface ServiceRequestMediaDto {
+  createdAt: string;
+  fileSize: number;
+  id: string;
+  mimeType: string;
+}
+
+/**
+ * Presigned PUT grant for a server-generated service-request media key. The key lives under `request-media/{userId}/{requestId}/` and is never chosen by the client (Track B2).
+ */
+export interface ServiceRequestMediaUploadUrlDto {
+  expiresInSeconds: number;
+  maxBytes: number;
+  mimeType: string;
+  requestId: string;
+  requiredHeaders?: Record<string, string>;
+  storageKey: string;
+  uploadUrl: string;
+}
+
+/**
+ * Short-lived presigned download grant for one request photo.
+ */
+export interface ServiceRequestMediaUrlDto {
+  downloadUrl: string;
+  expiresInSeconds: number;
+  mediaId: string;
+}
+
 export type ServiceRequestStatus = 'pending' | 'accepted' | 'on_the_way' | 'in_progress' | 'completed' | 'cancelled';
 
 /**
@@ -602,6 +667,7 @@ export type TechnicianAvailabilityStatus = 'available' | 'busy' | 'unavailable';
  * Public technician profile for discovery/detail. Only verified technicians are publicly visible. Excludes authentication data, private contact data, and internal moderation state.
  */
 export interface TechnicianPublicDto {
+  areasAr: Array<string>;
   availabilityStatus: TechnicianAvailabilityStatus;
   avatarUrl: string | null;
   bio: string | null;
@@ -686,6 +752,13 @@ export interface TechnicianStatsDto {
 }
 
 /**
+ * Server-authoritative unread notification count for the badge.
+ */
+export interface UnreadCountDto {
+  unread: number;
+}
+
+/**
  * PATCH /me payload (docs/07_API.md §5). Only shared contact fields are writable. Changing a contact channel resets that channel's verification flag.
  */
 export interface UpdateMeDto {
@@ -707,23 +780,21 @@ export interface UpdateMerchantProductDto {
 }
 
 /**
- * PATCH /merchant/profile payload (onboarding persistence). Fields are optional; absent fields unchanged. verificationStatus is never writable.
+ * PATCH /merchant/profile payload (onboarding persistence). Fields are optional; absent fields unchanged. verificationStatus is never writable. WP-01: store logos change exclusively through POST /merchant/profile/logo.
  */
 export interface UpdateMerchantProfileDto {
   bio?: string;
   businessName?: string;
   contactPhone?: string;
   locationId?: string;
-  logoUrl?: string;
 }
 
 /**
- * PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years, availability_status (available | unavailable only — technician-controlled, WP-4), areas (label + optional coordinates). verificationStatus/ratings/counters are NEVER writable.
+ * PATCH /technician/profile payload. Editable: display_name, bio, experience_years, availability_status (available | unavailable only — technician-controlled, WP-4), areas (label + optional coordinates). verificationStatus/ratings/counters are NEVER writable. WP-01: profile photos change exclusively through POST /technician/profile/avatar.
  */
 export interface UpdateTechnicianProfileDto {
   areas?: Array<{ label_ar: string; latitude?: number; longitude?: number }>;
   availability_status?: 'available' | 'unavailable';
-  avatar_url?: string;
   bio?: string;
   display_name?: string;
   experience_years?: number;

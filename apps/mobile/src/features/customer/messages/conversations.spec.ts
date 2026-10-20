@@ -19,7 +19,7 @@ describe('conversations', () => {
     expect(data.conversations.length).toBeGreaterThan(0);
     for (const c of data.conversations) {
       expect(c.technicianNameAr.length).toBeGreaterThan(0);
-      expect(c.lastMessageAr.length).toBeGreaterThan(0);
+      expect((c.lastMessageAr ?? '').length).toBeGreaterThan(0);
       expect(c.orderRefAr.length).toBeGreaterThan(0);
     }
   });

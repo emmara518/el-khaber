@@ -45,6 +45,9 @@ coverage/
 # Payment proof local adapter (dev/test double data, server-side only)
 .proof-storage/
 
+# Avatar local adapter (WP-01 dev/test double data, server-side only)
+.avatar-storage/
+
 # Expo / React Native
 .expo-shared/
 ios/Pods/

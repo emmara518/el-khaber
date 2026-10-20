@@ -32,34 +32,41 @@ async function bootstrap(): Promise<void> {
   const config = getConfig();
   const logger = new Logger('Bootstrap');
 
-  // Topology guard (OPTION A — single-instance production, docs/11 §7.2):
-  // rate limiting and failed-login lockout are PROCESS-LOCAL (in-memory).
-  // Booting with MULTI_INSTANCE=true and no CTO-approved shared store is a
-  // misconfiguration: log FATAL and refuse to start (fail-closed against
-  // accidental scale-out). Default (unset/false) boots normally as a single
-  // instance. No Redis client, no new dependencies — REPLICAS=1 is enforced
-  // by deployment configuration, this guard only closes the explicit
-  // opt-in to multi-instance.
+  // Topology compatibility notice (docs/11 §7.2, updated AUD-007):
+  // Rate limiting and failed-login lockout are backed by the PostgreSQL
+  // shared store (rate_limit_buckets / login attempt rows via Prisma) —
+  // NOT in-memory anymore. MULTI_INSTANCE=true is therefore safe to boot
+  // with any number of instances; SHARED_STORE_URL is treated as a legacy,
+  // unused flag and only recorded here for log continuity.
   const multiInstance = (process.env['MULTI_INSTANCE'] ?? '').trim().toLowerCase() === 'true';
   const sharedStore = (process.env['SHARED_STORE_URL'] ?? '').trim();
-  if (multiInstance && sharedStore.length === 0) {
-    logger.error(
+  if (multiInstance) {
+    logger.log(
       JSON.stringify({
         ts: new Date().toISOString(),
-        level: 'fatal',
-        event: 'topology-fatal',
+        level: 'info',
+        event: 'topology-multi-instance',
+        sharedStoreLegacy: sharedStore.length > 0,
         message:
-          'MULTI_INSTANCE=true requires a CTO-approved shared store (SHARED_STORE_URL). ' +
-          'Rate limiting and failed-login lockout are in-memory; refusing to boot rather than run unsafe.',
+          'MULTI_INSTANCE=true. Rate limiting and failed-login lockout use the PostgreSQL shared store, so horizontal scaling is safe. SHARED_STORE_URL is legacy/unused.',
       }),
     );
-    process.exit(1);
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
   app.setGlobalPrefix(config.globalPrefix);
   app.use(cookieParser());
+
+  // AUD-007 (S-2): trust exactly config.trustProxyHops reverse-proxy hops
+  // so req.ip resolves to the real client address instead of the proxy
+  // edge IP. Numeric semantics (trust = i < hops): entries further left in
+  // X-Forwarded-For stay UNTRUSTED — a client cannot spoof the resolved
+  // address by padding the header, provided the last trusted proxy appends
+  // its own observation (Render does: X-Forwarded-For ends with the
+  // connecting client IP). Failure to set this makes every client share
+  // the proxy IP and breaks the (identifier, ip) login-lockout keying.
+  app.set('trust proxy', config.trustProxyHops);
 
   // CORS. Origins are explicitly configured via CORS_ORIGINS. No wildcards.
   // Credentials are allowed so httpOnly refresh cookies can be used by the
@@ -102,26 +109,44 @@ async function bootstrap(): Promise<void> {
       globalPrefix: config.globalPrefix,
       corsOrigins: config.corsOrigins.length,
       database: describeDatabase(config.databaseUrl),
+      trustProxyHops: config.trustProxyHops,
     }),
   );
 
-  // Topology notice (OPTION A — single-instance production, docs/11 §7.2):
-  // rate limiting and failed-login lockout are PROCESS-LOCAL (in-memory).
-  // Production MUST run a SINGLE API instance (REPLICAS=1) until the CTO
-  // approves a shared store. The MULTI_INSTANCE guard above fails closed
-  // against accidental scale-out; this notice keeps the constraint visible
-  // in production logs on every boot.
+  // Proxy-trust notice (AUD-007). Keeps the reverse-proxy contract visible
+  // in production logs on every boot: if the actual topology changes (more
+  // hops between the client and this app), TRUST_PROXY_HOPS must be
+  // updated accordingly or req.ip will be wrong (either the raw proxy IP
+  // at 0 hops, or spoofable beyond the true last trusted proxy).
+  if (config.env === 'production') {
+    logger.warn(
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        level: 'warn',
+        event: 'proxy-trust-notice',
+        trustProxyHops: config.trustProxyHops,
+        replicas: (process.env['REPLICAS'] ?? '1').trim(),
+        message:
+          'trust proxy = numeric hops; req.ip = client IP from the X-Forwarded-For entry appended by the LAST trusted proxy (Render = 1 hop). Update TRUST_PROXY_HOPS if the proxy topology changes.',
+      }),
+    );
+  }
+
+  // Multi-instance note (docs/11 §7.2): rate limiting and failed-login
+  // lockout are PostgreSQL-backed (shared via the database), so scaling
+  // horizontally is supported. This notice only keeps the topology fact
+  // visible in production logs on every boot.
   if (config.env === 'production') {
     logger.warn(
       JSON.stringify({
         ts: new Date().toISOString(),
         level: 'warn',
         event: 'topology-notice',
-        topology: 'single-instance',
+        topology: multiInstance ? 'multi-instance' : 'single-instance',
         replicas: (process.env['REPLICAS'] ?? '1').trim(),
         multiInstance,
         message:
-          'Rate limiting and failed-login lockout are in-memory (process-local). Run a SINGLE API instance (REPLICAS=1), or provide a CTO-approved shared store (SHARED_STORE_URL) before scaling horizontally.',
+          'Rate limiting and failed-login lockout use the PostgreSQL shared store (Prisma). Multi-instance deployments are supported; SHARED_STORE_URL is legacy/unused.',
       }),
     );
   }

@@ -29,7 +29,10 @@ import type { CurrentSubscriptionDto, SubscriptionPlanDto } from '@khabir/shared
 export interface SubscriptionsDataSource {
   getPlans(input: { role: SubscriptionRole }): Promise<ReadonlyArray<SubscriptionPlan>>;
   getCurrent(input: { role: SubscriptionRole }): Promise<CurrentSubscription | null>;
-  cancelRenewal(input: { role: SubscriptionRole; subscriptionId: string }): Promise<CurrentSubscription | null>;
+  cancelRenewal(input: {
+    role: SubscriptionRole;
+    subscriptionId: string;
+  }): Promise<CurrentSubscription | null>;
 }
 
 function currentPath(role: SubscriptionRole): string {
@@ -42,7 +45,10 @@ export class ApiSubscriptionsDataSource implements SubscriptionsDataSource {
     try {
       const items = await drainPages<SubscriptionPlanDto>((page, limit) =>
         getApi()
-          .request<SubscriptionPlanDto[]>('GET', `/subscription-plans${buildQuery({ page, limit })}`)
+          .request<SubscriptionPlanDto[]>(
+            'GET',
+            `/subscription-plans${buildQuery({ page, limit })}`,
+          )
           .then((res) => ({ items: res.data, meta: res.meta })),
       );
       return items.map(mapPlan);
@@ -55,7 +61,10 @@ export class ApiSubscriptionsDataSource implements SubscriptionsDataSource {
     try {
       const current = await (input.role === 'merchant'
         ? getApi()
-            .request<{ subscription: CurrentSubscriptionDto | null }>('GET', currentPath(input.role))
+            .request<{ subscription: CurrentSubscriptionDto | null }>(
+              'GET',
+              currentPath(input.role),
+            )
             .then((res) => res.data.subscription)
         : getApi()
             .request<CurrentSubscriptionDto | null>('GET', currentPath(input.role))
@@ -63,7 +72,9 @@ export class ApiSubscriptionsDataSource implements SubscriptionsDataSource {
       // Entitlements are intentionally NOT fetched/transported (WP-7 D7).
       return mapCurrent(current);
     } catch (err: unknown) {
-      throw new Error(toUserMessage(err, 'تعذر تحميل الاشتراك الحالي. تحقق من الاتصال وحاول مجددًا'));
+      throw new Error(
+        toUserMessage(err, 'تعذر تحميل الاشتراك الحالي. تحقق من الاتصال وحاول مجددًا'),
+      );
     }
   }
 

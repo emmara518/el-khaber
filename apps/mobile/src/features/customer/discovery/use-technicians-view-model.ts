@@ -2,16 +2,17 @@
  * View-model hook for Technician Discovery (search + profile share
  * one data lifecycle: the technician list).
  *
- * The hook owns loading/error/retry. Filtering is the pure
- * `applyTechnicianFilters` so screens stay thin and logic stays
- * unit-tested.
+ * WP-Discovery: every filter is sent to GET /technicians — the hook
+ * owns loading/error/retry over the server result. Filtering is never
+ * re-applied client-side (that would hide valid matches outside the
+ * loaded window).
  */
 
 import { useCallback, useEffect, useState } from 'react';
 
 import { ApiTechnicianDataSource } from './api-technician-data-source';
 
-import type { Technician } from './technician-types';
+import type { Technician, TechnicianListQuery } from './technician-types';
 
 export type TechniciansStatus = 'loading' | 'loaded' | 'error';
 
@@ -22,14 +23,14 @@ export interface TechniciansState {
   retry: () => void;
 }
 
-export function useTechniciansViewModel(options?: { availableOnly?: boolean }): TechniciansState {
-  const availableOnly = options?.availableOnly ?? false;
+export function useTechniciansViewModel(filters?: TechnicianListQuery): TechniciansState {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<Omit<TechniciansState, 'retry'>>({
     status: 'loading',
     data: null,
     error: null,
   });
+  const key = JSON.stringify(filters ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +38,7 @@ export function useTechniciansViewModel(options?: { availableOnly?: boolean }): 
     new ApiTechnicianDataSource()
       .getTechnicians({
         role: 'customer',
-        ...(availableOnly ? { availability: 'available' as const } : {}),
+        ...(filters !== undefined ? { filters } : {}),
       })
       .then((data) => {
         if (cancelled) return;
@@ -54,7 +55,9 @@ export function useTechniciansViewModel(options?: { availableOnly?: boolean }): 
     return () => {
       cancelled = true;
     };
-  }, [attempt, availableOnly]);
+    // `key` is the stable serialization of the filter object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attempt, key]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 

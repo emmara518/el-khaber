@@ -144,17 +144,18 @@ export type ServiceListQuery = z.infer<typeof serviceListQuerySchema>;
 /**
  * GET /technicians — documented discovery filters (docs/07_API.md §6).
  * `sort` accepts only `rating` — a ranking signal explicitly documented
- * in docs/06_DATABASE.md §10. Geo params (lat/lng/radius) are documented
- * but NOT implemented: the schema has no technician location/service-area
- * model (reported DATABASE MODEL GAP — CTO decision required).
+ * in docs/06_DATABASE.md §10. `rating_min` accepts decimals (the product
+ * filters 4.5+/4.8+); `area` matches technician service-area labels by
+ * case-insensitive containment (label semantics, NOT geo — docs/07 §6).
  */
 export const technicianListQuerySchema = paginationSchema.extend({
   q: z.string().trim().min(1).max(100).optional(),
   appliance_category_id: uuidParam.optional(),
   service_id: uuidParam.optional(),
   fault_id: uuidParam.optional(),
-  rating_min: z.coerce.number().int().min(1).max(5).optional(),
+  rating_min: z.coerce.number().min(1).max(5).optional(),
   availability: z.enum(['available', 'busy', 'unavailable']).optional(),
+  area: z.string().trim().min(1).max(128).optional(),
   sort: z.literal('rating').optional(),
 });
 export type TechnicianListQuery = z.infer<typeof technicianListQuerySchema>;
@@ -176,17 +177,45 @@ export const serviceRequestStatusSchema = z.enum([
 ]);
 export type ServiceRequestStatusValue = z.infer<typeof serviceRequestStatusSchema>;
 
+/**
+ * Preferred-appointment horizon. `scheduled_at` is a PREFERENCE the
+ * technician confirms by phone — never a confirmed booking — and the
+ * honest horizon is two weeks (docs/07_API.md §7).
+ */
+export const PREFERRED_APPOINTMENT_MAX_DAYS = 14;
+
 /** POST /service-requests — customer creation payload. */
-export const createServiceRequestSchema = z.object({
-  technician_id: uuidParam,
-  appliance_category_id: uuidParam,
-  service_id: uuidParam.optional(),
-  fault_id: uuidParam.optional(),
-  problem_title: z.string().trim().min(1).max(255).optional(),
-  problem_description: z.string().trim().min(1).max(5000),
-  location_id: uuidParam,
-  scheduled_at: z.coerce.date().optional(),
-});
+export const createServiceRequestSchema = z
+  .object({
+    technician_id: uuidParam,
+    appliance_category_id: uuidParam,
+    service_id: uuidParam.optional(),
+    fault_id: uuidParam.optional(),
+    problem_title: z.string().trim().min(1).max(255).optional(),
+    problem_description: z.string().trim().min(1).max(5000),
+    location_id: uuidParam,
+    scheduled_at: z.coerce.date().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.scheduled_at === undefined) return;
+    const at = value.scheduled_at.getTime();
+    const now = Date.now();
+    if (at <= now) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduled_at'],
+        message: 'scheduled_at must be in the future',
+      });
+      return;
+    }
+    if (at > now + PREFERRED_APPOINTMENT_MAX_DAYS * 24 * 60 * 60 * 1000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['scheduled_at'],
+        message: `scheduled_at must be within ${PREFERRED_APPOINTMENT_MAX_DAYS} days`,
+      });
+    }
+  });
 export type CreateServiceRequestInput = z.infer<typeof createServiceRequestSchema>;
 
 /** GET /service-requests — role-scoped list with the documented status filter. */
@@ -207,7 +236,6 @@ export const merchantProfileUpdateSchema = z
   .object({
     businessName: z.string().trim().min(1).max(255).optional(),
     bio: z.string().trim().max(2000).optional(),
-    logoUrl: z.string().trim().min(1).max(512).optional(),
     contactPhone: phoneSchema.optional(),
     locationId: uuidParam.optional(),
   })
@@ -219,7 +247,13 @@ export type MerchantProfileUpdateInput = z.infer<typeof merchantProfileUpdateSch
 /** POST /merchant/products. `slug` is optional (server-derived when absent). */
 export const merchantProductCreateSchema = z.object({
   nameAr: z.string().trim().min(1).max(255),
-  slug: z.string().trim().min(1).max(128).regex(/^[^\s]+$/u, 'slug must not contain whitespace').optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(128)
+    .regex(/^[^\s]+$/u, 'slug must not contain whitespace')
+    .optional(),
   descriptionAr: z.string().trim().max(5000).optional(),
   price: z.number().min(0).max(999999.99).optional(),
   stockQuantity: z.number().int().min(0).optional(),
@@ -237,7 +271,13 @@ export type MerchantProductCreateInput = z.infer<typeof merchantProductCreateSch
 export const merchantProductUpdateSchema = z
   .object({
     nameAr: z.string().trim().min(1).max(255).optional(),
-    slug: z.string().trim().min(1).max(128).regex(/^[^\s]+$/u).optional(),
+    slug: z
+      .string()
+      .trim()
+      .min(1)
+      .max(128)
+      .regex(/^[^\s]+$/u)
+      .optional(),
     descriptionAr: z.string().trim().max(5000).optional(),
     price: z.number().min(0).max(999999.99).optional(),
     stockQuantity: z.number().int().min(0).optional(),
@@ -323,6 +363,23 @@ export const createReviewSchema = z.object({
 });
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 
+/**
+ * WP-Notifications: user notification preferences (docs/02 §3.12).
+ *
+ * Only the two USER-TOGGLABLE families exist as keys:
+ * - `requestStatus` — maintenance request updates.
+ * - `subscription` — subscription + manual-payment review updates.
+ *
+ * `verification` decisions and admin operational messages are MANDATORY
+ * and have no key — they cannot be disabled. Unknown keys are stripped
+ * by zod so they can never reach the service layer.
+ */
+export const notificationPreferencesSchema = z.object({
+  requestStatus: z.boolean(),
+  subscription: z.boolean(),
+});
+export type NotificationPreferencesInput = z.infer<typeof notificationPreferencesSchema>;
+
 // -----------------------------------------------------------------------------
 // Subscriptions + manual payments + admin grants (Task 10I)
 // Source: docs/07_API.md §14–§15, docs/08_SUBSCRIPTIONS.md, CTO contract.
@@ -347,6 +404,25 @@ export type CreatePaymentSubmissionInput = z.infer<typeof createPaymentSubmissio
 /** POST /subscriptions/:id/cancel — cancels RENEWAL (access until period end). */
 export const cancelSubscriptionSchema = z.object({}).strict();
 
+/**
+ * Proof upload grant (WP-Proof): POST /subscriptions/:id/proof-upload-url.
+ * The client declares ONLY the MIME it will PUT; the storage key is
+ * server-generated and returned (clients never choose keys).
+ */
+export const proofUploadUrlSchema = z.object({
+  mime_type: z.string().trim().min(1).max(128),
+});
+export type ProofUploadUrlInput = z.infer<typeof proofUploadUrlSchema>;
+
+/**
+ * Proof confirm (WP-Proof): POST /subscriptions/:id/proof-confirm.
+ * Binds the server-issued key from the upload grant after the PUT.
+ */
+export const proofConfirmSchema = z.object({
+  storage_key: z.string().trim().min(4).max(512),
+});
+export type ProofConfirmInput = z.infer<typeof proofConfirmSchema>;
+
 /** Admin: upsert the payment destination for one method. */
 export const adminPaymentConfigUpsertSchema = z.object({
   account_identifier: z.string().trim().min(1).max(255),
@@ -354,6 +430,27 @@ export const adminPaymentConfigUpsertSchema = z.object({
   is_enabled: z.boolean(),
 });
 export type AdminPaymentConfigUpsertInput = z.infer<typeof adminPaymentConfigUpsertSchema>;
+
+/**
+ * Admin: approve a manual payment submission (AUD-005). The note is
+ * OPTIONAL for approvals — it extends the audit trail and the Arabic
+ * notification ("ملاحظة: …"). An empty object is valid (plain approval).
+ */
+export const adminPaymentApproveSchema = z.object({
+  note: z.string().trim().min(1).max(500).optional(),
+});
+export type AdminPaymentApproveInput = z.infer<typeof adminPaymentApproveSchema>;
+
+/**
+ * Admin: reject a manual payment submission (AUD-005). The reason is
+ * REQUIRED — it lands in the audit trail entry AND in the Arabic
+ * notification shown to the user ("السبب: …"), so the user can correct
+ * what went wrong and resubmit. Unexplained rejections are impossible.
+ */
+export const adminPaymentRejectSchema = z.object({
+  reason: z.string().trim().min(3).max(500),
+});
+export type AdminPaymentRejectInput = z.infer<typeof adminPaymentRejectSchema>;
 
 /** Admin: manual subscription grant. */
 export const adminGrantSubscriptionSchema = z.object({
@@ -387,10 +484,13 @@ export type AdminSubmissionListQuery = z.infer<typeof adminSubmissionListQuerySc
 
 // -----------------------------------------------------------------------------
 // Technician self-service (Task 10J-R1)
-// Source: docs/07_API.md §16. Editable fields: displayName/bio/avatarUrl/
+// Source: docs/07_API.md §16. Editable fields: displayName/bio/
 // experienceYears + area labels (coordinates optional — label-only areas are
 // supported). verificationStatus, ratings, and counters are server-owned and
 // NEVER client-writable (docs/09 §6 — admin is the verification authority).
+// WP-01: profile images are uploaded exclusively through the multipart
+// avatar endpoints (POST …/avatar, POST …/logo) — `avatar_url` was removed
+// from this schema so text PATCH can no longer inject external URLs.
 // -----------------------------------------------------------------------------
 
 const areaSchema = z.object({
@@ -403,7 +503,6 @@ export const technicianProfileUpdateSchema = z
   .object({
     display_name: z.string().trim().min(1).max(255).optional(),
     bio: z.string().trim().max(2000).optional(),
-    avatar_url: z.string().trim().min(1).max(512).optional(),
     experience_years: z.coerce.number().int().min(0).max(60).optional(),
     // WP-4: technician controls availability manually. Only available |
     // unavailable are writable — `busy` is reserved and never self-set.
@@ -414,7 +513,6 @@ export const technicianProfileUpdateSchema = z
     (v) =>
       v.display_name !== undefined ||
       v.bio !== undefined ||
-      v.avatar_url !== undefined ||
       v.experience_years !== undefined ||
       v.availability_status !== undefined ||
       v.areas !== undefined,

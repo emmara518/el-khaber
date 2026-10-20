@@ -11,6 +11,10 @@ components:
       required:
         - accepted
       type: object
+    AdminAssignResultDto:
+      additionalProperties: true
+      description: Admin technician assignment result (WP-Admin-03).
+      type: object
     AdminGrantResultDto:
       additionalProperties: false
       description: Admin manual grant result (subscription or entitlement grant).
@@ -172,6 +176,9 @@ components:
       additionalProperties: false
       description: Public user record. Never includes credentials.
       properties:
+        avatarUrl:
+          nullable: true
+          type: string
         createdAt:
           format: date-time
           type: string
@@ -201,6 +208,20 @@ components:
         - phoneVerified
         - emailVerified
         - createdAt
+        - avatarUrl
+      type: object
+    AvatarUploadDto:
+      additionalProperties: false
+      description: >-
+        WP-01: profile-image upload result (POST /me/avatar, POST /technician/profile/avatar). `avatarUrl` is the
+        server-issued stable public URL persisted on the caller's profile — never a storage key or client-supplied link.
+      properties:
+        avatarUrl:
+          maxLength: 512
+          minLength: 1
+          type: string
+      required:
+        - avatarUrl
       type: object
     ConversationDto:
       additionalProperties: false
@@ -236,14 +257,25 @@ components:
     ConversationSummaryDto:
       additionalProperties: false
       description: >-
-        A conversation the caller participates in (merchant/messages list). peerNameAr is the other party; lastMessageAr
-        is the real latest message (null when none); unreadCount counts messages not sent by the caller and not yet
-        read.
+        A conversation the caller participates in (unified inbox). peerNameAr is the other party (real display/business
+        name where available, generic role label otherwise — never invented); peerAvatarUrl is their public profile
+        image (null when absent). lastMessageAr/lastMessageAt are the real latest message (null when none); unreadCount
+        counts messages not sent by the caller and not yet read; contextTitleAr is the order title or product name.
       properties:
+        contextTitleAr:
+          nullable: true
+          type: string
         id:
           format: uuid
           type: string
         lastMessageAr:
+          nullable: true
+          type: string
+        lastMessageAt:
+          format: date-time
+          nullable: true
+          type: string
+        peerAvatarUrl:
           nullable: true
           type: string
         peerNameAr:
@@ -264,10 +296,13 @@ components:
       required:
         - id
         - peerNameAr
+        - peerAvatarUrl
         - lastMessageAr
+        - lastMessageAt
         - unreadCount
         - productId
         - serviceRequestId
+        - contextTitleAr
         - updatedAt
       type: object
     CreateMerchantProductDto:
@@ -359,7 +394,9 @@ components:
       description: >-
         Customer request creation payload (docs/07_API.md §7). problem_title is OPTIONAL (Task 10B CTO decision 2) and
         supports the "other problem" case without inventing diagnostic conclusions. The request is created with
-        status=pending, targeted at the chosen verified technician.
+        status=pending, targeted at the chosen verified technician. scheduled_at is an OPTIONAL PREFERRED visit time
+        (future, up to 14 days ahead): there is no availability engine and no booking is created — the technician
+        confirms the visit by phone.
       properties:
         appliance_category_id:
           format: uuid
@@ -378,6 +415,7 @@ components:
           maxLength: 255
           type: string
         scheduled_at:
+          description: Optional preferred visit time (not a confirmed booking). Must be in the future and at most 14 days ahead.
           format: date-time
           type: string
         service_id:
@@ -501,6 +539,7 @@ components:
         - ENTITLEMENT_REQUIRED
         - INVALID_STATE_TRANSITION
         - UPLOAD_REJECTED
+        - SERVICE_UNAVAILABLE
         - INTERNAL_ERROR
       type: string
     ErrorResponse:
@@ -516,6 +555,8 @@ components:
               description: Field-level validation details when applicable.
               type: object
             message:
+              type: string
+            requestId:
               type: string
           required:
             - code
@@ -691,6 +732,19 @@ components:
         - subscription
         - entitlements
       type: object
+    MerchantLogoUploadDto:
+      additionalProperties: false
+      description: >-
+        WP-01: store-logo upload result (POST /merchant/profile/logo). `logoUrl` is the server-issued stable public URL
+        persisted on the caller's merchant profile — never a storage key or client-supplied link.
+      properties:
+        logoUrl:
+          maxLength: 512
+          minLength: 1
+          type: string
+      required:
+        - logoUrl
+      type: object
     MerchantProductDto:
       additionalProperties: false
       description: 'A merchant-owned catalog product (status: active | suspended).'
@@ -819,7 +873,7 @@ components:
       type: object
     NotificationDto:
       additionalProperties: false
-      description: "A persisted notification for the authenticated recipient. \type is an open string until product trigger types are ratified; no delivery provider exists (persistence + read APIs only)."
+      description: "A persisted notification for the authenticated recipient. \ttype is an open string until product trigger types are ratified; no delivery provider exists (persistence + read APIs only)."
       properties:
         bodyAr:
           type: string
@@ -849,6 +903,21 @@ components:
         - dataJson
         - readAt
         - createdAt
+      type: object
+    NotificationPreferencesDto:
+      additionalProperties: false
+      description: >-
+        Own notification delivery preferences (WP-Notifications). Only the two USER-TOGGLABLE families exist as keys:
+        requestStatus (maintenance request updates) and subscription (subscription + payment-review updates).
+        Verification decisions + admin operational messages are MANDATORY and have no key. Absent row ≡ all true.
+      properties:
+        requestStatus:
+          type: boolean
+        subscription:
+          type: boolean
+      required:
+        - requestStatus
+        - subscription
       type: object
     PaymentApprovalResultDto:
       $ref: '#/components/schemas/PaymentReviewResultDto'
@@ -1272,6 +1341,75 @@ components:
         - updatedAt
         - history
       type: object
+    ServiceRequestMediaDto:
+      additionalProperties: false
+      description: >-
+        Attached photo metadata for a service request. Binaries live in private object storage; storage keys are never
+        exposed to clients.
+      properties:
+        createdAt:
+          format: date-time
+          type: string
+        fileSize:
+          type: integer
+        id:
+          format: uuid
+          type: string
+        mimeType:
+          type: string
+      required:
+        - id
+        - mimeType
+        - fileSize
+        - createdAt
+      type: object
+    ServiceRequestMediaUploadUrlDto:
+      additionalProperties: false
+      description: >-
+        Presigned PUT grant for a server-generated service-request media key. The key lives under
+        `request-media/{userId}/{requestId}/` and is never chosen by the client (Track B2).
+      properties:
+        expiresInSeconds:
+          type: integer
+        maxBytes:
+          type: integer
+        mimeType:
+          type: string
+        requestId:
+          format: uuid
+          type: string
+        requiredHeaders:
+          additionalProperties:
+            type: string
+          type: object
+        storageKey:
+          type: string
+        uploadUrl:
+          type: string
+      required:
+        - requestId
+        - storageKey
+        - uploadUrl
+        - mimeType
+        - maxBytes
+        - expiresInSeconds
+      type: object
+    ServiceRequestMediaUrlDto:
+      additionalProperties: false
+      description: Short-lived presigned download grant for one request photo.
+      properties:
+        downloadUrl:
+          type: string
+        expiresInSeconds:
+          type: integer
+        mediaId:
+          format: uuid
+          type: string
+      required:
+        - mediaId
+        - downloadUrl
+        - expiresInSeconds
+      type: object
     ServiceRequestStatus:
       enum:
         - pending
@@ -1434,6 +1572,10 @@ components:
         Public technician profile for discovery/detail. Only verified technicians are publicly visible. Excludes
         authentication data, private contact data, and internal moderation state.
       properties:
+        areasAr:
+          items:
+            type: string
+          type: array
         availabilityStatus:
           $ref: '#/components/schemas/TechnicianAvailabilityStatus'
         avatarUrl:
@@ -1475,6 +1617,7 @@ components:
         - ratingAverage
         - ratingCount
         - services
+        - areasAr
       type: object
     TechnicianSelfAreaDto:
       additionalProperties: false
@@ -1641,6 +1784,15 @@ components:
         - ratingAverage
         - ratingCount
       type: object
+    UnreadCountDto:
+      additionalProperties: false
+      description: Server-authoritative unread notification count for the badge.
+      properties:
+        unread:
+          type: integer
+      required:
+        - unread
+      type: object
     UpdateMeDto:
       additionalProperties: false
       description: >-
@@ -1690,7 +1842,7 @@ components:
       additionalProperties: false
       description: >-
         PATCH /merchant/profile payload (onboarding persistence). Fields are optional; absent fields unchanged.
-        verificationStatus is never writable.
+        verificationStatus is never writable. WP-01: store logos change exclusively through POST /merchant/profile/logo.
       properties:
         bio:
           maxLength: 2000
@@ -1705,16 +1857,14 @@ components:
         locationId:
           format: uuid
           type: string
-        logoUrl:
-          maxLength: 512
-          type: string
       type: object
     UpdateTechnicianProfileDto:
       additionalProperties: false
       description: >-
-        PATCH /technician/profile payload. Editable: display_name, bio, avatar_url, experience_years,
-        availability_status (available | unavailable only — technician-controlled, WP-4), areas (label + optional
-        coordinates). verificationStatus/ratings/counters are NEVER writable.
+        PATCH /technician/profile payload. Editable: display_name, bio, experience_years, availability_status (available
+        | unavailable only — technician-controlled, WP-4), areas (label + optional coordinates).
+        verificationStatus/ratings/counters are NEVER writable. WP-01: profile photos change exclusively through POST
+        /technician/profile/avatar.
       properties:
         areas:
           items:
@@ -1741,10 +1891,6 @@ components:
           enum:
             - available
             - unavailable
-          type: string
-        avatar_url:
-          maxLength: 512
-          minLength: 1
           type: string
         bio:
           maxLength: 2000
@@ -2439,6 +2585,18 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                note:
+                  maxLength: 500
+                  minLength: 1
+                  type: string
+              type: object
+        required: true
       responses:
         '200':
           content:
@@ -2452,7 +2610,9 @@ paths:
                 required:
                   - data
                 type: object
-          description: 'Approved: ACTIVE subscription + audit + notification (one transaction).'
+          description: >-
+            Approved: ACTIVE subscription + audit + notification (one transaction). Optional Arabic note lands in audit
+            trail + message.
         '400':
           content:
             application/json:
@@ -2535,6 +2695,20 @@ paths:
           required: true
           schema:
             type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  maxLength: 500
+                  minLength: 3
+                  type: string
+              required:
+                - reason
+              type: object
+        required: true
       responses:
         '200':
           content:
@@ -2548,13 +2722,15 @@ paths:
                 required:
                   - data
                 type: object
-          description: 'Rejected: no activation + audit + notification (one transaction).'
+          description: >-
+            Rejected: no activation + audit + notification (one transaction). The reason is REQUIRED — it is the audit
+            trail entry and the Arabic message shown to the user.
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-          description: Validation failed (canonical error envelope).
+          description: Rejection reason missing or malformed (canonical envelope).
         '401':
           content:
             application/json:
@@ -2724,6 +2900,57 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
+  /api/v1/admin/service-requests/{id}/assign:
+    post:
+      operationId: AdminController_assignServiceRequest
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminAssignResultDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Technician assigned to a pending request (audited; both parties notified).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service request or technician not found.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not pending / technician not verified / unchanged / stale.
       security:
         - bearer: []
       tags:
@@ -3348,10 +3575,32 @@ paths:
           description: Invalid, expired, or already-used reset token.
       tags:
         - auth
+  /api/v1/avatars-file/*:
+    get:
+      operationId: AvatarFileController_serveFile
+      parameters: []
+      responses:
+        '200':
+          description: ''
+      tags:
+        - avatars-file
   /api/v1/conversations:
     get:
       operationId: ChatController_listConversations
-      parameters: []
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            minimum: 1
+            type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            maximum: 100
+            minimum: 1
+            type: integer
       responses:
         '200':
           content:
@@ -3594,24 +3843,18 @@ paths:
         - catalog
   /api/v1/health:
     get:
-      operationId: HealthController_health
+      operationId: HealthController_live
       parameters: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    $ref: '#/components/schemas/HealthDto'
-                  meta:
-                    $ref: '#/components/schemas/ApiMeta'
-                required:
-                  - data
-                type: object
-          description: Liveness probe (process-level only).
-      tags:
-        - health
+          description: ''
+  /api/v1/health/live:
+    get:
+      operationId: HealthController_liveAlias
+      parameters: []
+      responses:
+        '200':
+          description: ''
   /api/v1/locations:
     get:
       operationId: LocationsController_list
@@ -3885,6 +4128,74 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Phone or email already in use (canonical error envelope).
+      security:
+        - bearer: []
+      tags:
+        - me
+  /api/v1/me/avatar:
+    delete:
+      operationId: MeAvatarController_deleteAvatar
+      parameters: []
+      responses:
+        '204':
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-customer role.
+      security:
+        - bearer: []
+      tags:
+        - me
+    post:
+      operationId: MeAvatarController_uploadAvatar
+      parameters: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AvatarUploadDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Avatar uploaded; public URL persisted.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-customer role.
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Image exceeds the maximum size.
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Too many avatar uploads.
       security:
         - bearer: []
       tags:
@@ -4310,10 +4621,6 @@ paths:
                   type: string
                 locationId:
                   type: string
-                logoUrl:
-                  maxLength: 512
-                  minLength: 1
-                  type: string
               type: object
         required: true
       responses:
@@ -4348,6 +4655,74 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Referenced location not found or not owned.
+      security:
+        - bearer: []
+      tags:
+        - merchant
+  /api/v1/merchant/profile/logo:
+    delete:
+      operationId: MerchantAvatarController_deleteLogo
+      parameters: []
+      responses:
+        '204':
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+      security:
+        - bearer: []
+      tags:
+        - merchant
+    post:
+      operationId: MerchantAvatarController_uploadLogo
+      parameters: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MerchantLogoUploadDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Logo uploaded; public URL persisted.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-merchant role.
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Image exceeds the maximum size.
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Too many logo uploads.
       security:
         - bearer: []
       tags:
@@ -4470,6 +4845,73 @@ paths:
         - bearer: []
       tags:
         - notifications
+  /api/v1/notifications/preferences:
+    get:
+      operationId: NotificationsController_getPreferences
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/NotificationPreferencesDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own notification delivery preferences.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+      security:
+        - bearer: []
+      tags:
+        - notifications
+    put:
+      operationId: NotificationsController_updatePreferences
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/NotificationPreferencesDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Updated notification delivery preferences.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+      security:
+        - bearer: []
+      tags:
+        - notifications
   /api/v1/notifications/read-all:
     post:
       operationId: NotificationsController_markAllRead
@@ -4488,6 +4930,40 @@ paths:
                   - data
                 type: object
           description: All own unread notifications marked read.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token.
+      security:
+        - bearer: []
+      tags:
+        - notifications
+  /api/v1/notifications/unread-count:
+    get:
+      operationId: NotificationsController_unreadCount
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UnreadCountDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Own unread notification count.
         '400':
           content:
             application/json:
@@ -4757,26 +5233,7 @@ paths:
       parameters: []
       responses:
         '200':
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    $ref: '#/components/schemas/ReadyDto'
-                  meta:
-                    $ref: '#/components/schemas/ApiMeta'
-                required:
-                  - data
-                type: object
-          description: Readiness probe (dependencies verified).
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: A required dependency is unavailable (canonical error envelope).
-      tags:
-        - health
+          description: ''
   /api/v1/review-tags:
     get:
       operationId: ReviewTagsController_list
@@ -5170,6 +5627,231 @@ paths:
         - bearer: []
       tags:
         - chat
+  /api/v1/service-requests/{id}/media:
+    get:
+      operationId: RequestMediaController_list
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestMediaDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Attached photos (metadata only) for participants.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not visible to this account.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/media/confirm:
+    post:
+      operationId: RequestMediaController_confirm
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                storage_key:
+                  maxLength: 512
+                  minLength: 4
+                  type: string
+              required:
+                - storage_key
+              type: object
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestMediaDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Photo validated and attached to the request.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Upload rejected (missing/oversized/non-image content or foreign key).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not owned by this customer.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request cancelled or attachment limit reached.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/media/upload-url:
+    post:
+      operationId: RequestMediaController_uploadUrl
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                mime_type:
+                  maxLength: 128
+                  minLength: 1
+                  type: string
+              required:
+                - mime_type
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestMediaUploadUrlDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Presigned PUT URL + server-generated storage key.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request not found or not owned by this customer.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request cancelled or attachment limit reached.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
+  /api/v1/service-requests/{id}/media/{mediaId}/url:
+    get:
+      operationId: RequestMediaController_viewUrl
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: mediaId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequestMediaUrlDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Short-lived presigned download URL for one photo.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing, malformed, or expired access token / role mismatch.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Request/photo not found or not visible to this account.
+      security:
+        - bearer: []
+      tags:
+        - service-requests
   /api/v1/service-requests/{id}/reject:
     post:
       operationId: ServiceRequestsController_reject
@@ -5806,10 +6488,6 @@ paths:
                     - available
                     - unavailable
                   type: string
-                avatar_url:
-                  maxLength: 512
-                  minLength: 1
-                  type: string
                 bio:
                   maxLength: 2000
                   type: string
@@ -5849,6 +6527,74 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
+  /api/v1/technician/profile/avatar:
+    delete:
+      operationId: TechnicianAvatarController_deleteAvatar
+      parameters: []
+      responses:
+        '204':
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+      security:
+        - bearer: []
+      tags:
+        - technician
+    post:
+      operationId: TechnicianAvatarController_uploadAvatar
+      parameters: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AvatarUploadDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Avatar uploaded; public URL persisted.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (canonical error envelope).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Missing/malformed token or non-technician role.
+        '413':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Image exceeds the maximum size.
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Too many avatar uploads.
       security:
         - bearer: []
       tags:
@@ -6118,7 +6864,7 @@ paths:
           schema:
             maximum: 5
             minimum: 1
-            type: integer
+            type: number
         - in: query
           name: availability
           required: false
@@ -6127,6 +6873,13 @@ paths:
               - available
               - busy
               - unavailable
+            type: string
+        - in: query
+          name: area
+          required: false
+          schema:
+            maxLength: 128
+            minLength: 1
             type: string
         - in: query
           name: sort

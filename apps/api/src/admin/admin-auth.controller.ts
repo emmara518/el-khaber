@@ -9,28 +9,14 @@
  * Source: docs/09_ADMIN.md, Task #002 §18.
  */
 
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  Req,
-  UseGuards,
-  UsePipes,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 
-
 import { AuthKind, CurrentUser, Public, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
-import {
-  ApiEnvelopeError,
-  ApiEnvelopeOk,
-  ApiZodBody,
-} from '../common/openapi/decorators';
+import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { AdminAuthService } from './admin-auth.service';
@@ -69,10 +55,7 @@ export class AdminAuthController {
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Admin session issued (separate authority).')
   @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
   @ApiEnvelopeError(401, 'Invalid credentials.')
-  login(
-    @Body() body: AdminLoginInput,
-    @Req() req: Request,
-  ): Promise<ApiSuccess<AuthSessionDto>> {
+  login(@Body() body: AdminLoginInput, @Req() req: Request): Promise<ApiSuccess<AuthSessionDto>> {
     return this.auth
       .login(body, { userAgent: req.headers['user-agent'], ipAddress: req.ip })
       .then((data) => ({ data }));

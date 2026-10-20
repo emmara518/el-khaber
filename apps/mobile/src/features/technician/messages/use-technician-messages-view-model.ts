@@ -7,7 +7,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiTechnicianMessagesDataSource } from './api-technician-messages-data-source';
 
-import type { TechnicianMessagesDataSource, TechnicianMessagesViewModel } from './technician-messages-types';
+import type {
+  TechnicianMessagesDataSource,
+  TechnicianMessagesViewModel,
+} from './technician-messages-types';
 
 export type TechnicianMessagesStatus = 'loading' | 'loaded' | 'error';
 
@@ -16,6 +19,12 @@ export interface TechnicianMessagesState {
   data: TechnicianMessagesViewModel | null;
   error: Error | null;
   retry: () => void;
+  /**
+   * Silent re-read (WP-Inbox): refreshes the list without flashing the
+   * loading state when data is already shown — used after closing the
+   * chat dialog so read badges settle from server truth.
+   */
+  refresh: () => void;
 }
 
 export function useTechnicianMessagesViewModel(
@@ -23,7 +32,7 @@ export function useTechnicianMessagesViewModel(
 ): TechnicianMessagesState {
   const [source] = useState(() => provided ?? new ApiTechnicianMessagesDataSource());
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<Omit<TechnicianMessagesState, 'retry'>>({
+  const [state, setState] = useState<Omit<TechnicianMessagesState, 'retry' | 'refresh'>>({
     status: 'loading',
     data: null,
     error: null,
@@ -53,5 +62,17 @@ export function useTechnicianMessagesViewModel(
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { ...state, retry };
+  const refresh = useCallback(() => {
+    void source
+      .getConversations({ role: 'technician' })
+      .then((data) => {
+        setState({ status: 'loaded', data, error: null });
+      })
+      .catch(() => {
+        // Silent refresh must never blank a visible list; the next
+        // explicit retry surfaces failures.
+      });
+  }, [source]);
+
+  return { ...state, retry, refresh };
 }

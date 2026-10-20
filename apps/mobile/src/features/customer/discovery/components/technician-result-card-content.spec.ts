@@ -17,6 +17,7 @@ const technician: Technician = {
   servicesAr: [],
   areasAr: [],
   aboutAr: '',
+  avatarUrl: null,
   available: false,
   availabilityLabelAr: '',
   reviews: [],
@@ -124,6 +125,8 @@ describe('technician result card content', () => {
 
   it('derives missing initials only from the actual name', () => {
     expect(getTechnicianCardContent({ ...technician, initialsAr: ' ' }).initials).toBe('أ');
-    expect(getTechnicianCardContent({ ...technician, initialsAr: '', nameAr: '' }).initials).toBe('');
+    expect(getTechnicianCardContent({ ...technician, initialsAr: '', nameAr: '' }).initials).toBe(
+      '',
+    );
   });
 });

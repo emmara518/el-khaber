@@ -7,7 +7,10 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { ApiMerchantMessagesDataSource } from './api-merchant-messages-data-source';
 
-import type { MerchantMessagesDataSource, MerchantMessagesViewModel } from './merchant-messages-types';
+import type {
+  MerchantMessagesDataSource,
+  MerchantMessagesViewModel,
+} from './merchant-messages-types';
 
 export type MerchantMessagesStatus = 'loading' | 'loaded' | 'error';
 
@@ -16,6 +19,12 @@ export interface MerchantMessagesState {
   data: MerchantMessagesViewModel | null;
   error: Error | null;
   retry: () => void;
+  /**
+   * Silent re-read (WP-Inbox): refreshes the list without flashing the
+   * loading state when data is already shown — used after closing the
+   * chat dialog so read badges settle from server truth.
+   */
+  refresh: () => void;
 }
 
 export function useMerchantMessagesViewModel(
@@ -23,7 +32,7 @@ export function useMerchantMessagesViewModel(
 ): MerchantMessagesState {
   const [stableSource] = useState(() => source);
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<Omit<MerchantMessagesState, 'retry'>>({
+  const [state, setState] = useState<Omit<MerchantMessagesState, 'retry' | 'refresh'>>({
     status: 'loading',
     data: null,
     error: null,
@@ -40,7 +49,11 @@ export function useMerchantMessagesViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setState({ status: 'error', data: null, error: err instanceof Error ? err : new Error(String(err)) });
+        setState({
+          status: 'error',
+          data: null,
+          error: err instanceof Error ? err : new Error(String(err)),
+        });
       });
     return () => {
       cancelled = true;
@@ -48,5 +61,18 @@ export function useMerchantMessagesViewModel(
   }, [stableSource, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
-  return { ...state, retry };
+
+  const refresh = useCallback(() => {
+    void stableSource
+      .getConversations({ role: 'merchant' })
+      .then((data) => {
+        setState({ status: 'loaded', data, error: null });
+      })
+      .catch(() => {
+        // Silent refresh must never blank a visible list; the next
+        // explicit retry surfaces failures.
+      });
+  }, [stableSource]);
+
+  return { ...state, retry, refresh };
 }

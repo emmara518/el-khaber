@@ -1,7 +1,7 @@
 import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChatDialog } from '../chat/chat-dialog';
 import { RatingForm } from '../rating/rating-form';
@@ -84,7 +84,9 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
               <Text style={styles.detail}>{detail.locationAr}</Text>
             </View>
           ) : null}
-          {detail.appointmentAr !== null ? <Text style={styles.detail}>الموعد: {detail.appointmentAr}</Text> : null}
+          {detail.appointmentAr !== null ? (
+            <Text style={styles.detail}>{t('tracking.appointment')}: {detail.appointmentAr}</Text>
+          ) : null}
           {detail.technicianId !== null ? (
             <View style={styles.identity}>
               <Avatar initials={detail.technicianInitialsAr} size={52} accessibilityLabel={detail.technicianNameAr} />
@@ -104,7 +106,34 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
           )}
         </SceneSection>
 
-        {/* 3) Timeline — the recorded history (distinct function from the hero). */}
+        {/* 3) Photos — customer-submitted evidence, only when present. */}
+        {detail.photos.length > 0 || detail.photosUnavailable ? (
+          <SceneSection title={t('tracking.photos.title')}>
+            {detail.photosUnavailable ? (
+              <Text style={styles.label}>{t('tracking.photos.unavailable')}</Text>
+            ) : (
+              <View style={styles.photosRow}>
+                {detail.photos.map((photo) =>
+                  photo.url !== null ? (
+                    <Image
+                      key={photo.id}
+                      source={{ uri: photo.url }}
+                      style={styles.photoTile}
+                      resizeMode="cover"
+                      accessibilityLabel={t('tracking.photos.alt')}
+                    />
+                  ) : (
+                    <View key={photo.id} style={[styles.photoTile, styles.photoFallback]}>
+                      <Icon name="image" size={22} color={color.text.secondary} accessible={false} />
+                    </View>
+                  ),
+                )}
+              </View>
+            )}
+          </SceneSection>
+        ) : null}
+
+        {/* 4) Timeline — the recorded history (distinct function from the hero). */}
         <SceneSection title={t('tracking.timeline')}>
           <OrderTimeline steps={detail.timeline} />
           <Text style={styles.label}>{t('tracking.timelineNote')}</Text>
@@ -116,7 +145,7 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
           </SceneSection>
         ) : null}
 
-        {/* 4) Next action — one primary action, then secondary utilities. */}
+        {/* 5) Next action — one primary action, then secondary utilities. */}
         {nextStep !== null ? (
           <SceneSection title={t('tracking.next.title')} body={nextStep}>
             {chattable ? <SceneAction label={`تواصل مع ${detail.technicianNameAr}`} onPress={onOpenChat} /> : null}
@@ -144,4 +173,12 @@ const styles = StyleSheet.create({
   name: { ...type.h3, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   label: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   detail: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
+  photosRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[2], marginTop: spacing[1] },
+  photoTile: { width: 76, height: 76, borderRadius: 14, backgroundColor: color.surface.subtle },
+  photoFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: color.border.default,
+  },
 });

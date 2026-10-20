@@ -14,6 +14,7 @@
 
 import { getApi } from '../../../lib/api-client';
 import { getApplianceCategories } from '../../../lib/catalog-reference';
+import { buildAvatarFormData, type PickedPhoto } from '../../../lib/profile-photo';
 import { initialsOf } from '../../../lib/request-labels';
 
 import { ProfileSaveError } from './mock-technician-profile-data-source';
@@ -25,7 +26,11 @@ import type {
   TechnicianProfileSaveInput,
   TechnicianVerificationStatus,
 } from './technician-profile-types';
-import type { TechnicianSelfProfileDto, TechnicianSelfService } from '@khabir/shared-types';
+import type {
+  AvatarUploadDto,
+  TechnicianSelfProfileDto,
+  TechnicianSelfService,
+} from '@khabir/shared-types';
 
 export { ProfileSaveError };
 
@@ -93,6 +98,8 @@ function mapSelfProfile(
     phoneAr,
     bioAr: dto.bio ?? '',
     experienceYears: dto.experienceYears,
+    // WP-01: server-issued public URL (null when absent).
+    avatarUrl: dto.avatarUrl,
     specialtiesAr: coverage.specialtiesAr,
     appliances: coverage.appliances,
     servicesAr: coverage.servicesAr,
@@ -130,6 +137,29 @@ export class ApiTechnicianProfileDataSource implements TechnicianProfileDataSour
    */
   async submitVerificationProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile> {
     return this.persist(input, true);
+  }
+
+  /**
+   * WP-01: uploads the photo through multipart POST
+   * /technician/profile/avatar, then re-reads the profile so the
+   * returned state is server truth (never a local optimistic claim).
+   */
+  async uploadAvatar(input: {
+    role: 'technician';
+    photo: PickedPhoto;
+  }): Promise<TechnicianProfile> {
+    await getApi().upload<AvatarUploadDto>(
+      'POST',
+      '/technician/profile/avatar',
+      buildAvatarFormData(input.photo),
+    );
+    return this.getProfile({ role: 'technician' });
+  }
+
+  /** WP-01: idempotent delete, then server-truth re-read. */
+  async deleteAvatar(_input: { role: 'technician' }): Promise<TechnicianProfile> {
+    await getApi().request('DELETE', '/technician/profile/avatar');
+    return this.getProfile({ role: 'technician' });
   }
 
   private async persist(

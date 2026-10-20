@@ -9,11 +9,9 @@
  * Verification is the generic 4-state status; no rejection taxonomy.
  */
 
-export type MerchantVerificationStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'action_required';
+import type { PickedPhoto } from '../../../lib/profile-photo';
+
+export type MerchantVerificationStatus = 'pending' | 'approved' | 'rejected' | 'action_required';
 
 export interface MerchantProfile {
   readonly businessNameAr: string;
@@ -23,6 +21,11 @@ export interface MerchantProfile {
   readonly cityAr: string;
   readonly verification: MerchantVerificationStatus;
   readonly verificationNoteAr: string;
+  /**
+   * WP-01: server-issued public logo URL (GET /merchant/profile
+   * `logoUrl`) or null when absent. Never a storage key.
+   */
+  readonly logoUrl: string | null;
 }
 
 export interface MerchantProfileDraft {
@@ -55,6 +58,8 @@ export interface MerchantProfileDataSource {
     role: 'merchant';
     profile: MerchantProfileDraft;
   }): Promise<MerchantProfile>;
+  uploadLogo(input: { role: 'merchant'; photo: PickedPhoto }): Promise<MerchantProfile>;
+  deleteLogo(input: { role: 'merchant' }): Promise<MerchantProfile>;
 }
 
 /** Egyptian seller locations (EL-KHABIR is an Egyptian product). */
@@ -76,7 +81,9 @@ export function validateMerchantPhone(phone: string): string | null {
   return PHONE_RE.test(v) ? null : 'رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا';
 }
 
-export function validateMerchantDraft(draft: MerchantProfileDraft): Partial<Record<string, string>> {
+export function validateMerchantDraft(
+  draft: MerchantProfileDraft,
+): Partial<Record<string, string>> {
   const errors: Partial<Record<string, string>> = {};
   if (draft.businessNameAr.trim().length < 2) {
     errors.businessNameAr = 'أدخل اسم المتجر (حرفان على الأقل)';

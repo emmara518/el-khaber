@@ -134,6 +134,8 @@ export class MockOrderDataSource implements OrderDataSource {
       locationAr: row.locationAr,
       appointmentAr: row.appointmentAr,
       timeline: buildTimeline(row.status, row.timestamps),
+      photos: [],
+      photosUnavailable: false,
     };
     return JSON.parse(JSON.stringify(detail)) as OrderDetail;
   }

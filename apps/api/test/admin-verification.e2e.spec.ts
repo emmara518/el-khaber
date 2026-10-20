@@ -146,17 +146,17 @@ describe('admin verification notifications (WP-2B)', () => {
     return id;
   }
 
-  function verifyTechnician(profileId: string, status: string) {
+  function verifyTechnician(profileId: string, status: string, reason?: string) {
     return request(app.getHttpServer())
       .post(`/api/v1/admin/technicians/${profileId}/verification`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status });
+      .send(reason === undefined ? { status } : { status, reason });
   }
-  function verifyMerchant(profileId: string, status: string) {
+  function verifyMerchant(profileId: string, status: string, reason?: string) {
     return request(app.getHttpServer())
       .post(`/api/v1/admin/merchants/${profileId}/verification`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status });
+      .send(reason === undefined ? { status } : { status, reason });
   }
   const notesFor = (userId: string) => prisma.notificationRows.filter((n) => n.userId === userId);
 
@@ -172,26 +172,34 @@ describe('admin verification notifications (WP-2B)', () => {
     expect(notes[0].readAt).toBeNull();
   });
 
-  it('REJECTED → exactly one verification notification with the exact copy', async () => {
+  it('REJECTED → exactly one verification notification with the reason in the body', async () => {
     const techId = seedTechnicianProfile('tech-rejected', 'pending');
-    await verifyTechnician(techId, 'rejected').expect(200);
+    await verifyTechnician(techId, 'rejected', 'مستندات ناقصة').expect(200);
 
     const notes = notesFor('tech-rejected');
     expect(notes).toHaveLength(1);
     expect(notes[0].type).toBe('verification');
     expect(notes[0].titleAr).toBe(REJECTED_COPY);
-    expect(notes[0].bodyAr).toBe(REJECTED_COPY);
+    expect(notes[0].bodyAr).toBe(`${REJECTED_COPY} السبب: مستندات ناقصة`);
   });
 
-  it('SUSPENDED → exactly one verification notification with the exact copy', async () => {
+  it('REJECTED without a reason is rejected (WP-Admin-02)', async () => {
+    const techId = seedTechnicianProfile('tech-no-reason', 'pending');
+    const res = await verifyTechnician(techId, 'rejected');
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(notesFor('tech-no-reason')).toHaveLength(0);
+  });
+
+  it('SUSPENDED → exactly one verification notification with the reason in the body', async () => {
     const techId = seedTechnicianProfile('tech-suspended', 'verified');
-    await verifyTechnician(techId, 'suspended').expect(200);
+    await verifyTechnician(techId, 'suspended', 'شكاوى متكررة').expect(200);
 
     const notes = notesFor('tech-suspended');
     expect(notes).toHaveLength(1);
     expect(notes[0].type).toBe('verification');
     expect(notes[0].titleAr).toBe(SUSPENDED_COPY);
-    expect(notes[0].bodyAr).toBe(SUSPENDED_COPY);
+    expect(notes[0].bodyAr).toBe(`${SUSPENDED_COPY} السبب: شكاوى متكررة`);
   });
 
   it('PENDING never notifies', async () => {
