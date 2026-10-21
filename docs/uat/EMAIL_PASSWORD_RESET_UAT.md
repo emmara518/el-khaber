@@ -1,8 +1,31 @@
 # UAT — email password reset
 
-Status: **not executed**. This is the approved procedure and evidence template.
-It requires an approved UAT API, a real email delivery webhook, and a
-disposable UAT database. Do not run against production or with real users.
+**Current status (2026-10-21): BLOCKED.** Token lifecycle, reuse, expiry,
+enumeration safety, rate limiting, and delivery-provider failure behavior are
+covered by automated tests; **live email delivery has not been executed**.
+Tracking issue: [#27](https://github.com/emmara518/el-khaber/issues/27).
+
+Required external inputs: an approved non-production API with
+`PASSWORD_RESET_DELIVERY_URL`/`TOKEN`, a dedicated test mailbox, and provider
+delivery logs. Do not send to real customers.
+
+This is the approved procedure and evidence template. It requires an approved
+UAT API, a real email delivery webhook, and a disposable UAT database. Do not
+run against production or with real users.
+
+## Automated coverage already present
+
+- `apps/api/test/password-reset-delivery.spec.ts` — token handed only to the
+  delivery port, hash-only persistence, persist-before-deliver, unknown-account
+  enumeration safety, provider non-2xx failure, provider outage does not turn
+  the public request into a failure.
+- `apps/api/test/auth.e2e.spec.ts` — reset rotates the password, marks the token
+  used, invalidates refresh families; reused and expired tokens return 401.
+- `apps/api/test/identity.e2e.spec.ts` / `rate-limit-layers.e2e.spec.ts` —
+  throttling and enumeration-safe forgot-password behavior.
+
+Missing: live delivery to the designated mailbox and provider message-ID
+evidence.
 
 ## Preconditions
 
