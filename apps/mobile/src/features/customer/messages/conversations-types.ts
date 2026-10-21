@@ -1,19 +1,24 @@
 /**
- * Customer Messages — conversation list contracts (Batch A).
+ * Customer Messages — conversation list contracts (Batch A, WP-Inbox).
  *
- * Batch A scope: the conversation LIST with read states. The chat
- * dialog (message history, composer, send) is Batch E and will reuse
- * these conversation identities.
+ * The list is backed by the real unified inbox (`GET /conversations`):
+ * server-computed peer identity, latest message, unread count, and
+ * thread context. `online` has no presence API and stays an honest
+ * false (the dot renders muted) rather than fabricated presence.
  */
 
 export interface ConversationItem {
+  /** Real conversation id; the chat key is `conv-<id>`. */
   readonly id: string;
   readonly technicianNameAr: string;
   readonly initialsAr: string;
-  readonly specialtyAr: string;
-  readonly lastMessageAr: string;
+  /** Server-issued public avatar URL (null when the peer has none). */
+  readonly avatarUrl: string | null;
+  /** Real latest message (null when the thread has no messages yet). */
+  readonly lastMessageAr: string | null;
   readonly timeAr: string;
   readonly unreadCount: number;
+  /** Thread context from the server (order title), never fabricated. */
   readonly orderRefAr: string;
   readonly online: boolean;
 }
@@ -27,8 +32,6 @@ export interface ConversationsDataSource {
 }
 
 /** Pure helper — total unread badge count (unit-tested). */
-export function totalUnread(
-  conversations: ReadonlyArray<ConversationItem>,
-): number {
+export function totalUnread(conversations: ReadonlyArray<ConversationItem>): number {
   return conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 }

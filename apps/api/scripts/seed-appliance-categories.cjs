@@ -1,3 +1,4 @@
+require('./qa-guard.cjs').assertQaSeedAllowed(__filename);
 /**
  * EL-KHABIR — canonical appliance-category seed (Customer PHASE 2).
  *

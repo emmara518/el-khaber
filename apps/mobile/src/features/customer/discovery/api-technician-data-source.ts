@@ -1,25 +1,25 @@
 /**
- * Real API `TechnicianDataSource` (Task 10J) — technician discovery.
+ * Real API `TechnicianDataSource` (Task 10J, WP-Discovery) — technician
+ * discovery.
  *
  * Endpoints (docs/07 §6, PUBLIC, verified-only visibility):
- * - GET /technicians — documented filters q / appliance_category_id /
- *   service_id / fault_id / rating_min / availability / sort=rating,
+ * - GET /technicians — ALL supported filters sent server-side:
+ *   q / appliance_category_id / service_id / fault_id / rating_min /
+ *   availability / area (label containment, NOT geo) / sort=rating,
  *   paginated (server max 100),
+ * - GET /technicians/:id — direct detail read (the profile screen no
+ *   longer depends on the list window),
  * - GET /technicians/:id/reviews — public reviews (no customer
  *   identifiers by contract).
  *
- * Server-supported filters are sent server-side; the client-side
- * area filter has NO server counterpart (geo semantics are an
- * undocumented CTO decision — 10E note), so the adapter drains the
- * bounded page window and the existing pure `applyTechnicianFilters`
- * keeps operating on the loaded dataset exactly as with the mock.
+ * The server is the source of truth: results are rendered as returned
+ * (bounded drain for counters only) — no client-side re-filtering that
+ * could hide valid matches outside a page window.
  *
  * Normalization (docs/07 §26 TechnicianPublicDto):
  * - `displayName` is nullable → generic verified-technician fallback,
- * - service areas are NOT publicly exposed (Task 10E-R1 keeps area
- *   query semantics undecided) → `areasAr: []` (honest, reported gap),
- * - reviews are hydrated for the first bounded slice of results (the
- *   discovery profile screen reads them from the same list object);
+ * - `areasAr` are the public service-area labels (no coordinates),
+ * - reviews are hydrated for the first bounded slice of results;
  *   late pages render the existing empty-reviews state.
  */
 
@@ -32,12 +32,9 @@ import { availabilityLabelAr, isAvailable } from '../../../lib/technician-status
 import { isApplianceSlug } from '../service-request/service-request-types';
 
 import type { TechnicianDataSource as TechnicianDataSourceContract } from './mock-technician-data-source';
-import type { Technician, TechnicianReview } from './technician-types';
+import type { Technician, TechnicianListQuery, TechnicianReview } from './technician-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
-import type {
-  ReviewSummaryDto,
-  TechnicianPublicDto,
-} from '@khabir/shared-types';
+import type { ReviewSummaryDto, TechnicianPublicDto } from '@khabir/shared-types';
 
 /** Review hydration cap — first rendered slice only (bounded N+1). */
 const REVIEW_HYDRATION_LIMIT = 10;
@@ -95,9 +92,11 @@ export async function mapTechnicianCard(
     specialtiesAr,
     appliances: [...applianceSet],
     servicesAr,
-    // Service-area labels are not publicly exposed yet (reported gap).
-    areasAr: [],
+    // Public service-area labels from the server (no coordinates).
+    areasAr: [...dto.areasAr],
     aboutAr: dto.bio ?? '',
+    // Server-issued public avatar (null keeps the initials fallback).
+    avatarUrl: dto.avatarUrl,
     available: availability.available,
     availabilityLabelAr: availability.labelAr,
     reviews,
@@ -118,15 +117,31 @@ async function fetchReviewsFor(id: string): Promise<ReadonlyArray<TechnicianRevi
   }
 }
 
+async function hydrate(
+  technicians: ReadonlyArray<TechnicianPublicDto>,
+): Promise<ReadonlyArray<Technician>> {
+  const hydrateCount = Math.min(technicians.length, REVIEW_HYDRATION_LIMIT);
+  const reviewsLists = await Promise.all(
+    technicians.slice(0, hydrateCount).map((tech) => fetchReviewsFor(tech.id)),
+  );
+  return Promise.all(
+    technicians.map(async (dto, index) => {
+      const reviews = index < hydrateCount ? (reviewsLists[index] ?? []) : [];
+      return mapTechnicianCard(dto, reviews);
+    }),
+  );
+}
+
 export class ApiTechnicianDataSource implements TechnicianDataSourceContract {
   async getTechnicians(input: {
     role: 'customer';
-    /** WP-4: availability is filtered SERVER-SIDE via the existing contract. */
-    availability?: 'available';
+    /** Every supported filter is sent server-side (WP-Discovery). */
+    filters?: TechnicianListQuery;
   }): Promise<ReadonlyArray<Technician>> {
+    const filters = input.filters ?? {};
     // Server-side sort by the documented rating signal; bounded drain.
-    // Availability (when requested) is filtered by the API, preserving
-    // pagination/meta correctness — never filtered from the client page.
+    // All filters reach the API — results render as returned, preserving
+    // pagination/meta correctness (never re-filtered client-side).
     const technicians = await drainPages<TechnicianPublicDto>((page, limit) =>
       getApi()
         .request<TechnicianPublicDto[]>(
@@ -135,22 +150,42 @@ export class ApiTechnicianDataSource implements TechnicianDataSourceContract {
             page,
             limit,
             sort: 'rating',
-            ...(input.availability !== undefined ? { availability: input.availability } : {}),
+            ...(filters.q !== undefined ? { q: filters.q } : {}),
+            ...(filters.applianceCategoryId !== undefined
+              ? { appliance_category_id: filters.applianceCategoryId }
+              : {}),
+            ...(filters.serviceId !== undefined ? { service_id: filters.serviceId } : {}),
+            ...(filters.faultId !== undefined ? { fault_id: filters.faultId } : {}),
+            ...(filters.ratingMin !== undefined ? { rating_min: filters.ratingMin } : {}),
+            ...(filters.area !== undefined ? { area: filters.area } : {}),
+            ...(filters.availability !== undefined ? { availability: filters.availability } : {}),
           })}`,
           undefined,
           { auth: false },
         )
         .then((res) => ({ items: res.data, meta: res.meta })),
     );
-    const hydrateCount = Math.min(technicians.length, REVIEW_HYDRATION_LIMIT);
-    const reviewsLists = await Promise.all(
-      technicians.slice(0, hydrateCount).map((tech) => fetchReviewsFor(tech.id)),
-    );
-    return Promise.all(
-      technicians.map(async (dto, index) => {
-        const reviews = index < hydrateCount ? reviewsLists[index] : [];
-        return mapTechnicianCard(dto, reviews);
-      }),
-    );
+    return hydrate(technicians);
+  }
+
+  /**
+   * Direct detail read (WP-Discovery): the profile screen fetches the
+   * technician by id instead of depending on the list window.
+   */
+  async getTechnicianDetail(input: { id: string }): Promise<Technician | null> {
+    let dto: TechnicianPublicDto | null = null;
+    try {
+      const res = await getApi().request<TechnicianPublicDto>(
+        'GET',
+        `/technicians/${encodeURIComponent(input.id)}`,
+        undefined,
+        { auth: false },
+      );
+      dto = res.data;
+    } catch {
+      return null; // missing/unverified → identical null (display fallback)
+    }
+    const [card] = await hydrate(dto !== null ? [dto] : []);
+    return card ?? null;
   }
 }

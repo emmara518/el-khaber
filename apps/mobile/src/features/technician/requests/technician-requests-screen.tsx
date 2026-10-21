@@ -25,6 +25,7 @@ import type { IconName } from '@/ui';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { joinNonEmpty } from '@/lib/api-format';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
 import {
   ActionButton,
   AppHeader,
@@ -59,6 +60,7 @@ export default function TechnicianRequestsScreen({
   const { t } = useI18n();
   const router = useRouter();
   const vm = useTechnicianRequestsViewModel(source);
+  useRefreshOnFocus(vm.reload);
   const [filter, setFilter] = useState<TechnicianRequestFilter>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<TechnicianRequest | null>(null);

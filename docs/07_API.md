@@ -60,9 +60,11 @@ Do not expose stack traces or internal exception details in production.
 ## 4. Authentication endpoints
 
 ### POST `/auth/register`
+
 Purpose: create a new user account.
 
 Request concept:
+
 ```json
 {
   "role": "customer|technician|merchant",
@@ -72,23 +74,29 @@ Request concept:
 ```
 
 Rules:
+
 - Role must be one of the three allowed application roles.
 - Server validates role eligibility.
 - Registration may require extra profile information depending on role.
 
 ### POST `/auth/login`
+
 Authenticates account.
 
 ### POST `/auth/refresh`
+
 Refreshes session/token according to auth architecture.
 
 ### POST `/auth/logout`
+
 Ends session.
 
 ### POST `/auth/forgot-password`
+
 Starts recovery.
 
 ### POST `/auth/reset-password`
+
 Completes password reset.
 
 ---
@@ -96,9 +104,16 @@ Completes password reset.
 ## 5. Current-user endpoints
 
 ### GET `/me`
+
 Returns current authenticated user + role + key profile metadata.
 
+WP-01: the response now includes `avatarUrl: string | null` — the
+role-appropriate profile image (customer avatar, technician avatar,
+merchant logo): a server-issued stable public URL, or `null` when
+absent. It is never a storage key.
+
 ### PATCH `/me`
+
 Updates allowed shared account fields. Authenticated user only; the user
 ID is taken from the verified access token, never from the payload.
 
@@ -118,7 +133,27 @@ Allowed fields (Task 10C contract detail):
 
 Response: `{ "data": MeDto }`.
 
+### POST `/me/avatar` (WP-01, customer only)
+
+Multipart upload (`file` field, single image ≤ 2MB: JPEG/PNG/WebP) of
+the caller's own profile photo. The server validates magic bytes,
+decodes with sharp (≤ 2048px longest side), re-encodes (EXIF stripped),
+stores under server-generated `avatars/{userId}/{uuid}.{ext}` in the
+dedicated public avatar bucket, and persists the public URL on the
+customer profile. Response: `{ "data": { "avatarUrl": "<publicUrl>" } }`
+(`201`). Failures: `400 UPLOAD_REJECTED` (missing/fake file),
+`413 UPLOAD_REJECTED` (oversize), `429 RATE_LIMITED` (anti-flood),
+`401` (non-customer).
+
+### DELETE `/me/avatar` (WP-01, customer only)
+
+Idempotent removal (`204` always, even when no photo exists). The
+reference is NULLed first; the owned object delete is best-effort
+(failures are warn-logged + audited for the orphan cleanup, never
+surfaced). Legacy foreign URLs are never deleted (not ours).
+
 ### GET `/me/subscription`
+
 Returns current plan and active entitlements.
 
 ---
@@ -126,41 +161,48 @@ Returns current plan and active entitlements.
 ## 6. Customer endpoints
 
 ### GET `/appliance-categories`
+
 Lists active appliances.
 
 ### GET `/faults`
+
 Filters:
+
 - `appliance_category_id`
 - `q`
 - pagination
 
 ### GET `/faults/:id`
+
 Returns full fault-guide content.
 
 ### GET `/services`
+
 Returns approved service categories.
 
 ### GET `/technicians`
-Suggested query params:
-- `q`
+
+Supported query params (all enforced server-side):
+
+- `q` (name/bio text search)
 - `appliance_category_id`
 - `service_id`
-- `fault_id`
-- `lat`
-- `lng`
-- `radius`
-- `rating_min`
+- `fault_id` (via the fault→service catalog links)
+- `rating_min` (decimals allowed, e.g. 4.5)
 - `availability`
-- `sort`
+- `area` (service-area LABEL containment, NOT geo — see below)
+- `sort` (`rating` only; fixed rating ordering regardless)
 - `page`
 - `limit`
 
 Server controls the maximum limit.
 
 ### GET `/technicians/:id`
+
 Returns public profile data allowed for discovery.
 
 ### GET `/technicians/:id/reviews`
+
 Paginated reviews.
 
 Implementation notes (Task 10E):
@@ -178,19 +220,21 @@ Implementation notes (Task 10E):
   the database enum values (`available`, `busy`, `unavailable`). `sort`
   accepts only `rating` (a ranking signal documented in 06 §10); the list
   orders by rating (nulls last, stable id tiebreak). Pricing and private
-  data (user ids, contact channels) are not exposed.
-- Geo parameters (`lat`, `lng`, `radius`) are documented but NOT
-  implemented: the service-area SCHEMA foundation exists as of Task
-  10E-R1 (`technician_service_areas`, geography(Point,4326), GiST), but
-  exact radius/area query semantics (units, ordering, area-text matching,
-  public exposure of area labels) are not yet defined — GEO QUERY
-  SEMANTICS REQUIRE CTO DECISION. No geo behavior has been invented.
+  data (user ids, contact channels) are not exposed. The public DTO
+  includes `areasAr` (service-area labels) and `avatarUrl`.
+- Service-area matching (WP-Discovery): `area` matches technician
+  `serviceAreas.labelAr` by case-insensitive containment (a selected
+  district matches labels containing it). This is LABEL semantics, NOT
+  geography: coordinates stay write-only on the technician profile and
+  are never queried for discovery; no `lat`/`lng`/`radius` params exist.
+  No coordinates were invented and no tracking was added.
 
 ---
 
 ## 7. Service request endpoints
 
 ### POST `/service-requests`
+
 Creates a request.
 
 Conceptual payload:
@@ -232,6 +276,12 @@ Implementation notes (Task 10F):
   chain), `complete` (in_progress → completed), `reject` (technician:
   pending/accepted → cancelled), `cancel` (customer owner:
   pending/accepted → cancelled). No rejection-reason taxonomy exists.
+- `scheduled_at` is an OPTIONAL **preferred visit time**, never a booking:
+  no availability engine or slot inventory exists (Track B1). When present
+  the server requires a future timestamp at most 14 days ahead and stores
+  it as the customer's preference; the technician confirms the visit by
+  phone. Clients must label it as a preference, not a confirmed
+  appointment.
 - `POST /service-requests/:id/confirm` is not implemented: it is
   conditional in this document ("when a confirmation state is required")
   and the canonical state chain defines no confirmation state.
@@ -243,28 +293,36 @@ Implementation notes (Task 10F):
 Server calculates/validates anything derived.
 
 ### GET `/service-requests`
+
 Customer sees own requests.
 Technician sees eligible/assigned requests according to policy.
 
 ### GET `/service-requests/:id`
+
 Returns authorized details.
 
 ### POST `/service-requests/:id/confirm`
+
 Confirms customer intent when the product requires a confirmation state.
 
 ### POST `/service-requests/:id/accept`
+
 Technician action if acceptance is part of the approved flow.
 
 ### POST `/service-requests/:id/reject`
+
 Technician action if rejection is enabled.
 
 ### POST `/service-requests/:id/start`
+
 Allowed actor only.
 
 ### POST `/service-requests/:id/complete`
+
 Allowed actor only; server validates current state.
 
 ### POST `/service-requests/:id/cancel`
+
 Allowed according to cancellation rules.
 
 ---
@@ -272,12 +330,15 @@ Allowed according to cancellation rules.
 ## 8. Location endpoints
 
 ### POST `/locations`
+
 Creates/updates user-owned location records when supported.
 
 ### GET `/locations`
+
 Returns user-authorized locations.
 
 ### PATCH `/locations/:id`
+
 Owner/Admin policy only.
 
 Implementation notes (Task REM-001):
@@ -302,7 +363,9 @@ Implementation notes (Task REM-001):
 ## 9. Media endpoints
 
 ### POST `/media/upload`
+
 Recommended flow:
+
 1. validate type/size
 2. authorize context
 3. obtain signed upload or safe upload path
@@ -310,32 +373,68 @@ Recommended flow:
 
 Never accept arbitrary public file URLs as trusted storage.
 
-Implementation status (Task 10L / REM-002): **NOT IMPLEMENTED.** No object
-storage provider is approved — Supabase Storage is explicitly out of scope
-per ADR-0004, and docs/local-dev.md §11 lists the object-storage provider as
-a CTO decision. Payment proof images therefore cannot be uploaded or
-inspected yet; `PaymentSubmission.proofStorageKey` remains a reserved typed
-reference. This is a **release blocker** until a provider is approved.
+Implementation status (Task 10L / REM-002, updated PHASE 20 / Track B2):
+object storage is now implemented on the provider-abstracted `StoragePort`
+(S3-compatible presigned URLs; the local adapter is a dev/test double only).
+Supabase Storage remains out of scope per ADR-0004. The generic
+`POST /media/upload` route still does not exist: uploads are request-scoped
+and follow the grant → PUT → confirm proof pattern.
+
+- Payment proofs (PHASE 20): `POST /subscriptions/payments/proof-upload-url`,
+  `POST /subscriptions/payments/:id/proof`, `GET /admin/payment-submissions/:id/proof-url`.
+- Service-request photos (Track B2): the four endpoints below.
+
+### POST `/service-requests/:id/media/upload-url`
+
+Customer owner only. Body: `{ mime_type }` (`image/jpeg|image/png|image/webp`).
+Returns `{ requestId, storageKey, uploadUrl, requiredHeaders, mimeType,
+maxBytes, expiresInSeconds }`. The key is generated server-side under
+`request-media/{userId}/{requestId}/`; clients cannot choose it. The request
+must be open (not `cancelled`); over the per-request cap → 409 `CONFLICT`.
+
+### POST `/service-requests/:id/media/confirm`
+
+Customer owner only. Body: `{ storage_key }`. Head-verifies the object, then
+checks declared size, allowlisted MIME, and magic bytes before persisting the
+`ServiceRequestMedia` row. Invalid objects → 400 `UPLOAD_REJECTED`; a rejected
+object is deleted best-effort (no orphan). Response 201:
+`{ id, mimeType, fileSize, createdAt }`.
+
+### GET `/service-requests/:id/media`
+
+Participants only (owner customer + targeted/assigned technician). Returns up
+to 50 items `{ id, mimeType, fileSize, createdAt }` ordered by creation. Storage
+keys are never exposed. Merchant/stranger → 404.
+
+### GET `/service-requests/:id/media/:mediaId/url`
+
+Participants only. Returns `{ mediaId, downloadUrl, expiresInSeconds }` with a
+short-lived presigned GET; every view is audited
+(`user.service_request.media_view`).
 
 ---
 
 ## 10. Reviews endpoints
 
 ### POST `/service-requests/:id/review`
+
 Creates a review after completed service.
 
 Server checks:
+
 - customer ownership
 - request completed
 - no duplicate review unless edit policy allows
 
 ### GET `/review-tags`
+
 Public. Returns the canonical **active** review tags as `[{ "id", "labelAr" }]`,
 ordered deterministically by `code`. The UUID is the canonical identifier;
 clients submit `tag_ids` (UUIDs) on review creation and must not hardcode tag
 labels (docs/06 §14). Added WP-2C.
 
 ### PATCH `/reviews/:id`
+
 Optional, only if editing is approved. NOT IMPLEMENTED (Task 10H): no edit policy has been approved.
 
 ---
@@ -349,28 +448,46 @@ owns the product). There are no arbitrary user-to-user conversations.
 `Message.readAt` backs server-authoritative unread counts; opening a
 conversation marks the peer's messages read. No realtime: HTTP only.
 
+Client polling contract (V2.1): the mobile client polls this history only while
+the chat screen is visible and the app is in the foreground — at most one
+request in flight, every **15 seconds**. Polling is the only throttle here: the
+endpoint has no rate limit beyond authentication, and each GET also performs
+the read-mark UPDATE.
+
 ### GET `/service-requests/:id/conversation`
+
 Returns the authorized service-request conversation (lazily created on first
 access; participants derived server-side from the request).
 
 ### GET `/products/:id/conversation`
+
 Phase D. Customer/technician only. Returns (or lazily creates) the caller's
 conversation with the merchant who owns the ACTIVE product. Idempotent per
 `(product, initiator)`. Merchants initiating here receive an identical 404.
 
 ### GET `/conversations`
-Phase D. Lists the caller's conversations (newest activity first) with the
-real last message and server-computed unread count. Used by the Merchant
-Messages surface. Participant-scoped: a caller only ever sees their own.
+
+Unified inbox (WP-Inbox; all roles). Paginated (`page`/`limit` + `meta`,
+newest activity first). Each item carries the real peer identity
+(`peerNameAr`: technician displayName / merchant businessName / generic
+customer label — never invented; `peerAvatarUrl`: public profile image
+or null), the real latest message (`lastMessageAr` + `lastMessageAt`,
+null when none), the server-authoritative `unreadCount`, and the thread
+context (`contextTitleAr`: order title or product name). Listing never
+creates conversations. Participant-scoped: a caller only ever sees
+their own.
 
 ### GET `/conversations/:id/messages`
+
 Paginated message history. Opening the conversation marks incoming messages
 read for the caller (unread counts stay truthful).
 
 ### POST `/conversations/:id/messages`
+
 Sends a message.
 
 Server checks:
+
 - participant authorization (service conversations by request membership;
   product conversations by participant row) — enforced server-side, IDOR-safe
 - sender identity is always the verified JWT subject (never the payload)
@@ -383,12 +500,31 @@ Server checks:
 ## 12. Notification endpoints
 
 ### GET `/notifications`
+
 Paginated current-user notifications.
 
+### GET `/notifications/unread-count`
+
+Server-authoritative unread count (`{ unread }`) for the badge —
+no full list drain required.
+
+### GET `/notifications/preferences`
+
+Own delivery preferences (`{ requestStatus, subscription }`, both
+booleans). Absent row ≡ all `true` (defaults ON).
+
+### PUT `/notifications/preferences`
+
+Replaces own delivery preferences (both keys required; unknown keys
+stripped). `verification` decisions + admin operational messages are
+MANDATORY and have no key — they cannot be disabled.
+
 ### POST `/notifications/:id/read`
+
 Marks notification read.
 
 ### POST `/notifications/read-all`
+
 Marks appropriate notifications read.
 
 Implementation notes (Task 10H):
@@ -423,13 +559,23 @@ Implementation notes (Task 10H):
   notify the plan owner (`subscription`). Admin operational notifications
   remain recipient-validated and Admin-JWT-authoritative. Recipients,
   type, and content are always derived server-side.
+- WP-Notifications: every business notification carries a navigation
+  `dataJson` with ids only (`serviceRequestId`, `subscriptionId`,
+  `submissionId`, `profileId`, …) — never PII. `request_status` and
+  `subscription` families are preference-gated at WRITE time (suppressed
+  when the recipient disabled them; the business state still commits).
+  `verification` + admin operational messages are MANDATORY and bypass
+  preferences. The unread badge reads `GET /notifications/unread-count`;
+  preferences live at `GET|PUT /notifications/preferences`.
 
 ---
 
 ## 13. Favorites endpoints
 
 ### GET `/favorites`
+
 ### POST `/favorites`
+
 ### DELETE `/favorites/:id`
 
 The server determines whether the target is favoritable.
@@ -439,18 +585,23 @@ The server determines whether the target is favoritable.
 ## 14. Subscription endpoints
 
 ### GET `/subscription-plans?role=...`
+
 Returns active plans for the current user role.
 
 ### POST `/subscriptions`
+
 Initiates subscription activation.
 
 ### GET `/subscriptions/current`
+
 Returns active/current subscription.
 
 ### POST `/subscriptions/:id/cancel`
+
 Cancels renewal according to billing policy.
 
 ### POST `/subscriptions/:id/change-plan`
+
 Upgrade/downgrade behavior. NOT IMPLEMENTED (Task 10I): upgrade/downgrade semantics are undefined (docs/08) � CTO decision required.
 
 Implementation notes (Task 10I):
@@ -461,10 +612,18 @@ Implementation notes (Task 10I):
 - `GET /subscription-plans` returns ACTIVE plans for the JWT role (role-aware,
   paginated). Inactive plans never appear and can never be purchased or granted.
 - `POST /subscriptions` creates a PENDING manual payment submission
-  (plan_id + method + transfer_reference; optional typed proof_storage_key).
-  The submission stays pending until an Admin approves/rejects it via
+  (plan_id + method + transfer_reference). `proof_storage_key` is NOT
+  accepted on creation (400) — proof attaches post-creation through the
+  proof endpoints below. The submission stays pending until an Admin
+  approves/rejects it via
   `/admin/payments/submissions/:id/approve|reject`. Resubmission = a new
   submission (history immutable).
+- WP-Proof — payment proof attach flow (private S3 bucket, never the
+  public avatar bucket): `POST /subscriptions/:id/proof-upload-url`
+  `{mime_type}` → server-generated key + presigned PUT → client PUTs
+  the bytes → `POST /subscriptions/:id/proof-confirm` `{storage_key}`
+  (server validates MIME/size/magic + ownership, then binds). Only the
+  owner, only while pending (`404` cross-account, `409` reviewed).
 - Approval is one transaction: submission ? approved, ACTIVE subscription
   created (PROVISIONAL 30-day period — docs/08 §20), audit record, and the
   user notification. Rejection never activates anything. WP-7: approval
@@ -492,6 +651,7 @@ Implementation notes (Task 10I):
 ## 15. Entitlement endpoint
 
 ### GET `/me/entitlements`
+
 Returns effective entitlements for the current user.
 
 Example:
@@ -499,10 +659,7 @@ Example:
 ```json
 {
   "data": {
-    "entitlements": [
-      "featured_visibility",
-      "priority_support"
-    ]
+    "entitlements": ["featured_visibility", "priority_support"]
   }
 }
 ```
@@ -514,11 +671,21 @@ The client may use this for display, but backend policies remain authoritative.
 ## 16. Technician endpoints
 
 ### GET `/technician/profile`
+
 ### PATCH `/technician/profile`
+
+### POST `/technician/profile/avatar` (WP-01, technician only)
+
+### DELETE `/technician/profile/avatar` (WP-01, technician only)
+
 ### GET `/technician/services`
+
 ### POST `/technician/services`
+
 ### DELETE `/technician/services/:id`
+
 ### GET `/technician/requests`
+
 ### GET `/technician/stats`
 
 Implementation notes (WP-4 availability):
@@ -535,15 +702,35 @@ Implementation notes (WP-4 availability):
 
 Stats must be server-derived.
 
+Implementation notes (WP-01 avatars):
+
+- Profile photos change exclusively through multipart
+  `POST /technician/profile/avatar` (same contract as
+  `POST /me/avatar`: single image ≤ 2MB, magic + sharp validation,
+  EXIF stripped, server-generated `avatars/{userId}/{uuid}.{ext}`,
+  `201 { "data": { "avatarUrl": "<publicUrl>" } }`) and idempotent
+  `DELETE /technician/profile/avatar` (`204`). `avatar_url` was removed
+  from the `PATCH /technician/profile` schema — text PATCH can no
+  longer inject external URLs (legacy stored values keep reading back).
+
 ---
 
 ## 17. Merchant endpoints
 
 ### GET `/merchant/profile`
+
 ### PATCH `/merchant/profile`
+
+### POST `/merchant/profile/logo` (WP-01, merchant only)
+
+### DELETE `/merchant/profile/logo` (WP-01, merchant only)
+
 ### GET `/merchant/products`
+
 ### POST `/merchant/products`
+
 ### PATCH `/merchant/products/:id`
+
 ### DELETE `/merchant/products/:id`
 
 Implementation notes (Task 10G):
@@ -555,10 +742,16 @@ Implementation notes (Task 10G):
 - `GET /merchant/profile` returns `404` until the merchant PATCHes —
   PATCH is the onboarding persistence: it creates the profile when absent
   (`verificationStatus: pending`) and updates otherwise. Writable fields:
-  `businessName`, `bio`, `logoUrl`, `contactPhone`, `locationId` (must be a
+  `businessName`, `bio`, `contactPhone`, `locationId` (must be a
   location OWNED by the merchant). `verificationStatus` is READ-ONLY —
   docs/09_ADMIN.md makes admin the sole verification authority and no
   merchant verification-mutation endpoint exists.
+- WP-01: `logoUrl` was removed from the PATCH schema. Store logos change
+  exclusively through multipart `POST /merchant/profile/logo`
+  (`201 { "data": { "logoUrl": "<publicUrl>" } }`) and idempotent
+  `DELETE /merchant/profile/logo` (`204`) — same image contract as the
+  customer/technician avatar endpoints. Legacy stored values keep
+  reading back.
 - Products: `POST` derives `slug` from `nameAr` when absent (unique per
   merchant); an explicitly provided duplicate slug → `409 CONFLICT`.
   `PATCH` accepts a whitelist (`nameAr`, `slug`, `descriptionAr`, `price`,
@@ -596,9 +789,11 @@ The customer/technician store reads the SAME merchant products through a
 public read contract (no merchant-management privileges).
 
 ### GET `/products`
+
 Public. Paginated list of ACTIVE products, newest first.
 
 ### GET `/products/:id`
+
 Public. Active product detail. A missing product and a suspended product
 return the identical `404 NOT_FOUND`.
 
@@ -614,6 +809,7 @@ Response model `PublicProductDto` (minimal, no internal fields):
 deliberately NOT exposed.
 
 Notes:
+
 - Customer and Technician MUST NOT use the `/merchant/products*` management
   routes; those remain merchant-JWT-scoped (non-merchant → `401`).
 - No checkout/order/payment behavior is implied by the store read.
@@ -640,6 +836,22 @@ Admin routes should be namespaced and protected, e.g.:
 ```
 
 See `09_ADMIN.md`.
+
+Implementation notes (WP-Admin-01…04):
+
+- Every admin route requires the admin authority AND the calling
+  admin's role (`@AdminRoles`, docs/09 §19 matrix) — enforced
+  server-side against the database role; mismatches return 401.
+- Verification decisions (`POST …/verification {status, reason?}`):
+  `reason` (4–500 chars) is REQUIRED for `rejected`/`suspended`,
+  audited, and notified to the user. No KYC document store exists —
+  the reviewable record is the profile itself.
+- Technician assignment (`POST /admin/service-requests/:id/assign
+{technician_id}`): pending requests only, verified technicians
+  only, atomic, audited, both parties notified.
+- Review removal (`POST /admin/reviews/:id/remove {reason}`):
+  irreversible hard delete, so `reason` (4–500 chars) is REQUIRED and
+  audited; technician metrics are recomputed.
 
 ---
 
@@ -701,9 +913,11 @@ pending/accepted → cancelled (if policy permits)
 Actual enum must be centralized and validated.
 
 Never permit:
+
 ```text
 completed → pending
 ```
+
 without an explicitly supported administrative correction flow.
 
 ---
@@ -727,6 +941,7 @@ without an explicitly supported administrative correction flow.
 Do not silently remove fields used by existing clients.
 
 For breaking API changes:
+
 - version or migrate safely,
 - update mobile/web clients together where possible,
 - test old/new behavior if required.
@@ -736,6 +951,7 @@ For breaking API changes:
 ## 25. API change rule
 
 Any API contract change requires updates to:
+
 - this file,
 - relevant types/schemas,
 - tests,
@@ -750,18 +966,22 @@ Do not change backend response shapes casually just to make one screen easier.
 Implemented and documented as of Task 10C. Both are public (no auth).
 
 ### GET `/health`
+
 Liveness probe. Process-level only — it must NOT depend on the database.
 
 Response `200`:
+
 ```json
 { "data": { "status": "ok", "service": "api" } }
 ```
 
 ### GET `/ready`
+
 Readiness probe. Verifies required dependencies (currently: database
 connectivity).
 
 Response `200`:
+
 ```json
 { "data": { "status": "ready", "checks": { "database": "ok" } } }
 ```
@@ -779,17 +999,21 @@ are seeded/created out-of-band; there is no public admin registration.
 All routes are rate-limited like the user auth endpoints.
 
 ### POST `/admin/auth/login`
+
 Email + password. Returns `{ "data": AuthSessionDto }` (200). Invalid
 credentials → `401 AUTH_INVALID`.
 
 ### POST `/admin/auth/refresh`
+
 Rotates the admin refresh token (opaque token in body). Reuse/replay of a
 rotated token revokes the whole family and returns `401`.
 
 ### POST `/admin/auth/logout`
+
 Revokes the admin refresh-token family. Returns `204`.
 
 ### GET `/admin/me`
+
 Bearer admin access token. Returns the admin identity (safe DTO; admin
 roles are separate from the three end-user roles).
 

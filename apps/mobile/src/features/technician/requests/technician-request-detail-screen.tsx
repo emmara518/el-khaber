@@ -20,6 +20,7 @@ import type { TechnicianRequestsDataSource } from './mock-technician-requests-da
 
 import { useI18n } from '@/i18n/use-i18n';
 import { joinNonEmpty } from '@/lib/api-format';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
 import {
   ActionButton,
   AppHeader,
@@ -49,6 +50,7 @@ export default function TechnicianRequestDetailScreen({
   const { t } = useI18n();
   const router = useRouter();
   const vm = useTechnicianRequestsViewModel(source);
+  useRefreshOnFocus(vm.reload);
   const [confirmingReject, setConfirmingReject] = useState(false);
 
   const header = (
@@ -148,7 +150,7 @@ export default function TechnicianRequestDetailScreen({
               <Text style={styles.value}>{request.locationAr || '—'}</Text>
             </View>
             <View style={styles.valueRow}>
-              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel="الموعد" />
+              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel={t('tech.request.appointment')} />
               <Text style={styles.value}>{request.appointmentAr ?? '—'}</Text>
             </View>
             <View style={styles.valueRow}>

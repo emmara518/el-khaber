@@ -65,6 +65,7 @@ describe('notifications e2e', () => {
     prisma.users.length = 0;
     prisma.refreshTokens.length = 0;
     prisma.notificationRows.length = 0;
+    prisma.notificationPreferenceRows.length = 0;
   });
 
   interface Session { accessToken: string; userId: string }
@@ -173,5 +174,159 @@ describe('notifications e2e', () => {
       .set('Authorization', `Bearer ${customer.accessToken}`)
       .query({ limit: 101 });
     expect(bad.status).toBe(400);
+  });
+
+  it('unread-count is server-authoritative and drops after reads (foreign excluded)', async () => {
+    const a = await register('customer', 'n-unread-a@example.com');
+    const b = await register('customer', 'n-unread-b@example.com');
+    seedNotification(a.userId, 'request_status', 'أ');
+    seedNotification(a.userId, 'subscription', 'ب');
+    const idA = seedNotification(a.userId, 'request_status', 'ج');
+    seedNotification(b.userId, 'request_status', 'أجنبي');
+
+    const before = await request(app.getHttpServer())
+      .get('/api/v1/notifications/unread-count')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+    expect(before.body.data).toEqual({ unread: 3 });
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/notifications/${idA}/read`)
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+
+    const afterOne = await request(app.getHttpServer())
+      .get('/api/v1/notifications/unread-count')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+    expect(afterOne.body.data).toEqual({ unread: 2 });
+
+    const readAll = await request(app.getHttpServer())
+      .post('/api/v1/notifications/read-all')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+    expect(readAll.body.data.updated).toBe(2);
+
+    const afterAll = await request(app.getHttpServer())
+      .get('/api/v1/notifications/unread-count')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+    expect(afterAll.body.data).toEqual({ unread: 0 });
+
+    // B's notification untouched by A's reads.
+    const forB = await request(app.getHttpServer())
+      .get('/api/v1/notifications/unread-count')
+      .set('Authorization', `Bearer ${b.accessToken}`)
+      .expect(200);
+    expect(forB.body.data).toEqual({ unread: 1 });
+
+    const anon = await request(app.getHttpServer()).get('/api/v1/notifications/unread-count');
+    expect(anon.status).toBe(401);
+  });
+
+  it('preferences default ON, update persists, and validation rejects partial bodies', async () => {
+    const a = await register('customer', 'n-prefs-a@example.com');
+    const b = await register('customer', 'n-prefs-b@example.com');
+    const authA = { Authorization: `Bearer ${a.accessToken}` };
+    const authB = { Authorization: `Bearer ${b.accessToken}` };
+
+    const defaults = await request(app.getHttpServer())
+      .get('/api/v1/notifications/preferences')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+    expect(defaults.body.data).toEqual({ requestStatus: true, subscription: true });
+
+    const updated = await request(app.getHttpServer())
+      .put('/api/v1/notifications/preferences')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .send({ requestStatus: false, subscription: true })
+      .expect(200);
+    expect(updated.body.data).toEqual({ requestStatus: false, subscription: true });
+
+    const refetched = await request(app.getHttpServer())
+      .get('/api/v1/notifications/preferences')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .expect(200);
+    expect(refetched.body.data).toEqual({ requestStatus: false, subscription: true });
+
+    // B's preferences are independent (ownership isolation).
+    const forB = await request(app.getHttpServer())
+      .get('/api/v1/notifications/preferences')
+      .set('Authorization', `Bearer ${b.accessToken}`)
+      .expect(200);
+    expect(forB.body.data).toEqual({ requestStatus: true, subscription: true });
+
+    // Partial body rejected (both keys required); wrong types rejected.
+    const partial = await request(app.getHttpServer())
+      .put('/api/v1/notifications/preferences')
+      .set('Authorization', `Bearer ${a.accessToken}`)
+      .send({ requestStatus: false });
+    expect(partial.status).toBe(400);
+    void authA;
+    void authB;
+
+    const anon = await request(app.getHttpServer()).get('/api/v1/notifications/preferences');
+    expect(anon.status).toBe(401);
+  });
+
+  it('preference gating suppresses the row but verification stays mandatory; PII never stored', async () => {
+    const a = await register('customer', 'n-gate-a@example.com');
+    const { NotificationsService } = requireCjs('../dist/notifications/notifications.service') as {
+      NotificationsService: new (...args: unknown[]) => {
+        create: (
+          userId: string,
+          content: { type: string; titleAr: string; bodyAr: string; dataJson?: Record<string, unknown> | null },
+        ) => Promise<{ id: string | null; delivered: boolean }>;
+      };
+    };
+    const service = new NotificationsService(prisma as never);
+
+    // Disable maintenance updates → request_status suppressed, state untouched.
+    prisma.notificationPreferenceRows.push({
+      userId: a.userId,
+      requestStatus: false,
+      subscription: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    const suppressed = await service.create(a.userId, {
+      type: 'request_status',
+      titleAr: 'تم قبول طلب الخدمة',
+      bodyAr: 'قبل الفني طلبك.',
+      dataJson: { serviceRequestId: 'req-1', status: 'accepted' },
+    });
+    expect(suppressed.delivered).toBe(false);
+    expect(suppressed.id).toBeNull();
+    expect(prisma.notificationRows.filter((n) => n.userId === a.userId)).toHaveLength(0);
+
+    // Verification is MANDATORY — delivered despite any preference row.
+    const mandatory = await service.create(a.userId, {
+      type: 'verification',
+      titleAr: 'تم اعتماد حسابك بنجاح.',
+      bodyAr: 'تم اعتماد حسابك بنجاح.',
+    });
+    expect(mandatory.delivered).toBe(true);
+    expect(prisma.notificationRows.filter((n) => n.userId === a.userId)).toHaveLength(1);
+
+    // PII-looking dataJson keys are stripped; navigation ids are kept.
+    const withPii = await service.create(a.userId, {
+      type: 'verification',
+      titleAr: 'ت',
+      bodyAr: 'ج',
+      dataJson: {
+        serviceRequestId: 'req-9',
+        email: 'victim@example.com',
+        phone: '+201000000000',
+        token: 'secret',
+      },
+    });
+    expect(withPii.delivered).toBe(true);
+    const stored = prisma.notificationRows.find((n) => n.id === withPii.id)!;
+    expect(stored.dataJson).toMatchObject({ serviceRequestId: 'req-9' });
+    expect(stored.dataJson).not.toHaveProperty('email');
+    expect(stored.dataJson).not.toHaveProperty('phone');
+    expect(stored.dataJson).not.toHaveProperty('token');
+    // Title/body carry no leaked contact data.
+    expect(JSON.stringify(prisma.notificationRows)).not.toContain('victim@example.com');
   });
 });

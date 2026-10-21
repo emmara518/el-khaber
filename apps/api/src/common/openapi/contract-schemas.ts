@@ -29,6 +29,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'ENTITLEMENT_REQUIRED',
       'INVALID_STATE_TRANSITION',
       'UPLOAD_REJECTED',
+      'SERVICE_UNAVAILABLE',
       'INTERNAL_ERROR',
     ],
   },
@@ -61,6 +62,9 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
             description: 'Field-level validation details when applicable.',
             additionalProperties: { type: 'string' },
           },
+          // Correlation ID: also sent as the X-Request-Id response
+          // header by ApiExceptionFilter (V2-05 observability).
+          requestId: { type: 'string' },
         },
         required: ['code', 'message'],
       },
@@ -79,6 +83,10 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       phoneVerified: { type: 'boolean' },
       emailVerified: { type: 'boolean' },
       createdAt: { type: 'string', format: 'date-time' },
+      // WP-01 (D6): role-appropriate profile image — the server-issued
+      // public URL (customer avatar, technician avatar, merchant logo),
+      // or null when absent. Never a storage key.
+      avatarUrl: { type: 'string', nullable: true },
     },
     required: [
       'id',
@@ -89,6 +97,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'phoneVerified',
       'emailVerified',
       'createdAt',
+      'avatarUrl',
     ],
     additionalProperties: false,
   },
@@ -110,11 +119,37 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     type: 'object',
     description:
       'PATCH /me payload (docs/07_API.md §5). Only shared contact fields are ' +
-      'writable. Changing a contact channel resets that channel\'s verification flag.',
+      "writable. Changing a contact channel resets that channel's verification flag.",
     properties: {
       phone: { type: 'string', pattern: '^\\+?[0-9]{7,15}$' },
       email: { type: 'string', format: 'email' },
     },
+    additionalProperties: false,
+  },
+  AvatarUploadDto: {
+    type: 'object',
+    description:
+      'WP-01: profile-image upload result (POST /me/avatar, POST ' +
+      '/technician/profile/avatar). `avatarUrl` is the server-issued ' +
+      "stable public URL persisted on the caller's profile — never a " +
+      'storage key or client-supplied link.',
+    properties: {
+      avatarUrl: { type: 'string', minLength: 1, maxLength: 512 },
+    },
+    required: ['avatarUrl'],
+    additionalProperties: false,
+  },
+  MerchantLogoUploadDto: {
+    type: 'object',
+    description:
+      'WP-01: store-logo upload result (POST /merchant/profile/logo). ' +
+      '`logoUrl` is the server-issued stable public URL persisted on ' +
+      "the caller's merchant profile — never a storage key or " +
+      'client-supplied link.',
+    properties: {
+      logoUrl: { type: 'string', minLength: 1, maxLength: 512 },
+    },
+    required: ['logoUrl'],
     additionalProperties: false,
   },
   AcceptedDto: {
@@ -127,7 +162,10 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   HealthDto: {
     type: 'object',
     description: 'Liveness payload (process-level only, no dependency checks).',
-    properties: { status: { type: 'string', enum: ['ok'] }, service: { type: 'string', enum: ['api'] } },
+    properties: {
+      status: { type: 'string', enum: ['ok'] },
+      service: { type: 'string', enum: ['api'] },
+    },
     required: ['status', 'service'],
     additionalProperties: false,
   },
@@ -208,7 +246,15 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       summaryAr: { type: 'string' },
       sortOrder: { type: 'integer' },
     },
-    required: ['id', 'applianceCategoryId', 'nameAr', 'slug', 'severityLevel', 'summaryAr', 'sortOrder'],
+    required: [
+      'id',
+      'applianceCategoryId',
+      'nameAr',
+      'slug',
+      'severityLevel',
+      'summaryAr',
+      'sortOrder',
+    ],
     additionalProperties: false,
   },
   FaultDto: {
@@ -281,6 +327,8 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       ratingAverage: { type: 'number', nullable: true },
       ratingCount: { type: 'integer' },
       services: { type: 'array', items: REF('TechnicianServiceDto') },
+      // WP-Discovery: public service-area labels (no coordinates).
+      areasAr: { type: 'array', items: { type: 'string' } },
     },
     required: [
       'id',
@@ -294,6 +342,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'ratingAverage',
       'ratingCount',
       'services',
+      'areasAr',
     ],
     additionalProperties: false,
   },
@@ -320,7 +369,10 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'Customer request creation payload (docs/07_API.md §7). problem_title is ' +
       'OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case ' +
       'without inventing diagnostic conclusions. The request is created with ' +
-      'status=pending, targeted at the chosen verified technician.',
+      'status=pending, targeted at the chosen verified technician. ' +
+      'scheduled_at is an OPTIONAL PREFERRED visit time (future, up to 14 days ' +
+      'ahead): there is no availability engine and no booking is created — the ' +
+      'technician confirms the visit by phone.',
     properties: {
       technician_id: { type: 'string', format: 'uuid' },
       appliance_category_id: { type: 'string', format: 'uuid' },
@@ -329,7 +381,13 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       problem_title: { type: 'string', maxLength: 255 },
       problem_description: { type: 'string', minLength: 1, maxLength: 5000 },
       location_id: { type: 'string', format: 'uuid' },
-      scheduled_at: { type: 'string', format: 'date-time' },
+      scheduled_at: {
+        type: 'string',
+        format: 'date-time',
+        description:
+          'Optional preferred visit time (not a confirmed booking). Must be in ' +
+          'the future and at most 14 days ahead.',
+      },
     },
     required: ['technician_id', 'appliance_category_id', 'problem_description', 'location_id'],
     additionalProperties: false,
@@ -484,26 +542,35 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   ConversationSummaryDto: {
     type: 'object',
     description:
-      'A conversation the caller participates in (merchant/messages list). ' +
-      'peerNameAr is the other party; lastMessageAr is the real latest message ' +
-      '(null when none); unreadCount counts messages not sent by the caller and ' +
-      'not yet read.',
+      'A conversation the caller participates in (unified inbox). ' +
+      'peerNameAr is the other party (real display/business name where ' +
+      'available, generic role label otherwise — never invented); ' +
+      'peerAvatarUrl is their public profile image (null when absent). ' +
+      'lastMessageAr/lastMessageAt are the real latest message (null when ' +
+      'none); unreadCount counts messages not sent by the caller and ' +
+      'not yet read; contextTitleAr is the order title or product name.',
     properties: {
       id: { type: 'string', format: 'uuid' },
       peerNameAr: { type: 'string' },
+      peerAvatarUrl: { type: 'string', nullable: true },
       lastMessageAr: { type: 'string', nullable: true },
+      lastMessageAt: { type: 'string', format: 'date-time', nullable: true },
       unreadCount: { type: 'integer' },
       productId: { type: 'string', format: 'uuid', nullable: true },
       serviceRequestId: { type: 'string', format: 'uuid', nullable: true },
+      contextTitleAr: { type: 'string', nullable: true },
       updatedAt: { type: 'string', format: 'date-time' },
     },
     required: [
       'id',
       'peerNameAr',
+      'peerAvatarUrl',
       'lastMessageAr',
+      'lastMessageAt',
       'unreadCount',
       'productId',
       'serviceRequestId',
+      'contextTitleAr',
       'updatedAt',
     ],
     additionalProperties: false,
@@ -569,7 +636,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   NotificationDto: {
     type: 'object',
     description:
-      'A persisted notification for the authenticated recipient. 	ype is an ' +
+      'A persisted notification for the authenticated recipient. 	type is an ' +
       'open string until product trigger types are ratified; no delivery ' +
       'provider exists (persistence + read APIs only).',
     properties: {
@@ -582,6 +649,28 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       createdAt: { type: 'string', format: 'date-time' },
     },
     required: ['id', 'type', 'titleAr', 'bodyAr', 'dataJson', 'readAt', 'createdAt'],
+    additionalProperties: false,
+  },
+  NotificationPreferencesDto: {
+    type: 'object',
+    description:
+      'Own notification delivery preferences (WP-Notifications). Only the two ' +
+      'USER-TOGGLABLE families exist as keys: requestStatus (maintenance ' +
+      'request updates) and subscription (subscription + payment-review ' +
+      'updates). Verification decisions + admin operational messages are ' +
+      'MANDATORY and have no key. Absent row ≡ all true.',
+    properties: {
+      requestStatus: { type: 'boolean' },
+      subscription: { type: 'boolean' },
+    },
+    required: ['requestStatus', 'subscription'],
+    additionalProperties: false,
+  },
+  UnreadCountDto: {
+    type: 'object',
+    description: 'Server-authoritative unread notification count for the badge.',
+    properties: { unread: { type: 'integer' } },
+    required: ['unread'],
     additionalProperties: false,
   },
 
@@ -605,7 +694,18 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       isActive: { type: 'boolean' },
       sortOrder: { type: 'integer' },
     },
-    required: ['id', 'role', 'code', 'nameAr', 'nameEn', 'billingInterval', 'price', 'currency', 'isActive', 'sortOrder'],
+    required: [
+      'id',
+      'role',
+      'code',
+      'nameAr',
+      'nameEn',
+      'billingInterval',
+      'price',
+      'currency',
+      'isActive',
+      'sortOrder',
+    ],
     additionalProperties: false,
   },
   CreatePaymentSubmissionDto: {
@@ -640,7 +740,19 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' },
     },
-    required: ['id', 'userId', 'planId', 'subscriptionId', 'method', 'transferReference', 'proofStorageKey', 'status', 'reviewedAt', 'createdAt', 'updatedAt'],
+    required: [
+      'id',
+      'userId',
+      'planId',
+      'subscriptionId',
+      'method',
+      'transferReference',
+      'proofStorageKey',
+      'status',
+      'reviewedAt',
+      'createdAt',
+      'updatedAt',
+    ],
     additionalProperties: false,
   },
   PaymentMethodConfigDto: {
@@ -660,7 +772,10 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     description: 'The principal current subscription with its plan (null when none).',
     properties: {
       id: { type: 'string', format: 'uuid' },
-      status: { type: 'string', enum: ['active', 'pending', 'trialing', 'past_due', 'cancelled', 'expired'] },
+      status: {
+        type: 'string',
+        enum: ['active', 'pending', 'trialing', 'past_due', 'cancelled', 'expired'],
+      },
       startedAt: { type: 'string', format: 'date-time' },
       currentPeriodStart: { type: 'string', format: 'date-time' },
       currentPeriodEnd: { type: 'string', format: 'date-time' },
@@ -680,11 +795,31 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
           billingInterval: { type: 'string' },
           isActive: { type: 'boolean' },
         },
-        required: ['id', 'code', 'nameAr', 'nameEn', 'role', 'price', 'currency', 'billingInterval', 'isActive'],
+        required: [
+          'id',
+          'code',
+          'nameAr',
+          'nameEn',
+          'role',
+          'price',
+          'currency',
+          'billingInterval',
+          'isActive',
+        ],
         additionalProperties: false,
       },
     },
-    required: ['id', 'status', 'startedAt', 'currentPeriodStart', 'currentPeriodEnd', 'renewalEnabled', 'cancelledAt', 'createdAt', 'plan'],
+    required: [
+      'id',
+      'status',
+      'startedAt',
+      'currentPeriodStart',
+      'currentPeriodEnd',
+      'renewalEnabled',
+      'cancelledAt',
+      'createdAt',
+      'plan',
+    ],
     additionalProperties: false,
   },
   MeSubscriptionDto: {
@@ -717,17 +852,66 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   },
   // Admin read models are `Record<string, unknown>` at runtime; modeled as
   // open objects so the generated document has no dangling $refs.
-  AdminMetricsDto: { type: 'object', description: 'Admin metrics read model.', additionalProperties: true },
-  AdminUserDto: { type: 'object', description: 'Admin user list item read model.', additionalProperties: true },
-  AdminUserDetailDto: { type: 'object', description: 'Admin user detail read model.', additionalProperties: true },
-  AdminTechnicianDto: { type: 'object', description: 'Admin technician list item read model.', additionalProperties: true },
-  AdminMerchantDto: { type: 'object', description: 'Admin merchant list item read model.', additionalProperties: true },
-  AdminServiceRequestDto: { type: 'object', description: 'Admin service-request list item read model.', additionalProperties: true },
-  AdminStatusOverrideResultDto: { type: 'object', description: 'Admin service-request status override result.', additionalProperties: true },
-  AdminVerificationResultDto: { type: 'object', description: 'Admin verification decision result.', additionalProperties: true },
-  AdminReviewDto: { type: 'object', description: 'Admin review list item read model.', additionalProperties: true },
-  AdminReviewRemoveResultDto: { type: 'object', description: 'Admin review removal result.', additionalProperties: true },
-  AuditLogDto: { type: 'object', description: 'Audit log entry read model.', additionalProperties: true },
+  AdminMetricsDto: {
+    type: 'object',
+    description: 'Admin metrics read model.',
+    additionalProperties: true,
+  },
+  AdminUserDto: {
+    type: 'object',
+    description: 'Admin user list item read model.',
+    additionalProperties: true,
+  },
+  AdminUserDetailDto: {
+    type: 'object',
+    description: 'Admin user detail read model.',
+    additionalProperties: true,
+  },
+  AdminTechnicianDto: {
+    type: 'object',
+    description: 'Admin technician list item read model.',
+    additionalProperties: true,
+  },
+  AdminMerchantDto: {
+    type: 'object',
+    description: 'Admin merchant list item read model.',
+    additionalProperties: true,
+  },
+  AdminServiceRequestDto: {
+    type: 'object',
+    description: 'Admin service-request list item read model.',
+    additionalProperties: true,
+  },
+  AdminStatusOverrideResultDto: {
+    type: 'object',
+    description: 'Admin service-request status override result.',
+    additionalProperties: true,
+  },
+  AdminAssignResultDto: {
+    type: 'object',
+    description: 'Admin technician assignment result (WP-Admin-03).',
+    additionalProperties: true,
+  },
+  AdminVerificationResultDto: {
+    type: 'object',
+    description: 'Admin verification decision result.',
+    additionalProperties: true,
+  },
+  AdminReviewDto: {
+    type: 'object',
+    description: 'Admin review list item read model.',
+    additionalProperties: true,
+  },
+  AdminReviewRemoveResultDto: {
+    type: 'object',
+    description: 'Admin review removal result.',
+    additionalProperties: true,
+  },
+  AuditLogDto: {
+    type: 'object',
+    description: 'Audit log entry read model.',
+    additionalProperties: true,
+  },
   ReadAllResultDto: {
     type: 'object',
     description: 'Result of marking all own notifications read.',
@@ -747,7 +931,14 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       maxBytes: { type: 'integer' },
       expiresInSeconds: { type: 'integer' },
     },
-    required: ['submissionId', 'storageKey', 'uploadUrl', 'mimeType', 'maxBytes', 'expiresInSeconds'],
+    required: [
+      'submissionId',
+      'storageKey',
+      'uploadUrl',
+      'mimeType',
+      'maxBytes',
+      'expiresInSeconds',
+    ],
     additionalProperties: false,
   },
   ProofDownloadUrlDto: {
@@ -762,8 +953,64 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     required: ['submissionId', 'storageKey', 'downloadUrl', 'expiresInSeconds'],
     additionalProperties: false,
   },
-  PaymentApprovalResultDto: { description: 'Admin approval result (alias of PaymentReviewResultDto).', ...REF('PaymentReviewResultDto') },
-  PaymentRejectResultDto: { description: 'Admin rejection result (alias of PaymentReviewResultDto).', ...REF('PaymentReviewResultDto') },
+  ServiceRequestMediaUploadUrlDto: {
+    type: 'object',
+    description:
+      'Presigned PUT grant for a server-generated service-request media key. ' +
+      'The key lives under `request-media/{userId}/{requestId}/` and is never ' +
+      'chosen by the client (Track B2).',
+    properties: {
+      requestId: { type: 'string', format: 'uuid' },
+      storageKey: { type: 'string' },
+      uploadUrl: { type: 'string' },
+      requiredHeaders: { type: 'object', additionalProperties: { type: 'string' } },
+      mimeType: { type: 'string' },
+      maxBytes: { type: 'integer' },
+      expiresInSeconds: { type: 'integer' },
+    },
+    required: [
+      'requestId',
+      'storageKey',
+      'uploadUrl',
+      'mimeType',
+      'maxBytes',
+      'expiresInSeconds',
+    ],
+    additionalProperties: false,
+  },
+  ServiceRequestMediaDto: {
+    type: 'object',
+    description:
+      'Attached photo metadata for a service request. Binaries live in private ' +
+      'object storage; storage keys are never exposed to clients.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      mimeType: { type: 'string' },
+      fileSize: { type: 'integer' },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'mimeType', 'fileSize', 'createdAt'],
+    additionalProperties: false,
+  },
+  ServiceRequestMediaUrlDto: {
+    type: 'object',
+    description: 'Short-lived presigned download grant for one request photo.',
+    properties: {
+      mediaId: { type: 'string', format: 'uuid' },
+      downloadUrl: { type: 'string' },
+      expiresInSeconds: { type: 'integer' },
+    },
+    required: ['mediaId', 'downloadUrl', 'expiresInSeconds'],
+    additionalProperties: false,
+  },
+  PaymentApprovalResultDto: {
+    description: 'Admin approval result (alias of PaymentReviewResultDto).',
+    ...REF('PaymentReviewResultDto'),
+  },
+  PaymentRejectResultDto: {
+    description: 'Admin rejection result (alias of PaymentReviewResultDto).',
+    ...REF('PaymentReviewResultDto'),
+  },
   AdminGrantResultDto: {
     type: 'object',
     description: 'Admin manual grant result (subscription or entitlement grant).',
@@ -881,13 +1128,13 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     type: 'object',
     description:
       'PATCH /technician/profile payload. Editable: display_name, bio, ' +
-      'avatar_url, experience_years, availability_status (available | ' +
+      'experience_years, availability_status (available | ' +
       'unavailable only — technician-controlled, WP-4), areas (label + ' +
-      'optional coordinates). verificationStatus/ratings/counters are NEVER writable.',
+      'optional coordinates). verificationStatus/ratings/counters are NEVER writable. ' +
+      'WP-01: profile photos change exclusively through POST /technician/profile/avatar.',
     properties: {
       display_name: { type: 'string', minLength: 1, maxLength: 255 },
       bio: { type: 'string', maxLength: 2000 },
-      avatar_url: { type: 'string', minLength: 1, maxLength: 512 },
       experience_years: { type: 'integer', minimum: 0, maximum: 60 },
       availability_status: { type: 'string', enum: ['available', 'unavailable'] },
       areas: {
@@ -939,7 +1186,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   MerchantProfileDto: {
     type: 'object',
     description:
-      'The authenticated merchant\'s own profile. verificationStatus is ' +
+      "The authenticated merchant's own profile. verificationStatus is " +
       'READ-ONLY (docs/09_ADMIN.md — admin is the verification authority). ' +
       'A missing profile returns 404 until the merchant PATCHes (onboarding).',
     properties: {
@@ -970,11 +1217,11 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     type: 'object',
     description:
       'PATCH /merchant/profile payload (onboarding persistence). Fields are ' +
-      'optional; absent fields unchanged. verificationStatus is never writable.',
+      'optional; absent fields unchanged. verificationStatus is never writable. ' +
+      'WP-01: store logos change exclusively through POST /merchant/profile/logo.',
     properties: {
       businessName: { type: 'string', minLength: 1, maxLength: 255 },
       bio: { type: 'string', maxLength: 2000 },
-      logoUrl: { type: 'string', maxLength: 512 },
       contactPhone: { type: 'string', pattern: '^\\+?[0-9]{7,15}$' },
       locationId: { type: 'string', format: 'uuid' },
     },

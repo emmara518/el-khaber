@@ -104,8 +104,11 @@ function toDetailDto(row: DetailRow): Omit<ServiceRequestDto, 'history'> {
       addressText: row.location.addressText,
       city: row.location.city,
       region: row.location.region,
-      latitude: Number(row.location.latitude),
-      longitude: Number(row.location.longitude),
+      // Label-only locations (legacy rows or technician-entered district
+      // names) have no coordinates. Never coerce NULL to (0,0): the client
+      // must fall back to the text address instead of the Gulf of Guinea.
+      latitude: row.location.latitude === null ? null : Number(row.location.latitude),
+      longitude: row.location.longitude === null ? null : Number(row.location.longitude),
     },
     scheduledAt: row.scheduledAt?.toISOString() ?? null,
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
@@ -206,9 +209,13 @@ export class ServiceRequestsService {
       // own relationship, never client input) is notified of the new
       // pending request. Reuses the existing `request_status` type and the
       // existing `pending` content — no new taxonomy or copy is invented.
+      // WP-Notifications: navigation payload carries the request id only.
       await this.notifications.create(
         technician.userId,
-        requestStatusNotification('pending'),
+        {
+          ...requestStatusNotification('pending'),
+          dataJson: { serviceRequestId: row.id, status: 'pending' },
+        },
         tx,
       );
       return row;
@@ -413,7 +420,14 @@ export class ServiceRequestsService {
         // Business event → persisted notification, same transaction.
         const recipientId = await this.resolveCounterparty(tx, actor, id);
         if (recipientId !== null) {
-          await this.notifications.create(recipientId, requestStatusNotification(rule.to), tx);
+          await this.notifications.create(
+            recipientId,
+            {
+              ...requestStatusNotification(rule.to),
+              dataJson: { serviceRequestId: id, status: rule.to },
+            },
+            tx,
+          );
         }
         return 'applied' as const;
       });

@@ -80,7 +80,11 @@ export function readProofStorageConfig(env: NodeJS.ProcessEnv = process.env): Pr
     endpoint: readString(env, 'PROOF_S3_ENDPOINT'),
     accessKeyId: readString(env, 'PROOF_S3_ACCESS_KEY_ID'),
     secretAccessKey: readString(env, 'PROOF_S3_SECRET_ACCESS_KEY'),
-    urlTtlSeconds: readNumber(env, 'PROOF_URL_TTL_SECONDS', DEFAULT_PROOF_URL_TTL_SECONDS),
+    // Hard ceiling (V2.1): a payment-proof link must never outlive 5 minutes.
+    urlTtlSeconds: Math.min(
+      readNumber(env, 'PROOF_URL_TTL_SECONDS', DEFAULT_PROOF_URL_TTL_SECONDS),
+      DEFAULT_PROOF_URL_TTL_SECONDS,
+    ),
     maxBytes: readNumber(env, 'PROOF_MAX_BYTES', DEFAULT_PROOF_MAX_BYTES),
     localDir: readString(env, 'PROOF_LOCAL_DIR') ?? '.proof-storage',
   };

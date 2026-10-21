@@ -9,7 +9,6 @@ import { faultListQuerySchema, type FaultListQuery } from '@khabir/shared-valida
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-
 import { Public } from '../common/decorators';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';

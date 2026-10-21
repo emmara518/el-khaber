@@ -49,6 +49,7 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/prisma ./apps/api/prisma
+COPY --from=build /app/apps/api/scripts ./apps/api/scripts
 COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 
 EXPOSE 3000
@@ -58,4 +59,10 @@ EXPOSE 3000
 # dependency state to the orchestrator.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "const p=process.env.PORT||3000;const g=process.env.API_GLOBAL_PREFIX||'api/v1';fetch(`http://127.0.0.1:${p}/${g}/health`).then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "apps/api/dist/main.js"]
+# AUD-003 migration gate: apply pending migrations BEFORE serving traffic.
+# migrate-deploy.mjs exits non-zero on any failure, so the container exits
+# and Render refuses the deploy (previous version stays live). Runs on the
+# direct (non-pooled) connection via the schema's directUrl. Alternative
+# production path (preDeployCommand) requires a paid plan — documented in
+# docs/14_PRODUCTION_DEPLOY_RUNBOOK.md.
+CMD ["sh", "-c", "node apps/api/scripts/migrate-deploy.mjs && node apps/api/dist/main.js"]

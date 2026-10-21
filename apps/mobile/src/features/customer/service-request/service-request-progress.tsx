@@ -6,7 +6,7 @@ import { SERVICE_REQUEST_STEPS } from './service-request-types';
 
 import { fontFamily, type } from '@/ui/typography';
 
-const STEPS_AR = ['الجهاز', 'المشكلة', 'الوصف', 'الصور', 'الموقع', 'الموعد', 'المراجعة'];
+const STEPS_AR = ['الجهاز', 'المشكلة', 'الوصف', 'الصور', 'الموقع', 'الموعد المفضل', 'المراجعة'];
 
 export function ServiceRequestProgress({ index }: { index: number }) {
   const groupIndex = requestGroupIndex(SERVICE_REQUEST_STEPS[index] ?? 'appliance');

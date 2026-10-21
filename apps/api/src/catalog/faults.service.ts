@@ -9,10 +9,8 @@
  * content verbatim and never generates diagnostic conclusions.
  */
 
-
 import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
-
 
 import { PrismaService } from '../database/prisma.service';
 
@@ -42,11 +40,15 @@ const DETAIL_SELECT = {
 export class FaultsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: FaultListQuery): Promise<{ items: FaultSummaryDto[]; meta: ReturnType<typeof buildPageMeta> }> {
+  async list(
+    query: FaultListQuery,
+  ): Promise<{ items: FaultSummaryDto[]; meta: ReturnType<typeof buildPageMeta> }> {
     const { page, limit, appliance_category_id, q } = query;
     const where: Prisma.FaultWhereInput = {
       publishStatus: 'published',
-      ...(appliance_category_id !== undefined ? { applianceCategoryId: appliance_category_id } : {}),
+      ...(appliance_category_id !== undefined
+        ? { applianceCategoryId: appliance_category_id }
+        : {}),
       ...(q !== undefined
         ? {
             OR: [{ nameAr: { contains: q } }, { summaryAr: { contains: q } }],

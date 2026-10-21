@@ -22,12 +22,7 @@ import { TechniciansService } from './technicians.service';
     ServiceCatalogController,
     TechniciansController,
   ],
-  providers: [
-    ApplianceCategoriesService,
-    FaultsService,
-    ServiceCatalogService,
-    TechniciansService,
-  ],
+  providers: [ApplianceCategoriesService, FaultsService, ServiceCatalogService, TechniciansService],
   exports: [ApplianceCategoriesService, FaultsService, ServiceCatalogService, TechniciansService],
 })
 export class CatalogModule {}

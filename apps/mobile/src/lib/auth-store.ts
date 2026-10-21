@@ -21,6 +21,8 @@ import type { AuthSessionDto, AuthUserDto, Role } from '@khabir/shared-types';
 
 export interface AuthState {
   status: 'unknown' | 'anonymous' | 'authenticated';
+  /** Transport state for the bootstrap attempt (retryable when offline). */
+  connection: 'online' | 'offline';
   user: AuthUserDto | null;
   expiresAt: number | null;
   error: string | null;
@@ -35,6 +37,7 @@ export interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'unknown',
+  connection: 'online',
   user: null,
   expiresAt: null,
   error: null,
@@ -42,22 +45,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async bootstrap(): Promise<void> {
     const stored = await loadStoredSession();
     if (stored === null) {
-      set({ status: 'anonymous', user: null, expiresAt: null });
+      set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null });
       return;
     }
-    try {
-      const res = await getApi().unauthenticatedRequest<{
-        data: { accessToken: string; refreshToken: string; expiresIn: number; user: AuthUserDto };
-      }>('POST', '/auth/refresh', { refreshToken: stored.refreshToken });
-      const data = res.data;
-      setAccessToken(data.accessToken);
-      await storeSession({ refreshToken: data.refreshToken, user: data.user });
-      set({ status: 'authenticated', user: data.user, expiresAt: Date.now() + data.expiresIn * 1000 });
-    } catch {
+
+    // Route through the client's single-flight refresh so bootstrap and any
+    // concurrent startup requests share exactly one refresh call.
+    const result = await getApi().refreshSession();
+    if (result.outcome === 'ok' && result.data !== undefined) {
+      const data = result.data;
+      set({
+        status: 'authenticated',
+        connection: 'online',
+        user: data.user as AuthUserDto,
+        expiresAt: Date.now() + data.expiresIn * 1000,
+        error: null,
+      });
+      return;
+    }
+
+    if (result.outcome === 'auth') {
+      // Definitive rejection: the durable session is already cleared by the
+      // client. Only here may bootstrap drop the user to anonymous.
       await clearStoredSession();
       clearAccessToken();
-      set({ status: 'anonymous', user: null, expiresAt: null });
+      set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null });
+      return;
     }
+
+    // Transient failure (offline/timeout/5xx): KEEP the stored session and
+    // expose a retryable connection state. The Splash route offers retry.
+    clearAccessToken();
+    set({
+      status: 'unknown',
+      connection: 'offline',
+      user: null,
+      expiresAt: null,
+      error: 'تعذر الاتصال بالخادم. تحقق من الشبكة وحاول تاني.',
+    });
   },
 
   async login(input): Promise<void> {
@@ -71,7 +96,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = res.data;
       setAccessToken(data.accessToken);
       await storeSession({ refreshToken: data.refreshToken, user: data.user });
-      set({ status: 'authenticated', user: data.user, expiresAt: Date.now() + data.expiresIn * 1000 });
+      set({
+        status: 'authenticated',
+        connection: 'online',
+        user: data.user,
+        expiresAt: Date.now() + data.expiresIn * 1000,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       set({ error: message, status: 'anonymous', user: null, expiresAt: null });
@@ -90,7 +120,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const data = res.data;
       setAccessToken(data.accessToken);
       await storeSession({ refreshToken: data.refreshToken, user: data.user });
-      set({ status: 'authenticated', user: data.user, expiresAt: Date.now() + data.expiresIn * 1000 });
+      set({
+        status: 'authenticated',
+        connection: 'online',
+        user: data.user,
+        expiresAt: Date.now() + data.expiresIn * 1000,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed';
       set({ error: message, status: 'anonymous', user: null, expiresAt: null });
@@ -111,7 +146,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     await clearStoredSession();
     clearAccessToken();
-    set({ status: 'anonymous', user: null, expiresAt: null, error: null });
+    set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
   },
 
   clearError(): void {
@@ -128,7 +163,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     await clearStoredSession();
     clearAccessToken();
-    set({ status: 'anonymous', user: null, expiresAt: null, error: null });
+    set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
   },
 }));
 

@@ -7,7 +7,6 @@ import { serviceListQuerySchema, type ServiceListQuery } from '@khabir/shared-va
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
-
 import { Public } from '../common/decorators';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodQuery } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';

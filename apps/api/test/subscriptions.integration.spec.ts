@@ -2,32 +2,22 @@
  * REAL-DATABASE integration tests for Task 10I: subscription persistence,
  * payment submission → admin approval (one transaction) → ACTIVE
  * subscription + entitlements, rejection, manual grants, audit trail, and
- * admin notification — against verified khabir-dev. Deterministic probe
+ * admin notification — against the isolated test database. Deterministic probe
  * rows, fully cleaned (probe marker: t10i-probe).
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
-import { parse } from 'dotenv';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { withTestPoolLimit } from './real-db-url';
+import { readTestDatabaseUrl, withTestPoolLimit } from './real-db-url';
 
-const envPath = join(__dirname, '..', '.env');
-let realDbUrl = '';
-try {
-  const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
-} catch {
-  realDbUrl = '';
-}
-const hasRealDb = /supabase\.com|supabase\.co/i.test(realDbUrl);
+const realDbUrl = withTestPoolLimit(readTestDatabaseUrl());
+const hasRealDb = realDbUrl !== '';
 
 const PROBE = 't10i-probe';
 
-describe.skipIf(!hasRealDb)('subscriptions + payments (real khabir-dev)', () => {
+describe.skipIf(!hasRealDb)('subscriptions + payments (isolated test database)', () => {
   let prisma: PrismaClient;
   let _adminId = '';
   let _customerUserId = '';

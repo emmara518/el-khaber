@@ -16,13 +16,19 @@ export { Card } from './card';
 export { Pill } from './pill';
 export { Chip, type ChipProps, type ChipSelectionMode } from './chip';
 export { Avatar } from './avatar';
+export { ProfilePhotoSection, type ProfilePhotoStatus } from './profile-photo-section';
 export { IconText } from './icon-text';
 export { RatingStars } from './rating-stars';
 export { ApplianceIcon } from './appliance-icon';
 export { StatusBadge } from './status-badge';
 export { StatusUnit } from './status-unit';
 export { BrandImage } from './brand-image';
-export { brandAssets, brandAssetsByCategory, type BrandAssetName, type BrandAssetCategory } from './brand-assets';
+export {
+  brandAssets,
+  brandAssetsByCategory,
+  type BrandAssetName,
+  type BrandAssetCategory,
+} from './brand-assets';
 export { onboardingAssets, type OnboardingAssetName } from './onboarding-assets';
 export {
   roleSelectionAssets,
@@ -52,4 +58,8 @@ export { ProductImage } from './product-image';
 export { productImageDisplay, type ProductImageDisplay } from './product-image-display';
 export { usePressScale, screenReveal } from './use-press-scale';
 export { UnreadBadge } from './unread-badge';
-export { LifecycleTimeline, type LifecycleStep, type LifecycleStepState } from './lifecycle-timeline';
+export {
+  LifecycleTimeline,
+  type LifecycleStep,
+  type LifecycleStepState,
+} from './lifecycle-timeline';

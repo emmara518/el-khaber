@@ -1,34 +1,24 @@
 /**
  * REAL-DATABASE integration tests for Task 10H: chat, review, and
- * notification persistence against verified khabir-dev. Same contract as
+ * notification persistence against the isolated test database. Same contract as
  * the other integration suites: skips without a real Supabase URL, reads
  * .env WITHOUT mutating process.env, deterministic probe rows, full cleanup.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 
 import { PrismaClient } from '@prisma/client';
-import { parse } from 'dotenv';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { withTestPoolLimit } from './real-db-url';
+import { readTestDatabaseUrl, withTestPoolLimit } from './real-db-url';
 
 import { ReviewsService } from '../dist/reviews/reviews.service';
 
-const envPath = join(__dirname, '..', '.env');
-let realDbUrl = '';
-try {
-  const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
-} catch {
-  realDbUrl = '';
-}
-const hasRealDb = /supabase\.com|supabase\.co/i.test(realDbUrl);
+const realDbUrl = withTestPoolLimit(readTestDatabaseUrl());
+const hasRealDb = realDbUrl !== '';
 
 const PROBE = 't10h-probe';
 
-describe.skipIf(!hasRealDb)('chat / reviews / notifications persistence (real khabir-dev)', () => {
+describe.skipIf(!hasRealDb)('chat / reviews / notifications persistence (isolated test database)', () => {
   let prisma: PrismaClient;
   let customerUserId = '';
   let techUserId = '';

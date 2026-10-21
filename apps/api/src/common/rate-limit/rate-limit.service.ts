@@ -13,10 +13,12 @@
  * Source: docs/16_V2_READINESS_AUDIT.md P0 item 3.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Logger } from '@nestjs/common';
 
-import { PrismaService } from '../../database/prisma.service';
 import { getConfig } from '../../config/app.config';
+import { PrismaService } from '../../database/prisma.service';
 
 export interface RateLimitResult {
   allowed: boolean;
@@ -47,7 +49,35 @@ export class RateLimitService {
       ['default', { name: 'default', max: config.rateLimit.max, ttlSeconds: config.rateLimit.ttlSeconds }],
       ['auth', { name: 'auth', max: config.rateLimit.authMax, ttlSeconds: config.rateLimit.ttlSeconds }],
       ['password-reset', { name: 'password-reset', max: 3, ttlSeconds: 900 }],
-      ['login', { name: 'login', max: 5, ttlSeconds: 900 }],
+      // (identifier, IP) immediate lock, plus two independent budgets:
+      // per source IP and per account (across IPs).
+      [
+        'login',
+        {
+          name: 'login',
+          max: config.identity.maxFailedLogins,
+          ttlSeconds: config.identity.failureLockSeconds,
+        },
+      ],
+      [
+        'login-ip',
+        {
+          name: 'login-ip',
+          max: config.rateLimit.loginIpMax,
+          ttlSeconds: config.rateLimit.loginIpTtlSeconds,
+        },
+      ],
+      [
+        'login-user',
+        {
+          name: 'login-user',
+          max: config.rateLimit.loginUserMax,
+          ttlSeconds: config.rateLimit.loginUserTtlSeconds,
+        },
+      ],
+      // WP-01: profile-image uploads are server-processed (sharp) and
+      // storage-backed — a dedicated anti-flood policy per uploader.
+      ['avatar', { name: 'avatar', max: 10, ttlSeconds: 900 }],
     ]);
   }
 
@@ -70,9 +100,14 @@ export class RateLimitService {
     const resetAt = new Date(windowStart.getTime() + policy.ttlSeconds * 1000);
 
     try {
+      // The legacy UUID/timestamp defaults were intentionally removed by
+      // migration 20261020091000. Supply both values here: the schema uses a
+      // client-generated UUID, and `updated_at` must be written on INSERT as
+      // well as on the conflict update.
       const bucket = await this.prisma.$queryRaw<{ count: number }[]>`
-        INSERT INTO "rate_limit_buckets" ("policy", "identifier", "window_start", "count")
-        VALUES (${policyName}, ${identifier}, ${windowStart}, 1)
+        INSERT INTO "rate_limit_buckets"
+          ("id", "policy", "identifier", "window_start", "count", "updated_at")
+        VALUES (${randomUUID()}::uuid, ${policyName}, ${identifier}, ${windowStart}, 1, ${now})
         ON CONFLICT ("policy", "identifier", "window_start") DO UPDATE
         SET "count" = "rate_limit_buckets"."count" + 1,
             "updated_at" = now()

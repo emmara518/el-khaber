@@ -17,6 +17,8 @@ import {
   type TechnicianVerificationStatus,
 } from './technician-profile-types';
 
+import type { PickedPhoto } from '../../../lib/profile-photo';
+
 export class ProfileSaveError extends Error {
   constructor(message = 'فشل حفظ الملف. حاول مجددًا') {
     super(message);
@@ -33,17 +35,41 @@ interface MockCatalogService {
 
 /** Deterministic stand-in for the server service catalog (UUID-keyed). */
 export const MOCK_CATALOG: ReadonlyArray<MockCatalogService> = [
-  { id: 'svc-air-repair', nameAr: 'صيانة المكيفات', applianceSlug: 'air_conditioner', applianceNameAr: 'تكييفات' },
-  { id: 'svc-air-clean', nameAr: 'تنظيف فلاتر المكيف', applianceSlug: 'air_conditioner', applianceNameAr: 'تكييفات' },
-  { id: 'svc-air-gas', nameAr: 'فحص غاز التبريد', applianceSlug: 'air_conditioner', applianceNameAr: 'تكييفات' },
-  { id: 'svc-washer-repair', nameAr: 'صيانة غسالات', applianceSlug: 'washing_machine', applianceNameAr: 'غسالات' },
-  { id: 'svc-fridge-repair', nameAr: 'صيانة ثلاجات', applianceSlug: 'refrigerator', applianceNameAr: 'ثلاجات' },
+  {
+    id: 'svc-air-repair',
+    nameAr: 'صيانة المكيفات',
+    applianceSlug: 'air_conditioner',
+    applianceNameAr: 'تكييفات',
+  },
+  {
+    id: 'svc-air-clean',
+    nameAr: 'تنظيف فلاتر المكيف',
+    applianceSlug: 'air_conditioner',
+    applianceNameAr: 'تكييفات',
+  },
+  {
+    id: 'svc-air-gas',
+    nameAr: 'فحص غاز التبريد',
+    applianceSlug: 'air_conditioner',
+    applianceNameAr: 'تكييفات',
+  },
+  {
+    id: 'svc-washer-repair',
+    nameAr: 'صيانة غسالات',
+    applianceSlug: 'washing_machine',
+    applianceNameAr: 'غسالات',
+  },
+  {
+    id: 'svc-fridge-repair',
+    nameAr: 'صيانة ثلاجات',
+    applianceSlug: 'refrigerator',
+    applianceNameAr: 'ثلاجات',
+  },
 ];
 
-function coverageFrom(serviceIds: ReadonlyArray<string>): Pick<
-  TechnicianProfile,
-  'servicesAr' | 'specialtiesAr' | 'appliances'
-> {
+function coverageFrom(
+  serviceIds: ReadonlyArray<string>,
+): Pick<TechnicianProfile, 'servicesAr' | 'specialtiesAr' | 'appliances'> {
   const selected = MOCK_CATALOG.filter((s) => serviceIds.includes(s.id));
   const specialties: string[] = [];
   const appliances: TechnicianApplianceSlug[] = [];
@@ -73,6 +99,9 @@ const APPROVED_SEED: TechnicianProfile = {
   rating: 4.9,
   reviewCount: 213,
   completedCount: 340,
+  // WP-01: the mock carries no photo (null readback; upload/delete are
+  // no-ops returning the current state — no backend, no uploads).
+  avatarUrl: null,
 };
 
 export type ProfileSeed =
@@ -140,17 +169,32 @@ export class MockTechnicianProfileDataSource implements TechnicianProfileDataSou
     return JSON.parse(JSON.stringify(this.current)) as TechnicianProfile;
   }
 
+  async uploadAvatar(_input: {
+    role: 'technician';
+    photo: PickedPhoto;
+  }): Promise<TechnicianProfile> {
+    if (this.mode === 'failing') throw new ProfileSaveError('فشل رفع الصورة. حاول مجددًا');
+    return JSON.parse(JSON.stringify(this.current)) as TechnicianProfile;
+  }
+
+  async deleteAvatar(_input: { role: 'technician' }): Promise<TechnicianProfile> {
+    if (this.mode === 'failing') throw new ProfileSaveError('فشل حذف الصورة. حاول مجددًا');
+    return JSON.parse(JSON.stringify(this.current)) as TechnicianProfile;
+  }
+
   private apply(input: TechnicianProfileSaveInput, submit: boolean): void {
     const errors = validateProfileDraft(input.profile);
     if (Object.keys(errors).length > 0) {
       throw new ProfileSaveError('بيانات الملف غير مكتملة');
     }
     const coverage =
-      input.serviceIds !== undefined ? coverageFrom(input.serviceIds) : {
-        servicesAr: this.current.servicesAr,
-        specialtiesAr: this.current.specialtiesAr,
-        appliances: this.current.appliances,
-      };
+      input.serviceIds !== undefined
+        ? coverageFrom(input.serviceIds)
+        : {
+            servicesAr: this.current.servicesAr,
+            specialtiesAr: this.current.specialtiesAr,
+            appliances: this.current.appliances,
+          };
     this.current = {
       ...this.current,
       ...input.profile,

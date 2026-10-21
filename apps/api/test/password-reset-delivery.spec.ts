@@ -8,7 +8,20 @@ import {
 import { HttpPasswordResetDelivery } from '../src/auth/http-password-reset-delivery';
 import { PasswordResetService } from '../src/auth/password-reset.service';
 
+import type { RateLimitService } from '../src/common/rate-limit/rate-limit.service';
 import type { PrismaService } from '../src/database/prisma.service';
+
+function allowingRateLimit(): RateLimitService {
+  return {
+    checkLimit: vi.fn(async () => ({
+      allowed: true,
+      remaining: 2,
+      resetAt: new Date(Date.now() + 900_000),
+      limit: 3,
+      ttlSeconds: 900,
+    })),
+  } as unknown as RateLimitService;
+}
 
 /**
  * Unit tests for the password-reset delivery boundary (Task 10D §4):
@@ -27,6 +40,7 @@ function makePrisma(user: { id: string; phone: string | null; email: string | nu
       findFirst: vi.fn(async () => user),
     },
     passwordResetToken: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
       create: vi.fn(async (args: { data: Record<string, unknown> }) => {
         created.push(args.data);
         return { id: 'token-1', ...args.data };
@@ -46,13 +60,13 @@ describe('password reset delivery boundary', () => {
     const sent: PasswordResetDeliveryMessage[] = [];
     const delivery = { sendPasswordReset: vi.fn(async (m: PasswordResetDeliveryMessage) => { sent.push(m); }) };
 
-    const service = new PasswordResetService(prisma, delivery);
+    const service = new PasswordResetService(prisma, allowingRateLimit(), delivery);
     const result = await service.requestReset({ email: 'u@example.com' });
 
     expect(result.accepted).toBe(true);
     expect(result.issued).toBe(true);
     expect(delivery.sendPasswordReset).toHaveBeenCalledTimes(1);
-    expect(sent[0]?.contact).toEqual({ phone: '+201234567890', email: 'u@example.com' });
+    expect(sent[0]?.contact).toEqual({ email: 'u@example.com' });
     expect(sent[0]?.rawToken).toBeTypeOf('string');
     expect((sent[0]?.rawToken ?? '').length).toBeGreaterThanOrEqual(20);
   });
@@ -61,7 +75,7 @@ describe('password reset delivery boundary', () => {
     const { prisma } = makePrisma(null);
     const delivery = { sendPasswordReset: vi.fn() };
 
-    const service = new PasswordResetService(prisma, delivery);
+    const service = new PasswordResetService(prisma, allowingRateLimit(), delivery);
     const result = await service.requestReset({ email: 'nobody@example.com' });
 
     expect(result).toEqual({ accepted: true, issued: false });
@@ -70,17 +84,24 @@ describe('password reset delivery boundary', () => {
 
   it('persists only the SHA-256 hash of the token, never the raw value', async () => {
     const { prisma, created } = makePrisma({ id: 'u2', phone: null, email: 'u2@example.com' });
-    const delivery = { sendPasswordReset: vi.fn(async () => undefined) };
+    const sent: PasswordResetDeliveryMessage[] = [];
+    const delivery = {
+      sendPasswordReset: vi.fn(async (message: PasswordResetDeliveryMessage) => {
+        sent.push(message);
+      }),
+    };
 
-    const service = new PasswordResetService(prisma, delivery);
+    const service = new PasswordResetService(prisma, allowingRateLimit(), delivery);
     const result = await service.requestReset({ email: 'u2@example.com' });
 
     expect(created).toHaveLength(1);
     const stored = created[0] as { tokenHash: string };
+    const rawToken = sent[0]?.rawToken ?? '';
     expect(stored.tokenHash).toHaveLength(64);
-    expect(stored.tokenHash).not.toContain(result.rawToken ?? '');
-    expect(result.rawToken).toBeDefined();
-    expect(result.rawToken).not.toBe(stored.tokenHash);
+    expect(rawToken.length).toBeGreaterThanOrEqual(20);
+    expect(stored.tokenHash).not.toContain(rawToken);
+    expect(rawToken).not.toBe(stored.tokenHash);
+    expect(result.issued).toBe(true);
   });
 
   it('persists the hash BEFORE handing the token to delivery', async () => {
@@ -96,7 +117,7 @@ describe('password reset delivery boundary', () => {
       }),
     };
 
-    const service = new PasswordResetService(prisma, delivery);
+    const service = new PasswordResetService(prisma, allowingRateLimit(), delivery);
     await service.requestReset({ email: 'u3@example.com' });
     expect(order).toEqual(['persist', 'deliver']);
   });
@@ -157,7 +178,7 @@ describe('password reset delivery boundary', () => {
     const { prisma } = makePrisma({ id: 'u4', phone: null, email: 'u4@example.com' });
     const delivery = { sendPasswordReset: vi.fn(async () => { throw new Error('gateway down'); }) };
 
-    const service = new PasswordResetService(prisma, delivery);
+    const service = new PasswordResetService(prisma, allowingRateLimit(), delivery);
     const result = await service.requestReset({ email: 'u4@example.com' });
 
     expect(result.accepted).toBe(true);

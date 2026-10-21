@@ -70,23 +70,27 @@ function makeContext(authHeader: string): { context: ExecutionContext; req: Mock
   return { context, req };
 }
 
-function makeUserPrisma(user: {
-  id: string;
-  role: string;
-  status: string;
-  tokenVersion: number;
-} | null): PrismaService {
+function makeUserPrisma(
+  user: {
+    id: string;
+    role: string;
+    status: string;
+    tokenVersion: number;
+  } | null,
+): PrismaService {
   return {
     user: { findFirst: vi.fn(async () => user) },
     adminUser: { findUnique: vi.fn(async () => null) },
   } as unknown as PrismaService;
 }
 
-function makeAdminPrisma(admin: {
-  id: string;
-  status: string;
-  tokenVersion: number;
-} | null): PrismaService {
+function makeAdminPrisma(
+  admin: {
+    id: string;
+    status: string;
+    tokenVersion: number;
+  } | null,
+): PrismaService {
   return {
     user: { findFirst: vi.fn(async () => null) },
     adminUser: { findUnique: vi.fn(async () => admin) },
@@ -109,12 +113,22 @@ describe('JwtAuthGuard tokenVersion verification', () => {
       status: 'active',
       tokenVersion: 0,
     });
-    const prisma = makeUserPrisma({ id: 'u1', role: 'customer', status: 'active', tokenVersion: 0 });
+    const prisma = makeUserPrisma({
+      id: 'u1',
+      role: 'customer',
+      status: 'active',
+      tokenVersion: 0,
+    });
     const guard = makeGuard(prisma, jwt);
 
     const { context, req } = makeContext(`Bearer ${token}`);
     await expect(guard.canActivate(context)).resolves.toBe(true);
-    expect(req.user).toMatchObject({ id: 'u1', role: 'customer', status: 'active', authKind: 'user' });
+    expect(req.user).toMatchObject({
+      id: 'u1',
+      role: 'customer',
+      status: 'active',
+      authKind: 'user',
+    });
   });
 
   it('rejects a token with a stale tokenVersion (after logout) with "Token has been revoked"', async () => {
@@ -126,7 +140,12 @@ describe('JwtAuthGuard tokenVersion verification', () => {
       status: 'active',
       tokenVersion: 0,
     });
-    const prisma = makeUserPrisma({ id: 'u1', role: 'customer', status: 'active', tokenVersion: 1 });
+    const prisma = makeUserPrisma({
+      id: 'u1',
+      role: 'customer',
+      status: 'active',
+      tokenVersion: 1,
+    });
     const guard = makeGuard(prisma, jwt);
 
     const { context } = makeContext(`Bearer ${staleToken}`);
@@ -155,7 +174,11 @@ describe('JwtAuthGuard tokenVersion verification', () => {
       $transaction: vi.fn(async (fn: (txArg: unknown) => Promise<unknown>) => fn(tx)),
     } as unknown as PrismaService;
 
-    const resetService = new PasswordResetService(prisma, { sendPasswordReset: vi.fn() });
+    const resetService = new PasswordResetService(
+      prisma,
+      { checkLimit: vi.fn() } as never,
+      { sendPasswordReset: vi.fn() },
+    );
     await resetService.consumeReset({ token: 'reset-token', newPassword: 'newPassw0rd!' });
 
     // The reset bumped tokenVersion; the pre-reset access token is now stale.
@@ -170,7 +193,12 @@ describe('JwtAuthGuard tokenVersion verification', () => {
       status: 'active',
       tokenVersion: 0,
     });
-    const guardPrisma = makeUserPrisma({ id: 'u1', role: 'customer', status: 'active', tokenVersion: 1 });
+    const guardPrisma = makeUserPrisma({
+      id: 'u1',
+      role: 'customer',
+      status: 'active',
+      tokenVersion: 1,
+    });
     const guard = makeGuard(guardPrisma, jwt);
 
     const { context } = makeContext(`Bearer ${staleToken}`);
@@ -187,7 +215,12 @@ describe('JwtAuthGuard tokenVersion verification', () => {
       status: 'active',
       tokenVersion: 1,
     });
-    const prisma = makeUserPrisma({ id: 'u1', role: 'customer', status: 'active', tokenVersion: 1 });
+    const prisma = makeUserPrisma({
+      id: 'u1',
+      role: 'customer',
+      status: 'active',
+      tokenVersion: 1,
+    });
     const guard = makeGuard(prisma, jwt);
 
     const { context } = makeContext(`Bearer ${freshToken}`);
@@ -251,10 +284,16 @@ describe('AuthService tokenVersion issuance and revocation', () => {
         })),
       },
       refreshToken: { create: vi.fn(async () => undefined) },
+      // WP-01: issueSession resolves the role-appropriate profile image;
+      // no profile row here → avatarUrl: null (covered explicitly).
+      customerProfile: { findFirst: vi.fn(async () => null) },
     } as unknown as PrismaService;
 
     const service = new AuthService(prisma, jwt, makeLoginAttempts());
-    const session = await service.login({ email: 'u@example.com', password: 'sup3rsecretP4ss' }, {});
+    const session = await service.login(
+      { email: 'u@example.com', password: 'sup3rsecretP4ss' },
+      {},
+    );
 
     const payload = jwt.decode(session.accessToken) as { tokenVersion: number };
     expect(payload.tokenVersion).toBe(0);
@@ -284,7 +323,12 @@ describe('AuthService tokenVersion issuance and revocation', () => {
     const prisma = {
       user: { update },
       refreshToken: {
-        findUnique: vi.fn(async () => ({ id: 'rt1', userId: 'u1', familyId: 'f1', revokedAt: null })),
+        findUnique: vi.fn(async () => ({
+          id: 'rt1',
+          userId: 'u1',
+          familyId: 'f1',
+          revokedAt: null,
+        })),
         updateMany: refreshTokenUpdateMany,
       },
     } as unknown as PrismaService;
@@ -347,7 +391,12 @@ describe('AdminAuthService tokenVersion issuance and revocation', () => {
     const prisma = {
       adminUser: { update: adminUpdate },
       adminRefreshToken: {
-        findUnique: vi.fn(async () => ({ id: 'art1', adminId: 'a1', familyId: 'af1', revokedAt: null })),
+        findUnique: vi.fn(async () => ({
+          id: 'art1',
+          adminId: 'a1',
+          familyId: 'af1',
+          revokedAt: null,
+        })),
         updateMany: refreshTokenUpdateMany,
       },
     } as unknown as PrismaService;

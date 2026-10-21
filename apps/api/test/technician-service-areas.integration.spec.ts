@@ -1,14 +1,13 @@
-/**
+﻿/**
  * REAL-DATABASE integration tests for the technician service-area
  * foundation (Task 10E-R1).
  *
- * These tests REQUIRE the verified khabir-dev Supabase connection and
- * are the INVERSE of the FakePrisma e2e guard: they SKIP when no real
- * DATABASE_URL is configured and must never run against anything but
- * the managed dev project.
+ * These tests REQUIRE an isolated PostgreSQL database (TEST_DATABASE_URL
+ * or apps/api/.env.test) and skip when none is configured. Shared
+ * databases (khabir-dev/khabir-prod) are rejected by the resolver.
  *
- * IMPORTANT: the connection string is read from apps/api/.env WITHOUT
- * mutating process.env (the FakePrisma e2e DB-safety guard pins
+ * IMPORTANT: the connection string is resolved WITHOUT mutating
+ * process.env (the FakePrisma e2e DB-safety guard pins
  * process.env.DATABASE_URL at config level; mutating it here would leak
  * across worker-shared spec files).
  *
@@ -16,30 +15,17 @@
  * the suite leaves ZERO persistent rows (deterministic + cleanable).
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import { PrismaClient } from '@prisma/client';
-import { parse } from 'dotenv';
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { withTestPoolLimit } from './real-db-url';
+import { readTestDatabaseUrl, withTestPoolLimit } from './real-db-url';
 
-// Parse .env WITHOUT touching process.env (dotenv.parse only): the
-// FakePrisma e2e DB-safety guard pins process.env.DATABASE_URL at config
-// level; mutating it here would leak across worker-shared spec files.
-const envPath = join(__dirname, '..', '.env');
-let realDbUrl = '';
-try {
-  const parsed = parse(readFileSync(envPath, 'utf8')) as Record<string, string>;
-  realDbUrl = withTestPoolLimit(parsed['DATABASE_URL'] ?? '');
-} catch {
-  realDbUrl = '';
-}
+// Resolved without touching process.env (the FakePrisma e2e DB-safety
+// guard pins process.env.DATABASE_URL at config level).
+const realDbUrl = withTestPoolLimit(readTestDatabaseUrl());
+const hasRealDb = realDbUrl !== '';
 
-const hasRealDb = /supabase\.com|supabase\.co/i.test(realDbUrl);
-
-describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', () => {
+describe.skipIf(!hasRealDb)('technician service-area schema (isolated test database)', () => {
   let prisma: PrismaClient;
 
   beforeAll(() => {
@@ -76,13 +62,13 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
       .$transaction(async (tx) => {
         // Minimal deterministic identity inside the transaction (rolled back).
         await tx.$executeRawUnsafe(
-          "INSERT INTO users (phone, password_hash, role, status) VALUES ('+15551000001', 'probe', 'technician', 'active'), ('+15551000002', 'probe', 'technician', 'active')",
+          "INSERT INTO users (id, phone, password_hash, role, status, updated_at) VALUES (gen_random_uuid(), '+15551000001', 'probe', 'technician', 'active', now()), (gen_random_uuid(), '+15551000002', 'probe', 'technician', 'active', now())",
         );
         await tx.$executeRawUnsafe(
-          "INSERT INTO technician_profiles (user_id, display_name) SELECT id, 't10er1-a' FROM users WHERE phone = '+15551000001'",
+          "INSERT INTO technician_profiles (id, user_id, display_name, updated_at) SELECT gen_random_uuid(), id, 't10er1-a', now() FROM users WHERE phone = '+15551000001'",
         );
         await tx.$executeRawUnsafe(
-          "INSERT INTO technician_profiles (user_id, display_name) SELECT id, 't10er1-b' FROM users WHERE phone = '+15551000002'",
+          "INSERT INTO technician_profiles (id, user_id, display_name, updated_at) SELECT gen_random_uuid(), id, 't10er1-b', now() FROM users WHERE phone = '+15551000002'",
         );
         const profiles = (await tx.$queryRawUnsafe(
           'SELECT id FROM technician_profiles WHERE display_name IN ($1, $2) ORDER BY display_name',
@@ -94,12 +80,12 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
 
         // A technician may have MULTIPLE service areas.
         await tx.$executeRawUnsafe(
-          'INSERT INTO technician_service_areas (technician_id, label_ar, latitude, longitude) VALUES ($1::uuid, $2, $3, $4), ($1::uuid, $5, $6, $7)',
+          'INSERT INTO technician_service_areas (id, technician_id, label_ar, latitude, longitude, updated_at) VALUES (gen_random_uuid(), $1::uuid, $2, $3, $4, now()), (gen_random_uuid(), $1::uuid, $5, $6, $7, now())',
           techA,
-          'حي سموحة',
+          'Ø­ÙŠ Ø³Ù…ÙˆØ­Ø©',
           24.79,
           46.62,
-          'حي المعادي',
+          'Ø­ÙŠ Ø§Ù„Ù…Ø¹Ø§Ø¯ÙŠ',
           24.83,
           46.65,
         );
@@ -109,11 +95,11 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
         )) as Array<{ label_ar: string; lat: number; lng: number }>;
         expect(areas).toHaveLength(2);
         const byLabel = new Map(areas.map((a) => [a.label_ar, a]));
-        expect(byLabel.has('حي سموحة')).toBe(true);
-        expect(byLabel.has('حي المعادي')).toBe(true);
+        expect(byLabel.has('Ø­ÙŠ Ø³Ù…ÙˆØ­Ø©')).toBe(true);
+        expect(byLabel.has('Ø­ÙŠ Ø§Ù„Ù…Ø¹Ø§Ø¯ÙŠ')).toBe(true);
         // Coordinates are DERIVED from latitude/longitude (single truth).
-        expect(byLabel.get('حي المعادي')?.lat).toBeCloseTo(24.83, 5);
-        expect(byLabel.get('حي المعادي')?.lng).toBeCloseTo(46.65, 5);
+        expect(byLabel.get('Ø­ÙŠ Ø§Ù„Ù…Ø¹Ø§Ø¯ÙŠ')?.lat).toBeCloseTo(24.83, 5);
+        expect(byLabel.get('Ø­ÙŠ Ø§Ù„Ù…Ø¹Ø§Ø¯ÙŠ')?.lng).toBeCloseTo(46.65, 5);
 
         // Duplicate service-area prevention (same technician + label).
         // The failing INSERT aborts the transaction, so it is wrapped in
@@ -122,9 +108,9 @@ describe.skipIf(!hasRealDb)('technician service-area schema (real khabir-dev)', 
         let rejected = false;
         try {
           await tx.$executeRawUnsafe(
-            'INSERT INTO technician_service_areas (technician_id, label_ar, latitude, longitude) VALUES ($1::uuid, $2, $3, $4)',
+            'INSERT INTO technician_service_areas (id, technician_id, label_ar, latitude, longitude, updated_at) VALUES (gen_random_uuid(), $1::uuid, $2, $3, $4, now())',
             techA,
-            'حي المعادي',
+            'Ø­ÙŠ Ø§Ù„Ù…Ø¹Ø§Ø¯ÙŠ',
             24.9,
             46.7,
           );

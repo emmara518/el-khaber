@@ -21,6 +21,14 @@ export interface TimelineStep {
   readonly state: TrackingStepState;
 }
 
+export interface OrderPhoto {
+  readonly id: string;
+  readonly mimeType: string;
+  readonly createdAtAr: string;
+  /** Signed remote URL, or null when the presign call failed. */
+  readonly url: string | null;
+}
+
 export interface OrderDetail {
   readonly requestId: string;
   readonly technicianId: string | null;
@@ -33,6 +41,12 @@ export interface OrderDetail {
   readonly locationAr: string;
   readonly appointmentAr: string | null;
   readonly timeline: ReadonlyArray<TimelineStep>;
+  readonly photos: ReadonlyArray<OrderPhoto>;
+  /**
+   * True when the media list could not be loaded at all (e.g. offline).
+   * Distinguishes "no photos" from "could not check" — never faked.
+   */
+  readonly photosUnavailable: boolean;
 }
 
 export interface OrderDataSource {

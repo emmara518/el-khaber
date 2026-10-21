@@ -30,9 +30,13 @@ const USER_LIST_SELECT = {
 export class AdminUsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listUsers(
-    query: { page: number; limit: number; q?: string; role?: UserRole; status?: string },
-  ): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
+  async listUsers(query: {
+    page: number;
+    limit: number;
+    q?: string;
+    role?: UserRole;
+    status?: string;
+  }): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
     const { page, limit } = query;
     const where: Prisma.UserWhereInput = {
       ...(query.q !== undefined
@@ -69,8 +73,15 @@ export class AdminUsersService {
     if (user === null) {
       throw new NotFoundException('User not found');
     }
-    const [profile, technicianProfile, merchantProfile, subscription, technicianServicesCount,
-      productsCount, serviceRequestsCount] = await Promise.all([
+    const [
+      profile,
+      technicianProfile,
+      merchantProfile,
+      subscription,
+      technicianServicesCount,
+      productsCount,
+      serviceRequestsCount,
+    ] = await Promise.all([
       this.prisma.customerProfile.findFirst({ where: { userId: id } }),
       this.prisma.technicianProfile.findFirst({
         where: { userId: id },
@@ -107,7 +118,9 @@ export class AdminUsersService {
       }),
       this.prisma.service.count(),
       this.prisma.product.count({ where: { merchant: { userId: id } } }),
-      this.prisma.serviceRequest.count({ where: { OR: [{ customerId: id }, { technician: { userId: id } }] } }),
+      this.prisma.serviceRequest.count({
+        where: { OR: [{ customerId: id }, { technician: { userId: id } }] },
+      }),
     ]);
     return {
       user,

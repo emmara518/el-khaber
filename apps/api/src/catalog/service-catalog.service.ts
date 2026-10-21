@@ -6,10 +6,8 @@
  * not approved — docs/06_DATABASE.md §9).
  */
 
-
 import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable } from '@nestjs/common';
-
 
 import { PrismaService } from '../database/prisma.service';
 

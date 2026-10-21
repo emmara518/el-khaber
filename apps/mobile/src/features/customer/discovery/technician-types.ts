@@ -33,6 +33,8 @@ export interface Technician {
   readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
   readonly aboutAr: string;
+  /** Server-issued public avatar URL (null when the technician has none). */
+  readonly avatarUrl: string | null;
   readonly available: boolean;
   readonly availabilityLabelAr: string;
   readonly reviews: ReadonlyArray<TechnicianReview>;
@@ -42,6 +44,11 @@ export interface TechnicianSearchFilters {
   readonly query: string;
   readonly appliance: ApplianceSlug | null;
   readonly specialty: string | null;
+  /**
+   * WP-Discovery: catalog service UUID selected alongside `specialty`
+   * (the display name). Sent as `service_id`; null = no service filter.
+   */
+  readonly serviceId: string | null;
   readonly minRating: number | null;
   readonly area: string | null;
   readonly availableOnly: boolean;
@@ -51,10 +58,26 @@ export const EMPTY_TECHNICIAN_FILTERS: TechnicianSearchFilters = {
   query: '',
   appliance: null,
   specialty: null,
+  serviceId: null,
   minRating: null,
   area: null,
   availableOnly: false,
 };
+
+/**
+ * Server list query (WP-Discovery): every supported GET /technicians
+ * filter. The data-source sends all of them; nothing is re-filtered
+ * client-side afterwards.
+ */
+export interface TechnicianListQuery {
+  readonly q?: string;
+  readonly applianceCategoryId?: string;
+  readonly serviceId?: string;
+  readonly faultId?: string;
+  readonly ratingMin?: number;
+  readonly area?: string;
+  readonly availability?: 'available';
+}
 
 /** Fixed, product-supported filter vocabularies (no invented facets). */
 export const ACTIVE_APPLIANCE_FILTERS: ReadonlyArray<{
@@ -87,7 +110,13 @@ export const AREA_OPTIONS: ReadonlyArray<string> = [
   'الإسكندرية – سموحة',
 ];
 
-/** Deterministic mock filtering — every predicate is a simple match. */
+/**
+ * Deterministic mock filtering — every predicate is a simple match.
+ *
+ * NOTE (WP-Discovery): production search is server-side
+ * (`buildTechnicianListQuery` → GET /technicians); this helper is kept
+ * for fixture/spec parity only and is NOT applied to API results.
+ */
 export function applyTechnicianFilters(
   technicians: ReadonlyArray<Technician>,
   filters: TechnicianSearchFilters,
@@ -108,6 +137,46 @@ export function applyTechnicianFilters(
   });
 }
 
+/**
+ * UUID-shape check (WP-Discovery): fault-guide symptom ids are real
+ * Fault UUIDs in production but synthetic slugs in fixtures — only
+ * UUID-shaped values may be sent as `fault_id`.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value: string): boolean {
+  return UUID_RE.test(value);
+}
+
+/**
+ * Server query for GET /technicians from UI filters + resolved catalog
+ * ids (WP-Discovery). Every criterion the backend supports is sent;
+ * nothing is filtered client-side afterwards. Empty/unknown values are
+ * omitted (never sent as empty strings).
+ */
+export function buildTechnicianListQuery(input: {
+  query: string;
+  applianceCategoryId: string | null;
+  serviceId: string | null;
+  faultId: string | null;
+  minRating: number | null;
+  area: string | null;
+  availableOnly: boolean;
+}): TechnicianListQuery {
+  const q = input.query.trim();
+  return {
+    ...(q.length > 0 ? { q } : {}),
+    ...(input.applianceCategoryId !== null
+      ? { applianceCategoryId: input.applianceCategoryId }
+      : {}),
+    ...(input.serviceId !== null ? { serviceId: input.serviceId } : {}),
+    ...(input.faultId !== null && isUuid(input.faultId) ? { faultId: input.faultId } : {}),
+    ...(input.minRating !== null ? { ratingMin: input.minRating } : {}),
+    ...(input.area !== null && input.area.trim().length > 0 ? { area: input.area.trim() } : {}),
+    ...(input.availableOnly ? { availability: 'available' as const } : {}),
+  };
+}
+
 /** Number of active (non-default) filters — drives the filter badge. */
 export function activeFilterCount(filters: TechnicianSearchFilters): number {
   let count = 0;
@@ -125,6 +194,12 @@ export interface SearchContext {
   readonly applianceSlug: ApplianceSlug;
   readonly applianceTitleAr: string;
   readonly symptomTitleAr: string;
+  /**
+   * WP-Discovery: the fault UUID behind the symptom when the id is
+   * UUID-shaped (production guide data); null for synthetic fixture
+   * ids — never sent as `fault_id` then.
+   */
+  readonly faultId: string | null;
 }
 
 /**
@@ -145,6 +220,7 @@ export function resolveSearchContext(
     applianceSlug: symptom.applianceSlug,
     applianceTitleAr: applianceTitle,
     symptomTitleAr: symptom.titleAr,
+    faultId: isUuid(symptomId) ? symptomId : null,
   };
 }
 

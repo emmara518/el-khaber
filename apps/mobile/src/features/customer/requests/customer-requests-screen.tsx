@@ -23,12 +23,14 @@ import { useCustomerRequestsViewModel } from './use-customer-requests-view-model
 
 import { useI18n } from '@/i18n/use-i18n';
 import { joinNonEmpty } from '@/lib/api-format';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
 import { AppHeader, Avatar, Card, Chip, Icon, IconText, ListEmpty, ListError, ListLoading, PageTitle, statusBrandAsset, StatusUnit, type } from '@/ui';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { status, data, error, retry } = useCustomerRequestsViewModel();
+  useRefreshOnFocus(retry);
   const [filter, setFilter] = useState<RequestsFilter>('all');
 
   return (

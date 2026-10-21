@@ -18,6 +18,20 @@ describe('profile mock contract', () => {
     expect(profile.supportHoursAr.length).toBeGreaterThan(0);
   });
 
+  it('carries the WP-01 avatar slot (null in the mock — no backend)', async () => {
+    const profile = await new MockCustomerProfileDataSource().getProfile({ role: 'customer' });
+    expect(profile.avatarUrl).toBeNull();
+    const afterUpload = await new MockCustomerProfileDataSource().uploadAvatar({
+      role: 'customer',
+      photo: { uri: 'file:///x.jpg', fileName: 'x.jpg', mimeType: 'image/jpeg', sizeBytes: 10 },
+    });
+    expect(afterUpload.avatarUrl).toBeNull();
+    const afterDelete = await new MockCustomerProfileDataSource().deleteAvatar({
+      role: 'customer',
+    });
+    expect(afterDelete.avatarUrl).toBeNull();
+  });
+
   it('exposes the view-model hook', () => {
     expect(typeof useCustomerProfileViewModel).toBe('function');
   });

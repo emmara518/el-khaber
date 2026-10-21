@@ -18,10 +18,11 @@
 import { getApi } from '../../../lib/api-client';
 import { formatArYear } from '../../../lib/api-format';
 import { drainPages } from '../../../lib/api-query';
+import { buildAvatarFormData, type PickedPhoto } from '../../../lib/profile-photo';
 import { isActiveStatus } from '../../../lib/request-labels';
 
 import type { CustomerProfileDataSource, CustomerProfileSummary } from './customer-profile-types';
-import type { MeDto, ServiceRequestSummaryDto } from '@khabir/shared-types';
+import type { AvatarUploadDto, MeDto, ServiceRequestSummaryDto } from '@khabir/shared-types';
 
 /** Static help copy — presentation text, not API data. */
 const SUPPORT_HOURS_AR = 'فريق الدعم متاح يوميًا من ٩ صباحًا حتى ١٠ مساءً.';
@@ -33,10 +34,9 @@ export class ApiCustomerProfileDataSource implements CustomerProfileDataSource {
       api.request<MeDto>('GET', '/me').then((res) => res.data),
       drainPages<ServiceRequestSummaryDto>((page, limit) =>
         api
-          .request<ServiceRequestSummaryDto[]>(
-            'GET',
-            `/service-requests?page=${String(page)}&limit=${String(limit)}`,
-          )
+          .request<
+            ServiceRequestSummaryDto[]
+          >('GET', `/service-requests?page=${String(page)}&limit=${String(limit)}`)
           .then((res) => ({ items: res.data, meta: res.meta })),
       ),
     ]);
@@ -50,11 +50,31 @@ export class ApiCustomerProfileDataSource implements CustomerProfileDataSource {
       phoneAr,
       cityAr: '',
       districtAr: '',
-      memberSinceAr:
-        me.createdAt.length > 0 ? `عضو منذ ${formatArYear(me.createdAt)}` : '',
+      memberSinceAr: me.createdAt.length > 0 ? `عضو منذ ${formatArYear(me.createdAt)}` : '',
       activeOrdersCount,
       completedOrdersCount,
       supportHoursAr: SUPPORT_HOURS_AR,
+      // WP-01: server-issued public URL (null when absent).
+      avatarUrl: me.avatarUrl,
     };
+  }
+
+  /**
+   * WP-01: uploads the photo through multipart POST /me/avatar, then
+   * re-reads the profile so the returned state is server truth (never
+   * a local optimistic claim).
+   */
+  async uploadAvatar(input: {
+    role: 'customer';
+    photo: PickedPhoto;
+  }): Promise<CustomerProfileSummary> {
+    await getApi().upload<AvatarUploadDto>('POST', '/me/avatar', buildAvatarFormData(input.photo));
+    return this.getProfile({ role: 'customer' });
+  }
+
+  /** WP-01: idempotent delete, then server-truth re-read. */
+  async deleteAvatar(_input: { role: 'customer' }): Promise<CustomerProfileSummary> {
+    await getApi().request('DELETE', '/me/avatar');
+    return this.getProfile({ role: 'customer' });
   }
 }

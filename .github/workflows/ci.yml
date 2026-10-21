@@ -2,9 +2,19 @@ name: ci
 
 on:
   push:
-    branches: [main, review/final-production-release]
+    branches: [main, release/v2.1.0-uat, review/final-production-release]
+  # The V2.1 work is reviewed as a stacked PR chain; every base branch in
+  # that stack must run CI, not only main.
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - release/v2.1.0-uat
+      - review/**
+      - wip/**
+      - fix/**
+      - feat/**
+      - test/**
+      - perf/**
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -12,13 +22,64 @@ concurrency:
 
 jobs:
   validate:
-    name: install · typecheck · lint · tests
+    name: install / typecheck / lint / tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    services:
+      postgres:
+        # PostGIS is required by the initial migration and the geography
+        # columns. This image is PostgreSQL 16 + PostGIS 3.4 and includes
+        # the contrib extensions uuid-ossp and pgcrypto.
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: khabir
+          POSTGRES_PASSWORD: khabir
+          POSTGRES_DB: khabir_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U khabir -d khabir_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Isolated, disposable CI database. NEVER point these at Supabase.
+      DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      DIRECT_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      TEST_DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Fail closed before any migration or test if the CI database config is
+      # missing or points at a shared/managed host.
+      - name: Assert isolated test database configuration
+        run: |
+          node - <<'NODE'
+          const { URL } = require('node:url');
+          const allowed = new Set(['localhost', '127.0.0.1', '::1', 'postgres', 'test-db']);
+          for (const key of ['DATABASE_URL', 'DIRECT_URL', 'TEST_DATABASE_URL']) {
+            const raw = process.env[key];
+            if (!raw) {
+              console.error(`${key} is required for CI integration coverage`);
+              process.exit(1);
+            }
+            const parsed = new URL(raw);
+            if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+              console.error(`${key} must use a PostgreSQL URL`);
+              process.exit(1);
+            }
+            const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+            if (/supabase\.(com|co|in)/i.test(host) || !allowed.has(host)) {
+              console.error(`${key} must target an isolated database host, got '${host}'`);
+              process.exit(1);
+            }
+          }
+          console.log('isolated CI database configuration OK');
+          NODE
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -32,6 +93,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Fail-closed production dependency gate. Critical findings are never
+      # waivable; high findings need an unexpired entry in
+      # security/audit-allowlist.json (ID, package, owner, justification,
+      # expiry). See scripts/audit-gate.mjs.
+      - name: Security audit gate
+        run: pnpm security:audit
+
       - name: Build shared packages
         run: pnpm --filter @khabir/shared-types --filter @khabir/shared-validation build
 
@@ -41,6 +109,38 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @khabir/api exec prisma generate
 
+      # Prove the disposable image really provides every extension the
+      # migration history requires before touching the schema.
+      - name: Verify PostgreSQL extensions
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          SELECT extname FROM pg_extension
+           WHERE extname IN ('uuid-ossp', 'pgcrypto', 'postgis')
+           ORDER BY extname;
+          SQL
+
+      # The integration specs resolve TEST_DATABASE_URL and refuse any
+      # non-isolated host (see apps/api/test/real-db-url.ts). Migrations are
+      # applied to the disposable service container before the suite runs.
+      # Supabase's anon/authenticated roles are referenced by one ACL
+      # migration; create them locally so the history replays faithfully.
+      - name: Bootstrap migration roles
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF; END \$\$;"
+
+      - name: Migrate isolated test database
+        run: pnpm --filter @khabir/api exec prisma migrate deploy
+
+      - name: Schema / migrations consistency
+        run: pnpm db:schema:check
+
+      # Reference-only, idempotent seed (no users/business data).
+      - name: Seed reference data
+        run: pnpm --filter @khabir/api db:seed
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -48,13 +148,23 @@ jobs:
         run: pnpm lint
 
       # API tests run against the in-memory FakePrisma harness — no database
-      # or production secrets required. Real-DB integration specs self-skip
-      # without a Supabase DATABASE_URL.
+      # or production secrets required. Integration specs use the isolated
+      # PostgreSQL via TEST_DATABASE_URL; CI fails closed if it is omitted,
+      # and there is no Supabase fallback.
       - name: API tests
         run: pnpm --filter @khabir/api test
 
       - name: Mobile tests
         run: pnpm --filter @khabir/mobile test
+
+      - name: Admin tests
+        run: pnpm --filter @khabir/admin test
+
+      - name: Admin build
+        run: pnpm --filter @khabir/admin build
+
+      - name: Landing build
+        run: pnpm --filter @khabir/landing build
 
   web-export:
     name: expo web export
@@ -84,4 +194,269 @@ jobs:
         run: pnpm --filter @khabir/mobile export:web
 
       - name: Verify export output
-        run: test -f apps/mobile/dist-web/index.html
+        run: |
+          test -f apps/mobile/dist-web/index.html
+          test ! -e apps/mobile/dist-web/_sitemap.html
+          test ! -e apps/mobile/dist-web/_sitemap
+
+  p0-http-e2e:
+    name: P0 HTTP E2E (candidate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: khabir
+          POSTGRES_PASSWORD: khabir
+          POSTGRES_DB: khabir_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U khabir -d khabir_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      DIRECT_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      TEST_DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assert isolated test database configuration
+        run: |
+          node - <<'NODE'
+          const { URL } = require('node:url');
+          const allowed = new Set(['localhost', '127.0.0.1', '::1', 'postgres', 'test-db']);
+          for (const key of ['DATABASE_URL', 'DIRECT_URL', 'TEST_DATABASE_URL']) {
+            const raw = process.env[key];
+            if (!raw) {
+              console.error(`${key} is required`);
+              process.exit(1);
+            }
+            const parsed = new URL(raw);
+            const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+            if (/supabase\.(com|co|in)/i.test(host) || !allowed.has(host)) {
+              console.error(`${key} must target an isolated database host, got '${host}'`);
+              process.exit(1);
+            }
+            if (parsed.pathname.replace(/^\//, '') !== 'khabir_test') {
+              console.error(`${key} must target the khabir_test database`);
+              process.exit(1);
+            }
+          }
+          console.log('isolated P0 database configuration OK');
+          NODE
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm --filter @khabir/shared-types --filter @khabir/shared-validation build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @khabir/api exec prisma generate
+
+      - name: Verify PostgreSQL extensions
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          SQL
+
+      - name: Bootstrap migration roles
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF; END \$\$;"
+
+      - name: Migrate isolated test database
+        run: pnpm --filter @khabir/api exec prisma migrate deploy
+
+      - name: Create test safety marker
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS test_environment_marker (
+            token text PRIMARY KEY,
+            created_at timestamptz NOT NULL DEFAULT now()
+          );
+          INSERT INTO test_environment_marker (token)
+          VALUES ('khabir-test')
+          ON CONFLICT (token) DO NOTHING;
+          SQL
+
+      - name: Run HTTP E2E
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm --filter @khabir/api test:http-e2e 2>&1 | tee p0-http-e2e-candidate.log
+
+      - name: Upload HTTP E2E log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-http-e2e-candidate-log
+          path: p0-http-e2e-candidate.log
+          if-no-files-found: warn
+
+  p0-http-e2e-negative-control:
+    name: P0 HTTP E2E negative control (legacy 94bdfcb)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: khabir
+          POSTGRES_PASSWORD: khabir
+          POSTGRES_DB: khabir_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U khabir -d khabir_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      DIRECT_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      TEST_DATABASE_URL: postgresql://khabir:khabir@localhost:5432/khabir_test
+      NODE_ENV: test
+      LEGACY_SHA: 94bdfcb46958c5798f9406e238e6ae3da13c98a4
+
+    steps:
+      - name: Checkout legacy baseline
+        uses: actions/checkout@v4
+        with:
+          ref: 94bdfcb46958c5798f9406e238e6ae3da13c98a4
+          fetch-depth: 1
+
+      - name: Verify legacy checkout SHA
+        run: test "$(git rev-parse HEAD)" = "$LEGACY_SHA"
+
+      - name: Assert isolated test database configuration
+        run: |
+          node - <<'NODE'
+          const { URL } = require('node:url');
+          const allowed = new Set(['localhost', '127.0.0.1', '::1', 'postgres', 'test-db']);
+          for (const key of ['DATABASE_URL', 'DIRECT_URL', 'TEST_DATABASE_URL']) {
+            const raw = process.env[key];
+            if (!raw) {
+              console.error(`${key} is required`);
+              process.exit(1);
+            }
+            const parsed = new URL(raw);
+            const host = parsed.hostname.replace(/^\[|\]$/g, '').toLowerCase();
+            if (/supabase\.(com|co|in)/i.test(host) || !allowed.has(host)) {
+              console.error(`${key} must target an isolated database host, got '${host}'`);
+              process.exit(1);
+            }
+            if (parsed.pathname.replace(/^\//, '') !== 'khabir_test') {
+              console.error(`${key} must target the khabir_test database`);
+              process.exit(1);
+            }
+          }
+          console.log('isolated legacy database configuration OK');
+          NODE
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm --filter @khabir/shared-types --filter @khabir/shared-validation build
+
+      - name: Generate Prisma client
+        run: pnpm --filter @khabir/api exec prisma generate
+
+      - name: Verify PostgreSQL extensions
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          CREATE EXTENSION IF NOT EXISTS postgis;
+          SQL
+
+      - name: Bootstrap migration roles
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF; END \$\$;"
+
+      - name: Migrate isolated legacy database
+        run: pnpm --filter @khabir/api exec prisma migrate deploy
+
+      - name: Create test safety marker
+        run: |
+          PGPASSWORD=khabir psql -h localhost -U khabir -d khabir_test -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE IF NOT EXISTS test_environment_marker (
+            token text PRIMARY KEY,
+            created_at timestamptz NOT NULL DEFAULT now()
+          );
+          INSERT INTO test_environment_marker (token)
+          VALUES ('khabir-test')
+          ON CONFLICT (token) DO NOTHING;
+          SQL
+
+      - name: Run legacy HTTP E2E (expected failure)
+        shell: bash
+        run: |
+          set +e
+          pnpm --filter @khabir/api test:http-e2e 2>&1 | tee p0-http-e2e-negative.log
+          code=${PIPESTATUS[0]}
+          echo "LEGACY_EXIT_CODE=$code" >> "$GITHUB_ENV"
+          echo "legacy exit code: $code"
+          exit 0
+
+      - name: Verify expected legacy failure
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const log = fs.readFileSync('p0-http-e2e-negative.log', 'utf8');
+          const code = Number(process.env.LEGACY_EXIT_CODE);
+          const problems = [];
+          if (code === 0) problems.push('legacy suite unexpectedly passed');
+          if (!log.includes('23502')) problems.push('expected PostgreSQL 23502 was not found');
+          if (!log.includes('rate-limit.service.ts') && !log.includes('rate_limit_buckets')) {
+            problems.push('expected rate-limit defect context was not found');
+          }
+          if (!/(Failed Tests|\b[1-9]\d*\s+failed\b)/.test(log)) {
+            problems.push('no nonzero failing test summary was found');
+          }
+          if (problems.length > 0) {
+            console.error(`Negative control invalid: ${problems.join('; ')}`);
+            process.exit(1);
+          }
+          console.log('Negative control valid: legacy failed with the expected 23502 rate-limit defect.');
+          NODE
+
+      - name: Upload HTTP E2E negative-control log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0-http-e2e-negative-control-log
+          path: p0-http-e2e-negative.log
+          if-no-files-found: warn

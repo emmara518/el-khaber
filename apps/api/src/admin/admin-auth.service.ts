@@ -18,13 +18,12 @@ import {
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-
 import { verifyPassword } from '../auth/password';
 import { generateOpaqueToken, hashToken } from '../auth/token.util';
 import { AuthInvalidException, NotFoundException } from '../common/errors';
+import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
-import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 
 export interface AdminLoginInput {
   email: string;
@@ -105,10 +104,17 @@ export class AdminAuthService {
     if (record.admin.status !== USER_STATUS.active) {
       throw new AuthInvalidException('Account is not active');
     }
-    await this.prisma.adminRefreshToken.update({
-      where: { id: record.id },
+    const claimed = await this.prisma.adminRefreshToken.updateMany({
+      where: { id: record.id, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'rotation' },
     });
+    if (claimed.count !== 1) {
+      await this.prisma.adminRefreshToken.updateMany({
+        where: { familyId: record.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'family_replay' },
+      });
+      throw new AuthInvalidException('Refresh token replay detected');
+    }
     return this.issueSession(
       { id: record.admin.id, role: record.admin.role, status: record.admin.status as UserStatus },
       meta,
@@ -161,6 +167,9 @@ export class AdminAuthService {
       phoneVerified: false,
       emailVerified: false,
       createdAt: admin.createdAt.toISOString(),
+      // WP-01: admins have no profile image (separate authority, no
+      // avatar row). Null keeps the shared AuthUserDto contract exact.
+      avatarUrl: null,
     };
   }
 
@@ -174,7 +183,13 @@ export class AdminAuthService {
     // the access token always carries the latest revocation state.
     const admin = await this.prisma.adminUser.findUniqueOrThrow({ where: { id: adminRef.id } });
     const accessToken = await this.jwt.signAsync(
-      { sub: adminRef.id, role: adminRef.role, status: adminRef.status, kind: 'admin', tokenVersion: admin.tokenVersion },
+      {
+        sub: adminRef.id,
+        role: adminRef.role,
+        status: adminRef.status,
+        kind: 'admin',
+        tokenVersion: admin.tokenVersion,
+      },
       {
         secret: config.adminAuth.accessSecret,
         issuer: config.adminAuth.issuer,
@@ -211,6 +226,8 @@ export class AdminAuthService {
         phoneVerified: false,
         emailVerified: false,
         createdAt: admin.createdAt.toISOString(),
+        // WP-01: admins have no profile image (see findAdminById).
+        avatarUrl: null,
       },
     };
   }

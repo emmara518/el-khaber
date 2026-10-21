@@ -254,6 +254,14 @@ interface NotificationRow {
   createdAt: Date;
 }
 
+interface NotificationPreferenceRow {
+  userId: string;
+  requestStatus: boolean;
+  subscription: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export type PaymentMethodValue = 'instapay' | 'vodafone_cash';
 export type PaymentSubmissionStatusValue = 'pending' | 'approved' | 'rejected';
 
@@ -310,15 +318,23 @@ interface PaymentSubmissionRow {
   updatedAt: Date;
 }
 
+interface ServiceRequestMediaRow {
+  id: string;
+  serviceRequestId: string;
+  uploadedByUserId: string | null;
+  storageKey: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: Date;
+}
+
 interface EntitlementGrantRow {
   id: string;
   userId: string;
   entitlementId: string;
   grantedByAdminId: string | null;
   createdAt: Date;
-}
-
-interface EntitlementRow {
+}interface EntitlementRow {
   id: string;
   code: string;
   nameAr: string;
@@ -370,8 +386,17 @@ interface TechnicianProfileRow {
   ratingCount: number;
 }
 
+interface CustomerProfileRow {
+  id: string;
+  userId: string;
+  avatarUrl: string | null;
+}
+
 /** Apply a Prisma-style `select` map to a row (top-level keys only). */
-function applySelect<T extends Record<string, unknown>>(row: T, select: Record<string, unknown> | undefined): T {
+function applySelect<T extends Record<string, unknown>>(
+  row: T,
+  select: Record<string, unknown> | undefined,
+): T {
   if (select === undefined) {
     return row;
   }
@@ -439,9 +464,11 @@ class FakePrismaClient {
   technicianServices: TechnicianServiceRow[] = [];
   areaRows: AreaRow[] = [];
   technicianProfiles: TechnicianProfileRow[] = [];
+  customerProfiles: CustomerProfileRow[] = [];
   locations: LocationRow[] = [];
   serviceRequests: ServiceRequestRow[] = [];
   serviceRequestStatusHistoryStore: ServiceRequestStatusHistoryRow[] = [];
+  serviceRequestMediaRows: ServiceRequestMediaRow[] = [];
   merchantProfiles: MerchantProfileRow[] = [];
   products: ProductRow[] = [];
   subscriptionPlans: SubscriptionPlanRow[] = [];
@@ -458,6 +485,7 @@ class FakePrismaClient {
   reviewTagRows: Array<{ id: string; code: string; labelAr: string; isActive: boolean }> = [];
   reviewTagAssignmentRows: Array<{ reviewId: string; tagId: string }> = [];
   notificationRows: NotificationRow[] = [];
+  notificationPreferenceRows: NotificationPreferenceRow[] = [];
 
   $connect(): Promise<void> {
     return Promise.resolve();
@@ -470,31 +498,33 @@ class FakePrismaClient {
   $queryRaw<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]> {
     const sql = strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
     if (sql.includes('INSERT INTO "rate_limit_buckets"') && sql.includes('ON CONFLICT')) {
-      const policyVal = values[0] as string;
-      const identifierVal = values[1] as string;
-      const windowStartVal = values[2] as Date;
-      const countVal = Number(values[3] ?? 1);
+      const idVal = values[0] as string;
+      const policyVal = values[1] as string;
+      const identifierVal = values[2] as string;
+      const windowStartVal = values[3] as Date;
+      const updatedAtVal = values[4] as Date;
+      const countVal = 1;
 
-        const existing = this.rateLimitBuckets.find(
-          (b) =>
-            b.policy === policyVal &&
-            b.identifier === identifierVal &&
-            b.windowStart.getTime() === windowStartVal.getTime(),
-        );
+      const existing = this.rateLimitBuckets.find(
+        (b) =>
+          b.policy === policyVal &&
+          b.identifier === identifierVal &&
+          b.windowStart.getTime() === windowStartVal.getTime(),
+      );
 
       if (existing) {
         existing.count += countVal;
-        existing.updatedAt = new Date();
+        existing.updatedAt = updatedAtVal ?? new Date();
         return Promise.resolve([{ count: existing.count }] as unknown as T[]);
       } else {
         const newBucket: RateLimitBucketRow = {
-          id: randomUUID(),
+          id: idVal,
           policy: policyVal,
           identifier: identifierVal,
           windowStart: windowStartVal,
           count: countVal,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: updatedAtVal ?? new Date(),
         };
         this.rateLimitBuckets.push(newBucket);
         return Promise.resolve([{ count: countVal }] as unknown as T[]);
@@ -524,9 +554,22 @@ class FakePrismaClient {
   }
 
   user = {
-    findFirst: async (args: { where: { OR?: Array<{ phone?: string } | { email?: string } | { id: string }>; id?: string } }): Promise<UserRow | null> => {
+    findFirst: async (args: {
+      where: {
+        OR?: Array<{ phone?: string } | { email?: string } | { id: string }>;
+        id?: string;
+        email?: string;
+        phone?: string;
+      };
+    }): Promise<UserRow | null> => {
       if (args.where.id !== undefined) {
         return this.users.find((u) => u.id === args.where.id) ?? null;
+      }
+      if (args.where.email !== undefined) {
+        return this.users.find((u) => u.email === args.where.email) ?? null;
+      }
+      if (args.where.phone !== undefined) {
+        return this.users.find((u) => u.phone === args.where.phone) ?? null;
       }
       for (const u of this.users) {
         for (const cond of args.where.OR ?? []) {
@@ -540,12 +583,17 @@ class FakePrismaClient {
       }
       return null;
     },
-    findUnique: async (args: { where: { id?: string; phone?: string; email?: string } }): Promise<UserRow | null> => {
-      return this.users.find((u) =>
-        (args.where.id !== undefined && u.id === args.where.id) ||
-        (args.where.phone !== undefined && u.phone === args.where.phone) ||
-        (args.where.email !== undefined && u.email === args.where.email),
-      ) ?? null;
+    findUnique: async (args: {
+      where: { id?: string; phone?: string; email?: string };
+    }): Promise<UserRow | null> => {
+      return (
+        this.users.find(
+          (u) =>
+            (args.where.id !== undefined && u.id === args.where.id) ||
+            (args.where.phone !== undefined && u.phone === args.where.phone) ||
+            (args.where.email !== undefined && u.email === args.where.email),
+        ) ?? null
+      );
     },
     findUniqueOrThrow: async (args: { where: { id: string } }): Promise<UserRow> => {
       const u = this.users.find((x) => x.id === args.where.id);
@@ -554,7 +602,9 @@ class FakePrismaClient {
       }
       return u;
     },
-    create: async (args: { data: Omit<UserRow, 'id' | 'createdAt' | 'updatedAt'> & { id?: string } }): Promise<UserRow> => {
+    create: async (args: {
+      data: Omit<UserRow, 'id' | 'createdAt' | 'updatedAt'> & { id?: string };
+    }): Promise<UserRow> => {
       const now = new Date();
       const row: UserRow = {
         id: args.data.id ?? randomUUID(),
@@ -580,11 +630,66 @@ class FakePrismaClient {
       this.users[idx] = { ...this.users[idx], ...args.data, updatedAt: new Date() };
       return this.users[idx];
     },
-    count: async (): Promise<number> => this.users.length,
+    count: async (args?: {
+      where?: {
+        OR?: Array<{ email?: { contains?: string }; phone?: { contains?: string } }>;
+        role?: string;
+        status?: string;
+      };
+    }): Promise<number> => this.matchUsers(args?.where).length,
+    findMany: async (args: {
+      where?: {
+        OR?: Array<{ email?: { contains?: string }; phone?: { contains?: string } }>;
+        role?: string;
+        status?: string;
+      };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.matchUsers(args.where);
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
   };
 
+  private matchUsers(where?: {
+    OR?: Array<{ email?: { contains?: string }; phone?: { contains?: string } }>;
+    role?: string;
+    status?: string;
+  }): UserRow[] {
+    if (where === undefined) return [...this.users];
+    return this.users.filter((u) => {
+      if (where.role !== undefined && u.role !== where.role) return false;
+      if (where.status !== undefined && u.status !== where.status) return false;
+      if (where.OR !== undefined) {
+        const hit = where.OR.some((branch) => {
+          if (branch.email?.contains !== undefined) {
+            if (
+              u.email !== null &&
+              u.email.toLowerCase().includes(branch.email.contains.toLowerCase())
+            ) {
+              return true;
+            }
+          }
+          if (branch.phone?.contains !== undefined) {
+            if (u.phone !== null && u.phone.includes(branch.phone.contains)) return true;
+          }
+          return false;
+        });
+        if (!hit) return false;
+      }
+      return true;
+    });
+  }
+
   refreshToken = {
-    findUnique: async (args: { where: { tokenHash: string }; include?: { user: boolean } }): Promise<(RefreshRow & { user?: UserRow }) | null> => {
+    findUnique: async (args: {
+      where: { tokenHash: string };
+      include?: { user: boolean };
+    }): Promise<(RefreshRow & { user?: UserRow }) | null> => {
       const r = this.refreshTokens.find((x) => x.tokenHash === args.where.tokenHash);
       if (!r) {
         return null;
@@ -614,7 +719,10 @@ class FakePrismaClient {
       this.refreshTokens.push(row);
       return row;
     },
-    update: async (args: { where: { id: string }; data: Partial<RefreshRow> }): Promise<RefreshRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<RefreshRow>;
+    }): Promise<RefreshRow> => {
       const idx = this.refreshTokens.findIndex((r) => r.id === args.where.id);
       if (idx < 0) {
         throw new Error('Refresh token not found');
@@ -622,12 +730,16 @@ class FakePrismaClient {
       this.refreshTokens[idx] = { ...this.refreshTokens[idx], ...args.data };
       return this.refreshTokens[idx];
     },
-    updateMany: async (args: { where: { familyId?: string; userId?: string; revokedAt: null }; data: Partial<RefreshRow> }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { id?: string; familyId?: string; userId?: string; revokedAt: null };
+      data: Partial<RefreshRow>;
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.refreshTokens = this.refreshTokens.map((r) => {
+        const idMatch = args.where.id === undefined || r.id === args.where.id;
         const familyMatch = args.where.familyId === undefined || r.familyId === args.where.familyId;
         const userMatch = args.where.userId === undefined || r.userId === args.where.userId;
-        if (familyMatch && userMatch && r.revokedAt === null) {
+        if (idMatch && familyMatch && userMatch && r.revokedAt === null) {
           count += 1;
           return { ...r, ...args.data };
         }
@@ -638,9 +750,10 @@ class FakePrismaClient {
   };
 
   passwordResetToken = {
-    findUnique: async (
-      args: { where: { tokenHash: string }; include?: { user: boolean } },
-    ): Promise<(PasswordResetRow & { user?: UserRow }) | null> => {
+    findUnique: async (args: {
+      where: { tokenHash: string };
+      include?: { user: boolean };
+    }): Promise<(PasswordResetRow & { user?: UserRow }) | null> => {
       const r = this.passwordResetTokens.find((x) => x.tokenHash === args.where.tokenHash);
       if (!r) {
         return null;
@@ -654,9 +767,9 @@ class FakePrismaClient {
       }
       return r;
     },
-    create: async (
-      args: { data: Omit<PasswordResetRow, 'id' | 'createdAt' | 'usedAt'> & { usedAt?: Date | null } },
-    ): Promise<PasswordResetRow> => {
+    create: async (args: {
+      data: Omit<PasswordResetRow, 'id' | 'createdAt' | 'usedAt'> & { usedAt?: Date | null };
+    }): Promise<PasswordResetRow> => {
       const row: PasswordResetRow = {
         id: randomUUID(),
         userId: args.data.userId,
@@ -668,7 +781,10 @@ class FakePrismaClient {
       this.passwordResetTokens.push(row);
       return row;
     },
-    update: async (args: { where: { id: string }; data: Partial<PasswordResetRow> }): Promise<PasswordResetRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<PasswordResetRow>;
+    }): Promise<PasswordResetRow> => {
       const idx = this.passwordResetTokens.findIndex((r) => r.id === args.where.id);
       if (idx < 0) {
         throw new Error('Password reset token not found');
@@ -676,9 +792,10 @@ class FakePrismaClient {
       this.passwordResetTokens[idx] = { ...this.passwordResetTokens[idx], ...args.data };
       return this.passwordResetTokens[idx];
     },
-    updateMany: async (
-      args: { where: { userId?: string; usedAt: null | Date }; data: Partial<PasswordResetRow> },
-    ): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { userId?: string; usedAt: null | Date };
+      data: Partial<PasswordResetRow>;
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.passwordResetTokens = this.passwordResetTokens.map((r) => {
         const matchesUserId = args.where.userId === undefined || r.userId === args.where.userId;
@@ -699,11 +816,16 @@ class FakePrismaClient {
   };
 
   adminUser = {
-    findUnique: async (args: { where: { id?: string; email?: string } }): Promise<AdminRow | null> => {
-      return this.adminUsers.find((a) =>
-        (args.where.id !== undefined && a.id === args.where.id) ||
-        (args.where.email !== undefined && a.email === args.where.email),
-      ) ?? null;
+    findUnique: async (args: {
+      where: { id?: string; email?: string };
+    }): Promise<AdminRow | null> => {
+      return (
+        this.adminUsers.find(
+          (a) =>
+            (args.where.id !== undefined && a.id === args.where.id) ||
+            (args.where.email !== undefined && a.email === args.where.email),
+        ) ?? null
+      );
     },
     findUniqueOrThrow: async (args: { where: { id: string } }): Promise<AdminRow> => {
       const a = this.adminUsers.find((x) => x.id === args.where.id);
@@ -712,7 +834,9 @@ class FakePrismaClient {
       }
       return a;
     },
-    create: async (args: { data: Omit<AdminRow, 'id' | 'createdAt' | 'updatedAt'> }): Promise<AdminRow> => {
+    create: async (args: {
+      data: Omit<AdminRow, 'id' | 'createdAt' | 'updatedAt'>;
+    }): Promise<AdminRow> => {
       const now = new Date();
       const row: AdminRow = {
         id: randomUUID(),
@@ -738,7 +862,10 @@ class FakePrismaClient {
   };
 
   adminRefreshToken = {
-    findUnique: async (args: { where: { tokenHash: string }; include?: { admin: boolean } }): Promise<(AdminRefreshRow & { admin?: AdminRow }) | null> => {
+    findUnique: async (args: {
+      where: { tokenHash: string };
+      include?: { admin: boolean };
+    }): Promise<(AdminRefreshRow & { admin?: AdminRow }) | null> => {
       const r = this.adminRefreshTokens.find((x) => x.tokenHash === args.where.tokenHash);
       if (!r) {
         return null;
@@ -752,7 +879,9 @@ class FakePrismaClient {
       }
       return r;
     },
-    create: async (args: { data: Omit<AdminRefreshRow, 'id' | 'createdAt'> }): Promise<AdminRefreshRow> => {
+    create: async (args: {
+      data: Omit<AdminRefreshRow, 'id' | 'createdAt'>;
+    }): Promise<AdminRefreshRow> => {
       const row: AdminRefreshRow = {
         id: randomUUID(),
         adminId: args.data.adminId,
@@ -768,7 +897,10 @@ class FakePrismaClient {
       this.adminRefreshTokens.push(row);
       return row;
     },
-    update: async (args: { where: { id: string }; data: Partial<AdminRefreshRow> }): Promise<AdminRefreshRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<AdminRefreshRow>;
+    }): Promise<AdminRefreshRow> => {
       const idx = this.adminRefreshTokens.findIndex((r) => r.id === args.where.id);
       if (idx < 0) {
         throw new Error('Admin refresh token not found');
@@ -776,12 +908,16 @@ class FakePrismaClient {
       this.adminRefreshTokens[idx] = { ...this.adminRefreshTokens[idx], ...args.data };
       return this.adminRefreshTokens[idx];
     },
-    updateMany: async (args: { where: { familyId?: string; adminId?: string; revokedAt: null }; data: Partial<AdminRefreshRow> }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { id?: string; familyId?: string; adminId?: string; revokedAt: null };
+      data: Partial<AdminRefreshRow>;
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.adminRefreshTokens = this.adminRefreshTokens.map((r) => {
+        const idMatch = args.where.id === undefined || r.id === args.where.id;
         const familyMatch = args.where.familyId === undefined || r.familyId === args.where.familyId;
         const adminMatch = args.where.adminId === undefined || r.adminId === args.where.adminId;
-        if (familyMatch && adminMatch && r.revokedAt === null) {
+        if (idMatch && familyMatch && adminMatch && r.revokedAt === null) {
           count += 1;
           return { ...r, ...args.data };
         }
@@ -793,7 +929,9 @@ class FakePrismaClient {
 
   rateLimitBucket = {
     findUnique: async (args: {
-      where: { policy_identifier_windowStart: { policy: string; identifier: string; windowStart: Date } };
+      where: {
+        policy_identifier_windowStart: { policy: string; identifier: string; windowStart: Date };
+      };
     }): Promise<RateLimitBucketRow | null> => {
       const { policy, identifier, windowStart } = args.where.policy_identifier_windowStart;
       return (
@@ -810,8 +948,12 @@ class FakePrismaClient {
     }): Promise<RateLimitBucketRow[]> => {
       return this.rateLimitBuckets.filter((b) => {
         if (args?.where?.policy !== undefined && b.policy !== args.where.policy) return false;
-        if (args?.where?.identifier !== undefined && b.identifier !== args.where.identifier) return false;
-        if (args?.where?.windowStart?.lt !== undefined && b.windowStart.getTime() >= args.where.windowStart.lt.getTime())
+        if (args?.where?.identifier !== undefined && b.identifier !== args.where.identifier)
+          return false;
+        if (
+          args?.where?.windowStart?.lt !== undefined &&
+          b.windowStart.getTime() >= args.where.windowStart.lt.getTime()
+        )
           return false;
         return true;
       });
@@ -827,7 +969,8 @@ class FakePrismaClient {
       const before = this.rateLimitBuckets.length;
       this.rateLimitBuckets = this.rateLimitBuckets.filter((b) => {
         if (args.where.policy !== undefined && b.policy !== args.where.policy) return true;
-        if (args.where.identifier !== undefined && b.identifier !== args.where.identifier) return true;
+        if (args.where.identifier !== undefined && b.identifier !== args.where.identifier)
+          return true;
         if (args.where.windowStart !== undefined) {
           if (args.where.windowStart instanceof Date) {
             if (b.windowStart.getTime() !== args.where.windowStart.getTime()) return true;
@@ -849,11 +992,17 @@ class FakePrismaClient {
     findFirst: async (args: { where: { id: string } }): Promise<ApplianceCategoryRow | null> => {
       return this.applianceCategories.find((cat) => cat.id === args.where.id) ?? null;
     },
-    findMany: async (args: { where?: { isActive?: boolean }; orderBy?: Array<Record<string, string>>; take?: number }): Promise<ApplianceCategoryRow[]> => {
+    findMany: async (args: {
+      where?: { isActive?: boolean };
+      orderBy?: Array<Record<string, string>>;
+      take?: number;
+    }): Promise<ApplianceCategoryRow[]> => {
       let rows = this.applianceCategories.filter(
         (c) => args.where?.isActive === undefined || c.isActive === args.where.isActive,
       );
-      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr));
+      rows = [...rows].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr),
+      );
       if (args.take !== undefined) {
         rows = rows.slice(0, args.take);
       }
@@ -873,32 +1022,62 @@ class FakePrismaClient {
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.matchFaults(args.where);
-      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr));
+      rows = [...rows].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
-    findFirst: async (args: { where: FaultWhere & { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: FaultWhere & { id: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.matchFaults(args.where).find((r) => r.id === args.where.id);
-      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+      return row === undefined
+        ? null
+        : applySelect(row as unknown as Record<string, unknown>, args.select);
     },
   };
 
   technicianServiceArea = {
-    findMany: async (args: { where: { technicianId?: string } }): Promise<Array<{ id: string; labelAr: string; latitude: number | null; longitude: number | null }>> =>
-      this.areaRows.filter((a) => args.where.technicianId === undefined || a.technicianId === args.where.technicianId),
-    findFirst: async (args: { where: { technicianId?: string; labelAr?: string } }): Promise<{ id: string; labelAr: string; latitude: number | null; longitude: number | null } | null> =>
+    findMany: async (args: {
+      where: { technicianId?: string };
+    }): Promise<
+      Array<{ id: string; labelAr: string; latitude: number | null; longitude: number | null }>
+    > =>
+      this.areaRows.filter(
+        (a) => args.where.technicianId === undefined || a.technicianId === args.where.technicianId,
+      ),
+    findFirst: async (args: {
+      where: { technicianId?: string; labelAr?: string };
+    }): Promise<{
+      id: string;
+      labelAr: string;
+      latitude: number | null;
+      longitude: number | null;
+    } | null> =>
       this.areaRows.find(
         (a) =>
           (args.where.technicianId === undefined || a.technicianId === args.where.technicianId) &&
           (args.where.labelAr === undefined || a.labelAr === args.where.labelAr),
       ) ?? null,
-    create: async (args: { data: { technicianId: string; labelAr: string; latitude: number | null; longitude: number | null } }): Promise<{ id: string; labelAr: string }> => {
+    create: async (args: {
+      data: {
+        technicianId: string;
+        labelAr: string;
+        latitude: number | null;
+        longitude: number | null;
+      };
+    }): Promise<{ id: string; labelAr: string }> => {
       const now = new Date();
       const row = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
       this.areaRows.push(row as AreaRow);
       return { id: row.id, labelAr: row.labelAr, latitude: row.latitude, longitude: row.longitude };
     },
-    update: async (args: { where: { id: string }; data: { latitude?: number | null; longitude?: number | null } }): Promise<{ id: string }> => {
+    update: async (args: {
+      where: { id: string };
+      data: { latitude?: number | null; longitude?: number | null };
+    }): Promise<{ id: string }> => {
       const row = this.areaRows.find((a) => a.id === args.where.id);
       if (row === undefined) throw new Error('Area not found');
       row.latitude = args.data.latitude ?? row.latitude;
@@ -906,7 +1085,9 @@ class FakePrismaClient {
       row.updatedAt = new Date();
       return { id: row.id, labelAr: row.labelAr, latitude: row.latitude, longitude: row.longitude };
     },
-    deleteMany: async (args: { where: { technicianId?: string; labelAr?: string } }): Promise<{ count: number }> => {
+    deleteMany: async (args: {
+      where: { technicianId?: string; labelAr?: string };
+    }): Promise<{ count: number }> => {
       const before = this.areaRows.length;
       this.areaRows = this.areaRows.filter(
         (a) =>
@@ -920,25 +1101,46 @@ class FakePrismaClient {
   };
 
   technicianService = {
-    findFirst: async (args: { where: { technicianId?: string; serviceId?: string } }): Promise<TechnicianServiceRow | null> =>
+    findFirst: async (args: {
+      where: { technicianId?: string; serviceId?: string };
+    }): Promise<TechnicianServiceRow | null> =>
       this.technicianServices.find(
         (ts) =>
           (args.where.technicianId === undefined || ts.technicianId === args.where.technicianId) &&
           (args.where.serviceId === undefined || ts.serviceId === args.where.serviceId),
       ) ?? null,
-    findMany: async (args: { where: { technicianId?: string }, select?: Record<string, unknown> }): Promise<Array<TechnicianServiceRow>> =>
-      this.technicianServices.filter((ts) => (args as { where: { technicianId?: string | undefined } }).where.technicianId === undefined || ts.technicianId === (args as { where: { technicianId?: string | undefined } }).where.technicianId),
-    create: async (args: { data: { technicianId: string; serviceId: string; priceFrom: number | null; isActive: boolean } }): Promise<TechnicianServiceRow> => {
+    findMany: async (args: {
+      where: { technicianId?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Array<TechnicianServiceRow>> =>
+      this.technicianServices.filter(
+        (ts) =>
+          (args as { where: { technicianId?: string | undefined } }).where.technicianId ===
+            undefined ||
+          ts.technicianId ===
+            (args as { where: { technicianId?: string | undefined } }).where.technicianId,
+      ),
+    create: async (args: {
+      data: {
+        technicianId: string;
+        serviceId: string;
+        priceFrom: number | null;
+        isActive: boolean;
+      };
+    }): Promise<TechnicianServiceRow> => {
       const row = { ...args.data } as TechnicianServiceRow;
       this.technicianServices.push(row);
       return row;
     },
-    deleteMany: async (args: { where: { technicianId?: string; serviceId?: string } }): Promise<{ count: number }> => {
+    deleteMany: async (args: {
+      where: { technicianId?: string; serviceId?: string };
+    }): Promise<{ count: number }> => {
       const before = this.technicianServices.length;
       this.technicianServices = this.technicianServices.filter(
         (ts) =>
           !(
-            (args.where.technicianId === undefined || ts.technicianId === args.where.technicianId) &&
+            (args.where.technicianId === undefined ||
+              ts.technicianId === args.where.technicianId) &&
             (args.where.serviceId === undefined || ts.serviceId === args.where.serviceId)
           ),
       );
@@ -950,7 +1152,8 @@ class FakePrismaClient {
     findFirst: async (args: { where: { id: string } }): Promise<ServiceRow | null> => {
       return this.services.find((s) => s.id === args.where.id) ?? null;
     },
-    count: async (args: { where: ServiceWhere }): Promise<number> => this.matchServices(args.where).length,
+    count: async (args: { where: ServiceWhere }): Promise<number> =>
+      this.matchServices(args.where).length,
     findMany: async (args: {
       where: ServiceWhere;
       orderBy?: Array<Record<string, string>>;
@@ -959,7 +1162,9 @@ class FakePrismaClient {
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.matchServices(args.where);
-      rows = [...rows].sort((a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr));
+      rows = [...rows].sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.nameAr.localeCompare(b.nameAr),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
@@ -968,13 +1173,18 @@ class FakePrismaClient {
   technicianProfile = {
     create: async (_args: { data: { userId: string } }): Promise<TechnicianProfileRow> => {
       const now = new Date();
-      const row: TechnicianProfileRow = { id: randomUUID(), createdAt: now, updatedAt: now };
-      this.technicianProfiles.push(row);
+      // Persist the owner id (WP-01): owner-scoped updateMany lookups
+      // match on (id, userId) after lazy creation.
+      const row = { id: randomUUID(), userId: _args.data.userId, createdAt: now, updatedAt: now };
+      this.technicianProfiles.push(row as TechnicianProfileRow);
       // Lazy-create surface — the caller uses the returned id + defaults
       // (pending verification, unavailable, zeroed counters).
       return { ...row } as unknown as TechnicianProfileRow;
     },
-    count: async (args: { where: TechnicianWhere }): Promise<number> => this.matchTechnicians(args.where).length,
+    count: async (args?: { where?: TechnicianWhere }): Promise<number> =>
+      args?.where === undefined
+        ? this.technicianProfiles.length
+        : this.matchTechnicians(args.where).length,
     findMany: async (args: {
       where: TechnicianWhere;
       orderBy?: Array<Record<string, unknown>>;
@@ -991,7 +1201,9 @@ class FakePrismaClient {
         return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
       });
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
-      return rows.map((r) => this.attachTechnicianServices(r, args.include?.services?.where?.isActive));
+      return rows.map((r) =>
+        this.attachTechnicianServices(r, args.include?.services?.where?.isActive),
+      );
     },
     findFirst: async (args: {
       where: TechnicianWhere & { id?: string };
@@ -1000,9 +1212,14 @@ class FakePrismaClient {
       const row = this.matchTechnicians(args.where).find(
         (r) => args.where.id === undefined || r.id === args.where.id,
       );
-      return row === undefined ? null : this.attachTechnicianServices(row, args.include?.services?.where?.isActive);
+      return row === undefined
+        ? null
+        : this.attachTechnicianServices(row, args.include?.services?.where?.isActive);
     },
-    update: async (args: { where: { id: string }; data: Partial<TechnicianProfileRow> }): Promise<TechnicianProfileRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<TechnicianProfileRow>;
+    }): Promise<TechnicianProfileRow> => {
       const idx = this.technicianProfiles.findIndex((t) => t.id === args.where.id);
       if (idx < 0) {
         throw new Error('Technician profile not found');
@@ -1010,13 +1227,58 @@ class FakePrismaClient {
       this.technicianProfiles[idx] = { ...this.technicianProfiles[idx], ...args.data };
       return this.technicianProfiles[idx];
     },
+    updateMany: async (args: {
+      where: { id?: string; userId?: string };
+      data: Partial<TechnicianProfileRow>;
+    }): Promise<{ count: number }> => {
+      let count = 0;
+      this.technicianProfiles = this.technicianProfiles.map((t) => {
+        if (
+          (args.where.id === undefined || t.id === args.where.id) &&
+          (args.where.userId === undefined || t.userId === args.where.userId)
+        ) {
+          count += 1;
+          return { ...t, ...args.data };
+        }
+        return t;
+      });
+      return { count };
+    },
+  };
+
+  customerProfile = {
+    findFirst: async (args: { where: { userId: string } }): Promise<CustomerProfileRow | null> => {
+      return this.customerProfiles.find((c) => c.userId === args.where.userId) ?? null;
+    },
+    upsert: async (args: {
+      where: { userId: string };
+      create: { userId: string; avatarUrl: string | null };
+      update: { avatarUrl: string | null };
+    }): Promise<CustomerProfileRow> => {
+      const existing = this.customerProfiles.find((c) => c.userId === args.where.userId);
+      if (existing !== undefined) {
+        existing.avatarUrl = args.update.avatarUrl;
+        return existing;
+      }
+      const row: CustomerProfileRow = {
+        id: randomUUID(),
+        userId: args.create.userId,
+        avatarUrl: args.create.avatarUrl,
+      };
+      this.customerProfiles.push(row);
+      return row;
+    },
   };
 
   location = {
-    findFirst: async (args: { where: { id: string; userId?: string } }): Promise<LocationRow | null> => {
+    findFirst: async (args: {
+      where: { id: string; userId?: string };
+    }): Promise<LocationRow | null> => {
       return (
         this.locations.find(
-          (l) => l.id === args.where.id && (args.where.userId === undefined || l.userId === args.where.userId),
+          (l) =>
+            l.id === args.where.id &&
+            (args.where.userId === undefined || l.userId === args.where.userId),
         ) ?? null
       );
     },
@@ -1025,12 +1287,17 @@ class FakePrismaClient {
     },
   };
 
-
-
-
-
   serviceRequest = {
-    create: async (args: { data: Omit<ServiceRequestRow, 'createdAt' | 'updatedAt' | 'acceptedAt' | 'startedAt' | 'completedAt' | 'cancelledAt'> & Partial<Pick<ServiceRequestRow, 'acceptedAt' | 'startedAt' | 'completedAt' | 'cancelledAt'>>; select?: Record<string, unknown> }): Promise<ServiceRequestRow> => {
+    create: async (args: {
+      data: Omit<
+        ServiceRequestRow,
+        'createdAt' | 'updatedAt' | 'acceptedAt' | 'startedAt' | 'completedAt' | 'cancelledAt'
+      > &
+        Partial<
+          Pick<ServiceRequestRow, 'acceptedAt' | 'startedAt' | 'completedAt' | 'cancelledAt'>
+        >;
+      select?: Record<string, unknown>;
+    }): Promise<ServiceRequestRow> => {
       const now = new Date();
       const row: ServiceRequestRow = {
         id: randomUUID(),
@@ -1048,9 +1315,13 @@ class FakePrismaClient {
         updatedAt: now,
       } as ServiceRequestRow;
       this.serviceRequests.push(row);
-      return applySelect(row as unknown as Record<string, unknown>, args.select) as unknown as ServiceRequestRow;
+      return applySelect(
+        row as unknown as Record<string, unknown>,
+        args.select,
+      ) as unknown as ServiceRequestRow;
     },
-    count: async (args: { where: ServiceRequestWhere }): Promise<number> => this.matchServiceRequests(args.where).length,
+    count: async (args: { where: ServiceRequestWhere }): Promise<number> =>
+      this.matchServiceRequests(args.where).length,
     findMany: async (args: {
       where: ServiceRequestWhere;
       orderBy?: Array<Record<string, string>>;
@@ -1059,33 +1330,55 @@ class FakePrismaClient {
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.matchServiceRequests(args.where);
-      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = [...rows].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) =>
         applySelect(
-          { ...r, location: this.locations.find((l) => l.id === r.locationId) } as unknown as Record<string, unknown>,
+          {
+            ...r,
+            location: this.locations.find((l) => l.id === r.locationId),
+          } as unknown as Record<string, unknown>,
           args.select,
         ),
       );
     },
-    findFirst: async (args: { where: ServiceRequestWhere; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: ServiceRequestWhere;
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.matchServiceRequests(args.where)[0];
       if (row === undefined) {
         return null;
       }
-      const withLocation = { ...row, location: this.locations.find((l) => l.id === row.locationId) };
+      const withLocation = {
+        ...row,
+        location: this.locations.find((l) => l.id === row.locationId),
+      };
       return applySelect(withLocation as unknown as Record<string, unknown>, args.select);
     },
-    findUnique: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findUnique: async (args: {
+      where: { id: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.serviceRequests.find((r) => r.id === args.where.id);
       if (row === undefined) {
         return null;
       }
-      const withLocation = { ...row, location: this.locations.find((l) => l.id === row.locationId) };
+      const withLocation = {
+        ...row,
+        location: this.locations.find((l) => l.id === row.locationId),
+      };
       return applySelect(withLocation as unknown as Record<string, unknown>, args.select);
     },
     updateMany: async (args: {
-      where: { id: string; status?: ServiceRequestStatusValue; technicianId?: string; customerId?: string };
+      where: {
+        id: string;
+        status?: ServiceRequestStatusValue;
+        technicianId?: string;
+        customerId?: string;
+      };
       data: Record<string, unknown>;
     }): Promise<{ count: number }> => {
       let count = 0;
@@ -1106,8 +1399,14 @@ class FakePrismaClient {
   };
 
   serviceRequestStatusHistory = {
-    create: async (args: { data: Omit<ServiceRequestStatusHistoryRow, 'id' | 'createdAt'> }): Promise<ServiceRequestStatusHistoryRow> => {
-      const row: ServiceRequestStatusHistoryRow = { id: randomUUID(), createdAt: new Date(), ...args.data };
+    create: async (args: {
+      data: Omit<ServiceRequestStatusHistoryRow, 'id' | 'createdAt'>;
+    }): Promise<ServiceRequestStatusHistoryRow> => {
+      const row: ServiceRequestStatusHistoryRow = {
+        id: randomUUID(),
+        createdAt: new Date(),
+        ...args.data,
+      };
       this.serviceRequestStatusHistoryStore.push(row);
       return row;
     },
@@ -1117,7 +1416,9 @@ class FakePrismaClient {
       take?: number;
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
-      let rows = this.serviceRequestStatusHistoryStore.filter((h) => h.serviceRequestId === args.where.serviceRequestId);
+      let rows = this.serviceRequestStatusHistoryStore.filter(
+        (h) => h.serviceRequestId === args.where.serviceRequestId,
+      );
       rows = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       if (args.take !== undefined) {
         rows = rows.slice(0, args.take);
@@ -1126,12 +1427,62 @@ class FakePrismaClient {
     },
   };
 
+  serviceRequestMedia = {
+    count: async (args: { where: { serviceRequestId: string } }): Promise<number> =>
+      this.serviceRequestMediaRows.filter(
+        (m) => m.serviceRequestId === args.where.serviceRequestId,
+      ).length,
+    create: async (args: {
+      data: Omit<ServiceRequestMediaRow, 'id' | 'createdAt'>;
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
+      const row: ServiceRequestMediaRow = {
+        id: randomUUID(),
+        createdAt: new Date(),
+        ...args.data,
+      };
+      this.serviceRequestMediaRows.push(row);
+      return applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+    findMany: async (args: {
+      where: { serviceRequestId: string };
+      orderBy?: Array<Record<string, string>>;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.serviceRequestMediaRows.filter(
+        (m) => m.serviceRequestId === args.where.serviceRequestId,
+      );
+      rows = [...rows].sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1),
+      );
+      if (args.take !== undefined) {
+        rows = rows.slice(0, args.take);
+      }
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
+    findFirst: async (args: {
+      where: { id: string; serviceRequestId: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
+      const row =
+        this.serviceRequestMediaRows.find(
+          (m) => m.id === args.where.id && m.serviceRequestId === args.where.serviceRequestId,
+        ) ?? null;
+      return row === null
+        ? null
+        : applySelect(row as unknown as Record<string, unknown>, args.select);
+    },
+  };
+
   private matchServiceRequests(where: ServiceRequestWhere): ServiceRequestRow[] {
     return this.serviceRequests.filter((r) => this.serviceRequestMatches(r, where));
   }
 
   merchantProfile = {
-    findFirst: async (args: { where: { id?: string; userId?: string } }): Promise<MerchantProfileRow | null> => {
+    findFirst: async (args: {
+      where: { id?: string; userId?: string };
+    }): Promise<MerchantProfileRow | null> => {
       return (
         this.merchantProfiles.find(
           (m) =>
@@ -1140,7 +1491,17 @@ class FakePrismaClient {
         ) ?? null
       );
     },
-    create: async (args: { data: Omit<MerchantProfileRow, 'id' | 'createdAt' | 'updatedAt'> }): Promise<MerchantProfileRow> => {
+    count: async (args?: {
+      where?: { verificationStatus?: VerificationStatusValue };
+    }): Promise<number> =>
+      args?.where?.verificationStatus === undefined
+        ? this.merchantProfiles.length
+        : this.merchantProfiles.filter(
+            (m) => m.verificationStatus === args.where?.verificationStatus,
+          ).length,
+    create: async (args: {
+      data: Omit<MerchantProfileRow, 'id' | 'createdAt' | 'updatedAt'>;
+    }): Promise<MerchantProfileRow> => {
       const now = new Date();
       const row: MerchantProfileRow = {
         id: randomUUID(),
@@ -1153,7 +1514,10 @@ class FakePrismaClient {
       this.merchantProfiles.push(row);
       return row;
     },
-    updateMany: async (args: { where: { id?: string; userId?: string }; data: Partial<MerchantProfileRow> }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { id?: string; userId?: string };
+      data: Partial<MerchantProfileRow>;
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.merchantProfiles = this.merchantProfiles.map((m) => {
         if (
@@ -1167,18 +1531,28 @@ class FakePrismaClient {
       });
       return { count };
     },
-    update: async (args: { where: { id: string }; data: Partial<MerchantProfileRow> }): Promise<MerchantProfileRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<MerchantProfileRow>;
+    }): Promise<MerchantProfileRow> => {
       const idx = this.merchantProfiles.findIndex((m) => m.id === args.where.id);
       if (idx < 0) {
         throw new Error('Merchant profile not found');
       }
-      this.merchantProfiles[idx] = { ...this.merchantProfiles[idx], ...args.data, updatedAt: new Date() };
+      this.merchantProfiles[idx] = {
+        ...this.merchantProfiles[idx],
+        ...args.data,
+        updatedAt: new Date(),
+      };
       return this.merchantProfiles[idx];
     },
   };
 
   product = {
-    findFirst: async (args: { where: { id?: string; merchantId?: string; slug?: string; status?: ProductStatusValue }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: { id?: string; merchantId?: string; slug?: string; status?: ProductStatusValue };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.products.find(
         (p) =>
           (args.where.id === undefined || p.id === args.where.id) &&
@@ -1188,7 +1562,9 @@ class FakePrismaClient {
       );
       return row === undefined ? null : applyProductSelect(row, args.select, this.merchantProfiles);
     },
-    count: async (args: { where: { merchantId?: string; status?: ProductStatusValue } }): Promise<number> =>
+    count: async (args: {
+      where: { merchantId?: string; status?: ProductStatusValue };
+    }): Promise<number> =>
       this.products.filter(
         (p) =>
           (args.where.merchantId === undefined || p.merchantId === args.where.merchantId) &&
@@ -1206,17 +1582,25 @@ class FakePrismaClient {
           (args.where.merchantId === undefined || p.merchantId === args.where.merchantId) &&
           (args.where.status === undefined || p.status === args.where.status),
       );
-      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = [...rows].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applyProductSelect(r, args.select, this.merchantProfiles));
     },
-    create: async (args: { data: Omit<ProductRow, 'id' | 'createdAt' | 'updatedAt'>; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+    create: async (args: {
+      data: Omit<ProductRow, 'id' | 'createdAt' | 'updatedAt'>;
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
       const now = new Date();
       const row: ProductRow = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
       this.products.push(row);
       return applyProductSelect(row, args.select, this.merchantProfiles);
     },
-    updateMany: async (args: { where: { id?: string; merchantId?: string }; data: Partial<ProductRow> }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { id?: string; merchantId?: string };
+      data: Partial<ProductRow>;
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.products = this.products.map((p) => {
         if (
@@ -1230,7 +1614,9 @@ class FakePrismaClient {
       });
       return { count };
     },
-    deleteMany: async (args: { where: { id?: string; merchantId?: string } }): Promise<{ count: number }> => {
+    deleteMany: async (args: {
+      where: { id?: string; merchantId?: string };
+    }): Promise<{ count: number }> => {
       const before = this.products.length;
       this.products = this.products.filter(
         (p) =>
@@ -1245,37 +1631,58 @@ class FakePrismaClient {
 
   conversation = {
     findFirst: async (args: {
-      where: { id?: string; serviceRequestId?: string; productId?: string; initiatorUserId?: string };
+      where: {
+        id?: string;
+        serviceRequestId?: string;
+        productId?: string;
+        initiatorUserId?: string;
+      };
       select?: Record<string, unknown>;
     }): Promise<Record<string, unknown> | null> => {
       const row = this.conversations.find(
         (c) =>
           (args.where.id === undefined || c.id === args.where.id) &&
-          (args.where.serviceRequestId === undefined || c.serviceRequestId === args.where.serviceRequestId) &&
+          (args.where.serviceRequestId === undefined ||
+            c.serviceRequestId === args.where.serviceRequestId) &&
           (args.where.productId === undefined || c.productId === args.where.productId) &&
-          (args.where.initiatorUserId === undefined || c.initiatorUserId === args.where.initiatorUserId),
+          (args.where.initiatorUserId === undefined ||
+            c.initiatorUserId === args.where.initiatorUserId),
       );
-      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+      return row === undefined
+        ? null
+        : applySelect(row as unknown as Record<string, unknown>, args.select);
     },
     findMany: async (args: {
       where?: { id?: { in: string[] } };
       orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.conversations.filter(
         (c) => args.where?.id === undefined || args.where.id.in.includes(c.id),
       );
       rows = [...rows].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
-    findUniqueOrThrow: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+    count: async (args: { where?: { id?: { in: string[] } } }): Promise<number> =>
+      this.conversations.filter(
+        (c) => args.where?.id === undefined || args.where.id.in.includes(c.id),
+      ).length,
+    findUniqueOrThrow: async (args: {
+      where: { id: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
       const row = this.conversations.find((c) => c.id === args.where.id);
       if (row === undefined) {
         throw new Error('Conversation not found');
       }
       return applySelect(row as unknown as Record<string, unknown>, args.select);
     },
-    create: async (args: { data: { serviceRequestId?: string; productId?: string; initiatorUserId?: string } }): Promise<ConversationRow> => {
+    create: async (args: {
+      data: { serviceRequestId?: string; productId?: string; initiatorUserId?: string };
+    }): Promise<ConversationRow> => {
       const now = new Date();
       const row: ConversationRow = {
         id: randomUUID(),
@@ -1289,7 +1696,10 @@ class FakePrismaClient {
       this.conversations.push(row);
       return row;
     },
-    updateMany: async (args: { where: { id?: string }; data: { updatedAt?: Date } }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { id?: string };
+      data: { updatedAt?: Date };
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.conversations = this.conversations.map((c) => {
         if (args.where.id === undefined || c.id === args.where.id) {
@@ -1303,31 +1713,49 @@ class FakePrismaClient {
   };
 
   conversationParticipant = {
-    create: async (args: { data: Omit<ConversationParticipantRow, 'id' | 'joinedAt'> }): Promise<ConversationParticipantRow> => {
-      const row: ConversationParticipantRow = { id: randomUUID(), joinedAt: new Date(), ...args.data };
+    create: async (args: {
+      data: Omit<ConversationParticipantRow, 'id' | 'joinedAt'>;
+    }): Promise<ConversationParticipantRow> => {
+      const row: ConversationParticipantRow = {
+        id: randomUUID(),
+        joinedAt: new Date(),
+        ...args.data,
+      };
       this.conversationParticipants.push(row);
       return row;
     },
-    findFirst: async (args: { where: { conversationId?: string; userId?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: { conversationId?: string; userId?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.conversationParticipants.find(
         (p) =>
-          (args.where.conversationId === undefined || p.conversationId === args.where.conversationId) &&
+          (args.where.conversationId === undefined ||
+            p.conversationId === args.where.conversationId) &&
           (args.where.userId === undefined || p.userId === args.where.userId),
       );
-      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+      return row === undefined
+        ? null
+        : applySelect(row as unknown as Record<string, unknown>, args.select);
     },
-    findMany: async (args: { where: { userId?: string; conversationId?: string }; select?: Record<string, unknown> }): Promise<Array<Record<string, unknown>>> => {
+    findMany: async (args: {
+      where: { userId?: string; conversationId?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
       const rows = this.conversationParticipants.filter(
         (p) =>
           (args.where.userId === undefined || p.userId === args.where.userId) &&
-          (args.where.conversationId === undefined || p.conversationId === args.where.conversationId),
+          (args.where.conversationId === undefined ||
+            p.conversationId === args.where.conversationId),
       );
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
   };
 
   message = {
-    count: async (args: { where: { conversationId: string; readAt?: null; senderUserId?: { not: string } } }): Promise<number> =>
+    count: async (args: {
+      where: { conversationId: string; readAt?: null; senderUserId?: { not: string } };
+    }): Promise<number> =>
       this.messageRows.filter(
         (m) =>
           m.conversationId === args.where.conversationId &&
@@ -1342,22 +1770,41 @@ class FakePrismaClient {
       select?: Record<string, unknown>;
     }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.messageRows.filter((m) => m.conversationId === args.where.conversationId);
-      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = [...rows].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
-    findFirst: async (args: { where: { conversationId: string }; orderBy?: Array<Record<string, string>>; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: { conversationId: string };
+      orderBy?: Array<Record<string, string>>;
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const rows = this.messageRows
         .filter((m) => m.conversationId === args.where.conversationId)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
-      return rows[0] === undefined ? null : applySelect(rows[0] as unknown as Record<string, unknown>, args.select);
+      return rows[0] === undefined
+        ? null
+        : applySelect(rows[0] as unknown as Record<string, unknown>, args.select);
     },
-    create: async (args: { data: Omit<MessageRow, 'id' | 'createdAt' | 'readAt'> & { readAt?: Date | null }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
-      const row: MessageRow = { id: randomUUID(), readAt: null, createdAt: new Date(), ...args.data };
+    create: async (args: {
+      data: Omit<MessageRow, 'id' | 'createdAt' | 'readAt'> & { readAt?: Date | null };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
+      const row: MessageRow = {
+        id: randomUUID(),
+        readAt: null,
+        createdAt: new Date(),
+        ...args.data,
+      };
       this.messageRows.push(row);
       return applySelect(row as unknown as Record<string, unknown>, args.select);
     },
-    updateMany: async (args: { where: { conversationId: string; readAt?: null; senderUserId?: { not: string } }; data: { readAt?: Date } }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { conversationId: string; readAt?: null; senderUserId?: { not: string } };
+      data: { readAt?: Date };
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.messageRows = this.messageRows.map((m) => {
         if (
@@ -1375,15 +1822,22 @@ class FakePrismaClient {
   };
 
   review = {
-    findFirst: async (args: { where: { serviceRequestId?: string; id?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: { serviceRequestId?: string; id?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.reviewRows.find(
         (r) =>
-          (args.where.serviceRequestId === undefined || r.serviceRequestId === args.where.serviceRequestId) &&
+          (args.where.serviceRequestId === undefined ||
+            r.serviceRequestId === args.where.serviceRequestId) &&
           (args.where.id === undefined || r.id === args.where.id),
       );
       return row === undefined ? null : applySelect(this.attachReviewTags(row), args.select);
     },
-    findFirstOrThrow: async (args: { where: { id: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown>> => {
+    findFirstOrThrow: async (args: {
+      where: { id: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
       const row = this.reviewRows.find((r) => r.id === args.where.id);
       if (row === undefined) {
         throw new Error('Review not found');
@@ -1400,7 +1854,9 @@ class FakePrismaClient {
       let rows = this.reviewRows.filter(
         (r) => args.where.technicianId === undefined || r.technicianId === args.where.technicianId,
       );
-      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = [...rows].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(this.attachReviewTags(r), args.select));
     },
@@ -1408,11 +1864,27 @@ class FakePrismaClient {
       this.reviewRows.filter(
         (r) => args.where.technicianId === undefined || r.technicianId === args.where.technicianId,
       ).length,
-    create: async (args: { data: Omit<ReviewRow, 'id' | 'createdAt' | 'updatedAt' | 'problemResolved'> }): Promise<{ id: string }> => {
+    create: async (args: {
+      data: Omit<ReviewRow, 'id' | 'createdAt' | 'updatedAt' | 'problemResolved'>;
+    }): Promise<{ id: string }> => {
       const now = new Date();
-      const row: ReviewRow = { id: randomUUID(), problemResolved: null, createdAt: now, updatedAt: now, ...args.data };
+      const row: ReviewRow = {
+        id: randomUUID(),
+        problemResolved: null,
+        createdAt: now,
+        updatedAt: now,
+        ...args.data,
+      };
       this.reviewRows.push(row);
       return { id: row.id };
+    },
+    delete: async (args: { where: { id: string } }): Promise<{ id: string }> => {
+      const idx = this.reviewRows.findIndex((r) => r.id === args.where.id);
+      if (idx < 0) {
+        throw new Error('Review not found');
+      }
+      const [removed] = this.reviewRows.splice(idx, 1);
+      return { id: (removed as ReviewRow).id };
     },
     aggregate: async (args: {
       where: { technicianId?: string };
@@ -1428,7 +1900,9 @@ class FakePrismaClient {
   };
 
   private attachReviewTags(row: ReviewRow): Record<string, unknown> {
-    const tagIds = this.reviewTagAssignmentRows.filter((a) => a.reviewId === row.id).map((a) => a.tagId);
+    const tagIds = this.reviewTagAssignmentRows
+      .filter((a) => a.reviewId === row.id)
+      .map((a) => a.tagId);
     return {
       ...row,
       tagAssignments: tagIds.flatMap((tagId) => {
@@ -1465,15 +1939,21 @@ class FakePrismaClient {
   };
 
   reviewTagAssignment = {
-    create: async (args: { data: { reviewId: string; tagId: string } }): Promise<{ reviewId: string; tagId: string }> => {
+    create: async (args: {
+      data: { reviewId: string; tagId: string };
+    }): Promise<{ reviewId: string; tagId: string }> => {
       this.reviewTagAssignmentRows.push(args.data);
       return args.data;
     },
   };
 
   notification = {
-    count: async (args: { where: { userId?: string } }): Promise<number> =>
-      this.notificationRows.filter((n) => args.where.userId === undefined || n.userId === args.where.userId).length,
+    count: async (args: { where: { userId?: string; readAt?: null } }): Promise<number> =>
+      this.notificationRows.filter(
+        (n) =>
+          (args.where.userId === undefined || n.userId === args.where.userId) &&
+          (args.where.readAt === undefined || n.readAt === null),
+      ).length,
     findMany: async (args: {
       where: { userId?: string };
       orderBy?: Array<Record<string, string>>;
@@ -1484,19 +1964,29 @@ class FakePrismaClient {
       let rows = this.notificationRows.filter(
         (n) => args.where.userId === undefined || n.userId === args.where.userId,
       );
-      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1));
+      rows = [...rows].sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
-    findFirst: async (args: { where: { id?: string; userId?: string }; select?: Record<string, unknown> }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: { id?: string; userId?: string };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown> | null> => {
       const row = this.notificationRows.find(
         (n) =>
           (args.where.id === undefined || n.id === args.where.id) &&
           (args.where.userId === undefined || n.userId === args.where.userId),
       );
-      return row === undefined ? null : applySelect(row as unknown as Record<string, unknown>, args.select);
+      return row === undefined
+        ? null
+        : applySelect(row as unknown as Record<string, unknown>, args.select);
     },
-    updateMany: async (args: { where: { id?: string; userId?: string; readAt?: null }; data: { readAt?: Date | null } }): Promise<{ count: number }> => {
+    updateMany: async (args: {
+      where: { id?: string; userId?: string; readAt?: null };
+      data: { readAt?: Date | null };
+    }): Promise<{ count: number }> => {
       let count = 0;
       this.notificationRows = this.notificationRows.map((n) => {
         if (
@@ -1511,7 +2001,9 @@ class FakePrismaClient {
       });
       return { count };
     },
-    create: async (args: { data: { userId: string; type: string; titleAr: string; bodyAr: string; dataJson?: unknown } }): Promise<{ id: string }> => {
+    create: async (args: {
+      data: { userId: string; type: string; titleAr: string; bodyAr: string; dataJson?: unknown };
+    }): Promise<{ id: string }> => {
       const row: NotificationRow = {
         id: randomUUID(),
         userId: args.data.userId,
@@ -1524,6 +2016,34 @@ class FakePrismaClient {
       };
       this.notificationRows.push(row);
       return { id: row.id };
+    },
+  };
+
+  notificationPreference = {
+    findUnique: async (args: { where: { userId: string } }): Promise<NotificationPreferenceRow | null> =>
+      this.notificationPreferenceRows.find((p) => p.userId === args.where.userId) ?? null,
+    upsert: async (args: {
+      where: { userId: string };
+      create: { userId: string; requestStatus: boolean; subscription: boolean };
+      update: { requestStatus: boolean; subscription: boolean };
+      select?: Record<string, unknown>;
+    }): Promise<Record<string, unknown>> => {
+      const existing = this.notificationPreferenceRows.find((p) => p.userId === args.where.userId);
+      if (existing !== undefined) {
+        existing.requestStatus = args.update.requestStatus;
+        existing.subscription = args.update.subscription;
+        existing.updatedAt = new Date();
+        return applySelect(existing as unknown as Record<string, unknown>, args.select);
+      }
+      const row: NotificationPreferenceRow = {
+        userId: args.create.userId,
+        requestStatus: args.create.requestStatus,
+        subscription: args.create.subscription,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      this.notificationPreferenceRows.push(row);
+      return applySelect(row as unknown as Record<string, unknown>, args.select);
     },
   };
 
@@ -1550,7 +2070,9 @@ class FakePrismaClient {
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
-    findFirst: async (args: { where: { id?: string } }): Promise<Record<string, unknown> | null> => {
+    findFirst: async (args: {
+      where: { id?: string };
+    }): Promise<Record<string, unknown> | null> => {
       return this.subscriptionPlans.find((p) => p.id === args.where.id) ?? null;
     },
   };
@@ -1626,17 +2148,19 @@ class FakePrismaClient {
       });
       return { count };
     },
+    count: async (args?: { where?: { status?: string } }): Promise<number> =>
+      args?.where?.status === undefined
+        ? this.subscriptions.length
+        : this.subscriptions.filter((s) => s.status === args.where?.status).length,
   };
 
-  private matchSubscriptions(
-    where: {
-      id?: string;
-      userId?: string;
-      status?: string | { in: string[]; not?: string };
-      currentPeriodEnd?: { gt?: Date; lte?: Date };
-      plan?: { isActive?: boolean; role?: string };
-    },
-  ): SubscriptionRow[] {
+  private matchSubscriptions(where: {
+    id?: string;
+    userId?: string;
+    status?: string | { in: string[]; not?: string };
+    currentPeriodEnd?: { gt?: Date; lte?: Date };
+    plan?: { isActive?: boolean; role?: string };
+  }): SubscriptionRow[] {
     return this.subscriptions.filter((s) => {
       if (where.id !== undefined && s.id !== where.id) return false;
       if (where.userId !== undefined && s.userId !== where.userId) return false;
@@ -1648,16 +2172,23 @@ class FakePrismaClient {
           if (where.status.not !== undefined && s.status === where.status.not) return false;
         }
       }
-      if (where.currentPeriodEnd?.gt !== undefined && s.currentPeriodEnd <= where.currentPeriodEnd.gt) {
+      if (
+        where.currentPeriodEnd?.gt !== undefined &&
+        s.currentPeriodEnd <= where.currentPeriodEnd.gt
+      ) {
         return false;
       }
-      if (where.currentPeriodEnd?.lte !== undefined && s.currentPeriodEnd > where.currentPeriodEnd.lte) {
+      if (
+        where.currentPeriodEnd?.lte !== undefined &&
+        s.currentPeriodEnd > where.currentPeriodEnd.lte
+      ) {
         return false;
       }
       if (where.plan !== undefined) {
         const plan = this.subscriptionPlans.find((p) => p.id === s.planId);
         if (plan === undefined) return false;
-        if (where.plan.isActive !== undefined && plan.isActive !== where.plan.isActive) return false;
+        if (where.plan.isActive !== undefined && plan.isActive !== where.plan.isActive)
+          return false;
         if (where.plan.role !== undefined && plan.role !== where.plan.role) return false;
       }
       return true;
@@ -1665,7 +2196,9 @@ class FakePrismaClient {
   }
 
   paymentMethodConfig = {
-    findFirst: async (args: { where: { method?: PaymentMethodValue; isEnabled?: boolean } }): Promise<PaymentMethodConfigRow | null> => {
+    findFirst: async (args: {
+      where: { method?: PaymentMethodValue; isEnabled?: boolean };
+    }): Promise<PaymentMethodConfigRow | null> => {
       return (
         this.paymentMethodConfigs.find(
           (c) =>
@@ -1674,28 +2207,47 @@ class FakePrismaClient {
         ) ?? null
       );
     },
-    findMany: async (args: { where?: { isEnabled?: boolean }; orderBy?: Array<Record<string, string>> }): Promise<Array<Record<string, unknown>>> => {
+    findMany: async (args: {
+      where?: { isEnabled?: boolean };
+      orderBy?: Array<Record<string, string>>;
+    }): Promise<Array<Record<string, unknown>>> => {
       let rows = this.paymentMethodConfigs.filter(
         (c) => args.where?.isEnabled === undefined || c.isEnabled === args.where.isEnabled,
       );
       rows = [...rows].sort((a, b) => a.method.localeCompare(b.method));
       return rows.map((r) => r as unknown as Record<string, unknown>);
     },
-    create: async (args: { data: Omit<PaymentMethodConfigRow, 'id' | 'createdAt' | 'updatedAt'> }): Promise<PaymentMethodConfigRow> => {
+    create: async (args: {
+      data: Omit<PaymentMethodConfigRow, 'id' | 'createdAt' | 'updatedAt'>;
+    }): Promise<PaymentMethodConfigRow> => {
       const now = new Date();
-      const row: PaymentMethodConfigRow = { id: randomUUID(), createdAt: now, updatedAt: now, ...args.data };
+      const row: PaymentMethodConfigRow = {
+        id: randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        ...args.data,
+      };
       this.paymentMethodConfigs.push(row);
       return row;
     },
-    update: async (args: { where: { id: string }; data: Partial<PaymentMethodConfigRow> }): Promise<PaymentMethodConfigRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Partial<PaymentMethodConfigRow>;
+    }): Promise<PaymentMethodConfigRow> => {
       const idx = this.paymentMethodConfigs.findIndex((c) => c.id === args.where.id);
-      this.paymentMethodConfigs[idx] = { ...this.paymentMethodConfigs[idx], ...args.data, updatedAt: new Date() };
+      this.paymentMethodConfigs[idx] = {
+        ...this.paymentMethodConfigs[idx],
+        ...args.data,
+        updatedAt: new Date(),
+      };
       return this.paymentMethodConfigs[idx];
     },
   };
 
   paymentSubmission = {
-    count: async (args: { where: { userId?: string; status?: PaymentSubmissionStatusValue } }): Promise<number> =>
+    count: async (args: {
+      where: { userId?: string; status?: PaymentSubmissionStatusValue };
+    }): Promise<number> =>
       this.paymentSubmissionRows.filter(
         (s) =>
           (args.where.userId === undefined || s.userId === args.where.userId) &&
@@ -1713,12 +2265,19 @@ class FakePrismaClient {
           (args.where.userId === undefined || s.userId === args.where.userId) &&
           (args.where.status === undefined || s.status === args.where.status),
       );
-      rows = [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1));
+      rows = [...rows].sort(
+        (a, b) => a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : 1),
+      );
       rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
       return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
     },
     findFirst: async (args: {
-      where: { id?: string; userId?: string; status?: PaymentSubmissionStatusValue; planId?: string };
+      where: {
+        id?: string;
+        userId?: string;
+        status?: PaymentSubmissionStatusValue;
+        planId?: string;
+      };
       select?: Record<string, unknown>;
     }): Promise<Record<string, unknown> | null> => {
       const row = this.paymentSubmissionRows.find(
@@ -1736,7 +2295,15 @@ class FakePrismaClient {
       const user = this.users.find((u) => u.id === row.userId);
       const withRelations = {
         ...row,
-        ...(plan !== undefined ? { plan: applySelect(plan as unknown as Record<string, unknown>, (args.select as { plan?: { select?: Record<string, unknown> } } | undefined)?.plan?.select) } : {}),
+        ...(plan !== undefined
+          ? {
+              plan: applySelect(
+                plan as unknown as Record<string, unknown>,
+                (args.select as { plan?: { select?: Record<string, unknown> } } | undefined)?.plan
+                  ?.select,
+              ),
+            }
+          : {}),
         ...(user !== undefined ? { user: { role: user.role } } : {}),
       };
       return applySelect(withRelations as unknown as Record<string, unknown>, args.select);
@@ -1780,7 +2347,10 @@ class FakePrismaClient {
       });
       return { count };
     },
-    update: async (args: { where: { id: string }; data: Record<string, unknown> }): Promise<PaymentSubmissionRow> => {
+    update: async (args: {
+      where: { id: string };
+      data: Record<string, unknown>;
+    }): Promise<PaymentSubmissionRow> => {
       const idx = this.paymentSubmissionRows.findIndex((s) => s.id === args.where.id);
       this.paymentSubmissionRows[idx] = {
         ...this.paymentSubmissionRows[idx],
@@ -1792,7 +2362,9 @@ class FakePrismaClient {
   };
 
   entitlement = {
-    findFirst: async (args: { where: { id?: string } }): Promise<{ id: string; code: string; isActive: boolean } | null> => {
+    findFirst: async (args: {
+      where: { id?: string };
+    }): Promise<{ id: string; code: string; isActive: boolean } | null> => {
       return this.entitlements.find((e) => e.id === args.where.id) ?? null;
     },
   };
@@ -1816,16 +2388,21 @@ class FakePrismaClient {
           return { entitlement: { code: ent?.code ?? '' } };
         });
     },
-    findFirst: async (args: { where: { userId?: string; entitlementId?: string } }): Promise<{ id: string } | null> => {
+    findFirst: async (args: {
+      where: { userId?: string; entitlementId?: string };
+    }): Promise<{ id: string } | null> => {
       return (
         this.entitlementGrantRows.find(
           (g) =>
             (args.where.userId === undefined || g.userId === args.where.userId) &&
-            (args.where.entitlementId === undefined || g.entitlementId === args.where.entitlementId),
+            (args.where.entitlementId === undefined ||
+              g.entitlementId === args.where.entitlementId),
         ) ?? null
       );
     },
-    create: async (args: { data: Omit<EntitlementGrantRow, 'id' | 'createdAt'> }): Promise<{ id: string }> => {
+    create: async (args: {
+      data: Omit<EntitlementGrantRow, 'id' | 'createdAt'>;
+    }): Promise<{ id: string }> => {
       const row: EntitlementGrantRow = { id: randomUUID(), createdAt: new Date(), ...args.data };
       this.entitlementGrantRows.push(row);
       return { id: row.id };
@@ -1833,18 +2410,34 @@ class FakePrismaClient {
   };
 
   auditLog = {
-    create: async (args: { data: Omit<AuditLogRow, 'id' | 'createdAt'> }): Promise<{ id: string }> => {
+    create: async (args: {
+      data: Omit<AuditLogRow, 'id' | 'createdAt'>;
+    }): Promise<{ id: string }> => {
       const row: AuditLogRow = { id: randomUUID(), createdAt: new Date(), ...args.data };
       this.auditLogRows.push(row);
       return { id: row.id };
     },
+    count: async (args?: { where?: { entityType?: string } }): Promise<number> =>
+      args?.where?.entityType === undefined
+        ? this.auditLogRows.length
+        : this.auditLogRows.filter((r) => r.entityType === args.where?.entityType).length,
+    findMany: async (args: {
+      where?: { entityType?: string };
+      orderBy?: Array<Record<string, string>>;
+      skip?: number;
+      take?: number;
+      select?: Record<string, unknown>;
+    }): Promise<Array<Record<string, unknown>>> => {
+      let rows = this.auditLogRows.filter(
+        (r) => args.where?.entityType === undefined || r.entityType === args.where.entityType,
+      );
+      rows = [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      rows = rows.slice(args.skip ?? 0, (args.skip ?? 0) + (args.take ?? rows.length));
+      return rows.map((r) => applySelect(r as unknown as Record<string, unknown>, args.select));
+    },
   };
 
-
-  private serviceRequestMatches(
-    row: ServiceRequestRow,
-    where: ServiceRequestWhere,
-  ): boolean {
+  private serviceRequestMatches(row: ServiceRequestRow, where: ServiceRequestWhere): boolean {
     if (where.id !== undefined && row.id !== where.id) return false;
     if (where.customerId !== undefined && row.customerId !== where.customerId) return false;
     if (where.technicianId !== undefined && row.technicianId !== where.technicianId) return false;
@@ -1855,7 +2448,10 @@ class FakePrismaClient {
         return false;
       }
     }
-    if (where.OR !== undefined && !where.OR.some((branch) => this.serviceRequestMatches(row, branch))) {
+    if (
+      where.OR !== undefined &&
+      !where.OR.some((branch) => this.serviceRequestMatches(row, branch))
+    ) {
       return false;
     }
     return true;
@@ -1863,8 +2459,13 @@ class FakePrismaClient {
 
   private matchFaults(where: FaultWhere): FaultRow[] {
     return this.faults.filter((f) => {
-      if (where.publishStatus !== undefined && f.publishStatus !== where.publishStatus) return false;
-      if (where.applianceCategoryId !== undefined && f.applianceCategoryId !== where.applianceCategoryId) return false;
+      if (where.publishStatus !== undefined && f.publishStatus !== where.publishStatus)
+        return false;
+      if (
+        where.applianceCategoryId !== undefined &&
+        f.applianceCategoryId !== where.applianceCategoryId
+      )
+        return false;
       return includesTextFilter(f as unknown as Record<string, unknown>, where.OR);
     });
   }
@@ -1872,7 +2473,11 @@ class FakePrismaClient {
   private matchServices(where: ServiceWhere): ServiceRow[] {
     return this.services.filter((s) => {
       if (where.isActive !== undefined && s.isActive !== where.isActive) return false;
-      if (where.applianceCategoryId !== undefined && s.applianceCategoryId !== where.applianceCategoryId) return false;
+      if (
+        where.applianceCategoryId !== undefined &&
+        s.applianceCategoryId !== where.applianceCategoryId
+      )
+        return false;
       return includesTextFilter(s as unknown as Record<string, unknown>, where.OR);
     });
   }
@@ -1890,7 +2495,10 @@ class FakePrismaClient {
       if (service !== undefined) {
         const row = this.services.find((s) => s.id === ts.serviceId);
         if (row === undefined) return false;
-        if (service.applianceCategoryId !== undefined && row.applianceCategoryId !== service.applianceCategoryId) {
+        if (
+          service.applianceCategoryId !== undefined &&
+          row.applianceCategoryId !== service.applianceCategoryId
+        ) {
           return false;
         }
         if (service.faultLinks !== undefined) {
@@ -1910,10 +2518,16 @@ class FakePrismaClient {
     return this.technicianProfiles.filter((t) => {
       if (where.id !== undefined && t.id !== where.id) return false;
       if (where.userId !== undefined && t.userId !== where.userId) return false;
-      if (where.verificationStatus !== undefined && t.verificationStatus !== where.verificationStatus) {
+      if (
+        where.verificationStatus !== undefined &&
+        t.verificationStatus !== where.verificationStatus
+      ) {
         return false;
       }
-      if (where.availabilityStatus !== undefined && t.availabilityStatus !== where.availabilityStatus) {
+      if (
+        where.availabilityStatus !== undefined &&
+        t.availabilityStatus !== where.availabilityStatus
+      ) {
         return false;
       }
       if (where.ratingAverage?.gte !== undefined) {
@@ -1921,9 +2535,19 @@ class FakePrismaClient {
         if (t.ratingAverage === null || t.ratingAverage < gte) return false;
       }
       if (!includesTextFilter(t as unknown as Record<string, unknown>, where.OR)) return false;
+      if (where.serviceAreas?.some?.labelAr?.contains !== undefined) {
+        // Label-containment semantics mirror the real query (WP-Discovery):
+        // the selected district matches technician labels containing it.
+        const needle = String(where.serviceAreas.some.labelAr.contains).toLowerCase();
+        const labels = this.areaRows
+          .filter((a) => a.technicianId === t.id)
+          .map((a) => a.labelAr.toLowerCase());
+        if (!labels.some((label) => label.includes(needle))) return false;
+      }
       if (where.services !== undefined) {
         const own = this.technicianServices.filter((ts) => ts.technicianId === t.id);
-        if (!own.some((ts) => this.technicianServiceMatches(ts, where.services.some.AND))) return false;
+        if (!own.some((ts) => this.technicianServiceMatches(ts, where.services.some.AND)))
+          return false;
       }
       return true;
     });
@@ -1934,10 +2558,17 @@ class FakePrismaClient {
     activeOnly: boolean | undefined,
   ): TechnicianWithServices {
     const links = this.technicianServices.filter(
-      (ts) => ts.technicianId === row.id && (activeOnly === undefined || ts.isActive === activeOnly),
+      (ts) =>
+        ts.technicianId === row.id && (activeOnly === undefined || ts.isActive === activeOnly),
     );
     return {
       ...row,
+      // The real select also joins serviceAreas; the fake resolves them
+      // from the area rows (WP-01: getProfile must not crash on
+      // lazily-created profiles with zero areas).
+      serviceAreas: this.areaRows
+        .filter((a) => a.technicianId === row.id)
+        .map((a) => ({ labelAr: a.labelAr, latitude: a.latitude, longitude: a.longitude })),
       services: links.flatMap((ts) => {
         const service = this.services.find((s) => s.id === ts.serviceId);
         return service === undefined
@@ -1983,6 +2614,7 @@ interface TechnicianWhere {
   availabilityStatus?: AvailabilityStatusValue;
   ratingAverage?: { gte?: number };
   OR?: Array<Record<string, { contains?: string; mode?: string }>>;
+  serviceAreas?: { some?: { labelAr?: { contains?: string; mode?: string } } };
   services?: { some: { AND: Array<Record<string, unknown>> } };
 }
 

@@ -217,7 +217,14 @@ export class SubscriptionsService {
         data: { renewalEnabled: false, cancelledAt: new Date() },
       });
       if (before.renewalEnabled) {
-        await this.notifications.create(userId, subscriptionRenewalCancelledNotification(), tx);
+        await this.notifications.create(
+          userId,
+          {
+            ...subscriptionRenewalCancelledNotification(),
+            dataJson: { subscriptionId },
+          },
+          tx,
+        );
       }
       return 'cancelled' as const;
     });
@@ -299,7 +306,15 @@ export class SubscriptionsService {
       });
       // Subscription event → persisted notification for the recipient
       // (server-derived user id), same transaction as activation + audit.
-      await this.notifications.create(userId, subscriptionActivatedNotification(), tx);
+      // WP-Notifications: navigation payload carries ids only.
+      await this.notifications.create(
+        userId,
+        {
+          ...subscriptionActivatedNotification(),
+          dataJson: { subscriptionId: subscription.id, planId },
+        },
+        tx,
+      );
       return subscription;
     });
     if (created === null) {
@@ -354,7 +369,15 @@ export class SubscriptionsService {
         },
       });
       // Subscription-adjacent event → persisted notification (same tx).
-      await this.notifications.create(userId, entitlementGrantedNotification(entitlement.nameAr), tx);
+      // WP-Notifications: navigation payload carries ids only.
+      await this.notifications.create(
+        userId,
+        {
+          ...entitlementGrantedNotification(entitlement.nameAr),
+          dataJson: { entitlementId, code: entitlement.code },
+        },
+        tx,
+      );
       return grant;
     });
     return { id: created.id, userId, entitlementId, code: entitlement.code };

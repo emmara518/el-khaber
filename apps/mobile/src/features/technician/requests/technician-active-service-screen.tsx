@@ -21,6 +21,7 @@ import type { TechnicianRequestsDataSource } from './mock-technician-requests-da
 
 import { useI18n } from '@/i18n/use-i18n';
 import { joinNonEmpty } from '@/lib/api-format';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
 import {
   ActionButton,
   AppHeader,
@@ -56,6 +57,7 @@ export default function TechnicianActiveServiceScreen({
   const { t } = useI18n();
   const router = useRouter();
   const vm = useTechnicianActiveServiceViewModel(requestId, source);
+  useRefreshOnFocus(vm.reload);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -154,8 +156,8 @@ export default function TechnicianActiveServiceScreen({
           </View>
           {request.appointmentAr !== null ? (
             <View style={styles.valueRow}>
-              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel="الموعد" />
-              <Text style={styles.value}>{request.appointmentAr}</Text>
+              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel={t('tech.request.appointment')} />
+              <Text style={styles.value}>{`${t('tech.request.appointment')}: ${request.appointmentAr}`}</Text>
             </View>
           ) : null}
         </Card>

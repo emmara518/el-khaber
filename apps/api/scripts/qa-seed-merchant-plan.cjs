@@ -1,3 +1,4 @@
+require('./qa-guard.cjs').assertQaSeedAllowed(__filename);
 const { PrismaClient } = require('@prisma/client');
 const p = new PrismaClient();
 

@@ -27,12 +27,12 @@ import { type Prisma, type UserRole, UserStatus } from '@prisma/client';
 
 
 import { ConflictException, AuthInvalidException, NotFoundException } from '../common/errors';
+import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
 import { hashPassword, verifyPassword } from './password';
 import { generateOpaqueToken, hashToken } from './token.util';
-import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 
 export interface RegisterInput {
   role: Role;
@@ -204,11 +204,21 @@ export class AuthService {
       throw new AuthInvalidException('Account is not active');
     }
 
-    // Rotate: revoke the presented token, issue a new one in the same family.
-    await this.prisma.refreshToken.update({
-      where: { id: record.id },
+    // Rotate atomically: only the request that flips revoked_at from NULL to
+    // a timestamp may issue a successor. A concurrent request using the same
+    // token loses this conditional update (count === 0) and is handled as a
+    // replay, so one token can never produce two valid sessions.
+    const claimed = await this.prisma.refreshToken.updateMany({
+      where: { id: record.id, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'rotation' },
     });
+    if (claimed.count !== 1) {
+      await this.prisma.refreshToken.updateMany({
+        where: { familyId: record.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'family_replay' },
+      });
+      throw new AuthInvalidException('Refresh token replay detected');
+    }
 
     return this.issueSession(
       { id: user.id, role: user.role as Role, status: user.status as UserStatus },
@@ -250,7 +260,7 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return toAuthUserDto(user);
+    return toAuthUserDto(user, await this.profileAvatarUrl(id, user.role as Role));
   }
 
   /**
@@ -326,7 +336,39 @@ export class AuthService {
       throw error;
     }
 
-    return toAuthUserDto(updated);
+    return toAuthUserDto(updated, await this.profileAvatarUrl(userId, updated.role as Role));
+  }
+
+  /**
+   * Role-appropriate profile image for GET /me (WP-01, D6).
+   *
+   * The avatar lives on the role profile row (customer/technician avatar,
+   * merchant logo) — never on the user record. Other roles keep working:
+   * a missing profile row simply yields `avatarUrl: null` instead of an
+   * error. Stored values are server-issued public URLs (or legacy
+   * read-only values); writes go exclusively through the avatar
+   * endpoints.
+   */
+  private async profileAvatarUrl(userId: string, role: Role): Promise<string | null> {
+    if (role === ROLE.technician) {
+      const row = await this.prisma.technicianProfile.findFirst({
+        where: { userId },
+        select: { avatarUrl: true },
+      });
+      return row?.avatarUrl ?? null;
+    }
+    if (role === ROLE.merchant) {
+      const row = await this.prisma.merchantProfile.findFirst({
+        where: { userId },
+        select: { logoUrl: true },
+      });
+      return row?.logoUrl ?? null;
+    }
+    const row = await this.prisma.customerProfile.findFirst({
+      where: { userId },
+      select: { avatarUrl: true },
+    });
+    return row?.avatarUrl ?? null;
   }
 
   private async issueSession(
@@ -368,13 +410,14 @@ export class AuthService {
       accessToken,
       refreshToken: rawRefresh,
       expiresIn: config.auth.accessTtlSeconds,
-      user: toAuthUserDto(user),
+      user: toAuthUserDto(user, await this.profileAvatarUrl(userRef.id, userRef.role)),
     };
   }
 }
 
 export function toAuthUserDto(
   user: Prisma.UserGetPayload<Record<string, never>>,
+  avatarUrl: string | null = null,
 ): AuthUserDto {
   return {
     id: user.id,
@@ -385,5 +428,8 @@ export function toAuthUserDto(
     phoneVerified: user.phoneVerified,
     emailVerified: user.emailVerified,
     createdAt: user.createdAt.toISOString(),
+    // WP-01 (D6): role-appropriate profile image (public URL or null).
+    // Callers that cannot resolve a profile pass the default null.
+    avatarUrl,
   };
 }

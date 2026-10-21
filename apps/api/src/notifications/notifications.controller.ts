@@ -1,10 +1,11 @@
 /**
- * Notification endpoints (Task 10H). Source: docs/07_API.md §12.
- * Persistence + read-state APIs only — no delivery provider.
+ * Notification endpoints (Task 10H + WP-Notifications).
+ * Source: docs/07_API.md §12.
+ * Persistence + read-state + preferences APIs only — no delivery provider.
  */
 
-import { paginationSchema } from '@khabir/shared-validation';
-import { Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { notificationPreferencesSchema, paginationSchema } from '@khabir/shared-validation';
+import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 
@@ -15,7 +16,14 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { NotificationsService } from './notifications.service';
 
-import type { ApiMeta, ApiSuccess, NotificationDto } from '@khabir/shared-types';
+import type {
+  ApiMeta,
+  ApiSuccess,
+  NotificationDto,
+  NotificationPreferencesDto,
+  UnreadCountDto,
+} from '@khabir/shared-types';
+import type { NotificationPreferencesInput } from '@khabir/shared-validation';
 
 @ApiTags('notifications')
 @ApiBearerAuth('bearer')
@@ -35,6 +43,42 @@ export class NotificationsController {
   ): Promise<ApiSuccess<NotificationDto[]> & { meta: ApiMeta }> {
     const { items, meta } = await this.notifications.list(user.id, query);
     return { data: items, meta };
+  }
+
+  /**
+   * WP-Notifications: server-authoritative unread count for the badge.
+   * Static route — must stay distinct from `GET /notifications` (list).
+   */
+  @Get('unread-count')
+  @ApiEnvelopeOk('UnreadCountDto', 200, 'Own unread notification count.')
+  async unreadCount(@CurrentUser() user: RequestUser): Promise<ApiSuccess<UnreadCountDto>> {
+    return { data: await this.notifications.getUnreadCount(user.id) };
+  }
+
+  /**
+   * WP-Notifications: read the caller's delivery preferences.
+   * Absent row ≡ all ON (server defaults, documented in docs/07 §12).
+   */
+  @Get('preferences')
+  @ApiEnvelopeOk('NotificationPreferencesDto', 200, 'Own notification delivery preferences.')
+  async getPreferences(
+    @CurrentUser() user: RequestUser,
+  ): Promise<ApiSuccess<NotificationPreferencesDto>> {
+    return { data: await this.notifications.getPreferences(user.id) };
+  }
+
+  /**
+   * WP-Notifications: replace the caller's delivery preferences.
+   * Both keys required; unknown keys stripped; `verification` + admin
+   * operational messages stay MANDATORY (no key exists for them).
+   */
+  @Put('preferences')
+  @ApiEnvelopeOk('NotificationPreferencesDto', 200, 'Updated notification delivery preferences.')
+  async updatePreferences(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(notificationPreferencesSchema)) body: NotificationPreferencesInput,
+  ): Promise<ApiSuccess<NotificationPreferencesDto>> {
+    return { data: await this.notifications.updatePreferences(user.id, body) };
   }
 
   /** Recipient-only; idempotent; another user's notification ≡ 404. */

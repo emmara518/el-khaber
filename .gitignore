@@ -45,6 +45,9 @@ coverage/
 # Payment proof local adapter (dev/test double data, server-side only)
 .proof-storage/
 
+# Avatar local adapter (WP-01 dev/test double data, server-side only)
+.avatar-storage/
+
 # Expo / React Native
 .expo-shared/
 ios/Pods/
@@ -88,3 +91,13 @@ apps/mobile/dist-web/
 # Generated Prisma client (re-generated on install)
 packages/*/node_modules/.prisma/
 apps/*/node_modules/.prisma/
+
+# Local audit artifacts
+audit-*.json
+
+# Test environment (never commit credentials)
+.env.test
+!.env.test.example
+
+# Local prisma diff scratch output
+schema-diff.sql

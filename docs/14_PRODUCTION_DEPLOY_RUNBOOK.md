@@ -1,8 +1,18 @@
 # الخبير — Production Deploy Runbook
 
+> **Current status (2026-10-21): historical baseline, not production-verified.**
+> The release is at `4506bd7aed56cbdf9b53720f63fed2d4db8dd49c`; production
+> database/secrets/hosting/legal gates are still open. Use the current
+> `docs/releases/V2.1.0-RELEASE-GATE.md`,
+> `docs/releases/PRODUCTION-DATABASE-RESTORE-RUNBOOK.md`, and
+> `docs/releases/DEPLOYMENT-PROVENANCE-AND-ROLLBACK.md` for the current
+> procedures. Do not assume any historical claim in this file about a
+> `khabir-prod` database is still true; this engineering session did not
+> access it.
+
 **Path:** `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md`
 **Version:** 1.0 (2026-09-19)
-**Status:** Actionable runbook. No deployment has been executed from it yet.
+**Status:** Historical reference. No deployment has been executed from it yet.
 **Companion:** `docs/11_PRODUCTION.md` (readiness baseline), `docs/12_RELEASE.md` (release manifest).
 
 This runbook is the only in-session deliverable for the deployed-API blocker:
@@ -39,11 +49,12 @@ create extension if not exists postgis;
 -- dedicated least-privilege Prisma user (see docs/local-dev.md §DB pattern)
 ```
 
-Apply migrations from a machine with `DIRECT_URL` set (never via the pooler):
+Apply migrations from a machine with `DIRECT_URL` set (never via the pooler),
+or rely on the in-container migration gate (see §2 — it applies pending
+migrations automatically before each deploy, fail-closed):
 
 ```sh
-pnpm --filter @khabir/api prisma:migrate:deploy
-pnpm --filter @khabir/api exec prisma migrate status   # expect: 8 applied, 0 pending
+pnpm --filter @khabir/api exec prisma migrate status   # expect: 15 applied, 0 pending
 ```
 
 Expected migration chain (additive, non-destructive):
@@ -57,6 +68,13 @@ Expected migration chain (additive, non-destructive):
 20260914000000_location_coordinates_optional
 20260915000000_payment_proof_metadata
 20260916000000_merchant_product_conversations
+20261008000000_enable_public_rls
+20261010000000_add_token_version
+20261011000000_rate_limit_buckets
+20261011000001_rate_limit_buckets_rls
+20261011202423_revoke_rate_limit_buckets_client_acl
+20261013000000_notification_preferences
+20261017000000_notification_preferences_hardening
 ```
 
 **BOOTSTRAPPED 2026-09-20:** `khabir-prod` exists (ref `gvobmjqxpacpmemvjbvw`,
@@ -86,10 +104,26 @@ documented admin-bootstrap path only.
 - **Runtime:** `NODE_ENV=production`, `PORT` (host-provided), `API_GLOBAL_PREFIX=api/v1`.
 - **Env:** `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`, `ADMIN_JWT_ACCESS_SECRET`,
   `CORS_ORIGINS`, `PROOF_STORAGE_PROVIDER=s3` + `PROOF_S3_*` (see §5),
-  `MULTI_INSTANCE=false`, `REPLICAS=1` (see §4).
+  `TRUST_PROXY_HOPS=1` (AUD-007 — one Render proxy hop; keep in sync with the
+  actual proxy topology), `REPLICAS=1` (see §4).
 - **Health check path:** `/api/v1/health` (liveness). Readiness: `/api/v1/ready`.
-- **Pre-deploy command:** `prisma migrate deploy` (runs before each deploy).
-- **Instances:** exactly **1** (see §4 — hard constraint, not a suggestion).
+- **Migrations gate (AUD-003):** `apps/api/Dockerfile` CMD wraps the start with
+  `node apps/api/scripts/migrate-deploy.mjs` — pending migrations are applied
+  BEFORE the API binds traffic; any failure exits non-zero so Render refuses
+  the deploy and the previous version stays live. Preflight locally with
+  `node apps/api/scripts/migrate-deploy.mjs --preflight` (validates schema,
+  CLI, env presence and migration chain with NO database contact).
+  **Paid-plan upgrade path:** Render's `preDeployCommand` is supported on paid
+  plans only; when the web service plan is upgraded, move the gate:
+  `preDeployCommand: node apps/api/scripts/migrate-deploy.mjs` and revert CMD
+  to `node apps/api/dist/main.js`.
+- **autoDeploy risk (operational, documented — not changed by the agent):**
+  `render.yaml` has `autoDeploy: true` on the release branch. Until the
+  pending un-committed work is committed, pushing the OLD reviewed HEAD would
+  publish a tree older than the reviewed/corrected working tree. Before
+  enabling autodeploys on the old identity: either commit this security batch
+  first or set autoDeploy to false in the Render dashboard.
+- **Instances:** exactly **1** for the initial release (see §4).
 
 ---
 
@@ -106,19 +140,22 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST $API/auth/login \
   -d '{"email":"nobody@example.com","password":"wrong"}' # 401, canonical error
 ```
 
-Startup log must contain `topology-notice` (single-instance declaration) and
-must NOT contain `topology-fatal`.
+Startup log must contain the `startup` line with `trustProxyHops: 1`, a
+`proxy-trust-notice`, and the `topology-notice` (rate limiting and failed-login
+lockout are PostgreSQL-backed — multi-instance is supported; SHARED_STORE_URL
+is legacy/unused). No `topology-fatal` event exists anymore.
 
 ---
 
-## 4. Topology constraint (P1 — decided, see `docs/11_PRODUCTION.md` §7.2)
+## 4. Topology (updated — DB-backed shared store)
 
-The throttler and login lockout are process-local. Until a CTO-approved shared
-store exists, production runs **one instance**. The API refuses to boot with
-`MULTI_INSTANCE=true` unless `SHARED_STORE_URL` is configured. The host layer
-must cap replicas at 1. Reversing this decision requires a shared-store design
-(e.g. Redis) + moving both guards onto it — tracked as a CTO decision, not
-implemented here.
+Rate limiting (fixed window on `rate_limit_buckets`) and failed-login lockout
+are **PostgreSQL-backed via Prisma** (shared store). Horizontal scaling is
+supported at the application level; `MULTI_INSTANCE=true` is safe boot-like
+configuration. `SHARED_STORE_URL` is legacy/unused and may be removed from
+deploy configs. Note the free plan still only provides ONE instance; scaling
+beyond one instance is a paid-plan operation. Keep `REPLICAS=1` for the
+initial release as an operational choice, not a correctness constraint.
 
 ---
 
@@ -170,3 +207,43 @@ product CRUD→subscription payment + proof upload→logout), Admin (login→
 dashboard→verifications→service requests→payment review approve/reject→
 grants→notifications→audit log). Payment proof: upload → admin secure view →
 reject → resubmit → approve → entitlement ACTIVE.
+
+---
+
+## 8. Admin provisioning and QA seed safety (V2.1)
+
+### Create an admin (out-of-band only)
+
+There is no public admin-registration endpoint. Provision from an interactive TTY:
+
+``sh
+cd apps/api
+ALLOW_ADMIN_CREATE=true pnpm admin:create
+``sh
+
+- The password is typed with echo disabled; it is never accepted from argv,
+  an environment variable, or piped stdin.
+- Minimum 14 characters with at least one letter and one digit.
+- Role must be one of: super_admin, operations_admin, content_admin,
+  support_admin. The legacy finance_admin value cannot be provisioned.
+- Creation writes an admin.provision.create row to the audit log.
+- Never paste the password into a ticket, chat, or shell history.
+
+### Seed / QA scripts
+
+Every seed and QA write script requires ALL of:
+
+1. ALLOW_QA_SEED=true (explicit per-run opt-in),
+2. NODE_ENV not equal to production,
+3. a DATABASE_URL whose parsed host is loopback, postgres (CI), or
+   	est-db (docker-compose). Supabase/shared hosts are always rejected.
+
+The guard lives in pps/api/scripts/qa-guard.cjs; it is not a URL substring
+check. Use docker-compose.test.yml for a disposable local database.
+
+### QA account purge (approval required)
+
+pps/api/scripts/purge-qa-accounts.ts only inspects @qa.khabir.app`naccounts by default. It deletes only when ALLOW_QA_PURGE=true is set AND
+--confirm is passed, and it refuses production. A human owner must approve
+the action before it is run.
+

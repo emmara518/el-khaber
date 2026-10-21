@@ -5,9 +5,11 @@ import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE, Reflector } from '@ne
 import { AdminAuthModule } from './admin/admin-auth.module';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { AvatarModule } from './avatars/avatar.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { ChatModule } from './chat/chat.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
+import { AdminRolesGuard } from './common/admin-roles.guard';
 import { AuthGuardModule } from './common/auth-guard.module';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
@@ -33,6 +35,7 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     PrismaModule,
     AuthGuardModule,
     AuthModule,
+    AvatarModule,
     HealthModule,
     LocationsModule,
     MeModule,
@@ -51,6 +54,9 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
   providers: [
     Reflector,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Default-deny admin role matrix. Runs after authentication so it can
+    // read the database-authoritative admin role from request.user.
+    { provide: APP_GUARD, useClass: AdminRolesGuard },
     // Structured request logging. Error responses are logged by the
     // ApiExceptionFilter; this interceptor logs successful responses only.
     { provide: APP_INTERCEPTOR, useClass: HttpLoggingInterceptor },

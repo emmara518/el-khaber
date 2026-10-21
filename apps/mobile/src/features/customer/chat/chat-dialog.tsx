@@ -6,7 +6,8 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -19,6 +20,7 @@ import {
 } from 'react-native';
 
 
+import { reactNativeAppState } from './chat-app-state';
 import { useChatViewModel } from './use-chat-view-model';
 
 import type { ChatDataSource, ChatMessage, ChatRole } from './chat-types';
@@ -59,14 +61,16 @@ export function ChatDialog({
     >
       <View style={styles.scrim}>
         <View style={styles.sheet}>
-          <ChatBody
-            conversationId={conversationId}
-            technicianNameAr={peer}
-            serviceTitle={serviceTitle}
-            onClose={onClose}
-            source={source}
-            role={role}
-          />
+          {visible ? (
+            <ChatBody
+              conversationId={conversationId}
+              technicianNameAr={peer}
+              serviceTitle={serviceTitle}
+              onClose={onClose}
+              source={source}
+              role={role}
+            />
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -88,8 +92,26 @@ export function ChatBody({
   source?: ChatDataSource;
   role?: ChatRole;
 }) {
-  const vm = useChatViewModel(conversationId, role, source);
+  const focusRef = useRef(true);
+  const firstFocus = useRef(true);
+  const isFocused = useCallback(() => focusRef.current, []);
+  const vm = useChatViewModel(conversationId, role, source, reactNativeAppState, isFocused);
   const scrollRef = useRef<ScrollView>(null);
+  const refresh = vm.refresh;
+
+  // No polling while the dialog's screen is blurred. Returning to the
+  // screen refreshes immediately instead of waiting for the next tick.
+  useFocusEffect(
+    useCallback(() => {
+      const isFirst = firstFocus.current;
+      firstFocus.current = false;
+      focusRef.current = true;
+      if (!isFirst) refresh();
+      return () => {
+        focusRef.current = false;
+      };
+    }, [refresh]),
+  );
 
   return (
     <View style={styles.body}>

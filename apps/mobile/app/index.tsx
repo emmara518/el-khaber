@@ -15,7 +15,7 @@
 import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   ReduceMotion,
@@ -37,6 +37,9 @@ export default function SplashRoute() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const status = useAuthStore((s) => s.status);
+  const connection = useAuthStore((s) => s.connection);
+  const connectionError = useAuthStore((s) => s.error);
+  const bootstrap = useAuthStore((s) => s.bootstrap);
   const [trackWidth, setTrackWidth] = useState(0);
 
   const progress = useSharedValue(0);
@@ -92,19 +95,39 @@ export default function SplashRoute() {
         />
       </View>
       <View style={[styles.loading, { paddingBottom: insets.bottom + spacing[10] }]}>
-        <View
-          accessible={false}
-          importantForAccessibility="no"
-          style={styles.track}
-          onLayout={(event) => {
-            setTrackWidth(event.nativeEvent.layout.width);
-          }}
-        >
-          {trackWidth > 0 ? (
-            <Animated.View style={[styles.segment, { width: segmentWidth }, segmentStyle]} />
-          ) : null}
-        </View>
-        <Text style={styles.caption}>جارٍ التهيئة…</Text>
+        {connection === 'offline' ? (
+          <View style={styles.offline} accessibilityLiveRegion="polite">
+            <Text style={styles.offlineText}>
+              {connectionError ?? 'تعذر الاتصال بالخادم. تحقق من الشبكة وحاول تاني.'}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="إعادة محاولة الاتصال"
+              onPress={() => {
+                void bootstrap();
+              }}
+              style={({ pressed }) => [styles.retry, pressed && styles.retryPressed]}
+            >
+              <Text style={styles.retryText}>حاول تاني</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <View
+              accessible={false}
+              importantForAccessibility="no"
+              style={styles.track}
+              onLayout={(event) => {
+                setTrackWidth(event.nativeEvent.layout.width);
+              }}
+            >
+              {trackWidth > 0 ? (
+                <Animated.View style={[styles.segment, { width: segmentWidth }, segmentStyle]} />
+              ) : null}
+            </View>
+            <Text style={styles.caption}>جارٍ التهيئة…</Text>
+          </>
+        )}
       </View>
     </View>
   );
@@ -159,5 +182,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     writingDirection: 'rtl',
     marginTop: spacing[3],
+  },
+  offline: {
+    alignItems: 'center',
+    writingDirection: 'rtl',
+    maxWidth: 320,
+  },
+  offlineText: {
+    ...type.body,
+    color: color.border.default,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    marginBottom: spacing[4],
+  },
+  retry: {
+    minHeight: 48,
+    minWidth: 160,
+    paddingHorizontal: spacing[6],
+    borderRadius: 24,
+    backgroundColor: color.brand.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  retryPressed: {
+    opacity: 0.85,
+  },
+  retryText: {
+    ...type.button,
+    color: color.brand.navy,
+    writingDirection: 'rtl',
   },
 });

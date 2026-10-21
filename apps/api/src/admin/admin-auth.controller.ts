@@ -9,28 +9,20 @@
  * Source: docs/09_ADMIN.md, Task #002 §18.
  */
 
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  Post,
-  Req,
-  UseGuards,
-  UsePipes,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, UseGuards, UsePipes } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 
-
-import { AuthKind, CurrentUser, Public, type RequestUser } from '../common/decorators';
-import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import {
-  ApiEnvelopeError,
-  ApiEnvelopeOk,
-  ApiZodBody,
-} from '../common/openapi/decorators';
+  AdminRoles,
+  AuthKind,
+  AuthThrottle,
+  CurrentUser,
+  Public,
+  type RequestUser,
+} from '../common/decorators';
+import { JwtAuthGuard } from '../common/jwt-auth.guard';
+import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 
 import { AdminAuthService } from './admin-auth.service';
@@ -63,16 +55,13 @@ export class AdminAuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @Throttle({ auth: {} })
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(adminLoginSchema))
   @ApiZodBody(adminLoginSchema)
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Admin session issued (separate authority).')
   @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
   @ApiEnvelopeError(401, 'Invalid credentials.')
-  login(
-    @Body() body: AdminLoginInput,
-    @Req() req: Request,
-  ): Promise<ApiSuccess<AuthSessionDto>> {
+  login(@Body() body: AdminLoginInput, @Req() req: Request): Promise<ApiSuccess<AuthSessionDto>> {
     return this.auth
       .login(body, { userAgent: req.headers['user-agent'], ipAddress: req.ip })
       .then((data) => ({ data }));
@@ -81,7 +70,7 @@ export class AdminAuthController {
   @Public()
   @Post('refresh')
   @HttpCode(200)
-  @Throttle({ auth: {} })
+  @AuthThrottle()
   @UsePipes(new ZodValidationPipe(adminRefreshSchema))
   @ApiZodBody(adminRefreshSchema)
   @ApiEnvelopeOk('AuthSessionDto', 200, 'Rotated admin session issued.')
@@ -98,7 +87,6 @@ export class AdminAuthController {
   @Public()
   @Post('logout')
   @HttpCode(204)
-  @Throttle({ auth: {} })
   @UsePipes(new ZodValidationPipe(adminLogoutSchema))
   @ApiZodBody(adminLogoutSchema)
   async logout(@Body() body: AdminLogoutInput): Promise<void> {
@@ -116,6 +104,9 @@ export class AdminMeController {
   constructor(private readonly auth: AdminAuthService) {}
 
   @Get()
+  // Identity is available to every active admin role (including the legacy
+  // finance_admin) so the panel can render the correct navigation.
+  @AdminRoles('super_admin', 'operations_admin', 'content_admin', 'support_admin', 'finance_admin')
   async me(@CurrentUser() _current: RequestUser): Promise<ApiSuccess<MeDto>> {
     // Current user's id is derived from the verified JWT (request.user).
     // The actual admin record is fetched server-side.

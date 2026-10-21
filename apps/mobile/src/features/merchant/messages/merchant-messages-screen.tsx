@@ -18,14 +18,25 @@ import { useMerchantMessagesViewModel } from './use-merchant-messages-view-model
 
 import type { MerchantConversationItem } from './merchant-messages-types';
 
-import { AppHeader, Avatar, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle, screenReveal, UnreadBadge } from '@/ui';
+import {
+  AppHeader,
+  Avatar,
+  Card,
+  Icon,
+  ListEmpty,
+  ListError,
+  ListLoading,
+  PageTitle,
+  screenReveal,
+  UnreadBadge,
+} from '@/ui';
 import { type } from '@/ui/typography';
 
 const chatKeyFor = (conversationId: string) => `conv-${conversationId}`;
 
 export default function MerchantMessagesScreen() {
   const router = useRouter();
-  const { status, data, error, retry } = useMerchantMessagesViewModel();
+  const { status, data, error, retry, refresh } = useMerchantMessagesViewModel();
   const [open, setOpen] = useState<MerchantConversationItem | null>(null);
 
   return (
@@ -38,7 +49,9 @@ export default function MerchantMessagesScreen() {
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <PageTitle eyebrow="التواصل" title="الرسائل" body="رسائل العملاء بخصوص منتجاتك." />
 
-          {status === 'loading' ? <ListLoading label="جارٍ تحميل الرسائل" asset="merchant_products" /> : null}
+          {status === 'loading' ? (
+            <ListLoading label="جارٍ تحميل الرسائل" asset="merchant_products" />
+          ) : null}
           {status === 'error' ? (
             <ListError
               title="تعذر تحميل الرسائل"
@@ -70,14 +83,26 @@ export default function MerchantMessagesScreen() {
                   >
                     <Card background={color.surface.base} padded style={styles.card}>
                       <View style={styles.row}>
-                        <Avatar initials={conversation.peerNameAr.slice(0, 1)} size={52} accessibilityLabel={conversation.peerNameAr} />
+                        <Avatar
+                          initials={conversation.peerNameAr.slice(0, 1)}
+                          imageUrl={conversation.peerAvatarUrl}
+                          size={52}
+                          accessibilityLabel={conversation.peerNameAr}
+                        />
                         <View style={styles.middle}>
                           <View style={styles.topLine}>
                             <Text style={styles.name}>{conversation.peerNameAr}</Text>
                             <Text style={styles.time}>{conversation.updatedAtAr}</Text>
                           </View>
+                          {conversation.contextTitleAr !== null &&
+                          conversation.contextTitleAr.trim().length > 0 ? (
+                            <Text style={styles.context} numberOfLines={1}>
+                              {conversation.contextTitleAr}
+                            </Text>
+                          ) : null}
                           <Text style={styles.snippet} numberOfLines={1}>
-                            {conversation.lastMessageAr !== null && conversation.lastMessageAr.trim().length > 0
+                            {conversation.lastMessageAr !== null &&
+                            conversation.lastMessageAr.trim().length > 0
                               ? conversation.lastMessageAr
                               : 'لا توجد رسائل بعد'}
                           </Text>
@@ -98,10 +123,14 @@ export default function MerchantMessagesScreen() {
       {open !== null ? (
         <ChatDialog
           visible
-          onClose={() => setOpen(null)}
+          onClose={() => {
+            setOpen(null);
+            refresh();
+          }}
           conversationId={chatKeyFor(open.id)}
           technicianNameAr={open.peerNameAr}
           peerNameAr={open.peerNameAr}
+          serviceTitle={open.contextTitleAr ?? undefined}
           role="merchant"
         />
       ) : null}
@@ -111,15 +140,43 @@ export default function MerchantMessagesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surface.subtle },
-  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  content: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[8],
+    gap: spacing[4],
+  },
   list: { gap: spacing[3] },
   card: { gap: spacing[2] },
   row: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
   middle: { flex: 1, minWidth: 0 },
-  topLine: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between' },
-  name: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  topLine: {
+    flexDirection: 'row',
+    direction: 'rtl',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  name: {
+    ...type.cardTitle,
+    color: color.text.primary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   time: { ...type.caption, color: color.text.secondary },
-  snippet: { ...type.caption, color: color.text.secondary, marginTop: spacing[1], textAlign: 'right', writingDirection: 'rtl' },
+  context: {
+    ...type.caption,
+    color: color.text.secondary,
+    marginTop: spacing[1],
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  snippet: {
+    ...type.caption,
+    color: color.text.secondary,
+    marginTop: spacing[1],
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   pressed: { opacity: 0.9 },
   bottomSpacer: { height: spacing[2] },
 });

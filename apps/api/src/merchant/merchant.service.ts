@@ -79,7 +79,9 @@ export class MerchantProfileService {
     const data = {
       ...(input.businessName !== undefined ? { businessName: input.businessName } : {}),
       ...(input.bio !== undefined ? { bio: input.bio } : {}),
-      ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+      // WP-01: `logoUrl` is no longer text-writable (removed from the
+      // schema). Store logos change exclusively through the multipart
+      // POST /merchant/profile/logo endpoint (AvatarService).
       ...(input.contactPhone !== undefined ? { contactPhone: input.contactPhone } : {}),
       ...(input.locationId !== undefined ? { locationId: input.locationId } : {}),
     };

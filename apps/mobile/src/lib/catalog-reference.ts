@@ -10,8 +10,9 @@
  */
 
 import { getApi } from './api-client';
+import { buildQuery, drainPages } from './api-query';
 
-import type { ApplianceCategoryDto, TechnicianPublicDto } from '@khabir/shared-types';
+import type { ApplianceCategoryDto, ServiceDto, TechnicianPublicDto } from '@khabir/shared-types';
 
 // -----------------------------------------------------------------------------
 // Appliance categories (public GET /appliance-categories)
@@ -50,6 +51,35 @@ export async function categorySlugById(id: string): Promise<string | null> {
 export async function categoryIdBySlug(slug: string): Promise<string | null> {
   const categories = await getApplianceCategories();
   return categories.find((c) => c.slug === slug)?.id ?? null;
+}
+
+// -----------------------------------------------------------------------------
+// Catalog services (public GET /services) — WP-Discovery specialty chips
+// -----------------------------------------------------------------------------
+
+let servicesPromise: Promise<readonly ServiceDto[]> | null = null;
+
+/**
+ * Active catalog services (bounded drain, request-scoped singleton).
+ * Callers scope/filter client-side by appliance when needed — the list
+ * is a small reference vocabulary, not a technician result set.
+ */
+export function getCatalogServices(): Promise<readonly ServiceDto[]> {
+  if (servicesPromise === null) {
+    servicesPromise = drainPages<ServiceDto>((page, limit) =>
+      getApi()
+        .request<ServiceDto[]>('GET', `/services${buildQuery({ page, limit })}`, undefined, {
+          auth: false,
+        })
+        .then((res) => ({ items: res.data, meta: res.meta })),
+    )
+      .then((items) => [...items])
+      .catch((err: unknown) => {
+        servicesPromise = null; // allow retry on next call
+        throw err;
+      });
+  }
+  return servicesPromise;
 }
 
 // -----------------------------------------------------------------------------

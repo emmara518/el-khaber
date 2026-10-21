@@ -1,0 +1,60 @@
+# Artillery profile for the V2.1 API.
+#
+# SAFETY: target an approved UAT host with disposable data only. Never run
+# against production. Credentials are supplied via environment variables.
+#
+# Validate (no traffic):
+#   npx artillery validate tests/load/artillery/api-smoke.yml
+#
+# Run:
+#   BASE_URL=https://UAT-HOST/api/v1 \
+#   TEST_EMAIL=qa-load@qa.khabir.app \
+#   TEST_PASSWORD='<UAT-only>' \
+#   npx artillery run tests/load/artillery/api-smoke.yml
+
+config:
+  target: "{{ $processEnvironment.BASE_URL }}"
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: warm-up
+    - duration: 60
+      arrivalRate: 5
+      name: steady
+  defaults:
+    headers:
+      Content-Type: application/json
+  variables:
+    email: "{{ $processEnvironment.TEST_EMAIL }}"
+    password: "{{ $processEnvironment.TEST_PASSWORD }}"
+
+scenarios:
+  - name: health
+    weight: 4
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+      - think: 1
+
+  - name: login-and-me
+    weight: 1
+    flow:
+      - post:
+          url: "/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.data.accessToken"
+              as: accessToken
+          expect:
+            - statusCode: 200
+      - get:
+          url: "/me"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          expect:
+            - statusCode: 200
+      - think: 2
