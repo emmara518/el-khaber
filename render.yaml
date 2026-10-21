@@ -1,0 +1,97 @@
+# Render Blueprint - EL-KHABIR API (isolated UAT / production environment)
+#
+# Deploys the existing NestJS API with apps/api/Dockerfile (monorepo-root
+# build context). No Render database or Key Value is created.
+#
+# DATABASE_URL / DIRECT_URL are secrets and MUST point at the isolated
+# UAT/production database - never khabir-dev. Verify the target host in the
+# Render dashboard before the first deploy.
+#
+# Secrets are never stored here (`sync: false`). Apply this blueprint only
+# after the owner approves the paid plan, the database, and the secrets.
+#
+# Migration policy: on the Free plan Render has no preDeployCommand (paid
+# feature). The container CMD runs apps/api/scripts/migrate-deploy.mjs
+# (fail-closed) before the API starts. On a paid plan, move the gate to:
+#   preDeployCommand: node apps/api/scripts/migrate-deploy.mjs
+
+services:
+  - type: web
+    name: khabir-api
+    runtime: docker
+    plan: free                        # upgrade requires explicit owner approval
+    region: frankfurt                 # keep in the EU database region
+    repo: https://github.com/emmara518/el-khaber
+    branch: main                      # merged, reviewed release only
+    autoDeploy: false                 # deploys require an explicit manual action
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      # --- runtime ---
+      - key: NODE_ENV
+        value: production
+      - key: API_GLOBAL_PREFIX
+        value: api/v1
+      - key: CORS_ORIGINS
+        value: https://el-khabir-uat.vercel.app
+
+      # Exactly one Render proxy hop. Numeric (never "true"). Update only if
+      # the proxy topology changes.
+      - key: TRUST_PROXY_HOPS
+        value: "1"
+      - key: REPLICAS
+        value: "1"
+      - key: MULTI_INSTANCE
+        value: "false"
+
+      # Request budgets (per instance for the general limiter; auth and
+      # login lockout are PostgreSQL-backed).
+      - key: RATE_LIMIT_TTL
+        value: "60"
+      - key: RATE_LIMIT_MAX
+        value: "120"
+      - key: AUTH_RATE_LIMIT_MAX
+        value: "10"
+      - key: AUTH_LOGIN_IP_MAX
+        value: "5"
+      - key: AUTH_LOGIN_IP_TTL
+        value: "900"
+      - key: AUTH_LOGIN_USER_MAX
+        value: "20"
+      - key: AUTH_LOGIN_USER_TTL
+        value: "3600"
+
+      # --- database: ISOLATED UAT/PROD ONLY (never khabir-dev) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+
+      # --- auth secrets: >= 32 random characters each, and different ---
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: ADMIN_JWT_ACCESS_SECRET
+        sync: false
+
+      # --- payment proof storage (local is refused in production) ---
+      - key: PROOF_STORAGE_PROVIDER
+        value: s3
+      - key: PROOF_S3_BUCKET
+        sync: false
+      - key: PROOF_S3_REGION
+        value: auto
+      - key: PROOF_S3_ENDPOINT
+        sync: false
+      - key: PROOF_S3_ACCESS_KEY_ID
+        sync: false
+      - key: PROOF_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: PROOF_URL_TTL_SECONDS
+        value: "300"
+
+      # --- password-reset delivery (email webhook) ---
+      - key: PASSWORD_RESET_DELIVERY_URL
+        sync: false
+      - key: PASSWORD_RESET_DELIVERY_TOKEN
+        sync: false

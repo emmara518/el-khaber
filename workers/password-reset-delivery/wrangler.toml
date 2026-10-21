@@ -1,0 +1,21 @@
+# Cloudflare Worker — password-reset delivery relay.
+# Deploy: `npx wrangler deploy` from this directory (requires a Cloudflare
+# account with Workers enabled; authenticate via `wrangler login` or
+# CLOUDFLARE_API_TOKEN).
+#
+# Secrets are NOT stored here. Set each with `wrangler secret put <NAME>`:
+#   WORKER_AUTH_TOKEN
+#   RESEND_API_KEY
+#   RESEND_FROM_EMAIL
+#   TWILIO_ACCOUNT_SID
+#   TWILIO_API_KEY_SID
+#   TWILIO_API_KEY_SECRET
+#   TWILIO_MESSAGING_SERVICE_SID   (or TWILIO_FROM)
+
+name = "password-reset-delivery"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+# Non-secret, fixed for the approved UAT environment (no open redirect).
+RESET_WEB_ORIGIN = "https://el-khabir-uat.vercel.app"

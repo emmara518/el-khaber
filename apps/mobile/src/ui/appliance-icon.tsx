@@ -1,23 +1,39 @@
-import { color, radius, typography } from '@khabir/ui-tokens';
-import { StyleSheet, Text, View } from 'react-native';
+import { color } from '@khabir/ui-tokens';
+import { Image, StyleSheet, View } from 'react-native';
+
+import { brandAssets, type BrandAssetName } from './brand-assets';
 
 import type { ApplianceSlug } from '../features/customer/home/data/customer-home-types';
 
 interface ApplianceIconProps {
   slug: ApplianceSlug;
-  /** Card background; defaults to surface.subtle. */
+  /** Tile background; defaults to surface.subtle. */
   background?: string;
   size?: number;
 }
 
 /**
- * Inline stylized illustration of an appliance. The reference design
- * uses an off-white tile per appliance. We render a circular tinted
- * tile with the appliance's first Arabic letter and a subtle border
- * to keep the visual weight consistent without bundling image assets.
+ * Appliance category emblem — the approved 512×512 brand WebP rendered
+ * `contain` inside a neutral tile. No tint, no crop, no cover: the
+ * transparent asset keeps its authored proportions on every card.
+ *
+ * The tile keeps the app's subtle surface + hairline border so the icon
+ * stays legible on both light and navy cards.
  */
+const BRAND_BY_SLUG: Record<ApplianceSlug, BrandAssetName> = {
+  air_conditioner: 'air-conditioner',
+  refrigerator: 'refrigerator',
+  washing_machine: 'washing-machine',
+  dishwasher: 'dishwasher',
+  coffee_machine: 'coffee-machine',
+  microwave: 'microwave',
+  oven: 'oven',
+  tv_screen: 'tv-screen',
+  vacuum_cleaner: 'vacuum-cleaner',
+  water_heater: 'water-heater',
+};
+
 export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProps) {
-  const { glyph, tint } = ICONS[slug];
   return (
     <View
       style={[
@@ -25,45 +41,27 @@ export function ApplianceIcon({ slug, background, size = 64 }: ApplianceIconProp
         {
           width: size,
           height: size,
-          borderRadius: radius.lg,
+          borderRadius: size / 3,
           backgroundColor: background ?? color.surface.subtle,
           borderColor: color.border.default,
         },
       ]}
     >
-      <View
-        style={[
-          styles.glyphWrap,
-          { backgroundColor: tint },
-        ]}
-      >
-        <Text style={[styles.glyph, { color: color.surface.base }]}>{glyph}</Text>
-      </View>
+      <Image
+        source={brandAssets[BRAND_BY_SLUG[slug]]}
+        accessible={false}
+        importantForAccessibility="no"
+        resizeMode="contain"
+        style={{ width: size * 0.72, height: size * 0.72 }}
+      />
     </View>
   );
 }
-
-const ICONS: Record<ApplianceSlug, { glyph: string; tint: string }> = {
-  air_conditioner: { glyph: 'م', tint: color.brand.navy },
-  refrigerator: { glyph: 'ث', tint: color.text.primary },
-  washing_machine: { glyph: 'غ', tint: color.text.secondary },
-};
 
 const styles = StyleSheet.create({
   tile: {
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-  },
-  glyphWrap: {
-    width: '70%',
-    height: '70%',
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glyph: {
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
   },
 });

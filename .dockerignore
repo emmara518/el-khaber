@@ -1,0 +1,20 @@
+## Docker build context exclusions (Task 11E).
+# Never ship secrets, local artifacts, or test tooling into an image.
+.git
+.github
+.opencode
+.playwright-mcp
+node_modules
+**/node_modules
+**/dist
+**/.next
+**/.expo
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+.env
+.env.*
+!.env.example
+docs
+**/*.md
+docker-compose.test.yml

@@ -13,7 +13,7 @@
 import { create } from 'zustand';
 
 
-import { getApi } from './api-client';
+import { getApi, setSessionLostHandler } from './api-client';
 import { clearStoredSession, loadStoredSession, storeSession } from './secure-store';
 import { clearAccessToken, setAccessToken } from './token-store';
 
@@ -21,6 +21,8 @@ import type { AuthSessionDto, AuthUserDto, Role } from '@khabir/shared-types';
 
 export interface AuthState {
   status: 'unknown' | 'anonymous' | 'authenticated';
+  /** Transport state for the bootstrap attempt (retryable when offline). */
+  connection: 'online' | 'offline';
   user: AuthUserDto | null;
   expiresAt: number | null;
   error: string | null;
@@ -28,11 +30,14 @@ export interface AuthState {
   login: (input: { phone?: string; email?: string; password: string }) => Promise<void>;
   register: (input: { role: Role; phone?: string; email?: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
+  /** Central, local-only session invalidation (WP-1A). Idempotent. */
+  handleSessionLost: () => Promise<void>;
   clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'unknown',
+  connection: 'online',
   user: null,
   expiresAt: null,
   error: null,
@@ -40,22 +45,44 @@ export const useAuthStore = create<AuthState>((set) => ({
   async bootstrap(): Promise<void> {
     const stored = await loadStoredSession();
     if (stored === null) {
-      set({ status: 'anonymous', user: null, expiresAt: null });
+      set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null });
       return;
     }
-    try {
-      const res = await getApi().unauthenticatedRequest<{
-        data: { accessToken: string; refreshToken: string; expiresIn: number; user: AuthUserDto };
-      }>('POST', '/auth/refresh', { refreshToken: stored.refreshToken });
-      const data = res.data;
-      setAccessToken(data.accessToken);
-      await storeSession({ refreshToken: data.refreshToken, user: data.user });
-      set({ status: 'authenticated', user: data.user, expiresAt: Date.now() + data.expiresIn * 1000 });
-    } catch {
+
+    // Route through the client's single-flight refresh so bootstrap and any
+    // concurrent startup requests share exactly one refresh call.
+    const result = await getApi().refreshSession();
+    if (result.outcome === 'ok' && result.data !== undefined) {
+      const data = result.data;
+      set({
+        status: 'authenticated',
+        connection: 'online',
+        user: data.user as AuthUserDto,
+        expiresAt: Date.now() + data.expiresIn * 1000,
+        error: null,
+      });
+      return;
+    }
+
+    if (result.outcome === 'auth') {
+      // Definitive rejection: the durable session is already cleared by the
+      // client. Only here may bootstrap drop the user to anonymous.
       await clearStoredSession();
       clearAccessToken();
-      set({ status: 'anonymous', user: null, expiresAt: null });
+      set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null });
+      return;
     }
+
+    // Transient failure (offline/timeout/5xx): KEEP the stored session and
+    // expose a retryable connection state. The Splash route offers retry.
+    clearAccessToken();
+    set({
+      status: 'unknown',
+      connection: 'offline',
+      user: null,
+      expiresAt: null,
+      error: 'تعذر الاتصال بالخادم. تحقق من الشبكة وحاول تاني.',
+    });
   },
 
   async login(input): Promise<void> {
@@ -69,7 +96,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       const data = res.data;
       setAccessToken(data.accessToken);
       await storeSession({ refreshToken: data.refreshToken, user: data.user });
-      set({ status: 'authenticated', user: data.user, expiresAt: Date.now() + data.expiresIn * 1000 });
+      set({
+        status: 'authenticated',
+        connection: 'online',
+        user: data.user,
+        expiresAt: Date.now() + data.expiresIn * 1000,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed';
       set({ error: message, status: 'anonymous', user: null, expiresAt: null });
@@ -88,7 +120,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       const data = res.data;
       setAccessToken(data.accessToken);
       await storeSession({ refreshToken: data.refreshToken, user: data.user });
-      set({ status: 'authenticated', user: data.user, expiresAt: Date.now() + data.expiresIn * 1000 });
+      set({
+        status: 'authenticated',
+        connection: 'online',
+        user: data.user,
+        expiresAt: Date.now() + data.expiresIn * 1000,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Registration failed';
       set({ error: message, status: 'anonymous', user: null, expiresAt: null });
@@ -109,10 +146,29 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     await clearStoredSession();
     clearAccessToken();
-    set({ status: 'anonymous', user: null, expiresAt: null, error: null });
+    set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
   },
 
   clearError(): void {
     set({ error: null });
   },
+
+  async handleSessionLost(): Promise<void> {
+    // Invoked by the API client when a refresh definitively fails. It is
+    // LOCAL-ONLY (the refresh already failed; no server round-trip is
+    // attempted) and idempotent: parallel 401s must not re-run or loop.
+    // The root AuthGate sees `anonymous` and redirects to /login.
+    if (get().status === 'anonymous' && get().user === null) {
+      return;
+    }
+    await clearStoredSession();
+    clearAccessToken();
+    set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
+  },
 }));
+
+// Central session-loss wiring (WP-1A). One registration covers all three
+// roles: the store invalidates the session and the root guard reroutes.
+setSessionLostHandler(() => {
+  void useAuthStore.getState().handleSessionLost();
+});

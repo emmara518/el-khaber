@@ -7,9 +7,9 @@
  * KYC/tax/registration fields exist — none are collected.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   MERCHANT_CITY_OPTIONS,
@@ -24,7 +24,9 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, SectionHeader } from '@/ui';
+import { AppHeader, Card, Chip, FormField, Icon, PageTitle, SectionHeading } from '@/ui';
+import { BrandImage } from '@/ui/brand-image';
+import { type } from '@/ui/typography';
 
 const STEP_TITLES: Record<MerchantOnboardingStep, string> = {
   identity: 'هوية المتجر',
@@ -40,6 +42,7 @@ export default function MerchantOnboardingScreen({
   initialDraft?: MerchantProfileDraft;
   source?: MerchantProfileDataSource;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const vm = useMerchantOnboardingViewModel(initialDraft, source);
   const { step, draft, fieldErrors, stepError } = vm.machine;
@@ -47,9 +50,17 @@ export default function MerchantOnboardingScreen({
 
   if (vm.submitStatus === 'submitted' && vm.submitted !== null) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.root}>
+        <AppHeader
+          onPressNotifications={() => router.push('/(merchant)/notifications')}
+          onPressAvatar={() => router.push('/(merchant)/profile')}
+        />
+        <ScrollView contentContainerStyle={[styles.content, styles.padded]}>
+        <View style={styles.successScene}>
+          <BrandImage name="success" size={124} />
+        </View>
         <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.center}>
-          <Text style={styles.successEmoji}>◷</Text>
+          <View style={styles.successBadge}><Icon name="clock" size={26} color={color.brand.navy} accessible={false} /></View>
           <Text accessibilityRole="header" style={styles.successTitle}>
             تم إرسال بيانات المتجر للمراجعة
           </Text>
@@ -65,15 +76,26 @@ export default function MerchantOnboardingScreen({
         >
           <Text style={styles.primaryText}>الذهاب إلى ملف المتجر</Text>
         </Pressable>
-      </ScrollView>
+        </ScrollView>
+      </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        إكمال ملف المتجر
-      </Text>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="إعداد المتجر"
+          title="إكمال ملف المتجر"
+          body={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
+        />
+      </View>
+      <View style={styles.editorial}>
       <Text
         accessibilityRole="text"
         accessibilityLabel={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
@@ -87,7 +109,7 @@ export default function MerchantOnboardingScreen({
             key={s}
             style={[styles.dot, i < index && styles.dotDone, i === index && styles.dotCurrent]}
           >
-            {i < index ? <Text style={styles.check}>✓</Text> : null}
+            {i < index ? <Icon name="check" size={13} color={color.surface.base} /> : null}
           </View>
         ))}
       </View>
@@ -100,89 +122,63 @@ export default function MerchantOnboardingScreen({
 
       {step === 'identity' ? (
         <View style={styles.section}>
-          <Text style={styles.label}>اسم المتجر</Text>
-          <TextInput
-            accessibilityLabel={fieldErrors.businessNameAr ? 'اسم المتجر. خطأ: أدخل اسم المتجر (حرفان على الأقل)' : 'اسم المتجر'}
+          <FormField
+            label="اسم المتجر"
             placeholder="مثال: مكتبة الخبير للأجهزة"
-            placeholderTextColor={color.text.secondary}
             value={draft.businessNameAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'businessNameAr', text })}
-            style={[styles.input, fieldErrors.businessNameAr ? styles.inputError : null]}
-            textAlign="right"
+            error={fieldErrors.businessNameAr}
           />
-          {fieldErrors.businessNameAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {fieldErrors.businessNameAr}
-            </Text>
-          ) : null}
-          <Text style={styles.label}>مدينة المتجر</Text>
-          <View accessibilityRole="radiogroup" accessibilityLabel="اختيار مدينة المتجر" style={styles.cities}>
-            {MERCHANT_CITY_OPTIONS.map((city) => {
-              const selected = draft.cityAr === city;
-              return (
-                <Pressable
-                  key={city}
-                  accessibilityRole="radio"
-                  accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
-                  accessibilityState={{ selected, checked: selected }}
-                  onPress={() => vm.dispatch({ type: 'SET_TEXT', field: 'cityAr', text: city })}
-                  style={({ pressed }) => [
-                    styles.cityChip,
-                    selected && styles.cityChipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.cityText, selected && styles.cityTextSelected]}>
-                    {selected ? '✓ ' : ''}{city}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View>
+            <Text style={styles.label}>مدينة المتجر</Text>
+            <View accessibilityRole="radiogroup" accessibilityLabel="اختيار مدينة المتجر" style={styles.cities}>
+              {MERCHANT_CITY_OPTIONS.map((city) => {
+                const selected = draft.cityAr === city;
+                return (
+                  <Chip
+                    key={city}
+                    label={city}
+                    selected={selected}
+                    accessibilityLabel={`المدينة: ${city}${selected ? '، محددة حاليًا' : ''}`}
+                    onPress={() => vm.dispatch({ type: 'SET_TEXT', field: 'cityAr', text: city })}
+                  />
+                );
+              })}
+            </View>
+            {fieldErrors.cityAr ? (
+              <Text accessibilityRole="alert" style={styles.fieldError}>
+                {fieldErrors.cityAr}
+              </Text>
+            ) : null}
           </View>
-          {fieldErrors.cityAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {fieldErrors.cityAr}
-            </Text>
-          ) : null}
         </View>
       ) : null}
 
       {step === 'business' ? (
         <View style={styles.section}>
-          <SectionHeader titleKey="merchant.onboarding.bio" />
-          <TextInput
-            accessibilityLabel="نبذة عن المتجر، اختياري"
+          <SectionHeading title={t('merchant.onboarding.bio')} />
+          <FormField
+            label={t('merchant.onboarding.bio')}
             placeholder="تخصص متجرك وما يقدمه للعملاء…"
-            placeholderTextColor={color.text.secondary}
             value={draft.bioAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'bioAr', text })}
-            style={[styles.input, styles.multiline]}
-            textAlign="right"
+            hint="اختياري"
             multiline
             numberOfLines={4}
           />
-          <Text style={styles.optional}>اختياري</Text>
         </View>
       ) : null}
 
       {step === 'contact' ? (
         <View style={styles.section}>
-          <Text style={styles.label}>رقم هاتف المتجر</Text>
-          <TextInput
-            accessibilityLabel={fieldErrors.phoneAr ? 'رقم هاتف المتجر. خطأ: رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا' : 'رقم هاتف المتجر'}
-            placeholder="05xxxxxxxx"
-            placeholderTextColor={color.text.secondary}
+          <FormField
+            label="رقم هاتف المتجر"
+            placeholder="01xxxxxxxxx"
             value={draft.phoneAr}
             onChangeText={(text) => vm.dispatch({ type: 'SET_TEXT', field: 'phoneAr', text })}
             keyboardType="phone-pad"
-            style={[styles.input, fieldErrors.phoneAr ? styles.inputError : null]}
-            textAlign="right"
+            error={fieldErrors.phoneAr}
           />
-          {fieldErrors.phoneAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {fieldErrors.phoneAr}
-            </Text>
-          ) : null}
         </View>
       ) : null}
 
@@ -209,7 +205,7 @@ export default function MerchantOnboardingScreen({
             disabled={index === 0}
             style={({ pressed }) => [styles.navBtn, index === 0 && styles.disabled, pressed && styles.pressed]}
           >
-            <Text style={styles.navBtnText}>› رجوع</Text>
+            <Icon name="corner-up-right" size={16} color={color.brand.navy} /><Text style={styles.navBtnText}>رجوع</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -217,12 +213,14 @@ export default function MerchantOnboardingScreen({
             onPress={() => vm.dispatch({ type: 'NEXT' })}
             style={({ pressed }) => [styles.navPrimary, pressed && styles.pressed]}
           >
-            <Text style={styles.navPrimaryText}>التالي ‹</Text>
+            <Text style={styles.navPrimaryText}>التالي</Text><Icon name="chevron-left" size={16} color={color.surface.base} />
           </Pressable>
         </View>
       ) : null}
       <View style={styles.bottomSpacer} />
+      </View>
     </ScrollView>
+    </View>
   );
 }
 
@@ -251,7 +249,7 @@ function ReviewSummary({
   const submitting = submitStatus === 'submitting';
   return (
     <View>
-      <SectionHeader titleKey="merchant.onboarding.review" />
+      <SectionHeading title={t('merchant.onboarding.review')} />
       <Card background={color.surface.base} padded style={styles.review}>
         {rows.map((row) => (
           <View key={row.key} style={styles.reviewRow}>
@@ -294,35 +292,55 @@ function ReviewSummary({
           style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
         >
           {submitting ? (
-            <ActivityIndicator accessibilityLabel="جارٍ إرسال بيانات المتجر" color={color.surface.base} />
+            <ActivityIndicator color={color.surface.base} />
           ) : (
             <Text style={styles.primaryText}>إرسال بيانات المتجر للمراجعة</Text>
           )}
         </Pressable>
       )}
-    </View>
+      </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
     paddingBottom: spacing[8],
   },
+  padded: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+  },
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+  },
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+  },
+  successScene: {
+    width: '100%',
+    height: 160,
+    borderRadius: radius.lg,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing[4],
+  },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   stepLabel: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     marginTop: spacing[2],
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   dots: {
     flexDirection: 'row',
@@ -348,79 +366,28 @@ const styles = StyleSheet.create({
     borderColor: color.brand.navy,
     backgroundColor: color.brand.gold,
   },
-  check: {
-    color: color.surface.base,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
-  },
   section: {
     gap: spacing[2],
     marginTop: spacing[4],
   },
   label: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginTop: spacing[2],
   },
-  input: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
-  },
-  multiline: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-  },
-  inputError: {
-    borderColor: color.error.DEFAULT,
-  },
   fieldError: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',
-  },
-  optional: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    textAlign: 'right',
   },
   cities: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-  },
-  cityChip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  cityChipSelected: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
-  cityText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-  },
-  cityTextSelected: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
+    marginTop: spacing[2],
   },
   inlineError: {
     backgroundColor: color.error.soft,
@@ -431,8 +398,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -450,11 +417,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navBtnText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   navPrimary: {
     flex: 2,
@@ -463,11 +433,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: spacing[1] + 2,
   },
   navPrimaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   disabled: {
     opacity: 0.55,
@@ -490,14 +463,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   reviewLabel: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   reviewValue: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -510,9 +483,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
   },
   reviewEditText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   primary: {
     backgroundColor: color.brand.navy,
@@ -523,27 +497,32 @@ const styles = StyleSheet.create({
     marginTop: spacing[4],
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   center: {
     alignItems: 'center',
     gap: spacing[2],
   },
-  successEmoji: {
-    fontSize: 48,
-    color: color.success.DEFAULT,
+  successBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.surface.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   successTitle: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
     writingDirection: 'rtl',
     lineHeight: 26,

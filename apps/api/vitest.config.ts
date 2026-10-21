@@ -28,8 +28,17 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['test/**/*.spec.ts', 'src/**/*.spec.ts'],
+    // The real-HTTP E2E suite (Task 10N) requires the isolated khabir_test
+    // database (Docker) and has its own config + fail-closed guard. It is
+    // excluded here so the default suite never depends on that environment.
+    exclude: ['**/node_modules/**', '**/dist/**', 'test/http-e2e/**'],
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // Integration specs use the isolated TEST_DATABASE_URL (disposable
+    // PostgreSQL). Spec files run sequentially to bound connections; the
+    // resolver additionally rejects shared/Supabase hosts and fails closed
+    // in CI when TEST_DATABASE_URL is missing.
+    fileParallelism: false,
   },
   resolve: {
     alias: {

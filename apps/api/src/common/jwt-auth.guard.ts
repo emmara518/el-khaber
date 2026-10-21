@@ -20,6 +20,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
 import { getConfig } from '../config/app.config';
+import { PrismaService } from '../database/prisma.service';
 
 import {
   AUTH_KIND_METADATA_KEY,
@@ -32,14 +33,11 @@ import { AuthRequiredException } from './errors';
 
 import type { Request } from 'express';
 
-
-
-
-
 interface JwtPayload {
   sub: string;
   role: string;
   status: string;
+  tokenVersion: number;
   iss: string;
   aud: string;
   iat: number;
@@ -51,6 +49,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly jwt: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -62,10 +61,11 @@ export class JwtAuthGuard implements CanActivate {
       return true;
     }
 
-    const requiredKind = this.reflector.getAllAndOverride<AuthKind>(AUTH_KIND_METADATA_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]) ?? 'user';
+    const requiredKind =
+      this.reflector.getAllAndOverride<AuthKind>(AUTH_KIND_METADATA_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? 'user';
 
     const req = context.switchToHttp().getRequest<Request & { user?: RequestUser }>();
     const header = req.headers['authorization'];
@@ -80,13 +80,53 @@ export class JwtAuthGuard implements CanActivate {
     const config = getConfig();
     const audience = requiredKind === 'admin' ? config.adminAuth.audience : config.auth.audience;
     const issuer = requiredKind === 'admin' ? config.adminAuth.issuer : config.auth.issuer;
-    const secret = requiredKind === 'admin' ? config.adminAuth.accessSecret : config.auth.accessSecret;
+    const secret =
+      requiredKind === 'admin' ? config.adminAuth.accessSecret : config.auth.accessSecret;
 
     let payload: JwtPayload;
     try {
       payload = await this.jwt.verifyAsync<JwtPayload>(token, { secret, issuer, audience });
     } catch {
       throw new AuthRequiredException('Invalid or expired access token');
+    }
+
+    // Token claims are NOT trusted for authorization state. Re-check the
+    // principal against the database so suspension and role changes take
+    // effect immediately, independent of the access-token TTL. The same
+    // check enforces tokenVersion: any security event (logout, password
+    // reset, suspension) that invalidated the session's tokens bumps the
+    // database tokenVersion, and every older access token is rejected on
+    // its next request instead of lingering until its natural expiry.
+    let adminRole: string | null = null;
+    if (requiredKind === 'admin') {
+      const admin = await this.prisma.adminUser.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, role: true, status: true, tokenVersion: true },
+      });
+      if (admin === null || admin.status !== 'active') {
+        throw new AuthRequiredException();
+      }
+      if (admin.tokenVersion !== payload.tokenVersion) {
+        throw new AuthRequiredException('Token has been revoked');
+      }
+      // The database is the source of truth for the admin role too
+      // (WP-Admin-01): a role change or suspension applies on the next
+      // request even when the access token still carries the old claim.
+      payload = { ...payload, role: admin.role };
+      adminRole = admin.role;
+    } else {
+      const principal = await this.prisma.user.findFirst({
+        where: { id: payload.sub },
+        select: { id: true, role: true, status: true, tokenVersion: true },
+      });
+      if (principal === null || principal.status !== 'active') {
+        throw new AuthRequiredException();
+      }
+      if (principal.tokenVersion !== payload.tokenVersion) {
+        throw new AuthRequiredException('Token has been revoked');
+      }
+      // The database is the source of truth for the role.
+      payload = { ...payload, role: principal.role };
     }
 
     const requiredRoles = this.reflector.getAllAndOverride<string[] | undefined>(
@@ -96,6 +136,12 @@ export class JwtAuthGuard implements CanActivate {
     if (requiredRoles && requiredRoles.length > 0 && !requiredRoles.includes(payload.role)) {
       throw new AuthRequiredException();
     }
+
+    // WP-Admin-01: admin-role matrix (docs/09_ADMIN.md §19). Only
+    // evaluated for the admin authority; same 401 (never role leakage).
+    // Admin role matrix is enforced by AdminRolesGuard (default deny).
+    // Keeping it out of this guard avoids two sources of truth.
+    void adminRole;
 
     req.user = {
       id: payload.sub,

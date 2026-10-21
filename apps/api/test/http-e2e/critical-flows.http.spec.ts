@@ -1,0 +1,678 @@
+/**
+ * Real-HTTP E2E — critical product flows (Task 10N).
+ *
+ * HTTP → NestJS (guards, pipes, controllers) → services → Prisma →
+ * PostgreSQL (`khabir_test`) → HTTP response. Nothing is mocked.
+ */
+
+import request from 'supertest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import {
+  PASSWORD,
+  base,
+  createHttpTestApp,
+  resetDatabase,
+  seedAdmin,
+  seedBaseline,
+  type BaselineIds,
+  type HttpTestContext,
+  type Session,
+} from './harness';
+
+let ctx: HttpTestContext;
+let baseline: BaselineIds;
+const adminEmail = 'admin-http@example.com';
+
+const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+async function register(role: 'customer' | 'technician' | 'merchant', email: string): Promise<Session> {
+  const res = await request(ctx.app.getHttpServer())
+    .post(`${base}/auth/register`)
+    .send({ role, email, password: PASSWORD })
+    .expect(201);
+  return {
+    accessToken: res.body.data.accessToken,
+    refreshToken: res.body.data.refreshToken,
+    userId: res.body.data.user.id,
+  };
+}
+
+async function loginAdmin(): Promise<string> {
+  const res = await request(ctx.app.getHttpServer())
+    .post(`${base}/admin/auth/login`)
+    .send({ email: adminEmail, password: PASSWORD })
+    .expect(200);
+  return res.body.data.accessToken as string;
+}
+
+/**
+ * Creates a location through the REAL HTTP surface (Task REM-001). The
+ * customer journey must never be satisfied by a Prisma location fixture.
+ */
+async function createLocation(customer: Session, label = 'المنزل'): Promise<string> {
+  const res = await request(ctx.app.getHttpServer())
+    .post(`${base}/locations`)
+    .set(auth(customer.accessToken))
+    .send({
+      label,
+      address_text: 'مدينة نصر، القاهرة',
+      city: 'القاهرة',
+      latitude: 30.04,
+      longitude: 31.24,
+    })
+    .expect(201);
+  return res.body.data.id as string;
+}
+
+async function setupVerifiedTechnician(email: string): Promise<{ session: Session; profileId: string }> {
+  const session = await register('technician', email);
+  await request(ctx.app.getHttpServer())
+    .patch(`${base}/technician/profile`)
+    .set(auth(session.accessToken))
+    .send({ display_name: 'فني HTTP', areas: [{ label_ar: 'القاهرة' }] })
+    .expect(200);
+  await request(ctx.app.getHttpServer())
+    .post(`${base}/technician/services`)
+    .set(auth(session.accessToken))
+    .send({ service_id: baseline.serviceId })
+    .expect(201);
+  const profile = await ctx.prisma.technicianProfile.findFirstOrThrow({
+    where: { userId: session.userId },
+    select: { id: true },
+  });
+  const admin = await loginAdmin();
+  await request(ctx.app.getHttpServer())
+    .post(`${base}/admin/technicians/${profile.id}/verification`)
+    .set(auth(admin))
+    .send({ status: 'verified' })
+    .expect(200);
+  return { session, profileId: profile.id };
+}
+
+beforeAll(async () => {
+  ctx = await createHttpTestApp();
+  await resetDatabase(ctx.prisma);
+  baseline = await seedBaseline(ctx.prisma);
+  await seedAdmin(ctx.prisma, adminEmail);
+});
+
+afterAll(async () => {
+  await ctx.close();
+});
+
+describe('HTTP E2E — customer, technician, chat, review, notifications', () => {
+  it('customer: register → login → /me → catalog → discovery', async () => {
+    const customer = await register('customer', 'http-cust@example.com');
+
+    const login = await request(ctx.app.getHttpServer())
+      .post(`${base}/auth/login`)
+      .send({ email: 'http-cust@example.com', password: PASSWORD })
+      .expect(200);
+    expect(login.body.data.accessToken).toBeTypeOf('string');
+
+    const me = await request(ctx.app.getHttpServer())
+      .get(`${base}/me`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(me.body.data.role).toBe('customer');
+
+    const categories = await request(ctx.app.getHttpServer())
+      .get(`${base}/appliance-categories`)
+      .expect(200);
+    expect(categories.body.data.map((c: { id: string }) => c.id)).toContain(baseline.categoryId);
+
+    const faults = await request(ctx.app.getHttpServer())
+      .get(`${base}/faults`)
+      .query({ appliance_category_id: baseline.categoryId })
+      .expect(200);
+    expect(faults.body.data.length).toBeGreaterThanOrEqual(1);
+
+    const { profileId } = await setupVerifiedTechnician('http-tech-discovery@example.com');
+    const technicians = await request(ctx.app.getHttpServer())
+      .get(`${base}/technicians`)
+      .query({ service_id: baseline.serviceId })
+      .expect(200);
+    expect(technicians.body.data.map((t: { id: string }) => t.id)).toContain(profileId);
+  });
+
+  it('locations: create → list → owner update, with IDOR + validation safety', async () => {
+    const customer = await register('customer', 'http-loc-c@example.com');
+    const other = await register('customer', 'http-loc-other@example.com');
+
+    // Create (coordinates optional — label/address-only is valid).
+    const created = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'المنزل', address_text: 'مدينة نصر', city: 'القاهرة' })
+      .expect(201);
+    const id = created.body.data.id as string;
+    expect(created.body.data.label).toBe('المنزل');
+    expect(created.body.data.latitude).toBeNull();
+
+    // Owner lists it; another customer sees nothing.
+    const ownList = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(ownList.body.data.map((l: { id: string }) => l.id)).toContain(id);
+    const otherList = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(other.accessToken))
+      .expect(200);
+    expect(otherList.body.data).toHaveLength(0);
+
+    // Cross-customer PATCH ≡ 404 (no existence leak).
+    const foreignPatch = await request(ctx.app.getHttpServer())
+      .patch(`${base}/locations/${id}`)
+      .set(auth(other.accessToken))
+      .send({ label: 'hack' });
+    expect(foreignPatch.status).toBe(404);
+
+    // Owner PATCH works, including adding coordinates later.
+    const patched = await request(ctx.app.getHttpServer())
+      .patch(`${base}/locations/${id}`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'العمل', latitude: 24.1, longitude: 46.2 })
+      .expect(200);
+    expect(patched.body.data.label).toBe('العمل');
+    expect(patched.body.data.latitude).toBeCloseTo(24.1);
+
+    // latitude without longitude is a validation error.
+    const bad = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'x', latitude: 24 });
+    expect(bad.status).toBe(400);
+
+    // Explicit null coordinates are treated as omitted (never coerced to 0).
+    const nulled = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .send({ label: 'صريح', latitude: null, longitude: null })
+      .expect(201);
+    expect(nulled.body.data.latitude).toBeNull();
+    expect(nulled.body.data.longitude).toBeNull();
+
+    // Unauthenticated and wrong-role access rejected.
+    await request(ctx.app.getHttpServer()).get(`${base}/locations`).expect(401);
+    const { session: tech } = await setupVerifiedTechnician('http-loc-tech@example.com');
+    const techCreate = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(tech.accessToken))
+      .send({ label: 'x' });
+    expect(techCreate.status).toBe(401);
+  });
+
+  it('full lifecycle: request → accept → on_the_way → in_progress → complete → review, with notifications + chat', async () => {
+    const customer = await register('customer', 'http-lifecycle-c@example.com');
+    const { session: tech, profileId } = await setupVerifiedTechnician('http-lifecycle-t@example.com');
+    const locationId = await createLocation(customer);
+
+    // The created location is listed back through the real API and is
+    // owned by this customer (REM-001 journey step).
+    const locations = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(locations.body.data.map((l: { id: string }) => l.id)).toContain(locationId);
+
+    const created = await request(ctx.app.getHttpServer())
+      .post(`${base}/service-requests`)
+      .set(auth(customer.accessToken))
+      .send({
+        technician_id: profileId,
+        appliance_category_id: baseline.categoryId,
+        service_id: baseline.serviceId,
+        problem_description: 'الغسالة لا تدور',
+        location_id: locationId,
+      })
+      .expect(201);
+    const requestId = created.body.data.id as string;
+    expect(created.body.data.status).toBe('pending');
+
+    await request(ctx.app.getHttpServer()).post(`${base}/service-requests/${requestId}/accept`).set(auth(tech.accessToken)).expect(200);
+    await request(ctx.app.getHttpServer()).post(`${base}/service-requests/${requestId}/start`).set(auth(tech.accessToken)).expect(200);
+    await request(ctx.app.getHttpServer()).post(`${base}/service-requests/${requestId}/start`).set(auth(tech.accessToken)).expect(200);
+    await request(ctx.app.getHttpServer()).post(`${base}/service-requests/${requestId}/complete`).set(auth(tech.accessToken)).expect(200);
+
+    const detail = await request(ctx.app.getHttpServer())
+      .get(`${base}/service-requests/${requestId}`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(detail.body.data.status).toBe('completed');
+
+    // Business-event notifications persisted for the customer.
+    const notifications = await request(ctx.app.getHttpServer())
+      .get(`${base}/notifications`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(notifications.body.data.map((n: { titleAr: string }) => n.titleAr)).toEqual([
+      'تم إكمال الخدمة',
+      'بدأ تنفيذ الخدمة',
+      'الفني في الطريق',
+      'تم قبول طلب الخدمة',
+    ]);
+
+    // Chat: conversation derived server-side; message persisted.
+    const conversation = await request(ctx.app.getHttpServer())
+      .get(`${base}/service-requests/${requestId}/conversation`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    const conversationId = conversation.body.data.id as string;
+    const message = await request(ctx.app.getHttpServer())
+      .post(`${base}/conversations/${conversationId}/messages`)
+      .set(auth(customer.accessToken))
+      .send({ body: 'مرحباً' })
+      .expect(201);
+    expect(message.body.data.body).toBe('مرحباً');
+
+    // Review on the completed request.
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/service-requests/${requestId}/review`)
+      .set(auth(customer.accessToken))
+      .send({ rating: 5, comment: 'عمل ممتاز' })
+      .expect(201);
+    const reviews = await request(ctx.app.getHttpServer())
+      .get(`${base}/technicians/${profileId}/reviews`)
+      .expect(200);
+    expect(reviews.body.data.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('customer cancellation notifies the assigned technician; read + read-all work', async () => {
+    const customer = await register('customer', 'http-cancel-c@example.com');
+    const { session: tech, profileId } = await setupVerifiedTechnician('http-cancel-t@example.com');
+    const locationId = await createLocation(customer);
+
+    const created = await request(ctx.app.getHttpServer())
+      .post(`${base}/service-requests`)
+      .set(auth(customer.accessToken))
+      .send({
+        technician_id: profileId,
+        appliance_category_id: baseline.categoryId,
+        problem_description: 'x',
+        location_id: locationId,
+      })
+      .expect(201);
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/service-requests/${created.body.data.id}/cancel`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+
+    const techNotes = await request(ctx.app.getHttpServer())
+      .get(`${base}/notifications`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    // Newest-first: cancellation, creation (WP-2A), then the admin
+    // verification decision (WP-2B).
+    expect(techNotes.body.data.map((n: { titleAr: string }) => n.titleAr)).toEqual([
+      'تم إلغاء طلب الخدمة',
+      'طلب خدمة جديد',
+      'تم اعتماد حسابك بنجاح.',
+    ]);
+    const noteId = techNotes.body.data[0].id as string;
+
+    const read = await request(ctx.app.getHttpServer())
+      .post(`${base}/notifications/${noteId}/read`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(read.body.data.readAt).toBeTypeOf('string');
+
+    const allRead = await request(ctx.app.getHttpServer())
+      .post(`${base}/notifications/read-all`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(allRead.body.data.updated).toBe(2); // creation + verification remain unread
+  });
+});
+
+describe('HTTP E2E — merchant and admin operations', () => {
+  it('merchant: profile + location → product (image) → status → delete', async () => {
+    const merchant = await register('merchant', 'http-merchant@example.com');
+
+    // WP-5A: an owned location persists and reads back through the profile.
+    const location = await request(ctx.app.getHttpServer())
+      .post(`${base}/locations`)
+      .set(auth(merchant.accessToken))
+      .send({ label: 'القاهرة — مدينة نصر' })
+      .expect(201);
+    const locationId = location.body.data.id as string;
+    const patched = await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/profile`)
+      .set(auth(merchant.accessToken))
+      .send({ businessName: 'متجر الخبير', locationId })
+      .expect(200);
+    expect(patched.body.data.locationId).toBe(locationId);
+    const profile = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/profile`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(profile.body.data.locationId).toBe(locationId);
+    const ownLocations = await request(ctx.app.getHttpServer())
+      .get(`${base}/locations`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(ownLocations.body.data.map((l: { id: string }) => l.id)).toContain(locationId);
+
+    // Ownership: another merchant cannot reference this location (404).
+    const otherMerchant = await register('merchant', 'http-merchant-2@example.com');
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/profile`)
+      .set(auth(otherMerchant.accessToken))
+      .send({ businessName: 'متجر آخر' })
+      .expect(200);
+    const cross = await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/profile`)
+      .set(auth(otherMerchant.accessToken))
+      .send({ locationId });
+    expect(cross.status).toBe(404);
+
+    // WP-5B: the optional product image URL persists and reads back.
+    const product = await request(ctx.app.getHttpServer())
+      .post(`${base}/merchant/products`)
+      .set(auth(merchant.accessToken))
+      .send({
+        nameAr: 'فلتر غسالة',
+        price: 49.5,
+        stockQuantity: 10,
+        imageUrl: 'https://cdn.example.com/filter.jpg',
+      })
+      .expect(201);
+    const productId = product.body.data.id as string;
+    expect(product.body.data.imageUrl).toBe('https://cdn.example.com/filter.jpg');
+
+    const detail = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/products/${productId}`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(detail.body.data.imageUrl).toBe('https://cdn.example.com/filter.jpg');
+
+    const updated = await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/products/${productId}`)
+      .set(auth(merchant.accessToken))
+      .send({ status: 'suspended', stockQuantity: 5 })
+      .expect(200);
+    expect(updated.body.data.status).toBe('suspended');
+
+    // WP-5C: delete removes it from subsequent reads.
+    await request(ctx.app.getHttpServer())
+      .delete(`${base}/merchant/products/${productId}`)
+      .set(auth(merchant.accessToken))
+      .expect(204);
+    const afterDelete = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/products`)
+      .set(auth(merchant.accessToken))
+      .expect(200);
+    expect(afterDelete.body.data.map((p: { id: string }) => p.id)).not.toContain(productId);
+    const gone = await request(ctx.app.getHttpServer())
+      .get(`${base}/merchant/products/${productId}`)
+      .set(auth(merchant.accessToken));
+    expect(gone.status).toBe(404);
+  });
+
+  it('admin: login → metrics → users → audit → verification → operational notification', async () => {
+    const admin = await loginAdmin();
+    const { session: tech, profileId } = await setupVerifiedTechnician('http-admin-tech@example.com');
+
+    const metrics = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/metrics`)
+      .set(auth(admin))
+      .expect(200);
+    expect(metrics.body.data.usersCount).toBeGreaterThanOrEqual(1);
+
+    const users = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/users`)
+      .set(auth(admin))
+      .expect(200);
+    expect(users.body.meta.total).toBeGreaterThanOrEqual(1);
+
+    const audit = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/audit-logs`)
+      .set(auth(admin))
+      .expect(200);
+    expect(audit.body.data.some((a: { action: string }) => a.action === 'admin.verification.verified')).toBe(true);
+
+    // Operational notification to a validated recipient.
+    const notify = await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/notifications`)
+      .set(auth(admin))
+      .send({ user_id: tech.userId, type: 'administrative', title_ar: 'تنبيه', body_ar: 'رسالة' })
+      .expect(201);
+    expect(notify.body.data.userId).toBe(tech.userId);
+
+    const techNotes = await request(ctx.app.getHttpServer())
+      .get(`${base}/notifications`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    // The technician was verified during setup (WP-2B) and then received the
+    // admin operational notification.
+    expect(techNotes.body.data.map((n: { titleAr: string }) => n.titleAr)).toEqual([
+      'تنبيه',
+      'تم اعتماد حسابك بنجاح.',
+    ]);
+
+    const techs = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/technicians`)
+      .set(auth(admin))
+      .query({ verification_status: 'verified' })
+      .expect(200);
+    expect(techs.body.data.map((t: { id: string }) => t.id)).toContain(profileId);
+
+    // The verification filter must actually filter: an unverified
+    // technician is listed unfiltered but excluded when filtered.
+    const pendingTech = await register('technician', 'http-admin-pending@example.com');
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(pendingTech.accessToken))
+      .send({ display_name: 'فني بانتظار التوثيق' })
+      .expect(200);
+    const pendingProfile = await ctx.prisma.technicianProfile.findFirstOrThrow({
+      where: { userId: pendingTech.userId },
+      select: { id: true },
+    });
+    const unfiltered = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/technicians`)
+      .set(auth(admin))
+      .expect(200);
+    expect(unfiltered.body.data.map((t: { id: string }) => t.id)).toContain(pendingProfile.id);
+    const verifiedOnly = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/technicians`)
+      .set(auth(admin))
+      .query({ verification_status: 'verified' })
+      .expect(200);
+    expect(verifiedOnly.body.data.map((t: { id: string }) => t.id)).not.toContain(
+      pendingProfile.id,
+    );
+
+    // The audit entity-type filter must actually filter as well.
+    const filteredAudit = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/audit-logs`)
+      .set(auth(admin))
+      .query({ entity_type: 'technician_verification' })
+      .expect(200);
+    expect(filteredAudit.body.data.length).toBeGreaterThan(0);
+    expect(
+      filteredAudit.body.data.every((a: { entityType: string }) => a.entityType === 'technician_verification'),
+    ).toBe(true);
+
+    const merchants = await request(ctx.app.getHttpServer())
+      .get(`${base}/admin/merchants`)
+      .set(auth(admin))
+      .expect(200);
+    expect(Array.isArray(merchants.body.data)).toBe(true);
+  });
+
+  it('admin: service-request override + review moderation + grants', async () => {
+    const admin = await loginAdmin();
+    const customer = await register('customer', 'http-admin-op-c@example.com');
+    const { profileId } = await setupVerifiedTechnician('http-admin-op-t@example.com');
+    const locationId = await createLocation(customer);
+
+    const created = await request(ctx.app.getHttpServer())
+      .post(`${base}/service-requests`)
+      .set(auth(customer.accessToken))
+      .send({ technician_id: profileId, appliance_category_id: baseline.categoryId, problem_description: 'x', location_id: locationId })
+      .expect(201);
+
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/service-requests/${created.body.data.id}/status`)
+      .set(auth(admin))
+      .send({ status: 'in_progress' })
+      .expect(200);
+
+    // Manual grants (no fake payment record).
+    const grant = await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/subscriptions/grant`)
+      .set(auth(admin))
+      .send({ user_id: customer.userId, plan_id: baseline.planId })
+      .expect(201);
+    expect(grant.body.data.status).toBe('active');
+    const subId = grant.body.data.id as string;
+
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/entitlements/grant`)
+      .set(auth(admin))
+      .send({ user_id: customer.userId, entitlement_id: baseline.entitlementId })
+      .expect(201);
+
+    const entitlements = await request(ctx.app.getHttpServer())
+      .get(`${base}/me/entitlements`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+    expect(entitlements.body.data.entitlements).toContain('priority_support');
+
+    // Cancellation-of-renewal.
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/subscriptions/${subId}/cancel`)
+      .set(auth(customer.accessToken))
+      .send({})
+      .expect(200);
+  });
+});
+
+describe('HTTP E2E — technician self-service persistence (WP-3)', () => {
+  it('persists profile fields, canonical phone, and canonical service coverage, with readback', async () => {
+    const tech = await register('technician', 'http-wp3-tech@example.com');
+
+    // Editable profile fields + label-only service areas.
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({
+        display_name: 'فني الخبير',
+        bio: 'نبذة مهنية',
+        experience_years: 7,
+        areas: [{ label_ar: 'القاهرة – مدينة نصر' }],
+      })
+      .expect(200);
+
+    // Account phone persists canonically (WP-1 rule) through /me.
+    const me = await request(ctx.app.getHttpServer())
+      .patch(`${base}/me`)
+      .set(auth(tech.accessToken))
+      .send({ phone: '01011112222' })
+      .expect(200);
+    expect(me.body.data.phone).toBe('+201011112222');
+
+    // Canonical catalog service attach; duplicates are rejected (no duplication).
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/technician/services`)
+      .set(auth(tech.accessToken))
+      .send({ service_id: baseline.serviceId })
+      .expect(201);
+    const dup = await request(ctx.app.getHttpServer())
+      .post(`${base}/technician/services`)
+      .set(auth(tech.accessToken))
+      .send({ service_id: baseline.serviceId });
+    expect(dup.status).toBe(409);
+
+    // Readback: the profile exposes the attached canonical service + the area.
+    const profile = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    const services = profile.body.data.services as Array<{
+      serviceId: string;
+      applianceCategoryId: string;
+    }>;
+    expect(services.map((s) => s.serviceId)).toEqual([baseline.serviceId]);
+    expect(services[0]?.applianceCategoryId).toBe(baseline.categoryId);
+    expect((profile.body.data.areas as Array<{ labelAr: string }>).map((a) => a.labelAr)).toEqual([
+      'القاهرة – مدينة نصر',
+    ]);
+    expect(profile.body.data.displayName).toBe('فني الخبير');
+    expect(profile.body.data.experienceYears).toBe(7);
+  });
+});
+
+describe('HTTP E2E — technician availability (WP-4)', () => {
+  it('technician self-toggles available|unavailable (persisted, readback, busy rejected, isolated)', async () => {
+    const { session: tech, profileId } = await setupVerifiedTechnician('http-wp4-tech@example.com');
+    const { session: other } = await setupVerifiedTechnician('http-wp4-other@example.com');
+
+    // Fresh profile defaults to unavailable.
+    const initial = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(initial.body.data.availabilityStatus).toBe('unavailable');
+
+    // Set AVAILABLE and read it back (server persistence).
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({ availability_status: 'available' })
+      .expect(200);
+    const on = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(on.body.data.availabilityStatus).toBe('available');
+
+    // Discovery reflects the server state (available-only filter + public detail).
+    const available = await request(ctx.app.getHttpServer())
+      .get(`${base}/technicians`)
+      .query({ availability: 'available' })
+      .expect(200);
+    expect(available.body.data.map((t: { id: string }) => t.id)).toContain(profileId);
+    const detail = await request(ctx.app.getHttpServer())
+      .get(`${base}/technicians/${profileId}`)
+      .expect(200);
+    expect(detail.body.data.availabilityStatus).toBe('available');
+
+    // Set UNAVAILABLE again (persisted).
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({ availability_status: 'unavailable' })
+      .expect(200);
+    const off = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .expect(200);
+    expect(off.body.data.availabilityStatus).toBe('unavailable');
+
+    // `busy` is reserved and NOT technician-writable.
+    const busy = await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(tech.accessToken))
+      .send({ availability_status: 'busy' });
+    expect(busy.status).toBe(400);
+    expect(busy.body.error.code).toBe('VALIDATION_ERROR');
+
+    // Unauthorized: a customer cannot change technician availability.
+    const customer = await register('customer', 'http-wp4-c@example.com');
+    const denied = await request(ctx.app.getHttpServer())
+      .patch(`${base}/technician/profile`)
+      .set(auth(customer.accessToken))
+      .send({ availability_status: 'available' });
+    expect(denied.status).toBe(401);
+
+    // Isolation: another technician's availability is unchanged.
+    const otherRead = await request(ctx.app.getHttpServer())
+      .get(`${base}/technician/profile`)
+      .set(auth(other.accessToken))
+      .expect(200);
+    expect(otherRead.body.data.availabilityStatus).toBe('unavailable');
+  });
+});

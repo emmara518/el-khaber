@@ -1,17 +1,32 @@
 import { Module } from '@nestjs/common';
-import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, Reflector } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR, APP_PIPE, Reflector } from '@nestjs/core';
 
 
 import { AdminAuthModule } from './admin/admin-auth.module';
+import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { AvatarModule } from './avatars/avatar.module';
+import { CatalogModule } from './catalog/catalog.module';
+import { ChatModule } from './chat/chat.module';
 import { ApiExceptionFilter } from './common/api-exception.filter';
+import { AdminRolesGuard } from './common/admin-roles.guard';
 import { AuthGuardModule } from './common/auth-guard.module';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { JwtAuthGuard } from './common/jwt-auth.guard';
 import { requestIdMiddleware } from './common/request-id.middleware';
+import { securityHeaders } from './common/security-headers.middleware';
+import { UuidParamPipe } from './common/uuid-param.pipe';
 import { PrismaModule } from './database/prisma.module';
 import { HealthModule } from './health/health.module';
+import { LocationsModule } from './locations/locations.module';
 import { MeModule } from './me/me.module';
+import { MerchantModule } from './merchant/merchant.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { ServiceRequestsModule } from './service-requests/service-requests.module';
+import { StoreModule } from './store/store.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { TechnicianModule } from './technician/technician.module';
 
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
 
@@ -20,16 +35,34 @@ import type { MiddlewareConsumer, NestModule } from '@nestjs/common';
     PrismaModule,
     AuthGuardModule,
     AuthModule,
+    AvatarModule,
     HealthModule,
+    LocationsModule,
     MeModule,
     AdminAuthModule,
+    AdminModule,
+    CatalogModule,
+    ServiceRequestsModule,
+    MerchantModule,
+    StoreModule,
+    ChatModule,
+    ReviewsModule,
+    NotificationsModule,
+    SubscriptionsModule,
+    TechnicianModule,
   ],
   providers: [
     Reflector,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Default-deny admin role matrix. Runs after authentication so it can
+    // read the database-authoritative admin role from request.user.
+    { provide: APP_GUARD, useClass: AdminRolesGuard },
     // Structured request logging. Error responses are logged by the
     // ApiExceptionFilter; this interceptor logs successful responses only.
     { provide: APP_INTERCEPTOR, useClass: HttpLoggingInterceptor },
+    // Route-param integrity (WP-1C): a malformed UUID path param must
+    // produce the controlled NOT_FOUND, never a Prisma-driven 500.
+    { provide: APP_PIPE, useClass: UuidParamPipe },
     { provide: APP_FILTER, useClass: ApiExceptionFilter },
   ],
 })
@@ -37,6 +70,8 @@ export class AppModule implements NestModule {
   // The request-ID middleware MUST run before everything else so the
   // whole request lifecycle executes inside the correlation context.
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(requestIdMiddleware).forRoutes('*');
+    // Request-ID first so the whole lifecycle runs inside the correlation
+    // context; security headers applied to every response (Task 11C).
+    consumer.apply(requestIdMiddleware, securityHeaders).forRoutes('*');
   }
 }

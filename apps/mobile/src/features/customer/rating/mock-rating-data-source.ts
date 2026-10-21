@@ -1,13 +1,13 @@
 /**
- * Mock `RatingDataSource` (Batch E).
+ * Mock `RatingDataSource`.
  *
- * Deterministic: validates the shape (stars 1–5, non-empty ids),
- * waits briefly, resolves `{ ok: true }` — or throws in `failing`
- * mode. No persistence is claimed; the submitted review lives only
- * in the call arguments (asserted by tests).
+ * Deterministic: exposes a small canonical tag list (server-owned in the
+ * real adapter) and resolves `{ ok: true }` — or throws in `failing` mode.
+ * No persistence is claimed; the submitted review lives only in the call
+ * arguments (asserted by tests). Never used in the runtime app.
  */
 
-import type { RatingDataSource, RatingInput } from './rating-types';
+import type { RatingDataSource, RatingInput, ReviewTag } from './rating-types';
 
 export class RatingSubmitError extends Error {
   constructor(message = 'فشل إرسال التقييم. حاول مجددًا') {
@@ -16,10 +16,19 @@ export class RatingSubmitError extends Error {
   }
 }
 
+const MOCK_TAGS: ReadonlyArray<ReviewTag> = [
+  { id: 'tag-1', labelAr: 'سرعة الاستجابة' },
+  { id: 'tag-2', labelAr: 'الالتزام بالموعد' },
+];
+
 export class MockRatingDataSource implements RatingDataSource {
   public readonly submitted: RatingInput[] = [];
 
   constructor(private readonly mode: 'success' | 'failing' = 'success') {}
+
+  async listTags(): Promise<ReadonlyArray<ReviewTag>> {
+    return MOCK_TAGS;
+  }
 
   async submitRating(input: RatingInput): Promise<{ ok: true }> {
     await new Promise((resolve) => setTimeout(resolve, 500));

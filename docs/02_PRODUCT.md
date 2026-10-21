@@ -232,6 +232,20 @@ Implementation rule:
 
 ---
 
+## 4.1 Legal content (decision gate)
+
+The registration screen requires the user to accept "شروط الاستخدام" and
+"سياسة الخصوصية". No approved legal policy text exists in this repository,
+so the client does NOT render or invent policy content: the two labels are
+real link-role controls that surface an honest "available at official
+release" notice instead of a dead affordance.
+
+**CTO DECISION REQUIRED**: provide the approved Terms of Use + Privacy
+Policy source (content or an authoritative hosted URL). Until then, no
+legal document may be fabricated.
+
+---
+
 ## 5. Technician product requirements
 
 Minimum technician experience:

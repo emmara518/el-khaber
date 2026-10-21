@@ -9,7 +9,9 @@
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 
-export function useSafeBack(fallback: '/(customer)/find-technician'): () => void {
+export type SafeBackFallback = '/(customer)/find-technician' | '/(customer)/store' | '/(technician)/store';
+
+export function useSafeBack(fallback: SafeBackFallback): () => void {
   const router = useRouter();
   return useCallback(() => {
     if (router.canGoBack()) {

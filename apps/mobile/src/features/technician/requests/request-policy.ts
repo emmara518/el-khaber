@@ -2,15 +2,15 @@
  * Request action policy — pure transition layer (unit-tested).
  *
  * Derived from docs/07_API.md §22 (state transition rules):
- *   pending → accepted        (accept ✅)
- *   pending → cancelled       (reject ✅)
- *   accepted → cancelled      (reject ✅, policy permits)
+ *   pending → accepted        (accept [allowed])
+ *   pending → cancelled       (reject [allowed])
+ *   accepted → cancelled      (reject [allowed], policy permits)
  *   accepted → on_the_way     (T-D scope, not an action here)
  * Everything else (accept or reject from on_the_way / in_progress /
  * completed / cancelled, accept from accepted) is rejected.
  */
 
-import type { CustomerRequestStatus } from '../../customer/requests/customer-requests-types';
+import type { CustomerRequestStatus } from './technician-request-types';
 
 export type TechnicianRequestAction = 'accept' | 'reject';
 
@@ -42,6 +42,18 @@ export function canAccept(status: CustomerRequestStatus): boolean {
 
 export function canReject(status: CustomerRequestStatus): boolean {
   return decideRequestAction(status, 'reject').ok;
+}
+
+/**
+ * Which accept/reject controls a request row must expose, derived from the
+ * same policy the mutation uses. Screens consume this instead of re-deriving
+ * `status === 'pending'`, so UI and behavior can never drift apart.
+ */
+export function requestActionsForStatus(status: CustomerRequestStatus): {
+  canAccept: boolean;
+  canReject: boolean;
+} {
+  return { canAccept: canAccept(status), canReject: canReject(status) };
 }
 
 /** User-safe Arabic for policy + concurrency failures. */

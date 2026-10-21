@@ -143,6 +143,53 @@ describe('auth e2e', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  it('register stores phone in canonical +<digits> form and every variant logs in', async () => {
+    const reg = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', phone: '01001112233', password: 'sup3rsecretP4ss' })
+      .expect(201);
+    expect(reg.body.data.user.phone).toBe('+201001112233');
+
+    for (const variant of ['+201001112233', '201001112233', '01001112233']) {
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ phone: variant, password: 'sup3rsecretP4ss' })
+        .expect(200);
+      expect(res.body.data.user.phone).toBe('+201001112233');
+    }
+  });
+
+  it.each(['customer', 'technician', 'merchant'] as const)(
+    'role-agnostic phone canonicalization: %s resolves every variant to one identity',
+    async (role) => {
+      const reg = await request(app.getHttpServer())
+        .post('/api/v1/auth/register')
+        .send({ role, phone: '01234567890', password: 'sup3rsecretP4ss' })
+        .expect(201);
+      expect(reg.body.data.user.phone).toBe('+201234567890');
+      expect(reg.body.data.user.role).toBe(role);
+
+      for (const variant of ['+201234567890', '201234567890', '01234567890']) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/login')
+          .send({ phone: variant, password: 'sup3rsecretP4ss' })
+          .expect(200);
+      }
+    },
+  );
+
+  it('register rejects a duplicate number typed in a different variant', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', phone: '01002223344', password: 'sup3rsecretP4ss' })
+      .expect(201);
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', phone: '+201002223344', password: 'sup3rsecretP4ss' });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+  });
+
   it('POST /auth/login with valid credentials returns a session', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
@@ -233,6 +280,32 @@ describe('auth e2e', () => {
       .post('/api/v1/auth/refresh')
       .send({ refreshToken: newRes.body.data.refreshToken });
     expect(after.status).toBe(401);
+  });
+
+  it('POST /auth/refresh is atomic: concurrent reuse yields one winner and one 401', async () => {
+    const reg = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({ role: 'customer', email: 'race@example.com', password: 'sup3rsecretP4ss' })
+      .expect(201);
+    const refreshToken: string = reg.body.data.refreshToken;
+
+    const [first, second] = await Promise.all([
+      request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refreshToken }),
+      request(app.getHttpServer()).post('/api/v1/auth/refresh').send({ refreshToken }),
+    ]);
+
+    const statuses = [first.status, second.status].sort((a, b) => a - b);
+    expect(statuses).toEqual([200, 401]);
+    const loser = first.status === 401 ? first : second;
+    expect(loser.body.error.code).toBe('AUTH_INVALID');
+
+    const original = prisma.refreshTokens.find((row) => row.tokenHash === sha256(refreshToken));
+    expect(original?.revokedAt).not.toBeNull();
+    expect(original?.revokedReason).toBe('rotation');
+
+    // A single presented token can never leave two live sessions behind.
+    const live = prisma.refreshTokens.filter((row) => row.revokedAt === null);
+    expect(live.length).toBeLessThanOrEqual(1);
   });
 
   it('POST /auth/logout revokes the family; subsequent refresh fails', async () => {

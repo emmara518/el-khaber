@@ -42,6 +42,12 @@ coverage/
 **/prisma/migrations/dev.db*
 **/prisma/dev.db*
 
+# Payment proof local adapter (dev/test double data, server-side only)
+.proof-storage/
+
+# Avatar local adapter (WP-01 dev/test double data, server-side only)
+.avatar-storage/
+
 # Expo / React Native
 .expo-shared/
 ios/Pods/
@@ -54,6 +60,7 @@ ios/Podfile.lock
 *.jks
 *.p12
 *.key
+*.keystore
 *.mobileprovision
 
 # Temporary scratch
@@ -63,6 +70,34 @@ temp/
 *.bak
 *.swp
 
+# Local QA / tooling dumps (never commit)
+.playwright-mcp/
+workspace/
+ui-dump.xml
+admin-login-before.png
+release-smoke*.png
+smoke-*.png
+wp10-*.png
+web-360-onboarding.png
+web-services-360.png
+
+# Local UAT/web export outputs (built locally, deployed via Vercel CLI)
+apps/mobile/dist-uat/
+apps/mobile/dist-web/
+
+# QA environment handoff + credentials (never commit — contains test secrets)
+.qa/
+
 # Generated Prisma client (re-generated on install)
 packages/*/node_modules/.prisma/
 apps/*/node_modules/.prisma/
+
+# Local audit artifacts
+audit-*.json
+
+# Test environment (never commit credentials)
+.env.test
+!.env.test.example
+
+# Local prisma diff scratch output
+schema-diff.sql

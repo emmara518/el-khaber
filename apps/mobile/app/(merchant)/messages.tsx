@@ -1,6 +1,6 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import MerchantMessagesScreen from '../../src/features/merchant/messages/merchant-messages-screen';
 
-/** Merchant messages — shell placeholder (Phase 1, no product logic). */
+/** Route entry: Merchant Messages (product inquiry conversations). */
 export default function MerchantMessagesRoute() {
-  return <ShellPlaceholder roleAr="تاجر" titleAr="الرسائل" />;
+  return <MerchantMessagesScreen />;
 }

@@ -1,28 +1,30 @@
 /**
  * Merchant Product Form (M-D) — ONE component for create + edit.
  *
- * Documented fields only: name, description, category (M-C chips),
- * optional price (null → "السعر غير محدد" semantics), and a typed
- * image-intent toggle (no picker/upload — M-C placeholder system).
- * Status is system-owned and never editable here.
+ * Documented fields only: name, description, optional price (null →
+ * "السعر غير محدد" semantics), optional stock, and an optional product
+ * `image_url` with a live preview of what will be shown. Status is
+ * system-owned and never editable here.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { sharedMerchantProductsSource } from './api-merchant-products-data-source';
 import {
   EMPTY_PRODUCT_DRAFT,
-  MERCHANT_PRODUCT_CATEGORIES,
   validateProductDraft,
   type MerchantProductDataSource,
   type MerchantProductDraft,
 } from './merchant-product-types';
-import { sharedMerchantProductsSource } from './mock-merchant-products-data-source';import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
+import { useMerchantProductFormViewModel } from './use-merchant-product-form-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card } from '@/ui';
+import { AppHeader, Card, FormField, PageTitle, ProductImage } from '@/ui';
+import { BrandImage } from '@/ui/brand-image';
+import { type } from '@/ui/typography';
 
 export default function MerchantProductFormScreen({
   mode,
@@ -56,13 +58,26 @@ export default function MerchantProductFormScreen({
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {mode === 'create' ? t('merchant.productForm.createTitle') : t('merchant.productForm.editTitle')}
-      </Text>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <AppHeader
+      onPressBack={() => router.replace('/(merchant)/products')}
+      onPressNotifications={() => router.push('/(merchant)/notifications')}
+      onPressAvatar={() => router.push('/(merchant)/profile')}
+    />
+    <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="المتجر · المنتجات"
+          title={mode === 'create' ? t('merchant.productForm.createTitle') : t('merchant.productForm.editTitle')}
+          body={mode === 'create' ? 'أضف منتجًا جديدًا ليظهر داخل كتالوج متجرك.' : 'حدّث بيانات المنتج مع الحفاظ على حالة الظهور الحالية.'}
+        />
+      </View>
 
       {vm.status === 'success' && savedProduct !== null ? (
         <View style={styles.form}>
+          <View style={styles.successScene}>
+            <BrandImage name="success" size={116} />
+          </View>
           <Card
             background={color.success.soft}
             borderColor={color.success.DEFAULT}
@@ -101,113 +116,73 @@ export default function MerchantProductFormScreen({
             </View>
           ) : null}
 
-          <Text style={styles.label}>{t('merchant.productForm.name')}</Text>
-          <TextInput
-            accessibilityLabel={errors.nameAr ? `${t('merchant.productForm.name')}. خطأ: ${errors.nameAr}` : t('merchant.productForm.name')}
+          <FormField
+            label={t('merchant.productForm.name')}
             placeholder="مثال: غسالة أوتوماتيك سامسونج ١٢ كجم"
-            placeholderTextColor={color.text.secondary}
             value={draft.nameAr}
             onChangeText={(text) => patch({ nameAr: text })}
-            style={[styles.input, errors.nameAr ? styles.inputError : null]}
-            textAlign="right"
+            error={errors.nameAr}
             editable={!submitting}
           />
-          {errors.nameAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.nameAr}
-            </Text>
-          ) : null}
 
-          <Text style={styles.label}>{t('merchant.productForm.category')}</Text>
-          <View accessibilityRole="radiogroup" accessibilityLabel={t('merchant.productForm.category')} style={styles.chips}>
-            {MERCHANT_PRODUCT_CATEGORIES.map((category) => {
-              const selected = draft.categoryAr === category;
-              return (
-                <Pressable
-                  key={category}
-                  accessibilityRole="radio"
-                  accessibilityLabel={`القسم: ${category}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected, checked: selected }}
-                  onPress={() => patch({ categoryAr: category })}
-                  disabled={submitting}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    selected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {selected ? '✓ ' : ''}{category}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {errors.categoryAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.categoryAr}
-            </Text>
-          ) : null}
-
-          <Text style={styles.label}>{t('merchant.productForm.description')}</Text>
-          <TextInput
-            accessibilityLabel={errors.descriptionAr ? `${t('merchant.productForm.description')}. خطأ: ${errors.descriptionAr}` : t('merchant.productForm.description')}
+          <FormField
+            label={t('merchant.productForm.description')}
             placeholder="وصف المنتج ومميزاته…"
-            placeholderTextColor={color.text.secondary}
             value={draft.descriptionAr}
             onChangeText={(text) => patch({ descriptionAr: text })}
-            style={[styles.input, styles.multiline, errors.descriptionAr ? styles.inputError : null]}
-            textAlign="right"
+            error={errors.descriptionAr}
             multiline
             numberOfLines={4}
             editable={!submitting}
           />
-          {errors.descriptionAr ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.descriptionAr}
-            </Text>
-          ) : null}
 
-          <Text style={styles.label}>{t('merchant.productForm.price')}</Text>
-          <TextInput
-            accessibilityLabel={errors.priceSar ? `${t('merchant.productForm.price')}. خطأ: ${errors.priceSar}` : t('merchant.productForm.price')}
+          <FormField
+            label={t('merchant.productForm.price')}
             placeholder={t('merchant.productForm.pricePlaceholder')}
-            placeholderTextColor={color.text.secondary}
-            value={draft.priceSar === null ? '' : String(draft.priceSar)}
+            value={draft.price === null ? '' : String(draft.price)}
             onChangeText={(text) => {
               const n = Number(text.replace(/[^0-9]/g, ''));
-              patch({ priceSar: text.trim().length === 0 ? null : n });
+              patch({ price: text.trim().length === 0 ? null : n });
             }}
             keyboardType="numeric"
-            style={[styles.input, errors.priceSar ? styles.inputError : null]}
-            textAlign="right"
+            error={errors.price}
+            hint={t('merchant.productForm.priceOptional')}
             editable={!submitting}
           />
-          <Text style={styles.optional}>{t('merchant.productForm.priceOptional')}</Text>
-          {errors.priceSar ? (
-            <Text accessibilityRole="alert" style={styles.fieldError}>
-              {errors.priceSar}
-            </Text>
-          ) : null}
 
-          <Text style={styles.label}>{t('merchant.productForm.image')}</Text>
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityLabel={t('merchant.productForm.image')}
-            accessibilityState={{ checked: draft.imageSelected, disabled: submitting }}
-            onPress={() => patch({ imageSelected: !draft.imageSelected })}
-            disabled={submitting}
-            style={({ pressed }) => [
-              styles.imageToggle,
-              draft.imageSelected && styles.chipSelected,
-              pressed && !submitting && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.chipText, draft.imageSelected && styles.chipTextSelected]}>
-              🖼️ {draft.imageSelected ? t('merchant.productForm.imageOn') : t('merchant.productForm.imageOff')}
-            </Text>
-          </Pressable>
-          <Text style={styles.optional}>{t('merchant.productForm.imageNote')}</Text>
+          <FormField
+            label={t('merchant.productForm.stock')}
+            placeholder={t('merchant.productForm.stockPlaceholder')}
+            value={draft.stockQuantity === null ? '' : String(draft.stockQuantity)}
+            onChangeText={(text) => {
+              const n = Number(text.replace(/[^0-9]/g, ''));
+              patch({ stockQuantity: text.trim().length === 0 ? null : n });
+            }}
+            keyboardType="numeric"
+            error={errors.stockQuantity}
+            hint={t('merchant.productForm.stockOptional')}
+            editable={!submitting}
+          />
+
+          <FormField
+            label={t('merchant.productForm.image')}
+            placeholder="https://… رابط صورة المنتج (اختياري)"
+            value={draft.imageUrl}
+            onChangeText={(text) => patch({ imageUrl: text })}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            error={errors.imageUrl}
+            hint={t('merchant.productForm.imageNote')}
+            editable={!submitting}
+          />
+          <View style={styles.imagePreview}>
+            <ProductImage
+              imageUrl={draft.imageUrl.trim().length > 0 ? draft.imageUrl.trim() : null}
+              nameAr={draft.nameAr.trim().length > 0 ? draft.nameAr.trim() : t('merchant.productForm.name')}
+              size={112}
+            />
+          </View>
 
           <View style={styles.actions}>
             <Pressable
@@ -219,7 +194,7 @@ export default function MerchantProductFormScreen({
               style={({ pressed }) => [styles.primary, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
             >
               {submitting ? (
-                <ActivityIndicator accessibilityLabel="جارٍ حفظ المنتج" color={color.surface.base} />
+                <ActivityIndicator color={color.surface.base} />
               ) : (
                 <Text style={styles.primaryText}>
                   {vm.status === 'error'
@@ -244,100 +219,36 @@ export default function MerchantProductFormScreen({
       )}
       <View style={styles.bottomSpacer} />
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    direction: 'rtl',
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginBottom: spacing[4],
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[6],
+    paddingBottom: spacing[3],
+  },
+  successScene: {
+    width: '100%',
+    height: 150,
+    borderRadius: radius.lg,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   form: {
     gap: spacing[2],
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
   },
-  label: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginTop: spacing[2],
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
-  },
-  multiline: {
-    minHeight: 110,
-    textAlignVertical: 'top',
-  },
-  inputError: {
-    borderColor: color.error.DEFAULT,
-  },
-  fieldError: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing[2],
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
-  chipText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-  },
-  chipTextSelected: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
-  },
-  imageToggle: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
-    justifyContent: 'center',
-  },
-  optional: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    textAlign: 'right',
+  imagePreview: {
+    alignItems: 'flex-start',
   },
   inlineError: {
     backgroundColor: color.error.soft,
@@ -348,8 +259,8 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   inlineErrorText: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -370,9 +281,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   secondary: {
     borderWidth: 1,
@@ -385,24 +295,23 @@ const styles = StyleSheet.create({
     marginTop: spacing[3],
   },
   secondaryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   center: {
     alignItems: 'center',
     gap: spacing[2],
   },
   successTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'center',
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
+    writingDirection: 'rtl',
   },
   bottomSpacer: {
     height: spacing[6],

@@ -2,9 +2,7 @@
  * Customer Home — view-model and data-source contracts.
  *
  * The Home screen renders a `CustomerHomeViewModel`. The data is
- * fetched by a `CustomerHomeDataSource` (currently a mock; will be
- * replaced by a real API adapter in a later task without touching
- * the presentation layer).
+ * fetched by a `CustomerHomeDataSource` (real API adapter).
  *
  * Source: Task #003 spec; docs/01_PROJECT.md §4.1; docs/02_PRODUCT.md
  * §3.4; docs/03_USER_FLOWS.md §6.
@@ -12,13 +10,27 @@
 
 import type { Role } from '@khabir/shared-types';
 
-/** Arabic display name for a primary appliance category. */
-export type ApplianceSlug = 'air_conditioner' | 'refrigerator' | 'washing_machine';
+/** Arabic display name for a primary appliance category (server-owned slugs). */
+export type ApplianceSlug =
+  | 'air_conditioner'
+  | 'refrigerator'
+  | 'washing_machine'
+  | 'dishwasher'
+  | 'coffee_machine'
+  | 'microwave'
+  | 'oven'
+  | 'tv_screen'
+  | 'vacuum_cleaner'
+  | 'water_heater';
 
 export interface ApplianceCardItem {
   readonly slug: ApplianceSlug;
   readonly titleAr: string;
-  readonly availableTechnicians: number;
+  /**
+   * Real per-appliance technician total. `null` means the server total
+   * could not be read (unknown) — the card must not assert a false zero.
+   */
+  readonly availableTechnicians: number | null;
   /** Short warranty / availability line shown below the count. */
   readonly captionAr: string;
   /** Optional technician-availability line shown on the card. */
@@ -27,11 +39,27 @@ export interface ApplianceCardItem {
   readonly accent: 'navy' | 'gold' | 'soft';
 }
 
+/**
+ * Arabic availability line for an appliance card. Returns `null` when the
+ * count is unknown so the caller omits the line rather than presenting an
+ * unverified "no technicians" claim (ISSUE-008 / TASK-040).
+ */
+export function availabilityLineAr(
+  availableTechnicians: number | null,
+  techniciansAr: string,
+): string | null {
+  if (availableTechnicians === null) return null;
+  if (availableTechnicians <= 0) return 'لا يوجد فنيون';
+  return `${String(availableTechnicians)} ${techniciansAr}`;
+}
+
 export interface QuickServiceItem {
   readonly id: string;
   readonly titleAr: string;
   /** Icon glyph used in the reference design (simple letterform). */
   readonly icon: 'wrench' | 'search' | 'clipboard' | 'package';
+  /** Customer-group route the tile opens. */
+  readonly route: 'maintenance' | 'find-technician' | 'requests';
 }
 
 export type OrderStatus = 'in_progress' | 'scheduled' | 'completed';
@@ -55,6 +83,10 @@ export interface TechnicianCardItem {
   readonly rating: number;
   readonly reviewCount: number;
   readonly specialtyAr: string;
+  /** Platform verification (identity + experience checked by الخبير). */
+  readonly verified: boolean;
+  /** Real server availability status, already localized. */
+  readonly availabilityAr: string;
 }
 
 export interface CustomerContext {

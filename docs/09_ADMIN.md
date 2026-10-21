@@ -19,6 +19,7 @@ Its job is not to reproduce every mobile screen; it is to control the data, user
 Admin access must be more strongly protected than regular user access.
 
 Required:
+
 - authenticated admin session
 - explicit permissions
 - audit logging for sensitive actions
@@ -48,6 +49,7 @@ Whether these are separate users/roles is a deployment decision, but permissions
 ## 4. Admin dashboard home
 
 At a glance:
+
 - users count
 - technicians count
 - merchants count
@@ -64,6 +66,7 @@ Avoid adding decorative metrics with no operational meaning.
 ## 5. User management
 
 ### Customer management
+
 - Search
 - View profile
 - Account status
@@ -72,6 +75,7 @@ Avoid adding decorative metrics with no operational meaning.
 - Support metadata
 
 ### Technician management
+
 - Search/filter
 - Verify/review verification state
 - View services
@@ -81,6 +85,7 @@ Avoid adding decorative metrics with no operational meaning.
 - Visibility status
 
 ### Merchant management
+
 - Search/filter
 - Verification
 - Business data
@@ -110,6 +115,7 @@ Admin actions should be audited.
 ## 7. Appliance management
 
 Manage:
+
 - appliance categories
 - labels
 - icons/images
@@ -117,6 +123,7 @@ Manage:
 - sorting
 
 Primary baseline:
+
 - غسالات
 - ثلاجات
 - تكييفات
@@ -128,6 +135,7 @@ Adding new categories requires product approval.
 ## 8. Fault Guide management
 
 Admin can manage:
+
 - fault title
 - appliance category
 - symptom
@@ -157,6 +165,7 @@ The mobile app should consume published content only.
 ## 9. Service management
 
 Admin manages:
+
 - service categories
 - appliance association
 - labels
@@ -170,6 +179,7 @@ Do not hard-code the service catalog in mobile UI.
 ## 10. Technician/service operations
 
 Operational view should support:
+
 - active requests
 - statuses
 - technician assignment
@@ -184,6 +194,7 @@ Admin override actions must be limited and audited.
 ## 11. Review moderation
 
 Admin can:
+
 - inspect reviews
 - flag/remove content when policy allows
 - view complaint context
@@ -196,6 +207,7 @@ Never delete a review merely because it is negative unless platform policy/legal
 ## 12. Subscription management
 
 Admin capabilities:
+
 - view plans
 - activate/deactivate plan
 - edit pricing
@@ -207,11 +219,21 @@ Admin capabilities:
 
 All material changes are audited.
 
+Implementation status (Release Candidate): implemented today are
+**manual exceptions** (`POST /admin/subscriptions/grant`,
+`POST /admin/entitlements/grant`) and **payment review**
+(`/admin/payments/*`), both audited. **Not yet implemented**: viewing the
+plan catalogue, activate/deactivate, pricing/entitlement/limit editing, and
+an active-subscriptions list. Plan/entitlement data is currently
+administered out-of-band (seed/direct DB). This is a documented
+scope deferral, not a hidden capability.
+
 ---
 
 ## 13. Merchant/Marketplace management
 
 Admin can manage the approved marketplace surface:
+
 - merchant status
 - product categories
 - product moderation
@@ -227,6 +249,7 @@ The Admin must not silently broaden the marketplace taxonomy beyond the approved
 Admin may create operational notifications/announcements where approved.
 
 Capabilities:
+
 - target audience
 - title/body
 - channel
@@ -236,11 +259,19 @@ Capabilities:
 
 Do not send bulk notifications without an explicit target definition.
 
+Implementation status (Release Candidate): implemented is a
+**single-recipient operational notification**
+(`POST /admin/notifications` — validated recipient, Admin-JWT sender
+authority, audited). **Not implemented**: audience targeting, channel
+selection, scheduling, and bulk sends. Notifications are persisted only
+(no delivery provider).
+
 ---
 
 ## 15. Content management
 
 Potential content domains:
+
 - onboarding copy
 - banners
 - Fault Guide content
@@ -255,6 +286,7 @@ News/Community/AI are not to be implemented as a full CMS beyond the approved MV
 ## 16. Reports
 
 Minimum operational reports:
+
 - user growth
 - active technicians
 - active merchants
@@ -271,6 +303,7 @@ Reports must be derived from actual data.
 ## 17. Audit log
 
 Record:
+
 - who did the action
 - what entity
 - what changed
@@ -278,6 +311,7 @@ Record:
 - relevant reason/comment when necessary
 
 High-value examples:
+
 - change plan price
 - verify/suspend technician
 - change merchant verification
@@ -301,20 +335,57 @@ High-value examples:
 
 ## 19. Admin permissions matrix
 
-| Action | Super Admin | Ops | Content | Support | Finance |
-|---|---:|---:|---:|---:|---:|
-| View users | ✅ | ✅ | — | ✅ | — |
-| Suspend user | ✅ | ✅ | — | — | — |
-| Verify technician | ✅ | ✅ | — | — | — |
-| Edit Fault Guide | ✅ | — | ✅ | — | — |
-| Manage reviews | ✅ | ✅ | ✅ | ✅ | — |
-| Manage plans | ✅ | — | — | — | ✅ |
-| View subscriptions | ✅ | ✅ | — | ✅ | ✅ |
-| Change pricing | ✅ | — | — | — | ✅ |
-| Override service status | ✅ | ✅ | — | — | — |
-| View audit logs | ✅ | limited | limited | limited | limited |
+| Action                  | Super Admin |     Ops | Content | Support | Finance |
+| ----------------------- | ----------: | ------: | ------: | ------: | ------: |
+| View users              |          ✅ |      ✅ |       — |      ✅ |       — |
+| Suspend user            |          ✅ |      ✅ |       — |       — |       — |
+| Verify technician       |          ✅ |      ✅ |       — |       — |       — |
+| Edit Fault Guide        |          ✅ |       — |      ✅ |       — |       — |
+| Manage reviews          |          ✅ |      ✅ |      ✅ |      ✅ |       — |
+| Manage plans            |          ✅ |       — |       — |       — |      ✅ |
+| View subscriptions      |          ✅ |      ✅ |       — |      ✅ |      ✅ |
+| Change pricing          |          ✅ |       — |       — |       — |      ✅ |
+| Override service status |          ✅ |      ✅ |       — |       — |       — |
+| View audit logs         |          ✅ | limited | limited | limited | limited |
 
 These are recommended permission boundaries and can be adjusted by CTO/business owners.
+
+### Implementation note (WP-Admin-01): enforced route matrix
+
+Enforced server-side by `JwtAuthGuard` + `@AdminRoles(...)` against the
+database role (a role change applies on the next request; a mismatch
+returns the same 401 as any auth failure — accepted roles are never
+leaked). The admin web console mirrors it (tabs hidden per role;
+mutations hidden per action) but the server is authoritative.
+
+| Route group                                                         | super_admin | operations_admin | content_admin | support_admin | finance_admin |
+| ------------------------------------------------------------------- | ----------- | ---------------- | ------------- | ------------- | ------------- |
+| `GET /admin/metrics`                                                | ✅          | ✅               | ✅            | ✅            | ✅            |
+| `GET /admin/users`, `GET /admin/users/:id`                          | ✅          | ✅               | —             | ✅            | —             |
+| `GET /admin/technicians`, `GET /admin/merchants`                    | ✅          | ✅               | —             | ✅            | —             |
+| `POST …/verification` (+ reason, WP-Admin-02)                       | ✅          | ✅               | —             | —             | —             |
+| `GET /admin/service-requests`                                       | ✅          | ✅               | —             | ✅            | —             |
+| `POST …/status` (override)                                          | ✅          | ✅               | —             | —             | —             |
+| `POST …/assign` (WP-Admin-03, pending only)                         | ✅          | ✅               | —             | —             | —             |
+| `GET /admin/reviews`, `POST …/remove` (+ reason, WP-Admin-04)       | ✅          | ✅               | ✅            | ✅            | —             |
+| `GET /admin/payments/config`, `PUT …`                               | ✅          | —                | —             | —             | ✅            |
+| `GET /admin/payments/submissions…` (list/detail)                    | ✅          | ✅               | —             | ✅            | ✅            |
+| `POST …/approve`, `POST …/reject`, `GET …/proof-url`                | ✅          | —                | —             | —             | ✅            |
+| `POST /admin/subscriptions/grant`, `POST /admin/entitlements/grant` | ✅          | —                | —             | —             | ✅            |
+| `POST /admin/notifications`                                         | ✅          | ✅               | —             | ✅            | —             |
+| `GET /admin/audit-logs`                                             | ✅          | ✅               | —             | —             | —             |
+
+Deviations from the recommended table (explicit, adjustable by CTO):
+
+- “View audit logs: limited” is enforced as super/ops-only (no partial
+  row scope exists to implement “limited” safely).
+- Merchant verification follows the technician rule (super/ops); the
+  table lists technician verification only.
+- Grants/notifications follow “Manage plans” (finance) with super
+  included; notify additionally allows ops/support as operational
+  messaging (documented interpretation).
+- “Suspend user” has no endpoint (no identity mutation surface exists);
+  recorded as a remaining gap, not implemented here.
 
 ---
 

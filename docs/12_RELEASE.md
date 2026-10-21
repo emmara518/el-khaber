@@ -1,0 +1,297 @@
+# الخبير — Release Candidate Manifest
+
+**Path:** `docs/12_RELEASE.md`
+**Status:** RC5 closure run (2026-09-19) + **Phase H release hardening
+(2026-10-03)**. Strongest achievable candidate given the environment.
+**NOT deployed. NOT merged to main.**
+Supersedes the RC4 notes below where they conflict (migrations 6→7,
+release build fixed, payment storage code-complete).
+
+---
+
+## 0-pre. Phase H release-hardening pass — 2026-10-03
+
+Engineering release gate re-run at HEAD `5b8666a`
+(`review/final-production-release`). Scope: hardening + verification only —
+no features, no redesign, no business-logic change, no schema change.
+
+- **Security/secrets:** only `.env.example` files are tracked; the real
+  `.env` (dev Supabase URL + JWT secrets) is git-ignored and **absent from
+  all git history**. No `EXPO_PUBLIC_*` server secret in the mobile bundle.
+- **Authorization (IDOR):** cross-role/ownership isolation verified in code
+  **and** by `test/http-e2e/security.http.spec.ts` (cross-customer 404,
+  cross-technician 404, merchant product ownership, admin/user authority
+  isolation, participant-scoped chat/notifications/subscriptions).
+- **Input validation:** zod schemas enforce UUID/enum/bounds/lengths;
+  `updateMe` strips forbidden fields; ownership always derives from the JWT.
+- **API production behaviour:** production 5xx returns a generic message;
+  stack logged server-side only; CORS fail-closed; boot guard against unsafe
+  multi-instance; readiness probe logs raw driver errors server-side only.
+- **Web production build:** `expo export --platform web` succeeds (198
+  files); the HTTPS `EXPO_PUBLIC_API_URL` is injected and **no
+  localhost/10.0.2.2 is baked into the bundle**; `+not-found.html` present.
+- **Tests:** API 31 files / 264; mobile 52 files / 368; typecheck 0 errors
+  (both); lint 0 errors; API build PASS.
+- **Runtime/visual smoke (390×844, Web):** customer (home/store/product),
+  technician (home/requests/messages), merchant (home/catalog/messages) —
+  real data, RTL, correct EGP, no broken images, no debug UI.
+- **Contrast:** three token pairs below AA-normal recorded in
+  `docs/adr/0005-brand-contrast-wcag.md`; **tokens not changed** (brand
+  decision gate).
+- **Migration:** dev 8/8; prod 7/8 (one additive migration pending, not
+  executed — CTO gate).
+
+---
+
+## 0. RC5 closure run — 2026-09-19 (this session)
+
+- **Payment proof storage implemented** (code-complete, fail-closed):
+  provider-abstracted `StoragePort` + S3-compatible presigned PUT/GET,
+  owner-only upload URL, HEAD + magic-byte confirm, admin presigned view,
+  MIME allowlist (jpeg/png/webp), 5 MB default cap, audit entries, openapi
+  regenerated, 27 new tests green. Only real S3-compatible credentials are
+  missing (`PROOF_S3_*`); endpoints 500 naming the missing var until then.
+- **Android release pipeline fixed:** root cause isolated to the RN Gradle
+  plugin relativizing `--entry-file` on Windows + `@expo/cli@0.22` forwarding
+  it verbatim to Metro (upstream expo/expo#39738, backport of #40563 as
+  `apps/mobile/scripts/expo-export-embed-cli.js`). Durable via committed
+  config plugin `apps/mobile/plugins/with-android-release-hardening.js`
+  (re-applies the bundling fix, env-based release signing, and release
+  cleartext policy on every prebuild). **Release APK + AAB built, installed
+  clean, launched, and smoke-tested on the emulator** (onboarding →
+  account-type → merchant registration, RTL verified, zero FATAL logs,
+  embedded 2.41 MB Hermes bundle, no Metro dependency).
+- **Production topology decided (single-instance):** boot-time fail-closed
+  guard against accidental scale-out (`MULTI_INSTANCE=true` without
+  `SHARED_STORE_URL` refuses to boot); release manifest pins
+  cleartext=false; `docs/11_PRODUCTION.md` §7.2 updated; deploy runbook in
+  `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md`.
+- **Mobile API client hardened:** production builds fail fast without
+  `EXPO_PUBLIC_API_URL` (no silent emulator fallback) and warn on http.
+- **Database:** migration `20260915000000_payment_proof_metadata` (additive,
+  3 nullable columns) applied to dev; chain now 7/7.
+- **Verification:** typecheck 11/11, lint 0 errors, API 27 files/216 tests,
+  mobile 29/274, admin 27, landing build PASS.
+- **Still external (unchanged):** no deployed HTTPS API (no cloud accounts in
+  env), no S3-compatible credentials, no production upload keystore.
+
+## 1. Release identity
+
+| Field           | Value                                                                      |
+| --------------- | -------------------------------------------------------------------------- |
+| Branch          | `review/final-production-release`                                          |
+| Base branch     | `review/final-production-readiness`                                        |
+| Previous RC     | `review/release-candidate-v3` @ `48bfcaaf5a6b109c0de1abb4ea81a422eacf7faa` |
+| Release version | `0.0.1-rc.5`                                                               |
+| API version     | `0.0.1` (contract in `docs/api/openapi.yaml`)                              |
+| Mobile version  | `0.0.1` (Expo SDK 52, `ai.khabir.app`)                                     |
+| Admin web       | `0.0.1` (Next.js)                                                          |
+| Landing web     | `0.0.1` (Next.js)                                                          |
+| Database        | managed PostgreSQL + PostGIS; **8 migrations** (dev 8/8; prod 7/8)         |
+
+---
+
+## 2. What this run changed (on top of RC3)
+
+- **Admin console completed for the documented scope:** manual
+  subscription/entitlement grants, operational notifications, and payment
+  submission detail + approve/reject are now real UI surfaces; destructive
+  actions confirm first; admin session handling fixed (refresh token
+  persisted, expiry enforced, server-side logout revocation, single-retry
+  silent refresh); admin JWT carries the truthful admin role.
+- **API fixes:** admin list filters (`verification_status`, `entity_type`)
+  now actually filter (explicit snake→camel mapping + E2E negative cases);
+  `DIRECT_URL` fail-fast at startup; container `HEALTHCHECK` on `/health`.
+- **Mobile fixes:** customer-home retry, merchant edit loading state,
+  stale mock comments refreshed.
+- **Android QA APK built** (debug, installable for QA — not a store
+  artifact). Required a pinned `expo.modules` autolink import in the new
+  `apps/mobile/react-native.config.js` (locked Expo 52.0.49 namespace
+  mismatch, documented in-file).
+
+### Deliberately NOT done
+
+- No storage provider invented — payment proof stays blocked.
+- No Android runtime installed — native QA stays unverified.
+- No Redis/shared store installed — topology stays a CTO decision.
+- No pricing, billing cadence, roles, or payment semantics invented.
+- No keystore/EAS credentials invented — no signed AAB.
+
+---
+
+## 3. Verification summary
+
+| Gate                                       | Result                                   | Evidence                                  |
+| ------------------------------------------ | ---------------------------------------- | ----------------------------------------- |
+| Repo typecheck                             | PASS (11/11 packages)                    | `pnpm typecheck`                          |
+| Repo lint                                  | PASS (0 errors)                          | `pnpm lint`                               |
+| API unit + e2e (in-memory)                 | PASS — 24 files / 187 tests              | `pnpm --filter @khabir/api test`          |
+| Mobile tests                               | PASS — 27 files / 249 tests              | `pnpm --filter @khabir/mobile test`       |
+| Real HTTP E2E (isolated `khabir_test`)     | PASS — 3 files / 18 tests, RUN 1 + RUN 2 | `pnpm --filter @khabir/api test:http-e2e` |
+| OpenAPI + generated types                  | deterministic                            | `pnpm gen:openapi`, `pnpm gen:types`      |
+| Migrations                                 | additive, non-destructive (6 total)      | `prisma/migrations`                       |
+| khabir-dev residue                         | ZERO (all probe prefixes 0/0/0)          | probe query                               |
+| Android QA APK                             | BUILT (debug) — see §4                   | `assembleDebug` + aapt2 badging           |
+| Live QA execution (API journeys, 42/42)    | PASS                                     | `scripts/api-qa-run.cjs` (§6a)            |
+| Admin console surfaces QA                  | PASS — 4 actions verified + audited      | browser run (§6a)                         |
+| Android emulator QA (login/browse/product) | PASS — happy paths                       | `khabir_qa` AVD (§6a)                     |
+| Native QA execution                        | PASS on emulator (see §6a)               | —                                         |
+| Payment proof                              | BLOCKED — no approved provider           | —                                         |
+
+---
+
+## 4. Android QA artifact
+
+- **Path:** `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`
+  (git-ignored build output — preserved in the workspace, not committed)
+- **Filename:** `app-debug.apk`
+- **Version:** `versionName 0.0.1` (`versionCode 1`), package `ai.khabir.app`,
+  label `الخبير`, `minSdk 24`, `targetSdk 34`
+- **SHA-256:** `F75D79D2371CDA506162548C857A24BA82768DF3A3CFF1D2D27EC23F53202616`
+- **Build profile:** debug (debug-signed, installable for QA — **not** a
+  Play Store artifact)
+- **AAB:** not produced — requires release signing/EAS credentials that do
+  not exist in this environment.
+
+---
+
+## 5. Database migration state
+
+```text
+20260101000000_init_identity
+20260910000000_domain_foundation
+20260911000000_technician_service_areas
+20260912000000_payments_and_grants
+20260913000000_technician_self_service
+20260914000000_location_coordinates_optional
+20260915000000_payment_proof_metadata
+20260916000000_merchant_product_conversations   (Phase D — new)
+```
+
+- **khabir-dev:** 8/8 applied; `prisma migrate status` → "Database schema is
+  up to date!".
+- **khabir-prod:** bootstrapped 2026-09-20 at **7/8**. The Phase D migration
+  `20260916000000_merchant_product_conversations` is **pending** on prod and
+  must be applied before this release serves merchant product conversations.
+  It is additive/non-destructive (`ALTER COLUMN ... DROP NOT NULL` only).
+- **Chain is non-destructive:** every migration is additive; the only
+  `DROP` statements are `ALTER COLUMN ... DROP NOT NULL` (constraint
+  widening). No table/column drops, no data rewrites.
+- **Prepared, not executed:** production migration is READY (see
+  `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md` §migrations) and requires explicit
+  CTO authorization to run.
+
+---
+
+## 6. Known risks
+
+- **P1:** Payment proof not operational (CTO storage-provider decision).
+- **P1:** Rate-limit/lockout topology unapproved (single-instance only;
+  logged at startup, documented, not enforced by infra).
+- **P2:** No payment/subscription UI in Mobile (backend verified; blocked
+  downstream of proof); placeholder tabs remain in technician/merchant
+  navigation; photos step has no real picker (optional, never sent).
+- **P2:** Admin plan/pricing management, notification
+  audience/channel/scheduling, payment-destination config UI remain
+  unimplemented (documented in `docs/09_ADMIN.md`).
+- **P3:** Admin web is a functional console; missing `favicon.ico`;
+  type-only imports from mock files (zero runtime effect).
+
+---
+
+## 6a. Live QA execution run — 2026-09-14/15 (final delivery QA)
+
+Environment: local QA API on `:3100` (isolated `khabir_test`,
+6 migrations applied + QA seed `scripts/seed-qa.mjs`), Android QA APK
+installed on the `khabir_qa` emulator, admin web on `:3001`
+(`NEXT_PUBLIC_API_URL=http://localhost:3100/api/v1`).
+
+### Automated API journey (`scripts/api-qa-run.cjs`) — 42/42 PASS
+
+Customer → technician → merchant full lifecycle executed against the
+real HTTP API:
+
+- Auth: login per role, wrong-password 401, unauthenticated `/me` 401.
+- Catalog: categories, services, faults, technician discovery, locations.
+- Service request lifecycle: create (pending) → technician accept →
+  start (accepted → `on_the_way`) → start #2 (`in_progress`) →
+  complete → customer review (rating 5) → technician stats reflect the
+  review. Cancel path: second request cancelled; cancelling a completed
+  request correctly rejected (409).
+- Conversation: opened with the request, message sent by customer and
+  read by technician.
+- Technician self-service: profile, services, stats.
+- Merchant: profile, products, subscription current, role-scoped plans
+  (merchant sees zero customer plans), payments config (2 methods).
+- Notifications: customer and technician received lifecycle events.
+
+### Manual/Android + admin console QA
+
+- Android QA APK launched on the `khabir_qa` emulator against the QA
+  API: onboarding → role selection → login (customer, merchant) →
+  customer profile with live order counts → merchant home shows account
+  status «قيد المراجعة» (seeded pending) → product creation form submits
+  and the product appears in «إدارة المنتجات» (active, 1450 EGP).
+  _(Description text artifacts during typing came from the QA typing
+  tool, not the app; the record was corrected via API afterwards.)_
+- Admin console (browser-driven): dashboard metrics render live data
+  (6 users, request counts by status); merchant verification approve
+  works with confirm dialog and reflected state; payment submission
+  created via merchant API then approved in console → subscription
+  became ACTIVE (verified via `/merchant/subscription/current`:
+  monthly period 2026-09-14 → 2026-10-14); manual entitlement grant →
+  customer `/me/entitlements` returns `priority_support`; operational
+  notification → delivered to customer `/notifications`; audit log
+  recorded all four admin actions (`verification.verified`,
+  `payment.approve`, `manual_grant.entitlement`, `notification.create`).
+
+### New findings from this run
+
+- **P2 (admin UX):** access-token expiry is enforced client-side by
+  wiping the whole stored session — including the still-valid refresh
+  token (`loadAdminSession`, `apps/admin/src/lib/admin-api.ts:51`).
+  The single-retry silent refresh is therefore unreachable in the
+  expired case and an admin working longer than 15 minutes is signed
+  out mid-task (observed twice; in-flight form content is lost).
+  Suggested fix: on expiry keep the refresh token and let the 401 →
+  `tryRefresh()` path rotate the session.
+- **P3 (test seed):** seed ships no `merchant` plan; the merchant
+  subscription flow cannot be exercised without adding one (added
+  manually during this run via `qa-seed-merchant-plan.cjs`).
+
+### Notes for parallel work
+
+- The emulator/UI session (`تحسينات UI/UX`) drives the same QA API and
+  `khabir_test` database; this QA run shared it without conflicts.
+
+---
+
+## 7. GO / NO-GO pre-assessment
+
+**NO-GO for production.** The release decision engine forbids a ready
+classification while payment proof is impossible, native execution is
+unverified, and the production topology is unresolved. These are external
+dependencies/decisions, not engineering failures. This candidate is the
+strongest state achievable in the current environment.
+
+### 7.1 Phase H decision matrix (2026-10-03, HEAD `5b8666a`)
+
+Engineering is **release-candidate ready**; release remains blocked only by
+external/decision gates.
+
+| ID  | Class | Item                                                             | Owner      |
+| --- | ----- | ---------------------------------------------------------------- | ---------- |
+| P0  | —     | None.                                                            | —          |
+| P1  | gate  | **Legal content** — no approved Terms/Privacy text or URL.       | CTO/Legal  |
+| P1  | gate  | **Deployed HTTPS API** — no production API host configured.      | CTO/Ops    |
+| P1  | gate  | **Android upload keystore** — not provided (`MYAPP_UPLOAD_*`).   | CTO/Ops    |
+| P1  | gate  | **Payment proof storage** — no S3-compatible credentials.        | CTO        |
+| P1  | gate  | **Production topology** ratification (single-instance policy).   | CTO        |
+| P2  | debt  | Brand contrast below AA-normal (ADR-0005); not changed.          | Brand/CTO  |
+| P2  | debt  | Prod migration 7→8 pending (additive) — prepared, not executed.  | CTO        |
+| P2  | debt  | Admin session-expiry UX finding (2026-09-14 run).                | Engineering|
+| P3  | future| Admin plan/pricing + notification scheduling UI; request photos  | Product    |
+
+No P0. Every P1 is an external/decision gate, explicitly accepted as
+release-blocking (not silently downgraded). Engineering verification in
+Phase H is green (tests, typecheck, lint, build, runtime/visual smoke).

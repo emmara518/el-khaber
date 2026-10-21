@@ -21,7 +21,17 @@
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router",
+      "./plugins/with-android-release-hardening",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يحتاج الخبير إلى الوصول إلى صورك لاختيار صورة للملف الشخصي.",
+          "cameraPermission": "يحتاج الخبير إلى الكاميرا لالتقاط صورة للملف الشخصي."
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }

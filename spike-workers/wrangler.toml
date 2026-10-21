@@ -1,0 +1,5 @@
+# ISOLATED spike — not deployed, not part of any app or the workspace.
+name = "khabir-workers-spike"
+main = "src/index.ts"
+compatibility_date = "2026-10-09"
+compatibility_flags = ["nodejs_compat"]

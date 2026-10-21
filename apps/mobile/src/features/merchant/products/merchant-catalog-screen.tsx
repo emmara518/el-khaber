@@ -4,31 +4,27 @@
  * Search (simple text match) + category/status chips + product
  * cards (image placeholder, name, category, description, status,
  * optional price) → detail. Empty/error/loading states; "إضافة
- * منتج" CTA is an explicit M-D handoff (deferred, not implemented).
+ * منتج" CTA opens the product form screen.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import {
   EMPTY_PRODUCT_FILTERS,
-  MERCHANT_PRODUCT_CATEGORIES,
   PRODUCT_STATUS_OPTIONS,
   filterMerchantProducts,
   type MerchantProduct,
 } from './merchant-product-types';
-import { ProductImagePlaceholder } from './product-image-placeholder';
 import { useMerchantProductsViewModel } from './use-merchant-products-view-model';
 
 import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
+import { ActionButton, AppHeader, Card, Chip, ListEmpty, ListError, ListLoading, PageTitle, ProductImage, SearchField, StatusBadge, type } from '@/ui';
 
 
 export default function MerchantCatalogScreen({
@@ -42,15 +38,30 @@ export default function MerchantCatalogScreen({
   const [filters, setFilters] = useState<MerchantProductFilters>(EMPTY_PRODUCT_FILTERS);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('merchant.catalog.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('merchant.catalog.subtitle')}</Text>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <PageTitle
+          eyebrow="المتجر · الكتالوج"
+          title={t('merchant.catalog.title')}
+          body={t('merchant.catalog.subtitle')}
+        />
+        <ActionButton
+          label={t('merchant.catalog.add')}
+          icon="plus-circle"
+          onPress={() => router.push('/(merchant)/products/new')}
+        />
+      </View>
 
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+      <View style={styles.editorial}>
+      {status === 'loading' ? <ListLoading label={t('state.loading')} asset="merchant_products" /> : null}
       {status === 'error' ? (
         <ListError
+          asset="fault_empty"
           title={t('merchant.catalog.error')}
           message={error?.message ?? ''}
           retryLabel={t('state.retry')}
@@ -59,55 +70,25 @@ export default function MerchantCatalogScreen({
       ) : null}
       {status === 'loaded' && data ? (
         <>
-          <TextInput
+          <SearchField
             accessibilityLabel="ابحث في منتجات المتجر"
             placeholder="ابحث بالاسم أو الوصف…"
-            placeholderTextColor={color.text.secondary}
             value={filters.query}
             onChangeText={(query) => setFilters((f) => ({ ...f, query }))}
-            style={styles.search}
-            textAlign="right"
+            style={styles.searchField}
           />
-
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-            {[null, ...MERCHANT_PRODUCT_CATEGORIES].map((category) => {
-              const label = category ?? 'الأقسام';
-              const selected = filters.category === category;
-              return (
-                <Pressable
-                  key={label}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`تصفية حسب القسم: ${label}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => setFilters((f) => ({ ...f, category }))}
-                  style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
 
           <View style={styles.statusRow}>
             {PRODUCT_STATUS_OPTIONS.map((option) => {
               const selected = filters.status === option.value;
               return (
-                <Pressable
+                <Chip
                   key={option.labelAr}
-                  accessibilityRole="radio"
+                  label={option.labelAr}
+                  selected={selected}
                   accessibilityLabel={`حالة المنتج: ${option.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected, checked: selected }}
                   onPress={() => setFilters((f) => ({ ...f, status: option.value }))}
-                  style={({ pressed }) => [
-                    styles.statusChip,
-                    selected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {selected ? '✓ ' : ''}{option.labelAr}
-                  </Text>
-                </Pressable>
+                />
               );
             })}
           </View>
@@ -117,8 +98,10 @@ export default function MerchantCatalogScreen({
           {renderList(filterMerchantProducts(data, filters), t)}
         </>
       ) : null}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+        <View style={styles.bottomSpacer} />
+      </View>
+      </ScrollView>
+    </View>
   );
 
   function renderList(
@@ -128,7 +111,8 @@ export default function MerchantCatalogScreen({
     if (products.length === 0) {
       return (
         <ListEmpty
-          icon="📦"
+          asset="merchant_products"
+          icon="package"
           iconLabel="لا توجد منتجات"
           title={translate('merchant.catalog.empty')}
           body={translate('merchant.catalog.emptyBody')}
@@ -145,28 +129,32 @@ export default function MerchantCatalogScreen({
           <Pressable
             key={product.id}
             accessibilityRole="button"
-            accessibilityLabel={`عرض تفاصيل ${product.nameAr}، القسم: ${product.categoryAr}، الحالة: ${product.statusLabelAr}${
-              product.priceSar !== null ? `، السعر: ${product.priceSar} ريال` : ''
-            }`}
+            accessibilityLabel={`عرض تفاصيل ${product.nameAr}، الحالة: ${product.statusLabelAr}${
+              product.price !== null ? `، السعر: ${product.price} جنيه` : ''
+            }${product.stockQuantity !== null ? `، المخزون: ${product.stockQuantity}` : ''}`}
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
             <Card background={color.surface.base} padded style={styles.card}>
               <View style={styles.row}>
-                <ProductImagePlaceholder nameAr={product.nameAr} hasImage={product.hasImage} />
+                <ProductImage imageUrl={product.imageUrl} nameAr={product.nameAr} size={72} />
                 <View style={styles.middle}>
                   <Text style={styles.name} numberOfLines={2}>
                     {product.nameAr}
                   </Text>
-                  <Text style={styles.category}>{product.categoryAr}</Text>
                   <Text style={styles.description} numberOfLines={2}>
                     {product.descriptionAr}
                   </Text>
-                  {product.priceSar !== null ? (
-                    <Text style={styles.price}>{product.priceSar} ريال</Text>
+                  {product.price !== null ? (
+                    <Text style={styles.price}>{product.price} جنيه</Text>
                   ) : (
                     <Text style={styles.noPrice}>{t('merchant.catalog.noPrice')}</Text>
                   )}
+                  {product.stockQuantity !== null ? (
+                    <Text style={styles.stock}>
+                      {t('merchant.catalog.stock')}: {product.stockQuantity}
+                    </Text>
+                  ) : null}
                 </View>
                 <View style={styles.side}>
                   <StatusBadge status={product.status} label={product.statusLabelAr} />
@@ -181,35 +169,26 @@ export default function MerchantCatalogScreen({
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
+    direction: 'rtl',
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  header: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[2],
+    gap: spacing[3],
   },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
   },
-  search: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.md,
-    backgroundColor: color.surface.base,
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[3],
-    minHeight: 52,
+  searchField: {
     marginTop: spacing[4],
   },
   chips: {
@@ -222,46 +201,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing[2],
   },
-  statusChip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
   pressed: {
     opacity: 0.75,
   },
-  chipText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  chipTextSelected: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
-  },
   count: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginVertical: spacing[3],
     textAlign: 'right',
   },
@@ -273,46 +218,44 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'flex-start',
     gap: spacing[3],
   },
   middle: {
     flex: 1,
+    minWidth: 0,
+    gap: spacing[1],
   },
   name: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
-  },
-  category: {
-    color: color.brand.navy,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
-    marginTop: spacing[1],
-    textAlign: 'right',
   },
   description: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',
-    lineHeight: 20,
   },
   price: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    marginTop: spacing[2],
+    ...type.bodyMedium,
+    color: color.brand.navy,
     textAlign: 'right',
+    writingDirection: 'rtl',
   },
   noPrice: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[2],
     textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  stock: {
+    ...type.caption,
+    color: color.text.secondary,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   side: {
     alignItems: 'flex-end',

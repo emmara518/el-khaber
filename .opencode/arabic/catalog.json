@@ -1,0 +1,162 @@
+{
+  "$schema": "arabic-typography-catalog-v1",
+  "updated": "2026-09-15",
+  "notes": "Curated SMALL set. Licenses verified at time of writing. Always re-check a repo's LICENSE file before copying assets.",
+  "fonts": [
+    {
+      "key": "amiri",
+      "name": "Amiri",
+      "style": "Classical Naskh, calligraphic book face (Bulaq Press revival)",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/amiri",
+      "upstream": "https://github.com/aliftype/amiri",
+      "webUse": "Google Fonts CDN or self-host; variable + static available upstream",
+      "vector": "via shape-text.mjs (HarfBuzz shaping + glyph outlines)",
+      "commercial": true,
+      "bundled": ".opencode/arabic/fonts/Amiri-Regular.ttf (+Bold)"
+    },
+    {
+      "key": "aref-ruqaa",
+      "name": "Aref Ruqaa",
+      "style": "Ruqaa calligraphy, warm handwritten classical",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/arefruqaa",
+      "upstream": "https://github.com/aliftype/aref-ruqaa",
+      "webUse": "Google Fonts CDN or self-host (also ships Ink color-font variant upstream)",
+      "vector": "via shape-text.mjs",
+      "commercial": true,
+      "bundled": ".opencode/arabic/fonts/ArefRuqaa-Regular.ttf (+Bold)"
+    },
+    {
+      "key": "reem-kufi",
+      "name": "Reem Kufi",
+      "style": "Modern geometric Kufi display, Fatimid-grid based — wordmark-oriented",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/reemkufi",
+      "upstream": "https://github.com/aliftype/reem-kufi",
+      "webUse": "Google Fonts CDN (variable wght 100-900) or self-host",
+      "vector": "via shape-text.mjs --font reem-kufi --weight N",
+      "commercial": true,
+      "bundled": ".opencode/arabic/fonts/ReemKufi-Variable.ttf"
+    },
+    {
+      "key": "lalezar",
+      "name": "Lalezar",
+      "style": "Heavy poster display with Arabic coverage",
+      "license": "OFL-1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/lalezar",
+      "upstream": "https://github.com/google/fonts",
+      "webUse": "Google Fonts CDN or self-host",
+      "vector": "via shape-text.mjs",
+      "commercial": true,
+      "bundled": ".opencode/arabic/fonts/Lalezar-Regular.ttf"
+    }
+  ],
+  "ornaments": [
+    {
+      "name": "arabic-honorific-ligatures",
+      "type": "61 handcrafted Arabic/Islamic honorific ligature SVGs (union paths) + PNGs + specimen",
+      "license": "CC BY 4.0 (attribution required; commercial OK)",
+      "source": "https://github.com/baalwi-id/arabic-honorific-ligatures",
+      "layout": "svg/ one file per glyph",
+      "commercial": true,
+      "attribution": "Credit 'BaAlwi Heritage (ID)' where the asset is used/redistributed",
+      "useFor": ["honorific phrases", "religious headings", "decorative ligatures"],
+      "fetch": "on-demand per glyph (do NOT vendor all 61; copy only the glyphs actually used)"
+    },
+    {
+      "name": "arabicart-patterns (Bourgoin)",
+      "type": "Ornamental patterns from the digital edition of Jules Bourgoin's 'The Elements of Arabic Art'",
+      "license": "VERIFY in repo before use (artwork 1873 public domain; digital edition terms may apply)",
+      "source": "https://github.com/balazsherczeg/arabicart-patterns",
+      "useFor": ["islamic geometric backgrounds", "section ornaments", "frames"]
+    },
+    {
+      "name": "ArabicCalligraphy (atmorojo)",
+      "type": "Ready-made Arabic calligraphy SVG compositions (e.g. Ramadan themes)",
+      "license": "CC BY 4.0 (attribution required; commercial OK)",
+      "source": "https://github.com/atmorojo/ArabicCalligraphy",
+      "useFor": ["seasonal/occasion artwork when the phrase matches exactly"]
+    },
+    {
+      "name": "iconify (configured MCP)",
+      "type": "200k+ icons incl. geometric/star ornaments via the already-configured iconify MCP",
+      "license": "per icon set (check get_icon_set; prefer CC0/MIT/Apache sets)",
+      "source": "iconify MCP: search_icons -> get_icon_svg",
+      "useFor": [
+        "UI ornament accents",
+        "separators (via geometric icons)",
+        "small decorative marks"
+      ]
+    }
+  ],
+  "manualTools": [
+    {
+      "name": "Kaleam",
+      "url": "https://kaleam.com",
+      "purpose": "Professional Arabic calligraphy typesetting (Thuluth, Diwani, Naskh, Persian, Ruqah) with full curve/stretch control; exports SVG/PDF",
+      "integration": "MANUAL ONLY — no public API, no MCP. Designer works in browser, exports SVG, agent integrates the file.",
+      "cost": "Subscription (check current pricing); corporate plans via info@kaleam.com",
+      "useFor": [
+        "hero calligraphy",
+        "logo lettering",
+        "any artwork where local fonts are insufficient"
+      ]
+    },
+    {
+      "name": "arabiccalligraphy.app",
+      "url": "https://arabiccalligraphy.app/",
+      "purpose": "Free browser calligraphy generator, 12 OFL fonts, HarfBuzz-correct shaping, PNG/SVG/PDF export, no account",
+      "integration": "MANUAL ONLY — browser tool, no API. Quick compositions without a Kaleam subscription.",
+      "cost": "Free",
+      "useFor": ["quick calligraphic headings", "draft compositions before Kaleam/pro work"]
+    },
+    {
+      "name": "kashida.fyi",
+      "url": "https://kashida.fyi/",
+      "purpose": "Interactive kashida placement preview (same Hosny algorithm as vendored kashida.js) + Sukoon variable-font KSHD axis demo",
+      "integration": "MANUAL visual check; agent uses kashida-text.mjs for deterministic output",
+      "cost": "Free"
+    }
+  ],
+  "localTools": [
+    {
+      "name": "shape-text.mjs",
+      "path": ".opencode/arabic/scripts/shape-text.mjs",
+      "engine": "harfbuzzjs (npm, MIT) + bundled OFL fonts",
+      "capabilities": [
+        "generate_wordmark",
+        "export_svg",
+        "compose_arabic",
+        "generate_text_variations",
+        "stretch_glyph"
+      ],
+      "output": "self-contained SVG (glyph outlines, no font dependency)"
+    },
+    {
+      "name": "kashida-text.mjs",
+      "path": ".opencode/arabic/scripts/kashida-text.mjs",
+      "engine": "vendored aliftype/kashida-js (Apache-2.0) + harfbuzzjs measurement",
+      "capabilities": ["modify_kashida", "stretch_glyph", "justify display lines"],
+      "output": "Unicode text with principled tatweel placement"
+    },
+    {
+      "name": "lint-arabic.mjs",
+      "path": ".opencode/arabic/scripts/lint-arabic.mjs",
+      "engine": "zero-dependency static scanner",
+      "capabilities": ["check_arabic_typography", "check_rtl", "validate_arabic_ui"],
+      "output": "human or JSON findings; exit 1 on errors"
+    },
+    {
+      "name": "naqsh (npm dep)",
+      "path": ".opencode/node_modules/naqsh (import 'naqsh')",
+      "engine": "dralkh/naqsh 0.1.0 review build (MIT), pinned commit",
+      "capabilities": [
+        "generate_text_variations (decorative monograms)",
+        "get_arabic_svg_asset (letter SVGs)"
+      ],
+      "output": "self-contained SVG avatars/monograms from roots or letter strategies",
+      "caveat": "review build, not an SDK; use rootStrategy 'letters' or explicit root for predictable output"
+    }
+  ]
+}

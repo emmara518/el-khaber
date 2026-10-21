@@ -6,12 +6,12 @@
  * Empty (per filter), error+retry, and loading states included.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ListEmpty, ListError, ListLoading } from '../components/list-state-view';
+import { requestTrackingRoute } from '../orders/request-routes';
 
 import {
   REQUEST_FILTERS,
@@ -22,64 +22,63 @@ import {
 import { useCustomerRequestsViewModel } from './use-customer-requests-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, IconText, StatusBadge } from '@/ui';
+import { joinNonEmpty } from '@/lib/api-format';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
+import { AppHeader, Avatar, Card, Chip, Icon, IconText, ListEmpty, ListError, ListLoading, PageTitle, statusBrandAsset, StatusUnit, type } from '@/ui';
 
 export default function CustomerRequestsScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { status, data, error, retry } = useCustomerRequestsViewModel();
+  useRefreshOnFocus(retry);
   const [filter, setFilter] = useState<RequestsFilter>('all');
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('requests.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('requests.subtitle')}</Text>
-
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          title={t('requests.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data ? (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filters}
-          >
-            {REQUEST_FILTERS.map((f) => {
-              const selected = filter === f.id;
-              return (
-                <Pressable
-                  key={f.id}
-                  accessibilityRole="tab"
-                  accessibilityLabel={`تصفية الطلبات: ${f.labelAr}${selected ? '، محدد حاليًا' : ''}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => setFilter(f.id)}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    selected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
-                    {f.labelAr}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          {renderList(filterRequestsByStatus(data.requests, filter), t)}
-        </>
-      ) : null}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.editorial}>
+        <PageTitle eyebrow="طلباتي" title={t('requests.title')} body={t('requests.subtitle')} />
+        {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+        {status === 'error' ? (
+          <ListError
+            asset="fault_empty"
+            title={t('requests.error.title')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        ) : null}
+        {status === 'loaded' && data ? (
+          <>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
+              {REQUEST_FILTERS.map((f) => {
+                const selected = filter === f.id;
+                return (
+                  <Chip
+                    key={f.id}
+                    label={f.labelAr}
+                    selected={selected}
+                    accessibilityLabel={`تصفية الطلبات: ${f.labelAr}${selected ? '، محدد حاليًا' : ''}`}
+                    onPress={() => setFilter(f.id)}
+                  />
+                );
+              })}
+            </ScrollView>
+            {renderList(filterRequestsByStatus(data.requests, filter), t)}
+          </>
+        ) : null}
+        <View style={styles.bottomSpacer} />
+      </View>
+      </ScrollView>
+    </View>
   );
 
   function renderList(
@@ -89,7 +88,8 @@ export default function CustomerRequestsScreen() {
     if (requests.length === 0) {
       return (
         <ListEmpty
-          icon="📋"
+          brandAsset="no-requests"
+          icon="clipboard"
           iconLabel="لا توجد طلبات"
           title={translate('requests.empty.title')}
           body={translate('requests.empty.body')}
@@ -102,7 +102,7 @@ export default function CustomerRequestsScreen() {
           <RequestCard
             key={item.id}
             item={item}
-            onPress={() => router.push({ pathname: '/(customer)/requests/[id]', params: { id: item.id } })}
+            onPress={() => router.push(requestTrackingRoute(item.id))}
           />
         ))}
       </View>
@@ -128,16 +128,20 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
         <View style={styles.middle}>
           <Text style={styles.task}>{item.taskAr}</Text>
           <Text style={styles.model}>
-            {item.applianceAr} · {item.brandAndModel}
+            {joinNonEmpty([item.applianceAr, item.brandAndModel])}
           </Text>
           <Text style={styles.tech}>{item.technicianNameAr}</Text>
         </View>
         <View style={styles.side}>
-          <StatusBadge status={item.status} label={item.statusLabelAr} />
+          <StatusUnit status={item.status} label={item.statusLabelAr} icon={statusBrandAsset(item.status)} />
         </View>
       </View>
       <View style={styles.footer}>
-        <IconText glyph="📅" label={item.scheduledLabelAr} size="sm" />
+        <IconText
+          glyph={<Icon name="calendar" size={13} color={color.brand.gold} accessible={false} />}
+          label={item.scheduledLabelAr}
+          size="sm"
+        />
       </View>
     </Card>
     </Pressable>
@@ -145,56 +149,25 @@ function RequestCard({ item, onPress }: { item: CustomerRequestItem; onPress: ()
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
     paddingBottom: spacing[8],
   },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
   },
   filters: {
     flexDirection: 'row',
     gap: spacing[2],
     paddingVertical: spacing[4],
   },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipSelected: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
   pressed: {
     opacity: 0.75,
-  },
-  chipText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  chipTextSelected: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
   },
   list: {
     gap: spacing[3],
@@ -211,21 +184,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   task: {
+    ...type.cardTitle,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   model: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
   tech: {
+    ...type.caption,
     color: color.text.secondary,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },

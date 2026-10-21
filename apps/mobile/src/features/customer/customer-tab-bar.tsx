@@ -1,12 +1,15 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import type { CustomerTabId } from './customer-tab-routing';
+import type { BrandAssetName } from '@/ui/brand-assets';
+import type { ViewStyle } from 'react-native';
 
+import { RoleTabBar, type ShellTab } from '@/features/shell/role-tab-bar';
 import { useI18n, type TranslationKey } from '@/i18n/use-i18n';
 
-export type CustomerTabId = 'home' | 'requests' | 'maintenance' | 'messages' | 'profile';
+export type { CustomerTabId };
 
 interface CustomerTabBarProps {
-  active: CustomerTabId;
+  /** Active tab, or `null` when the current route is not a tab route. */
+  active: CustomerTabId | null;
   onChange: (id: CustomerTabId) => void;
   style?: ViewStyle;
 }
@@ -14,88 +17,42 @@ interface CustomerTabBarProps {
 interface TabDescriptor {
   id: CustomerTabId;
   labelKey: TranslationKey;
-  icon: string;
+  /** Approved local asset for the destination (no tinting, contain). */
+  asset: BrandAssetName;
 }
 
+/**
+ * Only destinations that actually exist in the customer route group, each
+ * mapped to its semantically matching approved brand asset:
+ * home → `home`, requests → `my-requests`, maintenance → `maintenance`,
+ * messages → `messages`, profile → `profile`.
+ */
 const TABS: ReadonlyArray<TabDescriptor> = [
-  { id: 'home', labelKey: 'tab.home', icon: '🏠' },
-  { id: 'requests', labelKey: 'tab.requests', icon: '📋' },
-  { id: 'maintenance', labelKey: 'tab.maintenance', icon: '🛠️' },
-  { id: 'messages', labelKey: 'tab.messages', icon: '💬' },
-  { id: 'profile', labelKey: 'tab.profile', icon: '👤' },
+  { id: 'home', labelKey: 'tab.home', asset: 'home' },
+  { id: 'requests', labelKey: 'tab.requests', asset: 'my-requests' },
+  { id: 'maintenance', labelKey: 'tab.maintenance', asset: 'maintenance' },
+  { id: 'messages', labelKey: 'tab.messages', asset: 'messages' },
+  { id: 'profile', labelKey: 'tab.profile', asset: 'profile' },
 ];
 
 /**
- * Customer bottom tab bar. Five destinations. The active tab uses
- * the brand gold. Matches the reference design (الرئيسية highlighted
- * in gold; the others in surface.base on the subtle background).
+ * Customer bottom navigation — the shared `RoleTabBar` navy surface with the
+ * Customer destination configuration (i18n labels + approved brand assets).
  */
 export function CustomerTabBar({ active, onChange, style }: CustomerTabBarProps) {
   const { t } = useI18n();
+  const tabs: ReadonlyArray<ShellTab> = TABS.map((tab) => ({
+    id: tab.id,
+    labelAr: t(tab.labelKey),
+    icon: 'circle',
+    asset: tab.asset,
+  }));
   return (
-    <View style={[styles.bar, style]}>
-      {TABS.map((tab) => {
-        const isActive = tab.id === active;
-        return (
-          <Pressable
-            key={tab.id}
-            onPress={() => onChange(tab.id)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
-            accessibilityLabel={isActive ? `${t(tab.labelKey)}، الصفحة الحالية` : t(tab.labelKey)}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-          >
-            <Text
-              style={[
-                styles.icon,
-                { color: isActive ? color.brand.gold : color.text.secondary },
-              ]}
-            >
-              {tab.icon}
-            </Text>
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: isActive ? color.brand.gold : color.text.secondary,
-                  fontWeight: isActive ? typography.weight.bold : typography.weight.regular,
-                },
-              ]}
-            >
-              {t(tab.labelKey)}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
+    <RoleTabBar
+      tabs={tabs}
+      active={active}
+      onChange={(id) => onChange(id as CustomerTabId)}
+      style={style}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  bar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingTop: spacing[2],
-    paddingBottom: spacing[3],
-    paddingHorizontal: spacing[2],
-    backgroundColor: color.surface.base,
-    borderTopWidth: 1,
-    borderTopColor: color.border.default,
-  },
-  item: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  icon: {
-    fontSize: 20,
-    lineHeight: 22,
-  },
-  label: {
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-  },
-});

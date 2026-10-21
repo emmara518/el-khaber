@@ -2,13 +2,27 @@ packages:
   - "apps/*"
   - "packages/*"
 
+# Build scripts pnpm is allowed to run on install. Prisma needs its engine
+# download + client generation; argon2 is a native binding; @swc/core is
+# used by the Nest build. Without these, CI installs a broken tree (missing
+# generated Prisma client / native argon2) even though the lockfile is intact.
 onlyBuiltDependencies:
   - "@nestjs/core"
   - "@expo/cli"
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "@swc/core"
+  - argon2
   - esbuild
+  - prisma
   - sharp
 allowBuilds:
   "@nestjs/core": true
   "@expo/cli": true
+  "@prisma/client": true
+  "@prisma/engines": true
+  "@swc/core": true
+  argon2: true
   esbuild: true
+  prisma: true
   sharp: true

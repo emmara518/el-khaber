@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockConversationsDataSource } from './mock-conversations-data-source';
+import { ApiConversationsDataSource } from './api-conversations-data-source';
 
 import type { ConversationsViewModel } from './conversations-types';
 
@@ -16,11 +16,17 @@ export interface ConversationsState {
   data: ConversationsViewModel | null;
   error: Error | null;
   retry: () => void;
+  /**
+   * Silent re-read (WP-Inbox): refreshes the list without flashing the
+   * loading state when data is already shown — used after closing the
+   * chat dialog so read badges settle from server truth.
+   */
+  refresh: () => void;
 }
 
 export function useConversationsViewModel(): ConversationsState {
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<Omit<ConversationsState, 'retry'>>({
+  const [state, setState] = useState<Omit<ConversationsState, 'retry' | 'refresh'>>({
     status: 'loading',
     data: null,
     error: null,
@@ -28,7 +34,7 @@ export function useConversationsViewModel(): ConversationsState {
 
   useEffect(() => {
     let cancelled = false;
-    const source = new MockConversationsDataSource();
+    const source = new ApiConversationsDataSource();
     setState({ status: 'loading', data: null, error: null });
     source
       .getConversations({ role: 'customer' })
@@ -51,5 +57,18 @@ export function useConversationsViewModel(): ConversationsState {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { ...state, retry };
+  const refresh = useCallback(() => {
+    const source = new ApiConversationsDataSource();
+    void source
+      .getConversations({ role: 'customer' })
+      .then((data) => {
+        setState({ status: 'loaded', data, error: null });
+      })
+      .catch(() => {
+        // Silent refresh must never blank a visible list; the next
+        // explicit retry surfaces failures.
+      });
+  }, []);
+
+  return { ...state, retry, refresh };
 }

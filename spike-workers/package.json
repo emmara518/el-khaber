@@ -1,0 +1,10 @@
+{
+  "name": "khabir-workers-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "ISOLATED feasibility spike: can the Al-Khabir NestJS API run on Cloudflare Workers Free? No deploy; scratch only.",
+  "devDependencies": {
+    "wrangler": "^4"
+  }
+}

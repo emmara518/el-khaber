@@ -27,6 +27,7 @@ import { type Prisma, type UserRole, UserStatus } from '@prisma/client';
 
 
 import { ConflictException, AuthInvalidException, NotFoundException } from '../common/errors';
+import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
@@ -51,11 +52,36 @@ export interface AuthMetadata {
   ipAddress?: string;
 }
 
+/**
+ * Canonicalize a phone to `+<digits>` so that common user variants of the
+ * same number resolve to a single stored identity:
+ *   "+201001112233", "201001112233", "01001112233" (Egyptian local)
+ *   all canonicalize to "+201001112233".
+ * Spaces, dashes and parentheses are stripped; a leading `00` (international
+ * dial-out) is dropped. No country is invented: only 11-digit `0`-prefixed
+ * numbers are treated as Egyptian local form (docs/01_PROJECT.md).
+ */
+export function canonicalizePhone(phone: string): string {
+  let digits = phone.trim().replace(/[\s\-().]/g, '');
+  if (digits.startsWith('+')) digits = digits.slice(1);
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (/^0\d{10}$/u.test(digits)) digits = `20${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
+/** Candidate stored forms to match for a given user-typed phone. */
+export function phoneVariants(phone: string): string[] {
+  const canonical = canonicalizePhone(phone);
+  const raw = phone.trim();
+  return raw === canonical ? [canonical] : [...new Set([canonical, raw])];
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly loginAttempts: SharedStoreLoginAttemptGuard,
   ) {}
 
   async register(input: RegisterInput, meta: AuthMetadata): Promise<AuthSessionDto> {
@@ -63,11 +89,15 @@ export class AuthService {
       throw new ConflictException('Unsupported role');
     }
 
+    const storedPhone = input.phone !== undefined ? canonicalizePhone(input.phone) : undefined;
     const existing = await this.prisma.user.findFirst({
       where: {
+        // Only provided identifiers participate; Prisma validates UUID
+        // parameters client-side, so no dummy-id sentinel may be used.
         OR: [
-          input.phone !== undefined ? { phone: input.phone } : { id: '__never__' },
-          input.email !== undefined ? { email: input.email } : { id: '__never__' },
+          ...(storedPhone !== undefined ? [{ phone: storedPhone }] : []),
+          ...(input.phone !== undefined ? [{ phone: input.phone.trim() }] : []),
+          ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },
       select: { id: true },
@@ -79,7 +109,7 @@ export class AuthService {
     const passwordHash = await hashPassword(input.password);
     const user = await this.prisma.user.create({
       data: {
-        phone: input.phone,
+        phone: storedPhone,
         email: input.email,
         passwordHash,
         role: input.role as UserRole,
@@ -97,15 +127,28 @@ export class AuthService {
     if (!input.phone && !input.email) {
       throw new AuthInvalidException();
     }
+    const identifier = (input.phone ?? input.email ?? '').toLowerCase();
+    const ip = meta.ipAddress ?? 'unknown';
+
+    // Failed-attempt protection (Task 10D): a locked (identifier, ip) pair
+    // is rejected with the SAME canonical error as a wrong password so the
+    // lock state can never be used to enumerate accounts.
+    if (await this.loginAttempts.isLocked(identifier, ip)) {
+      throw new AuthInvalidException();
+    }
+
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          input.phone !== undefined ? { phone: input.phone } : { id: '__never__' },
-          input.email !== undefined ? { email: input.email } : { id: '__never__' },
+          ...(input.phone !== undefined ? phoneVariants(input.phone).map((p) => ({ phone: p })) : []),
+          ...(input.email !== undefined ? [{ email: input.email }] : []),
         ],
       },
     });
     if (!user) {
+      // Enumeration safety: unknown identifiers accumulate failures the
+      // same way known ones do, keeping lock behavior constant.
+      await this.loginAttempts.recordFailure(identifier, ip);
       // Constant-time-ish: still verify a dummy hash to reduce timing leak.
       await verifyPassword(
         '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -115,11 +158,14 @@ export class AuthService {
     }
     const ok = await verifyPassword(user.passwordHash, input.password);
     if (!ok) {
+      await this.loginAttempts.recordFailure(identifier, ip);
       throw new AuthInvalidException();
     }
     if (user.status !== UserStatus.active) {
       throw new AuthInvalidException('Account is not active');
     }
+
+    await this.loginAttempts.recordSuccess(identifier, ip);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -158,11 +204,21 @@ export class AuthService {
       throw new AuthInvalidException('Account is not active');
     }
 
-    // Rotate: revoke the presented token, issue a new one in the same family.
-    await this.prisma.refreshToken.update({
-      where: { id: record.id },
+    // Rotate atomically: only the request that flips revoked_at from NULL to
+    // a timestamp may issue a successor. A concurrent request using the same
+    // token loses this conditional update (count === 0) and is handled as a
+    // replay, so one token can never produce two valid sessions.
+    const claimed = await this.prisma.refreshToken.updateMany({
+      where: { id: record.id, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'rotation' },
     });
+    if (claimed.count !== 1) {
+      await this.prisma.refreshToken.updateMany({
+        where: { familyId: record.familyId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: 'family_replay' },
+      });
+      throw new AuthInvalidException('Refresh token replay detected');
+    }
 
     return this.issueSession(
       { id: user.id, role: user.role as Role, status: user.status as UserStatus },
@@ -181,6 +237,22 @@ export class AuthService {
       where: { familyId: record.familyId, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'logout' },
     });
+    // Invalidate every access token issued to this user before the logout.
+    await this.revokeAllSessions(record.userId);
+  }
+
+  /**
+   * Invalidate every access token issued to the user before this call by
+   * incrementing tokenVersion. The guard rejects any JWT whose tokenVersion
+   * lags the database, so revocation takes effect on the next request
+   * rather than after the access-token TTL. Invoked on security events:
+   * logout, password reset, and account suspension.
+   */
+  async revokeAllSessions(userId: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+    });
   }
 
   async findUserById(id: string): Promise<AuthUserDto> {
@@ -188,7 +260,7 @@ export class AuthService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return toAuthUserDto(user);
+    return toAuthUserDto(user, await this.profileAvatarUrl(id, user.role as Role));
   }
 
   /**
@@ -217,13 +289,25 @@ export class AuthService {
       emailVerified?: boolean;
     } = {};
 
-    if (input.phone !== undefined && input.phone !== user.phone) {
-      const clash = await this.prisma.user.findUnique({ where: { phone: input.phone } });
-      if (clash !== null && clash.id !== userId) {
-        throw new ConflictException('phone already in use');
+    if (input.phone !== undefined) {
+      // Canonicalize on write (same rule as register/login) so a contact
+      // channel can never be stored in a format-variant duplicate of an
+      // existing identity. The clash search covers every stored variant of
+      // the typed number (canonical ∪ raw), mirroring `login`.
+      const canonicalPhone = canonicalizePhone(input.phone);
+      if (canonicalPhone !== user.phone) {
+        const clash = await this.prisma.user.findFirst({
+          where: {
+            OR: phoneVariants(input.phone).map((p) => ({ phone: p })),
+          },
+          select: { id: true },
+        });
+        if (clash !== null && clash.id !== userId) {
+          throw new ConflictException('phone already in use');
+        }
+        data.phone = canonicalPhone;
+        data.phoneVerified = false;
       }
-      data.phone = input.phone;
-      data.phoneVerified = false;
     }
 
     if (input.email !== undefined && input.email !== user.email) {
@@ -252,7 +336,39 @@ export class AuthService {
       throw error;
     }
 
-    return toAuthUserDto(updated);
+    return toAuthUserDto(updated, await this.profileAvatarUrl(userId, updated.role as Role));
+  }
+
+  /**
+   * Role-appropriate profile image for GET /me (WP-01, D6).
+   *
+   * The avatar lives on the role profile row (customer/technician avatar,
+   * merchant logo) — never on the user record. Other roles keep working:
+   * a missing profile row simply yields `avatarUrl: null` instead of an
+   * error. Stored values are server-issued public URLs (or legacy
+   * read-only values); writes go exclusively through the avatar
+   * endpoints.
+   */
+  private async profileAvatarUrl(userId: string, role: Role): Promise<string | null> {
+    if (role === ROLE.technician) {
+      const row = await this.prisma.technicianProfile.findFirst({
+        where: { userId },
+        select: { avatarUrl: true },
+      });
+      return row?.avatarUrl ?? null;
+    }
+    if (role === ROLE.merchant) {
+      const row = await this.prisma.merchantProfile.findFirst({
+        where: { userId },
+        select: { logoUrl: true },
+      });
+      return row?.logoUrl ?? null;
+    }
+    const row = await this.prisma.customerProfile.findFirst({
+      where: { userId },
+      select: { avatarUrl: true },
+    });
+    return row?.avatarUrl ?? null;
   }
 
   private async issueSession(
@@ -261,8 +377,12 @@ export class AuthService {
     familyId?: string,
   ): Promise<AuthSessionDto> {
     const config = getConfig();
+    // Read the current tokenVersion from the database at issuance time so
+    // the access token always carries the latest revocation state, even
+    // if a security event bumped it concurrently with the login flow.
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userRef.id } });
     const accessToken = await this.jwt.signAsync(
-      { sub: userRef.id, role: userRef.role, status: userRef.status },
+      { sub: userRef.id, role: userRef.role, status: userRef.status, tokenVersion: user.tokenVersion },
       {
         secret: config.auth.accessSecret,
         issuer: config.auth.issuer,
@@ -286,19 +406,18 @@ export class AuthService {
       },
     });
 
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userRef.id } });
-
     return {
       accessToken,
       refreshToken: rawRefresh,
       expiresIn: config.auth.accessTtlSeconds,
-      user: toAuthUserDto(user),
+      user: toAuthUserDto(user, await this.profileAvatarUrl(userRef.id, userRef.role)),
     };
   }
 }
 
 export function toAuthUserDto(
   user: Prisma.UserGetPayload<Record<string, never>>,
+  avatarUrl: string | null = null,
 ): AuthUserDto {
   return {
     id: user.id,
@@ -309,5 +428,8 @@ export function toAuthUserDto(
     phoneVerified: user.phoneVerified,
     emailVerified: user.emailVerified,
     createdAt: user.createdAt.toISOString(),
+    // WP-01 (D6): role-appropriate profile image (public URL or null).
+    // Callers that cannot resolve a profile pass the default null.
+    avatarUrl,
   };
 }

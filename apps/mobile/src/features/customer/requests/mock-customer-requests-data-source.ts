@@ -2,7 +2,7 @@
  * Mock `CustomerRequestsDataSource` (Batch A).
  *
  * Fixtures reuse the identities already established by the Home mock
- * (order-001, محمد العتيبي) so the app reads as one coherent product.
+ * (order-001, محمد عبد الله) so the app reads as one coherent product.
  * Lifecycle states follow docs/07_API.md §22. Replaced by a real API
  * adapter without touching the presenter.
  */
@@ -19,7 +19,7 @@ const REQUESTS_FIXTURE: CustomerRequestsViewModel = {
       applianceAr: 'غسالة',
       taskAr: 'تصليح غسالة سامسونج',
       brandAndModel: 'Samsung SR-2024-1258',
-      technicianNameAr: 'الفني: محمد العتيبي',
+      technicianNameAr: 'الفني: محمد عبد الله',
       technicianInitialsAr: 'م',
       status: 'in_progress',
       statusLabelAr: 'قيد التنفيذ',
@@ -30,7 +30,7 @@ const REQUESTS_FIXTURE: CustomerRequestsViewModel = {
       applianceAr: 'مكيف',
       taskAr: 'صيانة مكيف سبليت',
       brandAndModel: 'LG DualCool',
-      technicianNameAr: 'الفني: سامي محيور',
+      technicianNameAr: 'الفني: سامي محمود',
       technicianInitialsAr: 'س',
       status: 'on_the_way',
       statusLabelAr: 'الفني في الطريق',
@@ -52,7 +52,7 @@ const REQUESTS_FIXTURE: CustomerRequestsViewModel = {
       applianceAr: 'غسالة',
       taskAr: 'تنظيف فلتر الغسالة',
       brandAndModel: 'Samsung WW90',
-      technicianNameAr: 'الفني: أحمد الجريسي',
+      technicianNameAr: 'الفني: أحمد الجمال',
       technicianInitialsAr: 'أ',
       status: 'completed',
       statusLabelAr: 'مكتمل',
@@ -63,7 +63,7 @@ const REQUESTS_FIXTURE: CustomerRequestsViewModel = {
       applianceAr: 'مكيف',
       taskAr: 'تعبئة فريون',
       brandAndModel: 'Gree Lomo',
-      technicianNameAr: 'الفني: فهد السبيعي',
+      technicianNameAr: 'الفني: كريم فؤاد',
       technicianInitialsAr: 'ف',
       status: 'cancelled',
       statusLabelAr: 'ملغي',

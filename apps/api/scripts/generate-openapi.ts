@@ -29,8 +29,8 @@ process.env['DATABASE_URL'] = process.env['DATABASE_URL'] ?? 'postgresql://place
 process.env['DIRECT_URL'] = process.env['DIRECT_URL'] ?? 'postgresql://placeholder/placeholder';
 process.env['JWT_ACCESS_SECRET'] =
   process.env['JWT_ACCESS_SECRET'] ?? 'openapi-generation-placeholder-secret';
-process.env['ADMIN_JWT_ACCESS_SECRET'] =
-  process.env['ADMIN_JWT_ACCESS_SECRET'] ?? 'openapi-generation-placeholder-admin-secret';
+  process.env['ADMIN_JWT_ACCESS_SECRET'] =
+    process.env['ADMIN_JWT_ACCESS_SECRET'] ?? 'openapi-generation-placeholder-admin-secret';
 
 // apps/api/scripts → apps/api → apps → repo root
 const REPO_ROOT = join(__dirname, '..', '..', '..');
@@ -84,5 +84,8 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   console.error('[gen:openapi] failed', error);
+  if (error instanceof Error) {
+    console.error('[gen:openapi] stack:', error.stack);
+  }
   process.exitCode = 1;
 });

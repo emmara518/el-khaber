@@ -1,12 +1,14 @@
 /**
  * Shared profile selectors (T-B) — one coherent selector language
  * used by BOTH the onboarding steps and the profile edit form:
- * multi-select chips (text + ✓ + border, never color alone) and a
+ * multi-select chips (text + check icon + border, never color alone) and a
  * labeled input with inline errors. No duplication between flows.
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { Chip } from '@/ui/chip';
 
 export function LabeledInput({
   label,
@@ -74,18 +76,14 @@ export function MultiSelectChips<T extends string>({
         {options.map((option) => {
           const on = selected.includes(option);
           return (
-            <Pressable
+            <Chip
               key={option}
-              accessibilityRole="checkbox"
+              label={option}
+              selectionMode="multiple"
+              selected={on}
               accessibilityLabel={`${option}${on ? '، محدد' : ''}`}
-              accessibilityState={{ selected: on, checked: on }}
               onPress={() => onToggle(option)}
-              style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
-            >
-              <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                {on ? '✓ ' : ''}{option}
-              </Text>
-            </Pressable>
+            />
           );
         })}
       </View>
@@ -98,9 +96,65 @@ export function MultiSelectChips<T extends string>({
   );
 }
 
+export function CatalogChips({
+  label,
+  groups,
+  selected,
+  onToggle,
+  error,
+}: {
+  label: string;
+  groups: ReadonlyArray<{ titleAr: string; items: ReadonlyArray<{ id: string; labelAr: string }> }>;
+  selected: ReadonlyArray<string>;
+  onToggle: (id: string) => void;
+  error?: string | null;
+}) {
+  return (
+    <View style={styles.field}>
+      <Text accessibilityRole="header" accessibilityLabel={`${label}. المحدد: ${selected.length}`} style={styles.label}>
+        {label}
+      </Text>
+      {groups.map((group) => (
+        <View key={group.titleAr} style={styles.group}>
+          <Text style={styles.groupLabel}>{group.titleAr}</Text>
+          <View style={styles.chips}>
+            {group.items.map((item) => {
+              const on = selected.includes(item.id);
+              return (
+                <Chip
+                  key={item.id}
+                  label={item.labelAr}
+                  selectionMode="multiple"
+                  selected={on}
+                  accessibilityLabel={`${item.labelAr}${on ? '، محدد' : ''}`}
+                  onPress={() => onToggle(item.id)}
+                />
+              );
+            })}
+          </View>
+        </View>
+      ))}
+      {error ? (
+        <Text accessibilityRole="alert" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   field: {
     gap: spacing[2],
+  },
+  group: {
+    gap: spacing[2],
+  },
+  groupLabel: {
+    color: color.text.secondary,
+    fontSize: typography.size.caption,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   label: {
     color: color.text.primary,
@@ -137,31 +191,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing[2],
-  },
-  chip: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  chipOn: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  chipText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-  },
-  chipTextOn: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
   },
 });

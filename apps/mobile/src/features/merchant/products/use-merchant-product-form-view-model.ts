@@ -2,12 +2,14 @@
  * View-model hook for the merchant product form (create + edit).
  *
  * Owns the draft + mutation lifecycle (idle → submitting →
- * success | error). Accepts a data-source override for
- * deterministic QA. No duplicate submit; failure preserves values.
+ * success | error) behind the `MerchantProductDataSource` boundary
+ * (Task 10J) — the real API adapter is the default, with an override
+ * for deterministic QA. No duplicate submit; failure preserves values.
  */
 
 import { useCallback, useState } from 'react';
 
+import { ApiMerchantProductsDataSource } from './api-merchant-products-data-source';
 import { ProductMutationError } from './merchant-product-types';
 
 import type {
@@ -30,8 +32,11 @@ export interface MerchantProductFormViewModel {
 export function useMerchantProductFormViewModel(
   mode: 'create' | 'edit',
   productId: string,
-  source: MerchantProductDataSource,
+  source?: MerchantProductDataSource,
 ): MerchantProductFormViewModel {
+  // Stabilize the default source: a fresh `new Api…()` per render would
+  // retrigger consumers endlessly.
+  const [stableSource] = useState(() => source ?? new ApiMerchantProductsDataSource());
   const [status, setStatus] = useState<ProductFormStatus>('idle');
   const [formError, setFormError] = useState<string | null>(null);
   const [saved, setSaved] = useState<MerchantProduct | null>(null);
@@ -45,8 +50,8 @@ export function useMerchantProductFormViewModel(
         try {
           const result =
             mode === 'create'
-              ? await source.createProduct({ role: 'merchant', draft })
-              : await source.updateProduct({ role: 'merchant', productId, draft });
+              ? await stableSource.createProduct({ role: 'merchant', draft })
+              : await stableSource.updateProduct({ role: 'merchant', productId, draft });
           setSaved(result);
           setStatus('success');
         } catch (err) {
@@ -60,7 +65,7 @@ export function useMerchantProductFormViewModel(
       })();
     },
      
-    [source, status, mode, productId],
+    [stableSource, status, mode, productId],
   );
 
   const retry = useCallback(

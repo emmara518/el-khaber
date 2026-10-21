@@ -9,11 +9,9 @@
  * Verification is the generic 4-state status; no rejection taxonomy.
  */
 
-export type MerchantVerificationStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'action_required';
+import type { PickedPhoto } from '../../../lib/profile-photo';
+
+export type MerchantVerificationStatus = 'pending' | 'approved' | 'rejected' | 'action_required';
 
 export interface MerchantProfile {
   readonly businessNameAr: string;
@@ -23,6 +21,11 @@ export interface MerchantProfile {
   readonly cityAr: string;
   readonly verification: MerchantVerificationStatus;
   readonly verificationNoteAr: string;
+  /**
+   * WP-01: server-issued public logo URL (GET /merchant/profile
+   * `logoUrl`) or null when absent. Never a storage key.
+   */
+  readonly logoUrl: string | null;
 }
 
 export interface MerchantProfileDraft {
@@ -55,14 +58,18 @@ export interface MerchantProfileDataSource {
     role: 'merchant';
     profile: MerchantProfileDraft;
   }): Promise<MerchantProfile>;
+  uploadLogo(input: { role: 'merchant'; photo: PickedPhoto }): Promise<MerchantProfile>;
+  deleteLogo(input: { role: 'merchant' }): Promise<MerchantProfile>;
 }
 
+/** Egyptian seller locations (EL-KHABIR is an Egyptian product). */
 export const MERCHANT_CITY_OPTIONS: ReadonlyArray<string> = [
-  'الرياض',
-  'جدة',
-  'الدمام',
-  'مكة المكرمة',
-  'المدينة المنورة',
+  'القاهرة — مدينة نصر',
+  'القاهرة — المعادي',
+  'الجيزة — الدقي',
+  'الجيزة — المهندسين',
+  'الإسكندرية — سموحة',
+  'المنوفية — شبين الكوم',
 ];
 
 /** Mirrors shared-validation phoneSchema (7–15 digits, optional +). */
@@ -74,7 +81,9 @@ export function validateMerchantPhone(phone: string): string | null {
   return PHONE_RE.test(v) ? null : 'رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا';
 }
 
-export function validateMerchantDraft(draft: MerchantProfileDraft): Partial<Record<string, string>> {
+export function validateMerchantDraft(
+  draft: MerchantProfileDraft,
+): Partial<Record<string, string>> {
   const errors: Partial<Record<string, string>> = {};
   if (draft.businessNameAr.trim().length < 2) {
     errors.businessNameAr = 'أدخل اسم المتجر (حرفان على الأقل)';
@@ -91,32 +100,32 @@ export function toggleMerchantList<T>(list: ReadonlyArray<T>, value: T): Readonl
 
 /** Conservative 4-state copy — generic messages, no legal claims. */
 export function merchantVerificationStatusCopy(status: MerchantVerificationStatus): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'x-circle' | 'alert-circle';
   titleAr: string;
   bodyAr: string;
 } {
   switch (status) {
     case 'approved':
       return {
-        icon: '✓',
+        icon: 'check-circle',
         titleAr: 'تم التحقق',
         bodyAr: 'تم التحقق من بيانات متجرك. ملفك ظاهر الآن للعملاء.',
       };
     case 'pending':
       return {
-        icon: '◷',
+        icon: 'clock',
         titleAr: 'قيد المراجعة',
         bodyAr: 'تم إرسال بيانات المتجر للمراجعة. سنعلمك فور انتهائها.',
       };
     case 'rejected':
       return {
-        icon: '✕',
+        icon: 'x-circle',
         titleAr: 'تعذر اعتماد البيانات',
         bodyAr: 'لم يتم اعتماد بيانات المتجر الحالية. راجعها وحدثها ثم أعد الإرسال.',
       };
     case 'action_required':
       return {
-        icon: '!',
+        icon: 'alert-circle',
         titleAr: 'يحتاج إلى تحديث البيانات',
         bodyAr: 'نحتاج إلى تحديث بعض بيانات المتجر قبل إتمام المراجعة.',
       };

@@ -1,496 +1,376 @@
 /**
- * Technician Home screen (T-A) — operational starting point.
+ * Technician Home — Customer visual language + Technician role content.
  *
- * Navy hero (identity + availability + rating) → verification card
- * → today's counts → incoming preview (presentation only, "عرض
- * الكل" routes to the requests tab owned by T-C) → active service
- * (no controls — T-D) → rating summary → quick actions to existing
- * tab destinations. Quick actions and "show all" navigate only to
- * routes that already exist; preview cards are non-pressable so no
- * dead interaction ships.
+ * AppHeader (navy identity bar) → Welcome Hero (the ONLY role-specific
+ * hero, approved `toolbox` asset) → operational metrics (real
+ * /technician/stats) → current service → new requests → quick actions.
+ * No cinematic page sections; every card uses the shared Customer system.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
-import {
-  verificationCopy,
-  type TechnicianActiveService,
-  type TechnicianIncomingPreview,
-} from './technician-home-types';
+import { verificationCopy } from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
 
+import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
-import { Avatar, Card, RatingStars, SectionHeader } from '@/ui';
+import { joinNonEmpty } from '@/lib/api-format';
+import {
+  ActionButton,
+  AppHeader,
+  ApplianceThumb,
+  BrandImage,
+  Card,
+  Icon,
+  ListError,
+  ListLoading,
+  PageTitle,
+  SectionHeading,
+  StatTile,
+  StatusBadge,
+  statusBrandAsset,
+  type BrandAssetName,
+} from '@/ui';
+import { fontFamily, type } from '@/ui/typography';
+
+const QUICK_ACTIONS: ReadonlyArray<{
+  id: string;
+  label: string;
+  asset: BrandAssetName;
+  target: '/(technician)/orders' | '/(technician)/services' | '/(technician)/messages' | '/(technician)/reviews' | '/(technician)/store';
+}> = [
+  { id: 'orders', label: 'الطلبات', asset: 'my-requests', target: '/(technician)/orders' },
+  { id: 'services', label: 'الخدمات', asset: 'maintenance', target: '/(technician)/services' },
+  { id: 'messages', label: 'الرسائل', asset: 'messages', target: '/(technician)/messages' },
+  { id: 'store', label: 'المتجر', asset: 'spare-parts', target: '/(technician)/store' },
+  { id: 'reviews', label: 'التقييمات', asset: 'rate-us', target: '/(technician)/reviews' },
+];
 
 export default function TechnicianHomeScreen() {
   const { t } = useI18n();
   const router = useRouter();
-  const { status, data, error, retry } = useTechnicianHomeViewModel();
+  const { status, data, error, retry, availabilitySaving, availabilityError, setAvailability } = useTechnicianHomeViewModel();
+  const notifications = useNotificationsViewModel('technician');
 
-  if (status === 'loading') {
+  if (status === 'loading' || data === null) {
     return (
       <View style={styles.root}>
-        <SafeAreaView edges={['top']} style={styles.heroSafe}>
-          <View style={styles.heroLoading}>
-            <Text style={styles.heroName}>…</Text>
-          </View>
-        </SafeAreaView>
-        <View style={styles.stateWrap}>
-          <Text style={styles.muted}>{t('state.loading')}</Text>
-        </View>
+        <AppHeader onPressNotifications={() => router.push('/(technician)/notifications')} />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <PageTitle eyebrow="مساحة العمل" title={t('tech.home.today')} />
+          <ListLoading label={t('state.loading')} brandAsset="toolbox" />
+        </ScrollView>
       </View>
     );
   }
 
-  if (status === 'error' || data === null) {
+  if (status === 'error') {
     return (
       <View style={styles.root}>
-        <SafeAreaView edges={['top']} style={styles.heroSafe} />
-        <View style={styles.stateWrap}>
-          <Card background={color.surface.base} padded style={styles.stateCard}>
-            <Text accessibilityRole="alert" style={styles.stateTitle}>
-              {t('tech.home.error')}
-            </Text>
-            <Text style={styles.muted}>{error?.message ?? ''}</Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('state.retry')}
-              onPress={retry}
-              style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
-            >
-              <Text style={styles.retryText}>{t('state.retry')}</Text>
-            </Pressable>
-          </Card>
-        </View>
+        <AppHeader onPressNotifications={() => router.push('/(technician)/notifications')} />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <PageTitle eyebrow="مساحة العمل" title={t('tech.home.today')} />
+          <ListError
+            title={t('tech.home.error')}
+            message={error?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={retry}
+          />
+        </ScrollView>
       </View>
     );
   }
 
   const verification = verificationCopy(data.profile.verification);
+  const active = data.active;
 
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={['top']} style={styles.heroSafe}>
-        <View style={styles.hero}>
-          <Avatar
-            initials={data.profile.initialsAr}
-            size={64}
-            background={color.brand.gold}
-            foreground={color.brand.navy}
-            accessibilityLabel={`الصورة الرمزية لـ ${data.profile.nameAr}`}
-          />
-          <View style={styles.heroText}>
-            <Text style={styles.heroGreeting}>{t('tech.home.greeting')}</Text>
-            <Text accessibilityRole="header" style={styles.heroName}>
-              {data.profile.nameAr}
-            </Text>
-            <Text style={styles.heroMeta}>
-              {data.profile.specialtyAr} · {data.profile.areasAr.join('، ')}
-            </Text>
-          </View>
-          <View
-            accessibilityLabel={`الحالة: ${data.profile.availabilityLabelAr}`}
-            style={styles.availability}
-          >
-            <Text style={styles.availabilityText}>● {data.profile.availabilityLabelAr}</Text>
-          </View>
-        </View>
-      </SafeAreaView>
-
+      <AppHeader
+        availabilityLabel={data.profile.available ? data.profile.availabilityLabelAr : undefined}
+        avatarInitials={data.profile.initialsAr}
+        notificationCount={notifications.unreadCount}
+        onPressNotifications={() => router.push('/(technician)/notifications')}
+        onPressAvatar={() => router.push('/(technician)/profile')}
+      />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Card
-          background={color.surface.base}
-          padded
-          style={data.profile.verification === 'verified' ? styles.verifyOk : styles.verifyBase}
-        >
-          <View
-            accessibilityLabel={`${t('tech.home.verification')}: ${verification.titleAr}. ${data.profile.verificationNoteAr}`}
-            style={styles.verifyRow}
-          >
-            <View style={styles.verifyIcon}>
-              <Text style={styles.verifyIconText}>{verification.icon}</Text>
-            </View>
-            <View style={styles.verifyText}>
-              <Text style={styles.verifyTitle}>
-                {t('tech.home.verification')}: {verification.titleAr}
-              </Text>
-              <Text style={styles.muted}>{data.profile.verificationNoteAr}</Text>
-            </View>
+        {/* Welcome Hero — the only role-specific hero */}
+        <View style={styles.hero}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.heroEyebrow}>مرحبًا بك</Text>
+            <Text accessibilityRole="header" style={styles.heroTitle}>
+              أهلًا بك في عملك
+            </Text>
+            <Text style={styles.heroBody}>
+              تلقّ الطلبات الجديدة، تابع مهامك، وقدّم أفضل خدمة لعملائك.
+            </Text>
           </View>
-        </Card>
-
-        <SectionHeader titleKey="tech.home.today" />
-        <View style={styles.stats}>
-          <StatCard value={data.today.newRequests} label={t('tech.home.newRequests')} />
-          <StatCard value={data.today.inProgress} label={t('tech.home.inProgress')} />
-          <StatCard value={data.today.completedToday} label={t('tech.home.completedToday')} />
+          <View style={styles.heroArt} accessibilityRole="image" accessibilityLabel="عدة العمل">
+            <BrandImage name="toolbox" size={148} />
+          </View>
         </View>
 
-        <SectionHeader
-          titleKey="tech.home.incoming"
-          showAll
-          showAllLabel={t('tech.home.showAll')}
-          onPressShowAll={() => router.push('/(technician)/orders')}
-        />
-        <Text style={styles.hint}>{t('tech.home.incomingHint')}</Text>
-        {data.incoming.length === 0 ? (
-          <Card background={color.surface.base} padded style={styles.emptyCard}>
-            <Text style={styles.muted}>{t('tech.home.incomingEmpty')}</Text>
+        {/* Operational metrics — real /technician/stats */}
+        <View style={styles.statsRow}>
+          <StatTile icon="clipboard" value={data.today.newRequests} label={t('tech.home.newRequests')} />
+          <StatTile icon="tool" value={data.today.inProgress} label={t('tech.home.inProgress')} />
+          <StatTile icon="navigation" value={data.today.onTheWay} label="في الطريق" />
+          <StatTile icon="check-circle" value={data.today.completedToday} label={t('tech.home.completedToday')} />
+        </View>
+
+        {/* Availability (WP-4) — technician-controlled, server-authoritative.
+            A controlled on/off Switch (not a large CTA): the state is read
+            from the server, the write is real, and it is disabled while a
+            mutation is in flight. No schedule, no time range. */}
+        <View style={styles.section}>
+          <SectionHeading
+            title={t('tech.home.availability.title')}
+            body={t('tech.home.availability.body')}
+          />
+          <Card background={color.surface.base} padded style={styles.availabilityCard}>
+            <View style={styles.availabilityRow}>
+              <View style={styles.availabilityCopy}>
+                <View style={styles.availabilityLabelRow}>
+                  <View
+                    style={[styles.availabilityDot, data.profile.available ? styles.dotOn : styles.dotOff]}
+                  />
+                  <Text style={styles.availabilityValue}>
+                    {data.profile.available
+                      ? t('tech.home.availability.on')
+                      : t('tech.home.availability.off')}
+                  </Text>
+                </View>
+                {availabilitySaving ? (
+                  <Text style={styles.availabilityHint}>{t('tech.home.availability.saving')}</Text>
+                ) : null}
+              </View>
+              <Switch
+                value={data.profile.available}
+                onValueChange={(next) => setAvailability(next)}
+                disabled={availabilitySaving}
+                accessibilityLabel={t('tech.home.availability.title')}
+                accessibilityState={{ checked: data.profile.available, disabled: availabilitySaving }}
+                aria-checked={data.profile.available}
+                trackColor={{ false: color.border.default, true: color.brand.goldSoft }}
+                thumbColor={data.profile.available ? color.brand.gold : color.surface.base}
+                ios_backgroundColor={color.border.default}
+              />
+            </View>
+            {availabilityError !== null ? (
+              <Text accessibilityRole="alert" style={styles.inlineError}>
+                {availabilityError}
+              </Text>
+            ) : null}
           </Card>
-        ) : (
-          <View style={styles.list}>
-            {data.incoming.map((item) => (
-              <IncomingCard key={item.id} item={item} />
+        </View>
+
+        {/* Current service */}
+        <View style={styles.section}>
+          <SectionHeading
+            title="خدمتك الحالية"
+            actionLabel="عرض الكل"
+            actionAccessibilityLabel="عرض كل الطلبات"
+            onPressAction={() => router.push('/(technician)/orders')}
+          />
+          {active ? (
+            <Card background={color.surface.base} padded style={styles.activeCard}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`الطلب النشط: ${active.taskAr}`}
+                onPress={() => router.push({ pathname: '/(technician)/active-service', params: { id: active.id } })}
+                style={({ pressed }) => [pressed && styles.pressed]}
+              >
+                <View style={styles.activeRow}>
+                  <ApplianceThumb slug={active.applianceSlug} size={64} />
+                  <View style={styles.activeCopy}>
+                    <StatusBadge status={active.status} label={active.statusLabelAr} icon={statusBrandAsset(active.status)} />
+                    <Text style={styles.activeTitle} numberOfLines={2}>
+                      {joinNonEmpty([active.applianceAr, active.taskAr])}
+                    </Text>
+                    <Text style={styles.meta} numberOfLines={1}>
+                      {joinNonEmpty([active.customerNameAr, active.startedAr])}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+              <ActionButton
+                icon="arrow-left"
+                label="متابعة الخدمة"
+                onPress={() => router.push({ pathname: '/(technician)/active-service', params: { id: active.id } })}
+                style={styles.activeAction}
+              />
+            </Card>
+          ) : (
+            <Card background={color.surface.base} padded>
+              <Text style={styles.body}>{t('tech.home.noActive')}</Text>
+            </Card>
+          )}
+        </View>
+
+        {/* New requests */}
+        <View style={styles.section}>
+          <SectionHeading
+            title={t('tech.home.incoming')}
+            body={t('tech.home.incomingHint')}
+            actionLabel={t('tech.home.showAll')}
+            actionAccessibilityLabel="عرض كل الطلبات"
+            onPressAction={() => router.push('/(technician)/orders')}
+          />
+          {data.incoming.length === 0 ? (
+            <Card background={color.surface.base} padded>
+              <Text style={styles.body}>{t('tech.home.incomingEmpty')}</Text>
+            </Card>
+          ) : (
+            <View style={styles.stack}>
+              {data.incoming.map((item) => (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`فتح طلب ${item.customerNameAr}: ${item.problemAr}`}
+                  onPress={() => router.push({ pathname: '/(technician)/orders/[id]', params: { id: item.id } })}
+                  style={({ pressed }) => [pressed && styles.pressed]}
+                >
+                  <Card background={color.surface.base} padded style={styles.requestCard}>
+                    <View style={styles.activeRow}>
+                      <ApplianceThumb slug={item.applianceSlug} size={56} />
+                      <View style={styles.activeCopy}>
+                        <View style={styles.requestTop}>
+                          <StatusBadge status="pending" label="طلب جديد" icon={statusBrandAsset('pending')} />
+                          <Text style={styles.time}>{item.timeAr}</Text>
+                        </View>
+                        <Text style={styles.activeTitle} numberOfLines={2}>
+                          {item.applianceAr} · {item.problemAr}
+                        </Text>
+                        <Text style={styles.meta} numberOfLines={1}>
+                          {item.customerNameAr}
+                        </Text>
+                      </View>
+                      <Icon name="chevron-left" size={20} color={color.brand.navy} />
+                    </View>
+                  </Card>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Quick actions */}
+        <View style={styles.section}>
+          <SectionHeading title="إجراءات سريعة" />
+          <View style={styles.quickRow}>
+            {QUICK_ACTIONS.map((action) => (
+              <Pressable
+                key={action.id}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                onPress={() => router.push(action.target)}
+                style={({ pressed }) => [styles.quickTile, pressed && styles.pressed]}
+              >
+                <View style={styles.quickIcon}>
+                  <BrandImage name={action.asset} size={30} />
+                </View>
+                <Text style={styles.quickLabel}>{action.label}</Text>
+              </Pressable>
             ))}
           </View>
-        )}
-
-        <SectionHeader titleKey="tech.home.active" />
-        {data.active === null ? (
-          <Card background={color.surface.base} padded style={styles.emptyCard}>
-            <Text style={styles.muted}>{t('tech.home.noActive')}</Text>
-          </Card>
-        ) : (
-          <HomeActiveCard
-            active={data.active}
-            openLabel={t('tech.active.openFromDetail')}
-          />
-        )}
-
-        <SectionHeader titleKey="tech.home.rating" />
-        <Card background={color.surface.base} padded style={styles.ratingCard}>
-          <RatingStars rating={data.profile.rating} reviewCount={data.profile.reviewCount} />
-          <Text style={styles.muted}>
-            {data.profile.reviewCount} {t('tech.home.reviews')}
-          </Text>
-        </Card>
-
-        <SectionHeader titleKey="tech.home.actions" />
-        <View style={styles.actions}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('tech.home.orders')}
-            onPress={() => router.push('/(technician)/orders')}
-            style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          >
-            <Text style={styles.actionIcon}>📋</Text>
-            <Text style={styles.actionText}>{t('tech.home.orders')}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('tech.home.messages')}
-            onPress={() => router.push('/(technician)/messages')}
-            style={({ pressed }) => [styles.action, pressed && styles.pressed]}
-          >
-            <Text style={styles.actionIcon}>💬</Text>
-            <Text style={styles.actionText}>{t('tech.home.messages')}</Text>
-          </Pressable>
         </View>
+
+        {/* Verification summary */}
+        <View style={styles.section}>
+          <SectionHeading title={verification.titleAr} body={data.profile.verificationNoteAr} />
+          <ActionButton
+            variant="secondary"
+            icon="user"
+            label="إدارة الملف"
+            onPress={() => router.push('/(technician)/profile')}
+          />
+        </View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
 }
 
-function StatCard({ value, label }: { value: number; label: string }) {
-  return (
-    <Card background={color.surface.base} padded style={styles.stat}>
-      <Text style={styles.statNumber}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </Card>
-  );
-}
-
-function HomeActiveCard({
-  active,
-  openLabel,
-}: {
-  active: TechnicianActiveService;
-  openLabel: string;
-}) {
-  const router = useRouter();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`إدارة الخدمة النشطة: ${active.taskAr}، ${active.statusLabelAr}`}
-      onPress={() =>
-        router.push({ pathname: '/(technician)/active-service', params: { id: active.id } })
-      }
-      style={({ pressed }) => [pressed && styles.pressed]}
-    >
-      <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.active}>
-        <Text style={styles.activeTask}>{active.taskAr}</Text>
-        <Text style={styles.activeMeta}>
-          {active.customerNameAr} · {active.applianceAr}
-        </Text>
-        <Text style={styles.activeMeta}>{active.startedAr} · {active.statusLabelAr}</Text>
-        <Text style={styles.activeCta}>{openLabel} ‹</Text>
-      </Card>
-    </Pressable>
-  );
-}
-
-function IncomingCard({ item }: { item: TechnicianIncomingPreview }) {
-  return (
-    <Card background={color.surface.base} padded style={styles.incoming}>
-      <View
-        accessible
-        accessibilityRole="text"
-        accessibilityLabel={`طلب وارد من ${item.customerNameAr}: ${item.applianceAr}، ${item.problemAr}، ${item.timeAr}`}
-      >
-        <View style={styles.incomingTop}>
-          <Text style={styles.incomingCustomer}>{item.customerNameAr}</Text>
-          <Text style={styles.incomingTime}>{item.timeAr}</Text>
-        </View>
-        <Text style={styles.incomingProblem}>
-          {item.applianceAr} · {item.problemAr}
-        </Text>
-      </View>
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: color.surface.subtle,
-  },
-  heroSafe: {
-    backgroundColor: color.brand.navy,
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[5] },
   hero: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'center',
-    gap: spacing[3],
-    backgroundColor: color.brand.navy,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[4],
-    paddingBottom: spacing[5],
-  },
-  heroLoading: {
-    backgroundColor: color.brand.navy,
-    padding: spacing[5],
-  },
-  heroText: {
-    flex: 1,
-  },
-  heroGreeting: {
-    color: color.brand.goldSoft,
-    fontSize: typography.size.caption,
-  },
-  heroName: {
-    color: color.surface.base,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  heroMeta: {
-    color: color.brand.goldSoft,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  availability: {
-    backgroundColor: color.brand.navyDeep,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[2],
-  },
-  availabilityText: {
-    color: color.success.DEFAULT,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
-  },
-  content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[4],
-    paddingBottom: spacing[8],
-  },
-  verifyBase: {
-    borderWidth: 1,
-  },
-  verifyOk: {
-    borderWidth: 1,
-    borderColor: color.success.DEFAULT,
-  },
-  verifyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-  },
-  verifyIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: color.success.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  verifyIconText: {
-    color: color.success.DEFAULT,
-    fontSize: 20,
-    fontWeight: typography.weight.bold,
-  },
-  verifyText: {
-    flex: 1,
-  },
-  verifyTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  muted: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  stats: {
-    flexDirection: 'row',
-    gap: spacing[3],
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
+    backgroundColor: color.brand.goldSoft,
+    borderRadius: radius.xl,
     paddingVertical: spacing[4],
+    paddingHorizontal: spacing[4],
+    overflow: 'hidden',
+    ...shadow.medium,
   },
-  statNumber: {
-    color: color.text.primary,
-    fontSize: typography.size.h1,
-    fontWeight: typography.weight.bold,
-  },
-  statLabel: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'center',
-  },
-  hint: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginBottom: spacing[3],
-    textAlign: 'right',
-  },
-  emptyCard: {
-    alignItems: 'center',
-  },
-  list: {
-    gap: spacing[3],
-  },
-  incoming: {
-    gap: spacing[1],
-  },
-  incomingTop: {
+  heroCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  heroEyebrow: { ...type.label, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  heroTitle: { ...type.h1, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
+  heroBody: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', opacity: 0.9 },
+  heroArt: { width: 140, alignItems: 'center', justifyContent: 'center' },
+  statsRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  availabilityCard: { gap: spacing[3] },
+  availabilityRow: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  incomingCustomer: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-  },
-  incomingTime: {
-    color: color.brand.navy,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
-  },
-  incomingProblem: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  active: {
-    gap: spacing[1],
-  },
-  activeTask: {
-    color: color.surface.base,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  activeMeta: {
-    color: color.brand.goldSoft,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-  },
-  activeCta: {
-    color: color.brand.gold,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
-    marginTop: spacing[2],
-    textAlign: 'left',
-  },
-  ratingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  actions: {
-    flexDirection: 'row',
     gap: spacing[3],
   },
-  action: {
-    flex: 1,
+  availabilityCopy: { flex: 1, minWidth: 0, gap: 2 },
+  availabilityLabelRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  availabilityDot: { width: 12, height: 12, borderRadius: radius.pill },
+  dotOn: { backgroundColor: color.success.DEFAULT },
+  dotOff: { backgroundColor: color.text.secondary },
+  availabilityValue: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  availabilityHint: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  inlineError: { ...type.caption, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  section: { gap: spacing[3] },
+  stack: { gap: spacing[3] },
+  activeCard: { gap: spacing[3] },
+  activeRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  activeCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  activeTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  activeAction: { marginTop: spacing[1] },
+  requestCard: { padding: spacing[3] },
+  requestTop: {
     flexDirection: 'row',
+    direction: 'rtl',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     gap: spacing[2],
+  },
+  time: { ...type.caption, color: color.text.secondary },
+  quickRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  quickTile: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[1],
     backgroundColor: color.surface.base,
     borderWidth: 1,
     borderColor: color.border.default,
     borderRadius: radius.lg,
-    minHeight: 60,
+    ...shadow.low,
   },
-  actionIcon: {
-    fontSize: 22,
-  },
-  actionText: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  stateWrap: {
-    flex: 1,
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    alignItems: 'center',
-  },
-  stateCard: {
-    width: '100%',
-    alignItems: 'center',
-    gap: spacing[2],
-  },
-  stateTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-  },
-  retry: {
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 48,
-    paddingHorizontal: spacing[5],
+  quickIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: color.brand.goldSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: spacing[2],
   },
-  retryText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  quickLabel: { ...type.caption, color: color.brand.navy, textAlign: 'center', fontFamily: fontFamily.semibold },
+  body: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  bottomSpacer: { height: spacing[2] },
+  pressed: { opacity: 0.85 },
 });

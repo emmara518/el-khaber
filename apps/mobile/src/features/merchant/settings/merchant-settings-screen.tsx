@@ -1,16 +1,20 @@
 /**
  * Merchant Settings screen (M-B) — ACCOUNT settings, distinct from
  * the public profile: store profile entry, verification entry,
- * notifications entry (honest placeholder), support, real logout.
+ * notifications entry, support, real logout.
+ *
+ * Uses the shared role-neutral header (AppHeader + PageTitle) and the
+ * shared ActionButton — identical visual language to Customer and
+ * Technician (no bespoke leaf header or one-off button styling).
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { useAuthStore } from '@/lib/auth-store';
-import { Card } from '@/ui';
+import { ActionButton, AppHeader, Card, MenuDivider, MenuRow, PageTitle } from '@/ui';
 
 export default function MerchantSettingsScreen() {
   const { t } = useI18n();
@@ -18,187 +22,81 @@ export default function MerchantSettingsScreen() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('merchant.settings.title')}
-      </Text>
-      <Text style={styles.subtitle}>{t('merchant.settings.subtitle')}</Text>
+    <View style={styles.root}>
+      <AppHeader
+        onPressBack={() => router.replace('/(merchant)/profile')}
+        onPressNotifications={() => router.push('/(merchant)/notifications')}
+        onPressAvatar={() => router.push('/(merchant)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.editorial}>
+          <PageTitle
+            eyebrow="الحساب"
+            title={t('merchant.settings.title')}
+            body={t('merchant.settings.subtitle')}
+          />
+          <Card background={color.surface.base} style={styles.menu}>
+            <MenuRow
+              icon="shopping-bag"
+              label={t('merchant.settings.profile')}
+              hint={t('merchant.settings.profileHint')}
+              onPress={() => router.push('/(merchant)/profile')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="shield"
+              label={t('merchant.settings.verification')}
+              hint={t('merchant.settings.verificationHint')}
+              onPress={() => router.push('/(merchant)/profile')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="edit-3"
+              label={t('merchant.settings.onboarding')}
+              hint={t('merchant.settings.onboardingHint')}
+              onPress={() => router.push({ pathname: '/(merchant)/onboarding', params: { resume: '1' } })}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="bell"
+              label={t('merchant.settings.notifications')}
+              hint={t('merchant.settings.notificationsHint')}
+              onPress={() => router.push('/(merchant)/notifications')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="award"
+              label={t('merchant.settings.subscription')}
+              hint={t('merchant.settings.subscriptionHint')}
+              onPress={() => router.push('/(merchant)/subscription')}
+            />
+            <MenuDivider />
+            <MenuRow
+              icon="headphones"
+              label={t('profile.menu.support')}
+              hint={t('profile.support.body')}
+            />
+          </Card>
 
-      <Card background={color.surface.base} style={styles.menu}>
-        <SettingsRow
-          icon="🏪"
-          label={t('merchant.settings.profile')}
-          hint={t('merchant.settings.profileHint')}
-          onPress={() => router.push('/(merchant)/profile')}
-        />
-        <View style={styles.divider} />
-        <SettingsRow
-          icon="✓"
-          label={t('merchant.settings.verification')}
-          hint={t('merchant.settings.verificationHint')}
-          onPress={() => router.push('/(merchant)/profile')}
-        />
-        <View style={styles.divider} />
-        <SettingsRow
-          icon="📝"
-          label={t('merchant.settings.onboarding')}
-          hint={t('merchant.settings.onboardingHint')}
-          onPress={() => router.push('/(merchant)/onboarding')}
-        />
-        <View style={styles.divider} />
-        <SettingsRow
-          icon="🔔"
-          label={t('merchant.settings.notifications')}
-          soonLabel={t('profile.comingSoon')}
-        />
-        <View style={styles.divider} />
-        <SettingsRow
-          icon="🎧"
-          label={t('profile.menu.support')}
-          hint={t('profile.support.body')}
-        />
-      </Card>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('profile.menu.logout')}
-        onPress={() => void logout()}
-        style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-      >
-        <Text style={styles.logoutText}>🚪 {t('profile.menu.logout')}</Text>
-      </Pressable>
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
-  );
-}
-
-function SettingsRow({
-  icon,
-  label,
-  hint,
-  soonLabel,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  hint?: string;
-  soonLabel?: string;
-  onPress?: () => void;
-}) {
-  const interactive = typeof onPress === 'function';
-  return (
-    <Pressable
-      accessibilityRole={interactive ? 'button' : 'text'}
-      accessibilityLabel={soonLabel ? `${label}، ${soonLabel}` : hint ? `${label}. ${hint}` : label}
-      onPress={onPress}
-      disabled={!interactive}
-      style={({ pressed }) => [styles.row, pressed && interactive && styles.pressed]}
-    >
-      <Text style={styles.rowIcon}>{icon}</Text>
-      <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
-      </View>
-      {soonLabel ? (
-        <View style={styles.soon}>
-          <Text style={styles.soonText}>{soonLabel}</Text>
+          <ActionButton
+            variant="destructive"
+            icon="log-out"
+            label={t('profile.menu.logout')}
+            onPress={() => void logout()}
+            style={styles.logoutAction}
+          />
+          <View style={styles.bottomSpacer} />
         </View>
-      ) : interactive ? (
-        <Text style={styles.chevron}>‹</Text>
-      ) : null}
-    </Pressable>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    paddingBottom: spacing[8],
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  subtitle: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    marginBottom: spacing[4],
-  },
-  menu: {
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-    paddingVertical: spacing[3],
-    minHeight: 56,
-  },
-  rowIcon: {
-    fontSize: 22,
-  },
-  rowText: {
-    flex: 1,
-  },
-  rowLabel: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  rowHint: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  soon: {
-    backgroundColor: color.surface.subtle,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-  },
-  soonText: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-  },
-  chevron: {
-    color: color.text.secondary,
-    fontSize: 22,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: color.border.default,
-  },
-  logout: {
-    marginTop: spacing[4],
-    borderWidth: 1,
-    borderColor: color.error.DEFAULT,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.surface.base,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  logoutText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  content: { paddingBottom: spacing[8] },
+  editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[4] },
+  menu: { paddingHorizontal: 0, paddingVertical: spacing[2] },
+  logoutAction: { marginTop: spacing[4] },
+  bottomSpacer: { height: spacing[6] },
 });

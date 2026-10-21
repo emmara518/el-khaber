@@ -1,13 +1,17 @@
 import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { I18nManager, StyleSheet } from 'react-native';
+import { type PropsWithChildren, useEffect } from 'react';
+import { I18nManager, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { groupForSegments, resolveRouteForSession } from '../src/features/auth/role-routing';
 import { useI18n } from '../src/i18n/use-i18n';
 import { useAuthStore } from '../src/lib/auth-store';
+import { AppErrorBoundary } from '../src/ui/app-error-boundary';
+import { APP_DOCUMENT_TITLE } from '../src/ui/app-title';
+import { useAppFonts } from '../src/ui/fonts';
 
 /**
  * Root layout — single multi-role app (docs/01_PROJECT.md §2).
@@ -23,24 +27,49 @@ import { useAuthStore } from '../src/lib/auth-store';
  * The guard trusts ONLY `user.role` from the authenticated session.
  */
 export default function RootLayout() {
+  const { loaded: fontsLoaded, error: fontError } = useAppFonts();
   if (I18nManager.isRTL === false) {
     I18nManager.allowRTL(true);
     I18nManager.forceRTL(true);
   }
   useI18n();
+  // Hold first paint only while the fonts are still loading. If the load
+  // fails, `fontError` is set and we render anyway (platform fallback)
+  // rather than getting stuck on a blank screen.
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <AuthGate />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: '#FFFFFF' },
-          }}
-        />
+        {Platform.OS === 'web' ? (
+          <Head>
+            <title>{APP_DOCUMENT_TITLE}</title>
+          </Head>
+        ) : null}
+        <MainLandmark>
+          <AppErrorBoundary>
+            <AuthGate />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#FFFFFF' },
+              }}
+            />
+          </AppErrorBoundary>
+        </MainLandmark>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function MainLandmark({ children }: PropsWithChildren) {
+  if (Platform.OS !== 'web') return <>{children}</>;
+  return (
+    <View role="main" style={styles.main}>
+      {children}
+    </View>
   );
 }
 
@@ -79,6 +108,9 @@ function AuthGate() {
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  main: {
     flex: 1,
   },
 });

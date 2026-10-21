@@ -5,8 +5,8 @@
 
 import { useLocalSearchParams } from 'expo-router';
 
+import { sharedMerchantProductsSource } from '../../../src/features/merchant/products/api-merchant-products-data-source';
 import MerchantProductFormScreen from '../../../src/features/merchant/products/merchant-product-form-screen';
-import { sharedMerchantProductsSource } from '../../../src/features/merchant/products/mock-merchant-products-data-source';
 
 export default function NewProductRoute() {
   const params = useLocalSearchParams<{ deferred?: string }>();

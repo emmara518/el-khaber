@@ -1,20 +1,34 @@
 /**
- * Generic role tab bar.
+ * Shared role tab bar (Customer / Technician / Merchant).
  *
- * Same visual system as `CustomerTabBar` (white bar, gray icons,
- * gold active) so Customer / Technician / Merchant read as ONE
- * product. Customer keeps its own existing component untouched;
- * Technician and Merchant shells consume this generic bar with
- * their own tab descriptors.
+ * One bottom-navigation visual system for the whole product: a deep navy
+ * surface, a gold active pill, approved brand emblems, and one navigation
+ * type role — so every role reads as ONE EL-KHABIR app.
+ *
+ * Destinations may supply an approved brand emblem (`asset`); when absent
+ * the Feather `icon` is used. The active destination is marked by a surface
+ * pill AND a heavier label (never colour alone), with a subtle press
+ * animation that respects Reduce Motion.
+ *
+ * The component is presentational only: tabs, the active id and the
+ * navigation callback come from each role's own configuration. No role
+ * conditionals live here.
  */
 
-import { color, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
+
+import { BrandImage, usePressScale, type BrandAssetName } from '@/ui';
+import { Icon, type IconName } from '@/ui/icon';
+import { fontFamily, type } from '@/ui/typography';
 
 export interface ShellTab {
   id: string;
   labelAr: string;
-  icon: string;
+  icon: IconName;
+  /** Approved brand emblem; preferred over `icon` when provided. */
+  asset?: BrandAssetName;
 }
 
 export function RoleTabBar({
@@ -24,73 +38,115 @@ export function RoleTabBar({
   style,
 }: {
   tabs: ReadonlyArray<ShellTab>;
-  active: string;
+  active: string | null;
   onChange: (id: string) => void;
   style?: ViewStyle;
 }) {
   return (
     <View style={[styles.bar, style]}>
-      {tabs.map((tab) => {
-        const isActive = tab.id === active;
-        return (
-          <Pressable
-            key={tab.id}
-            onPress={() => onChange(tab.id)}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isActive }}
-            accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
-            style={({ pressed }) => [styles.item, pressed && styles.pressed]}
-          >
-            <Text
-              style={[styles.icon, { color: isActive ? color.brand.gold : color.text.secondary }]}
-            >
-              {tab.icon}
-            </Text>
-            <Text
-              style={[
-                styles.label,
-                {
-                  color: isActive ? color.brand.gold : color.text.secondary,
-                  fontWeight: isActive ? typography.weight.bold : typography.weight.regular,
-                },
-              ]}
-            >
-              {tab.labelAr}
-            </Text>
-          </Pressable>
-        );
-      })}
+      {tabs.map((tab) => (
+        <RoleTabItem
+          key={tab.id}
+          tab={tab}
+          isActive={tab.id === active}
+          onPress={() => onChange(tab.id)}
+        />
+      ))}
     </View>
+  );
+}
+
+function RoleTabItem({
+  tab,
+  isActive,
+  onPress,
+}: {
+  tab: ShellTab;
+  isActive: boolean;
+  onPress: () => void;
+}) {
+  const scale = usePressScale(0.92);
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={scale.onPressIn}
+      onPressOut={scale.onPressOut}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isActive }}
+      aria-selected={isActive}
+      accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
+      style={styles.item}
+    >
+      <Animated.View style={scale.style}>
+        <View style={[styles.iconPill, isActive && styles.iconPillActive]}>
+          {tab.asset !== undefined ? (
+            <BrandImage name={tab.asset} size={28} />
+          ) : (
+            <Icon
+              name={tab.icon}
+              size="nav"
+              color={isActive ? color.brand.navy : color.border.default}
+            />
+          )}
+        </View>
+      </Animated.View>
+      <Text
+        numberOfLines={1}
+        style={[styles.label, isActive ? styles.labelActive : styles.labelInactive]}
+      >
+        {tab.labelAr}
+      </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
     flexDirection: 'row',
+    direction: 'rtl',
     justifyContent: 'space-around',
     alignItems: 'center',
     paddingTop: spacing[2],
-    paddingBottom: spacing[3],
+    paddingBottom: spacing[2],
     paddingHorizontal: spacing[2],
-    backgroundColor: color.surface.base,
-    borderTopWidth: 1,
-    borderTopColor: color.border.default,
+    backgroundColor: color.brand.navy,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    ...shadow.high,
   },
   item: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
-    minHeight: 48,
+    gap: spacing[1],
+    paddingVertical: spacing[1],
+    minHeight: 56,
     justifyContent: 'center',
   },
-  pressed: {
-    opacity: 0.7,
+  iconPill: {
+    width: 52,
+    height: 36,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  icon: {
-    fontSize: 20,
-    lineHeight: 22,
+  iconPillActive: {
+    backgroundColor: color.brand.gold,
   },
   label: {
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
+    ...type.navigation,
+    fontSize: 10,
+    lineHeight: 14,
+    width: '100%',
+    textAlign: 'center',
+    writingDirection: 'rtl',
+  },
+  labelActive: {
+    color: color.surface.base,
+    fontFamily: fontFamily.bold,
+  },
+  labelInactive: {
+    color: color.border.default,
+    fontFamily: fontFamily.regular,
   },
 });

@@ -1,177 +1,215 @@
-import { color, spacing, typography } from '@khabir/ui-tokens';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { color, spacing } from '@khabir/ui-tokens';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { ApplianceCarouselCard } from './components/appliance-carousel-card';
+
+import { TechnicalDataDialog } from '../components/technical-data-dialog';
+import { requestTrackingRoute } from '../orders/request-routes';
+
+import { ApplianceCard } from './components/appliance-card';
 import { CurrentOrderCard } from './components/current-order-card';
-import { Greeting } from './components/greeting';
-import { GuaranteeBanner } from './components/guarantee-banner';
-import { HomeHeader } from './components/home-header';
-import { LocationPill } from './components/location-pill';
-import { TechnicianCarouselCard } from './components/technician-carousel-card';
+import { HomeHero } from './components/home-hero';
+import { HomeSection } from './components/home-section';
+import { HomeSkeleton } from './components/home-skeleton';
+import { RecommendedTechnicianCard } from './components/recommended-technician-card';
+import { ServiceCard } from './components/service-card';
+import { StorePreviewCard } from './components/store-preview-card';
+import { SubscriptionCard } from './components/subscription-card';
+import { TrustSection } from './components/trust-section';
 import { useCustomerHomeViewModel } from './use-customer-home-view-model';
 
-import { useI18n, type TranslationKey } from '@/i18n/use-i18n';
-import { Card, HorizontalCarousel } from '@/ui';
-import { QuickServiceIcon } from '@/ui/quick-service-icon';
-import { SectionHeader } from '@/ui/section-header';
+import type { QuickServiceItem } from './data/customer-home-types';
+import type { BrandAssetName } from '@/ui/brand-assets';
 
+import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
+import { useI18n } from '@/i18n/use-i18n';
+import { AppHeader, ListEmpty, ListError } from '@/ui';
 
-/**
- * Customer Home screen.
- *
- * Composes the header (navy hero), the greeting, the location pill,
- * three carousels (appliances, current orders, recommended
- * technicians), the quick services row, the gold service guarantee
- * banner, and the section headers. The screen consumes only the
- * view-model returned by `useCustomerHomeViewModel`; the data
- * source is currently a mock and will be swapped for the real API
- * adapter in a later task.
- */
+/** Service icon → approved brand mark (same vocabulary as the tiles). */
+const SERVICE_ASSET: Record<QuickServiceItem['icon'], BrandAssetName> = {
+  wrench: 'repair',
+  search: 'certified-technician',
+  clipboard: 'book-service',
+  package: 'on-the-way',
+};
+
+/** One-line "why it matters" per real service shortcut (presentation copy). */
+const SERVICE_BODY: Record<string, string> = {
+  'track-order': 'تابع حالة طلبك لحظة بلحظة',
+  'request-maintenance': 'اطلب فنيًا لصيانة جهازك',
+  'search-technician': 'ابحث عن فني حسب التخصص',
+  'fix-fault': 'دليل يساعدك على فهم العطل',
+};
+
 export default function CustomerHomeScreen() {
   const { t } = useI18n();
-  const { status, data, error } = useCustomerHomeViewModel();
+  const router = useRouter();
+  const { status, data, error, reload } = useCustomerHomeViewModel();
+  const notifications = useNotificationsViewModel('customer');
+  const [technicalOpen, setTechnicalOpen] = useState(false);
+
+  const go = (route: 'maintenance' | 'find-technician' | 'requests') =>
+    router.replace(
+      route === 'maintenance'
+        ? '/(customer)/maintenance'
+        : route === 'requests'
+          ? '/(customer)/requests'
+          : '/(customer)/find-technician',
+    );
 
   return (
     <View style={styles.root}>
-      <SafeAreaView edges={['top']} style={styles.heroSafe}>
-        <View style={styles.heroContent}>
-          {data ? (
-            <>
-              <HomeHeader avatarInitials={data.context.avatarInitialsAr} />
-              <Greeting
-                line1={data.greeting.line1Ar}
-                line2={data.greeting.line2Ar}
-              />
-              <LocationPill
-                city={data.context.cityAr}
-                district={data.context.districtAr}
-              />
-            </>
-          ) : (
-            <HomeHeader avatarInitials="·" />
-          )}
-        </View>
-      </SafeAreaView>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {renderBody({ status, data, error, t })}
-        <View style={styles.bottomSpacer} />
+      <AppHeader
+        avatarInitials={data?.context.avatarInitialsAr}
+        notificationCount={notifications.unreadCount}
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.replace('/(customer)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <HomeHero
+          titleLine1="صيانة أجهزتك"
+          titleLine2="بين أيدي خبراء"
+          body="فنيون موثوقون، تشخيص واضح، وضمان على الإصلاح."
+          primaryLabel="اطلب فني الآن"
+          onPressPrimary={() => go('find-technician')}
+          secondaryLabel="استكشف الخدمات"
+          onPressSecondary={() => go('maintenance')}
+        />
+
+        {status === 'loading' ? <HomeSkeleton label={t('state.loading')} /> : null}
+        {status === 'error' || (status !== 'loading' && !data) ? (
+          <ListError
+            title="تعذّر تحميل صفحتك"
+            message={error?.message ?? t('placeholder.body')}
+            retryLabel={t('state.retry')}
+            onRetry={reload}
+          />
+        ) : null}
+
+        {status !== 'loading' && status !== 'error' && data ? (
+          <>
+            {data.appliances.length > 0 ? (
+              <HomeSection
+                eyebrow="ابدأ من الجهاز"
+                title="أجهزة شائعة"
+                body="اختر الجهاز لاستكشاف خيارات العناية به."
+              >
+                <View style={styles.applianceRow}>
+                  {data.appliances.map((item) => (
+                    <ApplianceCard
+                      key={item.slug}
+                      item={item}
+                      onPress={() => go('maintenance')}
+                      onPressInfo={() => setTechnicalOpen(true)}
+                    />
+                  ))}
+                </View>
+              </HomeSection>
+            ) : null}
+
+            <HomeSection title="خدمات الخبير" eyebrow="كيف نساعدك؟">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.serviceRail}
+              >
+                {data.quickServices.map((item) => (
+                  <ServiceCard
+                    key={item.id}
+                    title={item.titleAr}
+                    body={SERVICE_BODY[item.id] ?? ''}
+                    asset={SERVICE_ASSET[item.icon]}
+                    onPress={() => go(item.route)}
+                  />
+                ))}
+              </ScrollView>
+            </HomeSection>
+
+            <View style={styles.storeWrap}>
+              <StorePreviewCard onPressStore={() => router.push('/(customer)/store')} />
+            </View>
+
+            <HomeSection title="ليه الخبير؟" eyebrow="ثقة مبنية على الواقع">
+              <TrustSection />
+            </HomeSection>
+
+            <View style={styles.subscriptionWrap}>
+              <SubscriptionCard onPress={() => router.push('/(customer)/subscription')} />
+            </View>
+
+            <HomeSection
+              title={t('home.recommendedTechnicians')}
+              eyebrow="اكتشف الخيارات"
+              actionLabel="استكشف الفنيين"
+              actionAccessibilityLabel="استكشف كل الفنيين"
+              onPressAction={() => go('find-technician')}
+            >
+              {data.recommendedTechnicians.length > 0 ? (
+                <View style={styles.stack}>
+                  {data.recommendedTechnicians.map((technician) => (
+                    <RecommendedTechnicianCard
+                      key={technician.id}
+                      technician={technician}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(customer)/technician/[id]',
+                          params: { id: technician.id },
+                        })
+                      }
+                    />
+                  ))}
+                </View>
+              ) : (
+                <ListEmpty
+                  icon="user-x"
+                  iconLabel="لا يوجد فنيون"
+                  title="لا يوجد فنيون مقترحون في الوقت الحالي"
+                  body="يمكنك استكشاف دليل الفنيين أو العودة لاحقًا للاطلاع على الترشيحات."
+                  actionLabel="استكشف الفنيين"
+                  onAction={() => go('find-technician')}
+                  brandAsset="no-results"
+                />
+              )}
+            </HomeSection>
+
+            {data.currentOrders.length > 0 ? (
+              <HomeSection
+                title={t('home.currentOrders')}
+                eyebrow="متابعة مباشرة"
+                actionLabel="عرض الطلبات"
+                actionAccessibilityLabel="عرض كل الطلبات"
+                onPressAction={() => go('requests')}
+              >
+                <View style={styles.stack}>
+                  {data.currentOrders.map((order) => (
+                    <CurrentOrderCard
+                      key={order.id}
+                      order={order}
+                      onPress={() => router.push(requestTrackingRoute(order.id))}
+                    />
+                  ))}
+                </View>
+              </HomeSection>
+            ) : null}
+          </>
+        ) : null}
       </ScrollView>
+      <TechnicalDataDialog visible={technicalOpen} onClose={() => setTechnicalOpen(false)} />
     </View>
   );
 }
 
-function renderBody({
-  status,
-  data,
-  error,
-  t,
-}: {
-  status: ReturnType<typeof useCustomerHomeViewModel>['status'];
-  data: ReturnType<typeof useCustomerHomeViewModel>['data'];
-  error: ReturnType<typeof useCustomerHomeViewModel>['error'];
-  t: (key: TranslationKey) => string;
-}) {
-  if (status === 'loading') {
-    return (
-      <Card background={color.surface.base} padded style={styles.stateCard}>
-        <Text style={styles.stateText}>…</Text>
-      </Card>
-    );
-  }
-  if (status === 'error' || !data) {
-    return (
-      <Card background={color.surface.base} padded style={styles.stateCard}>
-        <Text style={styles.stateText}>
-          {error ? error.message : t('placeholder.body')}
-        </Text>
-      </Card>
-    );
-  }
-  return (
-    <>
-      {/* Appliances carousel */}
-      <SectionHeader titleKey="home.appliances" showAll />
-      <HorizontalCarousel
-        data={data.appliances}
-        keyExtractor={(item) => item.slug}
-        renderItem={(item) => <ApplianceCarouselCard item={item} />}
-      />
-
-      {/* Quick services row */}
-      <SectionHeader titleKey="home.quickServices" />
-      <View style={styles.quickServicesRow}>
-        {data.quickServices.map((item) => (
-          <QuickServiceIcon key={item.id} item={item} />
-        ))}
-      </View>
-
-      {/* Gold service guarantee banner */}
-      <View style={styles.guaranteeWrap}>
-        <GuaranteeBanner
-          title={data.guarantee.titleAr}
-          description={data.guarantee.descriptionAr}
-          cta={data.guarantee.ctaAr}
-        />
-      </View>
-
-      {/* Current orders */}
-      <SectionHeader titleKey="home.currentOrders" showAll />
-      <View style={styles.ordersList}>
-        {data.currentOrders.map((order) => (
-          <CurrentOrderCard key={order.id} order={order} />
-        ))}
-      </View>
-
-      {/* Recommended technicians */}
-      <SectionHeader titleKey="home.recommendedTechnicians" showAll />
-      <HorizontalCarousel
-        data={data.recommendedTechnicians}
-        keyExtractor={(item) => item.id}
-        renderItem={(tech) => <TechnicianCarouselCard technician={tech} />}
-      />
-    </>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: color.surface.subtle,
+  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  content: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[8],
   },
-  heroSafe: {
-    backgroundColor: color.brand.navy,
-  },
-  heroContent: {
-    paddingBottom: spacing[4],
-  },
-  scrollContent: {
-    paddingBottom: spacing[6],
-  },
-  quickServicesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginHorizontal: spacing[1],
-  },
-  guaranteeWrap: {
-    marginTop: spacing[4],
-  },
-  ordersList: {
-    gap: spacing[3],
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
-  stateCard: {
-    marginTop: spacing[5],
-    alignItems: 'center',
-  },
-  stateText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-  },
+  applianceRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] + 2 },
+  serviceRail: { flexDirection: 'row', direction: 'rtl', gap: spacing[3] },
+  storeWrap: { marginTop: spacing[6] },
+  subscriptionWrap: { marginTop: spacing[6] },
+  stack: { gap: spacing[3] },
 });

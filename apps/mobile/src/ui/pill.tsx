@@ -1,6 +1,8 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+
+import { type } from './typography';
 
 interface PillProps {
   children: ReactNode;
@@ -73,7 +75,6 @@ const styles = StyleSheet.create({
     marginStart: spacing[2],
   },
   label: {
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
+    ...type.bodyMedium,
   },
 });

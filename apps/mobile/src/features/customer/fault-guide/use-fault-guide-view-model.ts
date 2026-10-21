@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
+import { ApiFaultGuideDataSource } from './api-fault-guide-data-source';
 import {
   INITIAL_FAULT_GUIDE_STATE,
   faultGuideReducer,
@@ -22,7 +23,6 @@ import {
   type FaultDetail,
   type FaultGuideData,
 } from './fault-guide-types';
-import { MockFaultGuideDataSource } from './mock-fault-guide-data-source';
 
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
@@ -60,7 +60,7 @@ export function useFaultGuideViewModel(): FaultGuideViewModel {
     setLoadStatus('loading');
     setLoadError(null);
     setData(null);
-    new MockFaultGuideDataSource()
+    new ApiFaultGuideDataSource()
       .getGuide({ role: 'customer' })
       .then((guide) => {
         if (cancelled) return;

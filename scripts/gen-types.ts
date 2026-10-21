@@ -39,7 +39,14 @@ interface OpenApiDocument {
 
 const REPO_ROOT = join(__dirname, '..');
 const INPUT_PATH = join(REPO_ROOT, 'docs', 'api', 'openapi.yaml');
-const OUTPUT_PATH = join(REPO_ROOT, 'packages', 'shared-types', 'src', 'generated', 'api-contract.ts');
+const OUTPUT_PATH = join(
+  REPO_ROOT,
+  'packages',
+  'shared-types',
+  'src',
+  'generated',
+  'api-contract.ts',
+);
 
 function refName(ref: string | undefined): string | undefined {
   if (ref === undefined) {
@@ -51,7 +58,8 @@ function refName(ref: string | undefined): string | undefined {
 
 function propertyType(schema: SchemaObject): string {
   if (schema.$ref !== undefined) {
-    return refName(schema.$ref) ?? 'unknown';
+    const refType = refName(schema.$ref) ?? 'unknown';
+    return schema.nullable === true ? `${refType} | null` : refType;
   }
   if (schema.enum !== undefined) {
     return schema.enum.map((v) => `'${v}'`).join(' | ');
@@ -59,10 +67,11 @@ function propertyType(schema: SchemaObject): string {
   if (schema.type === 'object') {
     if (schema.properties === undefined) {
       // Free-form object: honor a typed additionalProperties when present.
-      if (typeof schema.additionalProperties === 'object' && schema.additionalProperties !== null) {
-        return `Record<string, ${propertyType(schema.additionalProperties as SchemaObject)}>`;
-      }
-      return 'Record<string, unknown>';
+      const base =
+        typeof schema.additionalProperties === 'object' && schema.additionalProperties !== null
+          ? `Record<string, ${propertyType(schema.additionalProperties as SchemaObject)}>`
+          : 'Record<string, unknown>';
+      return schema.nullable === true ? `${base} | null` : base;
     }
     const required = new Set(schema.required ?? []);
     const members = Object.entries(schema.properties).map(([key, prop]) => {
@@ -145,6 +154,7 @@ export interface ApiError {
     code: ErrorCode;
     message: string;
     fields?: Record<string, string>;
+    requestId?: string;
   };
 }
 
@@ -177,7 +187,9 @@ ${TEMPLATE_FOOTER}`;
   mkdirSync(dirname(OUTPUT_PATH), { recursive: true });
   writeFileSync(OUTPUT_PATH, output, 'utf8');
   // eslint-disable-next-line no-console
-  console.log(`[gen:types] wrote ${OUTPUT_PATH} (${String(output.length)} bytes, ${String(names.length)} schemas)`);
+  console.log(
+    `[gen:types] wrote ${OUTPUT_PATH} (${String(output.length)} bytes, ${String(names.length)} schemas)`,
+  );
 }
 
 main();

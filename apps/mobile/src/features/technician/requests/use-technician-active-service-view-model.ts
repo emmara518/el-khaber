@@ -8,19 +8,14 @@
  * and derives the current request + next documented action.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
-import {
-  advanceActionLabelAr,
-} from './request-policy';
-import { findTechnicianRequest } from './technician-request-types';
+import { ApiTechnicianRequestsDataSource } from './api-technician-requests-data-source';
+import { advanceActionLabelAr } from './request-policy';
+import { findTechnicianRequest, type TechnicianRequest } from './technician-request-types';
 import { useTechnicianRequestsViewModel } from './use-technician-requests-view-model';
 
-import type {
-  MockTechnicianRequestsDataSource,
-  TechnicianRequestsDataSource,
-} from './mock-technician-requests-data-source';
-import type { TechnicianRequest } from './technician-request-types';
+import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 export type ActiveServiceActionStatus = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -43,11 +38,21 @@ export function useTechnicianActiveServiceViewModel(
   requestId: string,
   source?: TechnicianRequestsDataSource,
 ): TechnicianActiveServiceViewModel {
-  const vm = useTechnicianRequestsViewModel(source);
-  const [stableId] = useState(() => requestId);
-
-  const request = findTechnicianRequest(vm.requests, stableId);
-  const advanceForRequest = useCallback(() => vm.advance(stableId), [vm, stableId]);
+  const stableSource = useMemo(
+    () => source ?? new ApiTechnicianRequestsDataSource(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see note below
+    [],
+  );
+  // `source` is a test-only override; treating it as mount-only keeps the
+  // request session stable across renders (same pattern as the list VM —
+  // a fresh `new Api…()` per render would retrigger loading endlessly).
+  void source;
+  const vm = useTechnicianRequestsViewModel(stableSource);
+  // Resolve the request from the live `requestId` so navigating to a
+  // different active-service id updates in place (no stale latch). The
+  // loaded list is the shared session source, so no extra fetch occurs.
+  const request = findTechnicianRequest(vm.requests, requestId);
+  const advanceForRequest = useCallback(() => vm.advance(requestId), [vm, requestId]);
 
   return {
     loadStatus: vm.listStatus,
@@ -63,4 +68,3 @@ export function useTechnicianActiveServiceViewModel(
   };
 }
 
-export type { MockTechnicianRequestsDataSource };

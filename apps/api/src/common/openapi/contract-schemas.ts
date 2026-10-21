@@ -29,6 +29,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'ENTITLEMENT_REQUIRED',
       'INVALID_STATE_TRANSITION',
       'UPLOAD_REJECTED',
+      'SERVICE_UNAVAILABLE',
       'INTERNAL_ERROR',
     ],
   },
@@ -61,6 +62,9 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
             description: 'Field-level validation details when applicable.',
             additionalProperties: { type: 'string' },
           },
+          // Correlation ID: also sent as the X-Request-Id response
+          // header by ApiExceptionFilter (V2-05 observability).
+          requestId: { type: 'string' },
         },
         required: ['code', 'message'],
       },
@@ -79,6 +83,10 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       phoneVerified: { type: 'boolean' },
       emailVerified: { type: 'boolean' },
       createdAt: { type: 'string', format: 'date-time' },
+      // WP-01 (D6): role-appropriate profile image — the server-issued
+      // public URL (customer avatar, technician avatar, merchant logo),
+      // or null when absent. Never a storage key.
+      avatarUrl: { type: 'string', nullable: true },
     },
     required: [
       'id',
@@ -89,6 +97,7 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       'phoneVerified',
       'emailVerified',
       'createdAt',
+      'avatarUrl',
     ],
     additionalProperties: false,
   },
@@ -110,11 +119,37 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
     type: 'object',
     description:
       'PATCH /me payload (docs/07_API.md §5). Only shared contact fields are ' +
-      'writable. Changing a contact channel resets that channel\'s verification flag.',
+      "writable. Changing a contact channel resets that channel's verification flag.",
     properties: {
       phone: { type: 'string', pattern: '^\\+?[0-9]{7,15}$' },
       email: { type: 'string', format: 'email' },
     },
+    additionalProperties: false,
+  },
+  AvatarUploadDto: {
+    type: 'object',
+    description:
+      'WP-01: profile-image upload result (POST /me/avatar, POST ' +
+      '/technician/profile/avatar). `avatarUrl` is the server-issued ' +
+      "stable public URL persisted on the caller's profile — never a " +
+      'storage key or client-supplied link.',
+    properties: {
+      avatarUrl: { type: 'string', minLength: 1, maxLength: 512 },
+    },
+    required: ['avatarUrl'],
+    additionalProperties: false,
+  },
+  MerchantLogoUploadDto: {
+    type: 'object',
+    description:
+      'WP-01: store-logo upload result (POST /merchant/profile/logo). ' +
+      '`logoUrl` is the server-issued stable public URL persisted on ' +
+      "the caller's merchant profile — never a storage key or " +
+      'client-supplied link.',
+    properties: {
+      logoUrl: { type: 'string', minLength: 1, maxLength: 512 },
+    },
+    required: ['logoUrl'],
     additionalProperties: false,
   },
   AcceptedDto: {
@@ -127,7 +162,10 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
   HealthDto: {
     type: 'object',
     description: 'Liveness payload (process-level only, no dependency checks).',
-    properties: { status: { type: 'string', enum: ['ok'] }, service: { type: 'string', enum: ['api'] } },
+    properties: {
+      status: { type: 'string', enum: ['ok'] },
+      service: { type: 'string', enum: ['api'] },
+    },
     required: ['status', 'service'],
     additionalProperties: false,
   },
@@ -144,6 +182,1144 @@ export const CONTRACT_SCHEMAS: Record<string, JsonObject> = {
       },
     },
     required: ['status', 'checks'],
+    additionalProperties: false,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Catalog / content domain (Task 10E). Source: docs/07_API.md §6, §8.
+  // ---------------------------------------------------------------------------
+
+  ApplianceCategoryDto: {
+    type: 'object',
+    description: 'Active appliance category (customer-facing reference data).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      iconUrl: { type: 'string', nullable: true },
+      imageUrl: { type: 'string', nullable: true },
+      sortOrder: { type: 'integer' },
+    },
+    required: ['id', 'nameAr', 'slug', 'iconUrl', 'imageUrl', 'sortOrder'],
+    additionalProperties: false,
+  },
+  LocationDto: {
+    type: 'object',
+    description:
+      'User-owned location (docs/07_API.md §8, docs/06_DATABASE.md §6). ' +
+      'Coordinates are optional (label/address-only locations are valid).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      label: { type: 'string', nullable: true },
+      addressText: { type: 'string', nullable: true },
+      city: { type: 'string', nullable: true },
+      region: { type: 'string', nullable: true },
+      country: { type: 'string', nullable: true },
+      latitude: { type: 'number', nullable: true },
+      longitude: { type: 'number', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'label',
+      'addressText',
+      'city',
+      'region',
+      'country',
+      'latitude',
+      'longitude',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  FaultSummaryDto: {
+    type: 'object',
+    description: 'Published fault-guide list item (summary fields only).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      severityLevel: { type: 'string', nullable: true },
+      summaryAr: { type: 'string' },
+      sortOrder: { type: 'integer' },
+    },
+    required: [
+      'id',
+      'applianceCategoryId',
+      'nameAr',
+      'slug',
+      'severityLevel',
+      'summaryAr',
+      'sortOrder',
+    ],
+    additionalProperties: false,
+  },
+  FaultDto: {
+    type: 'object',
+    description:
+      'Published fault-guide content. Guidance is advisory ("قد يكون...") — ' +
+      'never diagnostic certainty; safety notes and technician escalation ' +
+      'are part of the content contract.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      severityLevel: { type: 'string', nullable: true },
+      summaryAr: { type: 'string' },
+      guidanceAr: { type: 'string' },
+      safetyNoteAr: { type: 'string', nullable: true },
+      whenToCallTechnicianAr: { type: 'string', nullable: true },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'applianceCategoryId',
+      'nameAr',
+      'slug',
+      'severityLevel',
+      'summaryAr',
+      'guidanceAr',
+      'safetyNoteAr',
+      'whenToCallTechnicianAr',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  ServiceDto: {
+    type: 'object',
+    description: 'Active service/specialty catalog entry.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      descriptionAr: { type: 'string', nullable: true },
+    },
+    required: ['id', 'applianceCategoryId', 'nameAr', 'slug', 'descriptionAr'],
+    additionalProperties: false,
+  },
+  TechnicianServiceDto: {
+    type: 'object',
+    description: 'A service/specialty offered by a technician (active only).',
+    properties: { service: REF('ServiceDto') },
+    required: ['service'],
+    additionalProperties: false,
+  },
+  TechnicianPublicDto: {
+    type: 'object',
+    description:
+      'Public technician profile for discovery/detail. Only verified ' +
+      'technicians are publicly visible. Excludes authentication data, ' +
+      'private contact data, and internal moderation state.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      avatarUrl: { type: 'string', nullable: true },
+      verificationStatus: REF('VerificationStatus'),
+      availabilityStatus: REF('TechnicianAvailabilityStatus'),
+      experienceYears: { type: 'integer' },
+      completedServicesCount: { type: 'integer' },
+      ratingAverage: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer' },
+      services: { type: 'array', items: REF('TechnicianServiceDto') },
+      // WP-Discovery: public service-area labels (no coordinates).
+      areasAr: { type: 'array', items: { type: 'string' } },
+    },
+    required: [
+      'id',
+      'displayName',
+      'bio',
+      'avatarUrl',
+      'verificationStatus',
+      'availabilityStatus',
+      'experienceYears',
+      'completedServicesCount',
+      'ratingAverage',
+      'ratingCount',
+      'services',
+      'areasAr',
+    ],
+    additionalProperties: false,
+  },
+  VerificationStatus: {
+    type: 'string',
+    enum: ['pending', 'verified', 'rejected', 'suspended'],
+  },
+  TechnicianAvailabilityStatus: {
+    type: 'string',
+    enum: ['available', 'busy', 'unavailable'],
+  },
+
+  // ---------------------------------------------------------------------------
+  // Service requests (Task 10F). Source: docs/07_API.md §7, §22.
+  // ---------------------------------------------------------------------------
+
+  ServiceRequestStatus: {
+    type: 'string',
+    enum: ['pending', 'accepted', 'on_the_way', 'in_progress', 'completed', 'cancelled'],
+  },
+  CreateServiceRequestDto: {
+    type: 'object',
+    description:
+      'Customer request creation payload (docs/07_API.md §7). problem_title is ' +
+      'OPTIONAL (Task 10B CTO decision 2) and supports the "other problem" case ' +
+      'without inventing diagnostic conclusions. The request is created with ' +
+      'status=pending, targeted at the chosen verified technician. ' +
+      'scheduled_at is an OPTIONAL PREFERRED visit time (future, up to 14 days ' +
+      'ahead): there is no availability engine and no booking is created — the ' +
+      'technician confirms the visit by phone.',
+    properties: {
+      technician_id: { type: 'string', format: 'uuid' },
+      appliance_category_id: { type: 'string', format: 'uuid' },
+      service_id: { type: 'string', format: 'uuid' },
+      fault_id: { type: 'string', format: 'uuid' },
+      problem_title: { type: 'string', maxLength: 255 },
+      problem_description: { type: 'string', minLength: 1, maxLength: 5000 },
+      location_id: { type: 'string', format: 'uuid' },
+      scheduled_at: {
+        type: 'string',
+        format: 'date-time',
+        description:
+          'Optional preferred visit time (not a confirmed booking). Must be in ' +
+          'the future and at most 14 days ahead.',
+      },
+    },
+    required: ['technician_id', 'appliance_category_id', 'problem_description', 'location_id'],
+    additionalProperties: false,
+  },
+  ServiceRequestSummaryDto: {
+    type: 'object',
+    description:
+      'Role-scoped service-request list item. Includes the job-location summary ' +
+      '(label/addressText/city) so list views need no per-row detail fetch. The ' +
+      'list is role-scoped, so the location is only returned to the request owner ' +
+      'and the targeted/assigned technician.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: REF('ServiceRequestStatus'),
+      problemTitle: { type: 'string', nullable: true },
+      problemDescription: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      serviceId: { type: 'string', format: 'uuid', nullable: true },
+      faultId: { type: 'string', format: 'uuid', nullable: true },
+      technicianId: { type: 'string', format: 'uuid', nullable: true },
+      scheduledAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+      location: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', nullable: true },
+          addressText: { type: 'string', nullable: true },
+          city: { type: 'string', nullable: true },
+        },
+        required: ['label', 'addressText', 'city'],
+        additionalProperties: false,
+      },
+    },
+    required: [
+      'id',
+      'status',
+      'problemTitle',
+      'problemDescription',
+      'applianceCategoryId',
+      'serviceId',
+      'faultId',
+      'technicianId',
+      'scheduledAt',
+      'createdAt',
+      'updatedAt',
+      'location',
+    ],
+    additionalProperties: false,
+  },
+  ServiceRequestStatusHistoryDto: {
+    type: 'object',
+    description: 'Append-only status transition record (docs/07_API.md §13).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      fromStatus: { ...REF('ServiceRequestStatus'), nullable: true },
+      toStatus: REF('ServiceRequestStatus'),
+      changedByUserId: { type: 'string', format: 'uuid', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'fromStatus', 'toStatus', 'changedByUserId', 'createdAt'],
+    additionalProperties: false,
+  },
+  ServiceRequestDto: {
+    type: 'object',
+    description:
+      'Role-scoped request detail. The request location (job information) is ' +
+      'included for the customer owner and the targeted/assigned technician. ' +
+      'Status history is bounded and append-only.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: REF('ServiceRequestStatus'),
+      problemTitle: { type: 'string', nullable: true },
+      problemDescription: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      serviceId: { type: 'string', format: 'uuid', nullable: true },
+      faultId: { type: 'string', format: 'uuid', nullable: true },
+      technicianId: { type: 'string', format: 'uuid', nullable: true },
+      location: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', nullable: true },
+          addressText: { type: 'string', nullable: true },
+          city: { type: 'string', nullable: true },
+          region: { type: 'string', nullable: true },
+          latitude: { type: 'number' },
+          longitude: { type: 'number' },
+        },
+        required: ['label', 'addressText', 'city', 'region', 'latitude', 'longitude'],
+        additionalProperties: false,
+      },
+      scheduledAt: { type: 'string', format: 'date-time', nullable: true },
+      acceptedAt: { type: 'string', format: 'date-time', nullable: true },
+      startedAt: { type: 'string', format: 'date-time', nullable: true },
+      completedAt: { type: 'string', format: 'date-time', nullable: true },
+      cancelledAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+      history: { type: 'array', items: REF('ServiceRequestStatusHistoryDto') },
+    },
+    required: [
+      'id',
+      'status',
+      'problemTitle',
+      'problemDescription',
+      'applianceCategoryId',
+      'serviceId',
+      'faultId',
+      'technicianId',
+      'location',
+      'scheduledAt',
+      'acceptedAt',
+      'startedAt',
+      'completedAt',
+      'cancelledAt',
+      'createdAt',
+      'updatedAt',
+      'history',
+    ],
+    additionalProperties: false,
+  },
+
+  SendMessageDto: {
+    type: 'object',
+    description:
+      'POST /conversations/:id/messages payload. Text content only � ' +
+      'attachment types require storage infrastructure (later task). The ' +
+      'sender is derived from the verified JWT, never from the payload.',
+    properties: {
+      body: { type: 'string', minLength: 1, maxLength: 2000 },
+    },
+    required: ['body'],
+    additionalProperties: false,
+  },
+  ConversationDto: {
+    type: 'object',
+    description:
+      'A conversation scoped to EITHER a service request (customer ↔ technician) ' +
+      'OR a product (initiator ↔ merchant). Exactly one of serviceRequestId / ' +
+      'productId is set; requestStatus is present only for service-request ' +
+      'conversations.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      serviceRequestId: { type: 'string', format: 'uuid', nullable: true },
+      productId: { type: 'string', format: 'uuid', nullable: true },
+      requestStatus: { ...REF('ServiceRequestStatus'), nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'serviceRequestId', 'productId', 'requestStatus', 'createdAt'],
+    additionalProperties: false,
+  },
+  ConversationSummaryDto: {
+    type: 'object',
+    description:
+      'A conversation the caller participates in (unified inbox). ' +
+      'peerNameAr is the other party (real display/business name where ' +
+      'available, generic role label otherwise — never invented); ' +
+      'peerAvatarUrl is their public profile image (null when absent). ' +
+      'lastMessageAr/lastMessageAt are the real latest message (null when ' +
+      'none); unreadCount counts messages not sent by the caller and ' +
+      'not yet read; contextTitleAr is the order title or product name.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      peerNameAr: { type: 'string' },
+      peerAvatarUrl: { type: 'string', nullable: true },
+      lastMessageAr: { type: 'string', nullable: true },
+      lastMessageAt: { type: 'string', format: 'date-time', nullable: true },
+      unreadCount: { type: 'integer' },
+      productId: { type: 'string', format: 'uuid', nullable: true },
+      serviceRequestId: { type: 'string', format: 'uuid', nullable: true },
+      contextTitleAr: { type: 'string', nullable: true },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'peerNameAr',
+      'peerAvatarUrl',
+      'lastMessageAr',
+      'lastMessageAt',
+      'unreadCount',
+      'productId',
+      'serviceRequestId',
+      'contextTitleAr',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  MessageDto: {
+    type: 'object',
+    description:
+      'Chat message. Ordered newest-first for pagination; the client adapter ' +
+      'may reverse for display. readAt exists in the model but no mark-read ' +
+      'route is documented (deferred).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      conversationId: { type: 'string', format: 'uuid' },
+      senderUserId: { type: 'string', format: 'uuid' },
+      messageType: { type: 'string', enum: ['text'] },
+      body: { type: 'string' },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'conversationId', 'senderUserId', 'messageType', 'body', 'createdAt'],
+    additionalProperties: false,
+  },
+  CreateReviewDto: {
+    type: 'object',
+    description:
+      'POST /service-requests/:id/review payload. Eligibility is documented: ' +
+      'the request owner, after completion, one review per request. Tags must ' +
+      'reference seeded/documented review tags.',
+    properties: {
+      rating: { type: 'integer', minimum: 1, maximum: 5 },
+      comment: { type: 'string', maxLength: 2000 },
+      tag_ids: { type: 'array', items: { type: 'string', format: 'uuid' }, maxItems: 10 },
+    },
+    required: ['rating'],
+    additionalProperties: false,
+  },
+  ReviewSummaryDto: {
+    type: 'object',
+    description:
+      'Public review for technician discovery. Only documented public fields: ' +
+      'no customer identifiers, no moderation state.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      rating: { type: 'integer', minimum: 1, maximum: 5 },
+      comment: { type: 'string', nullable: true },
+      tags: { type: 'array', items: { type: 'string' } },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'rating', 'comment', 'tags', 'createdAt'],
+    additionalProperties: false,
+  },
+  ReviewTagDto: {
+    type: 'object',
+    description:
+      'Canonical review tag (docs/06 §14). The UUID is the canonical identifier; ' +
+      'labels are configured product data, never hardcoded in clients.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      labelAr: { type: 'string' },
+    },
+    required: ['id', 'labelAr'],
+    additionalProperties: false,
+  },
+  NotificationDto: {
+    type: 'object',
+    description:
+      'A persisted notification for the authenticated recipient. 	type is an ' +
+      'open string until product trigger types are ratified; no delivery ' +
+      'provider exists (persistence + read APIs only).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      type: { type: 'string' },
+      titleAr: { type: 'string' },
+      bodyAr: { type: 'string' },
+      dataJson: { type: 'object', nullable: true, additionalProperties: true },
+      readAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'type', 'titleAr', 'bodyAr', 'dataJson', 'readAt', 'createdAt'],
+    additionalProperties: false,
+  },
+  NotificationPreferencesDto: {
+    type: 'object',
+    description:
+      'Own notification delivery preferences (WP-Notifications). Only the two ' +
+      'USER-TOGGLABLE families exist as keys: requestStatus (maintenance ' +
+      'request updates) and subscription (subscription + payment-review ' +
+      'updates). Verification decisions + admin operational messages are ' +
+      'MANDATORY and have no key. Absent row ≡ all true.',
+    properties: {
+      requestStatus: { type: 'boolean' },
+      subscription: { type: 'boolean' },
+    },
+    required: ['requestStatus', 'subscription'],
+    additionalProperties: false,
+  },
+  UnreadCountDto: {
+    type: 'object',
+    description: 'Server-authoritative unread notification count for the badge.',
+    properties: { unread: { type: 'integer' } },
+    required: ['unread'],
+    additionalProperties: false,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Subscriptions + manual payments + admin grants (Task 10I).
+  // Sources: docs/07 §14–§15, docs/08, CTO contract §1.
+  // ---------------------------------------------------------------------------
+
+  SubscriptionPlanDto: {
+    type: 'object',
+    description: 'Active subscription plan (role-aware, docs/08 §3).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      role: { type: 'string', enum: ['customer', 'technician', 'merchant'] },
+      code: { type: 'string' },
+      nameAr: { type: 'string' },
+      nameEn: { type: 'string', nullable: true },
+      billingInterval: { type: 'string' },
+      price: { type: 'number' },
+      currency: { type: 'string' },
+      isActive: { type: 'boolean' },
+      sortOrder: { type: 'integer' },
+    },
+    required: [
+      'id',
+      'role',
+      'code',
+      'nameAr',
+      'nameEn',
+      'billingInterval',
+      'price',
+      'currency',
+      'isActive',
+      'sortOrder',
+    ],
+    additionalProperties: false,
+  },
+  CreatePaymentSubmissionDto: {
+    type: 'object',
+    description:
+      'POST /subscriptions payload: manual payment submission (Task 10I). ' +
+      'MVP methods: instapay | vodafone_cash. The submission stays PENDING ' +
+      'until ADMIN approval; user input is never authoritative. ' +
+      'proof_storage_key is a typed reference reserved for the future media task.',
+    properties: {
+      plan_id: { type: 'string', format: 'uuid' },
+      method: { type: 'string', enum: ['instapay', 'vodafone_cash'] },
+      transfer_reference: { type: 'string', minLength: 4, maxLength: 100 },
+      proof_storage_key: { type: 'string', minLength: 4, maxLength: 512 },
+    },
+    required: ['plan_id', 'method', 'transfer_reference'],
+    additionalProperties: false,
+  },
+  PaymentSubmissionDto: {
+    type: 'object',
+    description: 'Manual payment submission (pending → approved | rejected by ADMIN only).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      userId: { type: 'string', format: 'uuid' },
+      planId: { type: 'string', format: 'uuid' },
+      subscriptionId: { type: 'string', format: 'uuid', nullable: true },
+      method: { type: 'string', enum: ['instapay', 'vodafone_cash'] },
+      transferReference: { type: 'string' },
+      proofStorageKey: { type: 'string', nullable: true },
+      status: { type: 'string', enum: ['pending', 'approved', 'rejected'] },
+      reviewedAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'userId',
+      'planId',
+      'subscriptionId',
+      'method',
+      'transferReference',
+      'proofStorageKey',
+      'status',
+      'reviewedAt',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  PaymentMethodConfigDto: {
+    type: 'object',
+    description: 'Admin-managed manual payment destination (method + account + display name).',
+    properties: {
+      method: { type: 'string', enum: ['instapay', 'vodafone_cash'] },
+      accountIdentifier: { type: 'string' },
+      displayName: { type: 'string' },
+      isEnabled: { type: 'boolean' },
+    },
+    required: ['method', 'accountIdentifier', 'displayName', 'isEnabled'],
+    additionalProperties: false,
+  },
+  CurrentSubscriptionDto: {
+    type: 'object',
+    description: 'The principal current subscription with its plan (null when none).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: {
+        type: 'string',
+        enum: ['active', 'pending', 'trialing', 'past_due', 'cancelled', 'expired'],
+      },
+      startedAt: { type: 'string', format: 'date-time' },
+      currentPeriodStart: { type: 'string', format: 'date-time' },
+      currentPeriodEnd: { type: 'string', format: 'date-time' },
+      renewalEnabled: { type: 'boolean' },
+      cancelledAt: { type: 'string', format: 'date-time', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      plan: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          code: { type: 'string' },
+          nameAr: { type: 'string' },
+          nameEn: { type: 'string', nullable: true },
+          role: { type: 'string', enum: ['customer', 'technician', 'merchant'] },
+          price: { type: 'number' },
+          currency: { type: 'string' },
+          billingInterval: { type: 'string' },
+          isActive: { type: 'boolean' },
+        },
+        required: [
+          'id',
+          'code',
+          'nameAr',
+          'nameEn',
+          'role',
+          'price',
+          'currency',
+          'billingInterval',
+          'isActive',
+        ],
+        additionalProperties: false,
+      },
+    },
+    required: [
+      'id',
+      'status',
+      'startedAt',
+      'currentPeriodStart',
+      'currentPeriodEnd',
+      'renewalEnabled',
+      'cancelledAt',
+      'createdAt',
+      'plan',
+    ],
+    additionalProperties: false,
+  },
+  MeSubscriptionDto: {
+    type: 'object',
+    description: 'GET /me/subscription: current subscription + effective entitlement codes.',
+    properties: {
+      subscription: { ...REF('CurrentSubscriptionDto'), nullable: true },
+      entitlements: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['subscription', 'entitlements'],
+    additionalProperties: false,
+  },
+  MeEntitlementsDto: {
+    type: 'object',
+    description: 'GET /me/entitlements (docs/07 §15): effective entitlement codes.',
+    properties: { entitlements: { type: 'array', items: { type: 'string' } } },
+    required: ['entitlements'],
+    additionalProperties: false,
+  },
+  PaymentReviewResultDto: {
+    type: 'object',
+    description: 'Admin approval/rejection result payload.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      status: { type: 'string', enum: ['approved', 'rejected'] },
+      subscriptionId: { type: 'string', format: 'uuid', nullable: true },
+    },
+    required: ['id', 'status'],
+    additionalProperties: false,
+  },
+  // Admin read models are `Record<string, unknown>` at runtime; modeled as
+  // open objects so the generated document has no dangling $refs.
+  AdminMetricsDto: {
+    type: 'object',
+    description: 'Admin metrics read model.',
+    additionalProperties: true,
+  },
+  AdminUserDto: {
+    type: 'object',
+    description: 'Admin user list item read model.',
+    additionalProperties: true,
+  },
+  AdminUserDetailDto: {
+    type: 'object',
+    description: 'Admin user detail read model.',
+    additionalProperties: true,
+  },
+  AdminTechnicianDto: {
+    type: 'object',
+    description: 'Admin technician list item read model.',
+    additionalProperties: true,
+  },
+  AdminMerchantDto: {
+    type: 'object',
+    description: 'Admin merchant list item read model.',
+    additionalProperties: true,
+  },
+  AdminServiceRequestDto: {
+    type: 'object',
+    description: 'Admin service-request list item read model.',
+    additionalProperties: true,
+  },
+  AdminStatusOverrideResultDto: {
+    type: 'object',
+    description: 'Admin service-request status override result.',
+    additionalProperties: true,
+  },
+  AdminAssignResultDto: {
+    type: 'object',
+    description: 'Admin technician assignment result (WP-Admin-03).',
+    additionalProperties: true,
+  },
+  AdminVerificationResultDto: {
+    type: 'object',
+    description: 'Admin verification decision result.',
+    additionalProperties: true,
+  },
+  AdminReviewDto: {
+    type: 'object',
+    description: 'Admin review list item read model.',
+    additionalProperties: true,
+  },
+  AdminReviewRemoveResultDto: {
+    type: 'object',
+    description: 'Admin review removal result.',
+    additionalProperties: true,
+  },
+  AuditLogDto: {
+    type: 'object',
+    description: 'Audit log entry read model.',
+    additionalProperties: true,
+  },
+  ReadAllResultDto: {
+    type: 'object',
+    description: 'Result of marking all own notifications read.',
+    properties: { updated: { type: 'integer' } },
+    required: ['updated'],
+    additionalProperties: false,
+  },
+  ProofUploadUrlDto: {
+    type: 'object',
+    description: 'Presigned PUT grant for a server-generated proof storage key.',
+    properties: {
+      submissionId: { type: 'string', format: 'uuid' },
+      storageKey: { type: 'string' },
+      uploadUrl: { type: 'string' },
+      requiredHeaders: { type: 'object', additionalProperties: { type: 'string' } },
+      mimeType: { type: 'string' },
+      maxBytes: { type: 'integer' },
+      expiresInSeconds: { type: 'integer' },
+    },
+    required: [
+      'submissionId',
+      'storageKey',
+      'uploadUrl',
+      'mimeType',
+      'maxBytes',
+      'expiresInSeconds',
+    ],
+    additionalProperties: false,
+  },
+  ProofDownloadUrlDto: {
+    type: 'object',
+    description: 'Admin presigned download grant for a submission proof.',
+    properties: {
+      submissionId: { type: 'string', format: 'uuid' },
+      storageKey: { type: 'string' },
+      downloadUrl: { type: 'string' },
+      expiresInSeconds: { type: 'integer' },
+    },
+    required: ['submissionId', 'storageKey', 'downloadUrl', 'expiresInSeconds'],
+    additionalProperties: false,
+  },
+  ServiceRequestMediaUploadUrlDto: {
+    type: 'object',
+    description:
+      'Presigned PUT grant for a server-generated service-request media key. ' +
+      'The key lives under `request-media/{userId}/{requestId}/` and is never ' +
+      'chosen by the client (Track B2).',
+    properties: {
+      requestId: { type: 'string', format: 'uuid' },
+      storageKey: { type: 'string' },
+      uploadUrl: { type: 'string' },
+      requiredHeaders: { type: 'object', additionalProperties: { type: 'string' } },
+      mimeType: { type: 'string' },
+      maxBytes: { type: 'integer' },
+      expiresInSeconds: { type: 'integer' },
+    },
+    required: [
+      'requestId',
+      'storageKey',
+      'uploadUrl',
+      'mimeType',
+      'maxBytes',
+      'expiresInSeconds',
+    ],
+    additionalProperties: false,
+  },
+  ServiceRequestMediaDto: {
+    type: 'object',
+    description:
+      'Attached photo metadata for a service request. Binaries live in private ' +
+      'object storage; storage keys are never exposed to clients.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      mimeType: { type: 'string' },
+      fileSize: { type: 'integer' },
+      createdAt: { type: 'string', format: 'date-time' },
+    },
+    required: ['id', 'mimeType', 'fileSize', 'createdAt'],
+    additionalProperties: false,
+  },
+  ServiceRequestMediaUrlDto: {
+    type: 'object',
+    description: 'Short-lived presigned download grant for one request photo.',
+    properties: {
+      mediaId: { type: 'string', format: 'uuid' },
+      downloadUrl: { type: 'string' },
+      expiresInSeconds: { type: 'integer' },
+    },
+    required: ['mediaId', 'downloadUrl', 'expiresInSeconds'],
+    additionalProperties: false,
+  },
+  PaymentApprovalResultDto: {
+    description: 'Admin approval result (alias of PaymentReviewResultDto).',
+    ...REF('PaymentReviewResultDto'),
+  },
+  PaymentRejectResultDto: {
+    description: 'Admin rejection result (alias of PaymentReviewResultDto).',
+    ...REF('PaymentReviewResultDto'),
+  },
+  AdminGrantResultDto: {
+    type: 'object',
+    description: 'Admin manual grant result (subscription or entitlement grant).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      userId: { type: 'string', format: 'uuid' },
+      planId: { type: 'string', format: 'uuid', nullable: true },
+      entitlementId: { type: 'string', format: 'uuid', nullable: true },
+      code: { type: 'string', nullable: true },
+      status: { type: 'string', nullable: true },
+    },
+    required: ['id', 'userId'],
+    additionalProperties: false,
+  },
+  AdminNotificationResultDto: {
+    type: 'object',
+    description: 'Admin operational notification creation result.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      userId: { type: 'string', format: 'uuid' },
+      type: { type: 'string' },
+    },
+    required: ['id', 'userId', 'type'],
+    additionalProperties: false,
+  },
+
+  // ---------------------------------------------------------------------------
+  // Technician self-service (Task 10J-R1). Source: docs/07_API.md §16.
+  // ---------------------------------------------------------------------------
+  TechnicianSelfProfileDto: {
+    type: 'object',
+    description:
+      'Own technician profile. verificationStatus/ratings/counters are ' +
+      'server-owned (admin is the verification authority); areas are ' +
+      'label-based with OPTIONAL coordinates (label-only areas carry no geo ' +
+      'and are excluded from radius filtering).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      displayName: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      avatarUrl: { type: 'string', nullable: true },
+      verificationStatus: REF('VerificationStatus'),
+      experienceYears: { type: 'integer' },
+      completedServicesCount: { type: 'integer' },
+      ratingAverage: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer' },
+      availabilityStatus: REF('TechnicianAvailabilityStatus'),
+      services: { type: 'array', items: REF('TechnicianSelfServiceDto') },
+      areas: { type: 'array', items: REF('TechnicianSelfAreaDto') },
+    },
+    required: [
+      'id',
+      'displayName',
+      'bio',
+      'avatarUrl',
+      'verificationStatus',
+      'experienceYears',
+      'completedServicesCount',
+      'ratingAverage',
+      'ratingCount',
+      'availabilityStatus',
+      'services',
+      'areas',
+    ],
+    additionalProperties: false,
+  },
+  TechnicianSelfServiceDto: {
+    type: 'object',
+    description: 'A catalog service attached by the technician.',
+    properties: {
+      serviceId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      priceFrom: { type: 'number', nullable: true },
+    },
+    required: ['serviceId', 'nameAr', 'slug', 'applianceCategoryId', 'priceFrom'],
+    additionalProperties: false,
+  },
+  TechnicianSelfAreaDto: {
+    type: 'object',
+    description: 'Technician service area (label; coordinates optional).',
+    properties: {
+      labelAr: { type: 'string' },
+      latitude: { type: 'number', nullable: true },
+      longitude: { type: 'number', nullable: true },
+    },
+    required: ['labelAr', 'latitude', 'longitude'],
+    additionalProperties: false,
+  },
+  TechnicianStatsDto: {
+    type: 'object',
+    description: 'Server-derived technician request counters + rating metrics.',
+    properties: {
+      pendingCount: { type: 'integer', minimum: 0 },
+      onTheWayCount: { type: 'integer', minimum: 0 },
+      inProgressCount: { type: 'integer', minimum: 0 },
+      completedCount: { type: 'integer', minimum: 0 },
+      completedServicesCount: { type: 'integer', minimum: 0 },
+      ratingAverage: { type: 'number', nullable: true },
+      ratingCount: { type: 'integer', minimum: 0 },
+    },
+    required: [
+      'pendingCount',
+      'onTheWayCount',
+      'inProgressCount',
+      'completedCount',
+      'completedServicesCount',
+      'ratingAverage',
+      'ratingCount',
+    ],
+    additionalProperties: false,
+  },
+  UpdateTechnicianProfileDto: {
+    type: 'object',
+    description:
+      'PATCH /technician/profile payload. Editable: display_name, bio, ' +
+      'experience_years, availability_status (available | ' +
+      'unavailable only — technician-controlled, WP-4), areas (label + ' +
+      'optional coordinates). verificationStatus/ratings/counters are NEVER writable. ' +
+      'WP-01: profile photos change exclusively through POST /technician/profile/avatar.',
+    properties: {
+      display_name: { type: 'string', minLength: 1, maxLength: 255 },
+      bio: { type: 'string', maxLength: 2000 },
+      experience_years: { type: 'integer', minimum: 0, maximum: 60 },
+      availability_status: { type: 'string', enum: ['available', 'unavailable'] },
+      areas: {
+        type: 'array',
+        maxItems: 10,
+        items: {
+          type: 'object',
+          properties: {
+            label_ar: { type: 'string', minLength: 1, maxLength: 128 },
+            latitude: { type: 'number', minimum: -90, maximum: 90 },
+            longitude: { type: 'number', minimum: -180, maximum: 180 },
+          },
+          required: ['label_ar'],
+          additionalProperties: false,
+        },
+      },
+    },
+    additionalProperties: false,
+  },
+  CreateTechnicianServiceDto: {
+    type: 'object',
+    description: 'POST /technician/services payload (attach a catalog service).',
+    properties: {
+      service_id: { type: 'string', format: 'uuid' },
+      price_from: { type: 'number', minimum: 0 },
+    },
+    required: ['service_id'],
+    additionalProperties: false,
+  },
+  TechnicianSelfService: {
+    type: 'object',
+    description: 'GET /technician/services item.',
+    properties: {
+      serviceId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      applianceCategoryId: { type: 'string', format: 'uuid' },
+      priceFrom: { type: 'number', nullable: true },
+      isActive: { type: 'boolean' },
+    },
+    required: ['serviceId', 'nameAr', 'slug', 'applianceCategoryId', 'priceFrom', 'isActive'],
+    additionalProperties: false,
+  },
+  // ---------------------------------------------------------------------------
+  // Merchant domain (Task 10G). Source: docs/07_API.md §17, docs/06 §21.
+  // Verification status is read-only for merchants (admin is the authority).
+  // ---------------------------------------------------------------------------
+
+  MerchantProfileDto: {
+    type: 'object',
+    description:
+      "The authenticated merchant's own profile. verificationStatus is " +
+      'READ-ONLY (docs/09_ADMIN.md — admin is the verification authority). ' +
+      'A missing profile returns 404 until the merchant PATCHes (onboarding).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      businessName: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      logoUrl: { type: 'string', nullable: true },
+      contactPhone: { type: 'string', nullable: true },
+      locationId: { type: 'string', format: 'uuid', nullable: true },
+      verificationStatus: REF('VerificationStatus'),
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'businessName',
+      'bio',
+      'logoUrl',
+      'contactPhone',
+      'locationId',
+      'verificationStatus',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  UpdateMerchantProfileDto: {
+    type: 'object',
+    description:
+      'PATCH /merchant/profile payload (onboarding persistence). Fields are ' +
+      'optional; absent fields unchanged. verificationStatus is never writable. ' +
+      'WP-01: store logos change exclusively through POST /merchant/profile/logo.',
+    properties: {
+      businessName: { type: 'string', minLength: 1, maxLength: 255 },
+      bio: { type: 'string', maxLength: 2000 },
+      contactPhone: { type: 'string', pattern: '^\\+?[0-9]{7,15}$' },
+      locationId: { type: 'string', format: 'uuid' },
+    },
+    additionalProperties: false,
+  },
+  MerchantProductDto: {
+    type: 'object',
+    description: 'A merchant-owned catalog product (status: active | suspended).',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      merchantId: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      descriptionAr: { type: 'string', nullable: true },
+      price: { type: 'number', nullable: true },
+      stockQuantity: { type: 'integer', nullable: true },
+      imageUrl: { type: 'string', nullable: true },
+      status: { type: 'string', enum: ['active', 'suspended'] },
+      createdAt: { type: 'string', format: 'date-time' },
+      updatedAt: { type: 'string', format: 'date-time' },
+    },
+    required: [
+      'id',
+      'merchantId',
+      'nameAr',
+      'slug',
+      'descriptionAr',
+      'price',
+      'stockQuantity',
+      'imageUrl',
+      'status',
+      'createdAt',
+      'updatedAt',
+    ],
+    additionalProperties: false,
+  },
+  CreateMerchantProductDto: {
+    type: 'object',
+    description:
+      'POST /merchant/products payload. Ownership is derived from the JWT. ' +
+      '`slug` is optional — server-derived from nameAr (unique per merchant). ' +
+      'price may be null; no currency/discount/tax semantics exist.',
+    properties: {
+      nameAr: { type: 'string', minLength: 1, maxLength: 255 },
+      slug: { type: 'string', minLength: 1, maxLength: 128 },
+      descriptionAr: { type: 'string', maxLength: 5000 },
+      price: { type: 'number', minimum: 0 },
+      stockQuantity: { type: 'integer', minimum: 0 },
+      imageUrl: { type: 'string', maxLength: 512 },
+      status: { type: 'string', enum: ['active', 'suspended'] },
+    },
+    required: ['nameAr'],
+    additionalProperties: false,
+  },
+  UpdateMerchantProductDto: {
+    type: 'object',
+    description:
+      'PATCH /merchant/products/:id payload — writable whitelist only. ' +
+      'merchant ownership and product id are immutable; status is a validated ' +
+      'active/suspended field (transitions unconstrained by the contract).',
+    properties: {
+      nameAr: { type: 'string', minLength: 1, maxLength: 255 },
+      slug: { type: 'string', minLength: 1, maxLength: 128 },
+      descriptionAr: { type: 'string', maxLength: 5000 },
+      price: { type: 'number', minimum: 0 },
+      stockQuantity: { type: 'integer', minimum: 0 },
+      imageUrl: { type: 'string', maxLength: 512 },
+      status: { type: 'string', enum: ['active', 'suspended'] },
+    },
+    additionalProperties: false,
+  },
+  PublicMerchantRefDto: {
+    type: 'object',
+    description:
+      'Minimal public merchant identity attached to a store product. ' +
+      'No contact/verification/internal fields are exposed.',
+    properties: {
+      businessNameAr: { type: 'string', nullable: true },
+    },
+    required: ['businessNameAr'],
+    additionalProperties: false,
+  },
+  PublicProductDto: {
+    type: 'object',
+    description:
+      'Publicly readable merchant product (store). Only ACTIVE products are ' +
+      'exposed; suspended products are excluded from lists and 404 on detail. ' +
+      'No merchant-management or inventory fields are exposed.',
+    properties: {
+      id: { type: 'string', format: 'uuid' },
+      nameAr: { type: 'string' },
+      slug: { type: 'string' },
+      descriptionAr: { type: 'string', nullable: true },
+      price: { type: 'number', nullable: true },
+      imageUrl: { type: 'string', nullable: true },
+      merchant: REF('PublicMerchantRefDto'),
+    },
+    required: ['id', 'nameAr', 'slug', 'descriptionAr', 'price', 'imageUrl', 'merchant'],
     additionalProperties: false,
   },
 };

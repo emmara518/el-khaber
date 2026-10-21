@@ -12,7 +12,10 @@
  * - review → submit; exit never submits.
  */
 
+import { preferredAppointmentError } from './preferred-appointment';
+
 import type { ApplianceSlug } from '../home/data/customer-home-types';
+
 
 export const SERVICE_REQUEST_STEPS = [
   'appliance',
@@ -38,7 +41,16 @@ export const STEP_INDEX: Record<ServiceRequestStep, number> = {
 
 export interface RequestAttachment {
   readonly id: string;
-  readonly labelAr: string;
+  /** Local file URI on the device (never uploaded before the request exists). */
+  readonly uri: string;
+  readonly fileName: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number | null;
+}
+
+/** Locally generated dedupe key for a draft photo (never sent to the server). */
+export function createDraftPhotoId(): string {
+  return `photo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export interface RequestLocation {
@@ -46,13 +58,6 @@ export interface RequestLocation {
   readonly labelAr: string;
   readonly detailAr: string;
   readonly isDefault: boolean;
-}
-
-export interface AppointmentSlot {
-  readonly id: string;
-  readonly dayAr: string;
-  readonly timeAr: string;
-  readonly available: boolean;
 }
 
 export interface ProblemOption {
@@ -75,7 +80,7 @@ export interface ServiceRequestDraft {
   readonly photos: ReadonlyArray<RequestAttachment>;
   readonly locationId: string | null;
   /** Null = coordinate by phone (valid choice, not an error). */
-  readonly appointmentSlotId: string | null;
+  readonly preferredAtISO: string | null;
 }
 
 export const EMPTY_DRAFT: ServiceRequestDraft = {
@@ -87,8 +92,19 @@ export const EMPTY_DRAFT: ServiceRequestDraft = {
   descriptionAr: '',
   photos: [],
   locationId: null,
-  appointmentSlotId: null,
+  preferredAtISO: null,
 };
+
+/**
+ * RTL navigation icons for the wizard footer.
+ *
+ * In a right-to-left layout "forward" advances leftward, so Next points
+ * left and Back points right. Distinct arrows so movement is unambiguous.
+ */
+export const NAV_ICONS = {
+  back: 'arrow-right',
+  next: 'arrow-left',
+} as const;
 
 export const DESCRIPTION_MAX = 500;
 export const PHOTOS_MAX = 5;
@@ -101,7 +117,18 @@ export interface ServiceRequestHandoff {
 }
 
 export function isApplianceSlug(value: unknown): value is ApplianceSlug {
-  return value === 'washing_machine' || value === 'refrigerator' || value === 'air_conditioner';
+  return (
+    value === 'washing_machine' ||
+    value === 'refrigerator' ||
+    value === 'air_conditioner' ||
+    value === 'dishwasher' ||
+    value === 'coffee_machine' ||
+    value === 'microwave' ||
+    value === 'oven' ||
+    value === 'tv_screen' ||
+    value === 'vacuum_cleaner' ||
+    value === 'water_heater'
+  );
 }
 
 /** Initialize the draft from the handoff — never invents values. */
@@ -138,7 +165,7 @@ export function validateStep(
     case 'location':
       return draft.locationId === null ? 'اختر موقع تقديم الخدمة' : null;
     case 'appointment':
-      return null;
+      return preferredAppointmentError(draft.preferredAtISO);
     case 'review':
       for (const s of ['appliance', 'problem', 'location'] as const) {
         const err = validateStep(draft, s);
@@ -153,17 +180,13 @@ export function problemsForAppliance(
   problems: ReadonlyArray<ProblemOption>,
   appliance: ApplianceSlug | null,
 ): ReadonlyArray<ProblemOption> {
-  if (appliance === null) return [];
+  if (appliance === null) return problems;
   return problems.filter((p) => p.applianceSlug === null || p.applianceSlug === appliance);
 }
 
 export interface ResolvedSummary {
   readonly applianceTitleAr: string;
   readonly problemTitleAr: string;
-}
-
-export function nextPhotoLabel(count: number): string {
-  return `صورة ${count + 1}`;
 }
 
 /** Whether the draft holds anything worth keeping (exit UX). */
@@ -174,6 +197,6 @@ export function draftHasContent(draft: ServiceRequestDraft): boolean {
     draft.descriptionAr.trim().length > 0 ||
     draft.photos.length > 0 ||
     draft.locationId !== null ||
-    draft.appointmentSlotId !== null
+    draft.preferredAtISO !== null
   );
 }

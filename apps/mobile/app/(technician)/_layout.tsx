@@ -2,10 +2,9 @@
  * Technician route group layout.
  *
  * Destinations (الرئيسية, الطلبات, الخدمات, الرسائل, الملف الشخصي)
- * via the shared `RoleTabBar`. Implemented: Home (T-A), Requests +
- * details (T-C), Active service (T-D), Profile/Onboarding (T-B),
- * Reviews/Settings (T-E). Remaining placeholders stay explicit
- * until their assigned batches.
+ * through the shared `RoleTabBar` in its Customer-parity `navy` surface
+ * (same bottom-navigation visual system as the Customer experience).
+ * Active state comes from the tested `technician-tab-routing` module.
  */
 
 import { color } from '@khabir/ui-tokens';
@@ -14,19 +13,36 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RoleTabBar, type ShellTab } from '@/features/shell/role-tab-bar';
+import { isTechnicianFlowRoute, tabIdForPathname } from '@/features/technician/technician-tab-routing';
 
 const TABS: ReadonlyArray<ShellTab> = [
-  { id: 'home', labelAr: 'الرئيسية', icon: '🏠' },
-  { id: 'orders', labelAr: 'الطلبات', icon: '📋' },
-  { id: 'services', labelAr: 'الخدمات', icon: '🛠️' },
-  { id: 'messages', labelAr: 'الرسائل', icon: '💬' },
-  { id: 'profile', labelAr: 'الملف الشخصي', icon: '👤' },
+  { id: 'home', labelAr: 'الرئيسية', icon: 'home', asset: 'home' },
+  { id: 'orders', labelAr: 'الطلبات', icon: 'clipboard', asset: 'my-requests' },
+  { id: 'services', labelAr: 'الخدمات', icon: 'tool', asset: 'maintenance' },
+  { id: 'messages', labelAr: 'الرسائل', icon: 'message-circle', asset: 'messages' },
+  { id: 'profile', labelAr: 'الملف الشخصي', icon: 'user', asset: 'profile' },
 ];
 
 export default function TechnicianTabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
   const active = tabIdForPathname(pathname);
+  // Isolated flows (onboarding, request detail, active service, reviews,
+  // settings) render full-screen with no global tab bar; their own
+  // navigation owns the journey.
+  const isFlow = isTechnicianFlowRoute(pathname);
+
+  if (isFlow) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView edges={['bottom']} style={styles.safe}>
+          <View style={styles.content}>
+            <Slot />
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -54,14 +70,6 @@ function technicianTarget(
   if (id === 'messages') return '/(technician)/messages';
   if (id === 'profile') return '/(technician)/profile';
   return '/(technician)';
-}
-
-function tabIdForPathname(pathname: string): string {
-  if (pathname.includes('/orders')) return 'orders';
-  if (pathname.includes('/services')) return 'services';
-  if (pathname.includes('/messages')) return 'messages';
-  if (pathname.includes('/profile')) return 'profile';
-  return 'home';
 }
 
 const styles = StyleSheet.create({

@@ -7,8 +7,7 @@
  * component schemas (see contract-schemas.ts).
  */
 
-import { ApiBody, ApiResponse } from '@nestjs/swagger';
-
+import { ApiBody, ApiQuery, ApiResponse } from '@nestjs/swagger';
 
 import { schemaRef, successEnvelope } from './contract-schemas';
 import { zodToJsonSchema } from './zod-json-schema';
@@ -45,4 +44,27 @@ export function ApiEnvelopeError(status: number, description: string): ApiDecora
     description,
     schema: schemaRef('ErrorResponse'),
   } as never) as ApiDecorator;
+}
+
+/**
+ * Document a zod-validated QUERY object: one `@ApiQuery` entry per schema
+ * property, derived from the same schema the validation pipe enforces.
+ * Method-level decorator.
+ */
+export function ApiZodQuery(schema: ZodTypeAny): MethodDecorator {
+  const json = zodToJsonSchema(schema) as {
+    properties?: Record<string, Record<string, unknown>>;
+    required?: string[];
+  };
+  const required = new Set(json.required ?? []);
+  const entries = Object.entries(json.properties ?? {});
+  return ((target, propertyKey, descriptor) => {
+    for (const [name, prop] of entries) {
+      ApiQuery({ name, required: required.has(name), schema: prop } as never)(
+        target,
+        propertyKey,
+        descriptor,
+      );
+    }
+  }) as MethodDecorator;
 }

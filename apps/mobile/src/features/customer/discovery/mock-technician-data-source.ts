@@ -9,11 +9,12 @@
  */
 
 import type { Technician } from './technician-types';
+import type { TechnicianListQuery } from './technician-types';
 
 const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
   {
     id: 'tech-1',
-    nameAr: 'محمد العتيبي',
+    nameAr: 'محمد عبد الله',
     initialsAr: 'م',
     verified: true,
     rating: 4.8,
@@ -22,18 +23,31 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
     specialtiesAr: ['غسالات أوتوماتيك'],
     appliances: ['washing_machine'],
     servicesAr: ['إصلاح الغسالات', 'تنظيف الفلاتر', 'فحص التسرب'],
-    areasAr: ['النزهة', 'الملز'],
+    areasAr: ['مدينة نصر', 'المعادي'],
     aboutAr: 'فني متخصص في الغسالات الأوتوماتيكية، أهتم بالفحص الدقيق والشرح الواضح قبل أي إصلاح.',
+    avatarUrl: null,
     available: true,
     availabilityLabelAr: 'متاح اليوم',
     reviews: [
-      { id: 'tech-1-r1', authorAr: 'أبو فهد', rating: 5, textAr: 'شغل نظيف والتزام بالموعد، أنصح به.', dateAr: 'قبل أسبوع' },
-      { id: 'tech-1-r2', authorAr: 'أم سارة', rating: 4.5, textAr: 'فحص دقيق وشرح واضح للمشكلة قبل الإصلاح.', dateAr: 'قبل شهر' },
+      {
+        id: 'tech-1-r1',
+        authorAr: 'أبو كريم',
+        rating: 5,
+        textAr: 'شغل نظيف والتزام بالموعد، أنصح به.',
+        dateAr: 'قبل أسبوع',
+      },
+      {
+        id: 'tech-1-r2',
+        authorAr: 'أم سارة',
+        rating: 4.5,
+        textAr: 'فحص دقيق وشرح واضح للمشكلة قبل الإصلاح.',
+        dateAr: 'قبل شهر',
+      },
     ],
   },
   {
     id: 'tech-2',
-    nameAr: 'سامي محيور',
+    nameAr: 'سامي محمود',
     initialsAr: 'س',
     verified: true,
     rating: 4.9,
@@ -42,18 +56,31 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
     specialtiesAr: ['تبريد وتكييف'],
     appliances: ['air_conditioner'],
     servicesAr: ['صيانة المكيفات', 'تنظيف الفلاتر', 'فحص غاز التبريد'],
-    areasAr: ['العليا', 'الملز'],
+    areasAr: ['مصر الجديدة', 'المعادي'],
     aboutAr: 'متخصص تبريد وتكييف بخبرة طويلة في المكيفات المنزلية وصيانتها الدورية.',
+    avatarUrl: null,
     available: true,
     availabilityLabelAr: 'متاح اليوم',
     reviews: [
-      { id: 'tech-2-r1', authorAr: 'أبو تركي', rating: 5, textAr: 'ممتاز، حل مشكلة التبريد من أول زيارة.', dateAr: 'قبل ٣ أيام' },
-      { id: 'tech-2-r2', authorAr: 'نورة', rating: 5, textAr: 'محترم ودقيق في المواعيد.', dateAr: 'قبل أسبوعين' },
+      {
+        id: 'tech-2-r1',
+        authorAr: 'أبو يوسف',
+        rating: 5,
+        textAr: 'ممتاز، حل مشكلة التبريد من أول زيارة.',
+        dateAr: 'قبل ٣ أيام',
+      },
+      {
+        id: 'tech-2-r2',
+        authorAr: 'نورة',
+        rating: 5,
+        textAr: 'محترم ودقيق في المواعيد.',
+        dateAr: 'قبل أسبوعين',
+      },
     ],
   },
   {
     id: 'tech-3',
-    nameAr: 'أحمد الجريسي',
+    nameAr: 'أحمد الجمال',
     initialsAr: 'أ',
     verified: true,
     rating: 4.9,
@@ -62,17 +89,24 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
     specialtiesAr: ['غسالات أوتوماتيك', 'ثلاجات وفريزرات'],
     appliances: ['washing_machine', 'refrigerator'],
     servicesAr: ['إصلاح الغسالات', 'فحص تبريد الثلاجات', 'تنظيف الفلاتر'],
-    areasAr: ['النزهة'],
+    areasAr: ['مدينة نصر'],
     aboutAr: 'أعمل على الغسالات والثلاجات مع ضمان توضيح كل خطوة قبل تنفيذها.',
+    avatarUrl: null,
     available: false,
     availabilityLabelAr: 'مشغول حاليًا',
     reviews: [
-      { id: 'tech-3-r1', authorAr: 'أبو راكان', rating: 5, textAr: 'فني أمين وشغله مرتب.', dateAr: 'قبل شهر' },
+      {
+        id: 'tech-3-r1',
+        authorAr: 'أبو مروان',
+        rating: 5,
+        textAr: 'فني أمين وشغله مرتب.',
+        dateAr: 'قبل شهر',
+      },
     ],
   },
   {
     id: 'tech-4',
-    nameAr: 'فهد السبيعي',
+    nameAr: 'كريم فؤاد',
     initialsAr: 'ف',
     verified: false,
     rating: 4.9,
@@ -81,15 +115,16 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
     specialtiesAr: ['تبريد وتكييف'],
     appliances: ['air_conditioner'],
     servicesAr: ['صيانة المكيفات', 'تعبئة الفريون', 'تنظيف الوحدات'],
-    areasAr: ['الشفا'],
+    areasAr: ['حلوان'],
     aboutAr: 'فني تكييف، حسابي جديد في المنصة وتقييماتي من عملاء سابقين.',
+    avatarUrl: null,
     available: true,
     availabilityLabelAr: 'متاح اليوم',
     reviews: [],
   },
   {
     id: 'tech-5',
-    nameAr: 'خالد المطيري',
+    nameAr: 'خالد المهدي',
     initialsAr: 'خ',
     verified: true,
     rating: 4.6,
@@ -98,17 +133,24 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
     specialtiesAr: ['ثلاجات وفريزرات'],
     appliances: ['refrigerator'],
     servicesAr: ['فحص تبريد الثلاجات', 'تنظيف ملفات التهوية', 'فحص جوان الباب'],
-    areasAr: ['الملز', 'العليا'],
+    areasAr: ['المعادي', 'مصر الجديدة'],
     aboutAr: 'متخصص ثلاجات وفريزرات، أركز على التشخيص الصحيح قبل تغيير أي قطعة.',
+    avatarUrl: null,
     available: true,
     availabilityLabelAr: 'متاح غدًا',
     reviews: [
-      { id: 'tech-5-r1', authorAr: 'أم ليان', rating: 4.5, textAr: 'حل مشكلة التبريد بسعر عادل.', dateAr: 'قبل أسبوعين' },
+      {
+        id: 'tech-5-r1',
+        authorAr: 'أم ليان',
+        rating: 4.5,
+        textAr: 'حل مشكلة التبريد بسعر عادل.',
+        dateAr: 'قبل أسبوعين',
+      },
     ],
   },
   {
     id: 'tech-6',
-    nameAr: 'سعد القحطاني',
+    nameAr: 'سعد الشريف',
     initialsAr: 'س',
     verified: true,
     rating: 4.5,
@@ -117,22 +159,43 @@ const TECHNICIANS_FIXTURE: ReadonlyArray<Technician> = [
     specialtiesAr: ['ثلاجات وفريزرات', 'تبريد وتكييف'],
     appliances: ['refrigerator', 'air_conditioner'],
     servicesAr: ['فحص تبريد الثلاجات', 'صيانة المكيفات'],
-    areasAr: ['جدة – الروضة'],
-    aboutAr: 'أخدم عملاء جدة في الثلاجات والمكيفات مع التزام كامل بالمواعيد.',
+    areasAr: ['الإسكندرية – سموحة'],
+    aboutAr: 'أخدم عملاء الإسكندرية في الثلاجات والمكيفات مع التزام كامل بالمواعيد.',
+    avatarUrl: null,
     available: true,
     availabilityLabelAr: 'متاح اليوم',
     reviews: [
-      { id: 'tech-6-r1', authorAr: 'أبو جود', rating: 4.5, textAr: 'تعامل راقٍ وشغل جيد.', dateAr: 'قبل شهر' },
+      {
+        id: 'tech-6-r1',
+        authorAr: 'أبو جود',
+        rating: 4.5,
+        textAr: 'تعامل راقٍ وشغل جيد.',
+        dateAr: 'قبل شهر',
+      },
     ],
   },
 ];
 
 export interface TechnicianDataSource {
-  getTechnicians(input: { role: 'customer' }): Promise<ReadonlyArray<Technician>>;
+  getTechnicians(input: {
+    role: 'customer';
+    /** WP-4: server-side availability filter ('available' only). */
+    availability?: 'available';
+    /** WP-Discovery: remaining filters are server-side; the mock honors availability only. */
+    filters?: TechnicianListQuery;
+  }): Promise<ReadonlyArray<Technician>>;
 }
 
 export class MockTechnicianDataSource implements TechnicianDataSource {
-  async getTechnicians(_input: { role: 'customer' }): Promise<ReadonlyArray<Technician>> {
-    return JSON.parse(JSON.stringify(TECHNICIANS_FIXTURE)) as ReadonlyArray<Technician>;
+  async getTechnicians(input: {
+    role: 'customer';
+    availability?: 'available';
+    filters?: TechnicianListQuery;
+  }): Promise<ReadonlyArray<Technician>> {
+    const all = JSON.parse(JSON.stringify(TECHNICIANS_FIXTURE)) as ReadonlyArray<Technician>;
+    if (input.availability === 'available') {
+      return all.filter((t) => t.available);
+    }
+    return all;
   }
 }

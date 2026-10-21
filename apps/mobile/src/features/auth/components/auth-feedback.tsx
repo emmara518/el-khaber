@@ -8,13 +8,9 @@
  */
 
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { ActionButton, Icon, type IconName } from '@/ui';
 
 type AlertKind = 'error' | 'success' | 'info';
 
@@ -38,40 +34,34 @@ export function AuthAlert({
   );
 }
 
+/**
+ * Auth primary CTA — the shared navy `ActionButton` (primary) with an
+ * optional trailing icon, kept as a thin wrapper so the auth surface has one
+ * button implementation, not a parallel one.
+ */
 export function AuthButton({
   label,
   onPress,
   loading = false,
   disabled = false,
+  trailingIcon,
 }: {
   label: string;
   onPress: () => void;
   loading?: boolean;
   disabled?: boolean;
+  /** Optional trailing (end / left in RTL) icon. */
+  trailingIcon?: IconName;
 }) {
-  const inactive = loading || disabled;
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: inactive, busy: loading }}
+    <ActionButton
+      variant="primary"
+      label={label}
       onPress={onPress}
-      disabled={inactive}
-      style={({ pressed }) => [
-        styles.button,
-        inactive && styles.buttonDisabled,
-        pressed && !inactive && styles.buttonPressed,
-      ]}
-    >
-      {loading ? (
-        <ActivityIndicator
-          accessibilityLabel="جارٍ التحميل"
-          color={color.surface.base}
-        />
-      ) : (
-        <Text style={styles.buttonText}>{label}</Text>
-      )}
-    </Pressable>
+      loading={loading}
+      disabled={disabled}
+      trailing={trailingIcon ? <Icon name={trailingIcon} size={20} color={color.surface.base} /> : undefined}
+    />
   );
 }
 
@@ -121,25 +111,6 @@ const styles = StyleSheet.create({
   },
   alertErrorText: {
     color: color.error.DEFAULT,
-  },
-  button: {
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing[5],
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonPressed: {
-    opacity: 0.85,
-  },
-  buttonText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   link: {
     minHeight: 44,

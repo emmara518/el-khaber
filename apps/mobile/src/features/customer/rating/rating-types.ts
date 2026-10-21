@@ -1,9 +1,15 @@
 /**
- * Rating contracts + pure selection helpers (Batch E).
+ * Rating contracts + pure selection helpers.
  *
- * 1–5 stars (required), tags + comment optional. No scores, no
- * ranking, no percentages — a plain customer review.
+ * 1–5 stars (required), tags + comment optional. Review tags are canonical
+ * server data (WP-2C): the client fetches them from `GET /review-tags` and
+ * submits `tag_ids` (UUIDs). No hardcoded tag taxonomy exists here.
  */
+
+import type { ReviewTagDto } from '@khabir/shared-types';
+
+/** Canonical review tag as returned by `GET /review-tags`. */
+export type ReviewTag = ReviewTagDto;
 
 export const RATING_LABELS_AR: Record<number, string> = {
   1: 'سيئ',
@@ -13,23 +19,18 @@ export const RATING_LABELS_AR: Record<number, string> = {
   5: 'ممتاز',
 };
 
-export const RATING_TAGS_AR: ReadonlyArray<string> = [
-  'احترافية',
-  'التزام بالموعد',
-  'نظافة العمل',
-  'شرح واضح',
-  'سعر عادل',
-];
-
 export interface RatingInput {
   readonly requestId: string;
   readonly technicianId: string;
   readonly stars: number;
-  readonly tags: ReadonlyArray<string>;
+  /** Canonical tag UUIDs from `GET /review-tags`. */
+  readonly tagIds: ReadonlyArray<string>;
   readonly commentAr: string;
 }
 
 export interface RatingDataSource {
+  /** Canonical active tags (server-owned taxonomy). */
+  listTags: () => Promise<ReadonlyArray<ReviewTag>>;
   submitRating(input: RatingInput): Promise<{ ok: true }>;
 }
 

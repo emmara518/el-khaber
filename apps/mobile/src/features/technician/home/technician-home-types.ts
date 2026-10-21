@@ -6,7 +6,18 @@
  * reject belong to T-C), active-service preview (no controls —
  * T-D), and the rating summary from the existing data model.
  * No earnings, no rates, no percentages anywhere.
+ *
+ * `applianceSlug` is the canonical category slug used to render the
+ * approved appliance asset on Home cards.
  */
+
+import type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
+import type { ServiceRequestStatus } from '@khabir/shared-types';
+
+/** WP-4 availability states — canonical server union (single source). */
+export type { TechnicianAvailabilityStatus } from '../../../lib/technician-status';
+/** WP-4 approved labels — single source shared with customer discovery. */
+export { availabilityLabelAr } from '../../../lib/technician-status';
 
 export type TechnicianVerification = 'verified' | 'pending' | 'action_required';
 
@@ -20,11 +31,14 @@ export interface TechnicianHomeProfile {
   readonly verification: TechnicianVerification;
   readonly verificationNoteAr: string;
   readonly availabilityLabelAr: string;
+  /** True when the technician's availability status is "available". */
+  readonly available: boolean;
 }
 
 export interface TechnicianTodayOverview {
   readonly newRequests: number;
   readonly inProgress: number;
+  readonly onTheWay: number;
   readonly completedToday: number;
 }
 
@@ -32,6 +46,8 @@ export interface TechnicianIncomingPreview {
   readonly id: string;
   readonly customerNameAr: string;
   readonly applianceAr: string;
+  /** Canonical category slug — drives the approved appliance asset. */
+  readonly applianceSlug: string | null;
   readonly problemAr: string;
   readonly timeAr: string;
 }
@@ -40,7 +56,11 @@ export interface TechnicianActiveService {
   readonly id: string;
   readonly customerNameAr: string;
   readonly applianceAr: string;
+  /** Canonical category slug — drives the approved appliance asset. */
+  readonly applianceSlug: string | null;
   readonly taskAr: string;
+  /** Real lifecycle status (accepted | on_the_way | in_progress). */
+  readonly status: ServiceRequestStatus;
   readonly statusLabelAr: string;
   readonly startedAr: string;
 }
@@ -56,19 +76,24 @@ export interface TechnicianHomeViewModel {
 
 export interface TechnicianHomeDataSource {
   getHome(input: { role: 'technician' }): Promise<TechnicianHomeViewModel>;
+  /** WP-4: technician-controlled availability (available | unavailable only). */
+  setAvailability(input: {
+    role: 'technician';
+    available: boolean;
+  }): Promise<{ availabilityStatus: TechnicianAvailabilityStatus }>;
 }
 
 /** Verification copy — icon + text, never color alone (unit-tested). */
 export function verificationCopy(state: TechnicianVerification): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'alert-circle';
   titleAr: string;
 } {
   switch (state) {
     case 'verified':
-      return { icon: '✓', titleAr: 'تم التحقق' };
+      return { icon: 'check-circle', titleAr: 'تم التحقق' };
     case 'pending':
-      return { icon: '◷', titleAr: 'قيد المراجعة' };
+      return { icon: 'clock', titleAr: 'قيد المراجعة' };
     case 'action_required':
-      return { icon: '!', titleAr: 'يحتاج إجراء' };
+      return { icon: 'alert-circle', titleAr: 'يحتاج إجراء' };
   }
 }

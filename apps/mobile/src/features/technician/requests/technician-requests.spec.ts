@@ -14,6 +14,7 @@ import {
   canReject,
   decideRequestAction,
   requestActionErrorAr,
+  requestActionsForStatus,
 } from './request-policy';
 import {
   filterTechnicianRequests,
@@ -56,6 +57,20 @@ describe('documented transition policy (docs/07_API.md §22)', () => {
     expect(requestActionErrorAr('stale')).toContain('لم يعد هذا الطلب متاحًا');
     expect(requestActionErrorAr('terminal')).toContain('مغلق');
     expect(requestActionErrorAr('unknown')).toContain('حاول');
+  });
+
+  // Regression guard for F-02: the list must expose the SAME actions the
+  // policy allows — not a hardcoded `status === 'pending'` check.
+  it('derives row actions from the policy (UI cannot drift from behavior)', () => {
+    expect(requestActionsForStatus('pending')).toEqual({ canAccept: true, canReject: true });
+    // An accepted request is reject-able (accepted → cancelled) even though
+    // it is not accept-able — the previous `status === 'pending'` gate hid
+    // this action entirely.
+    expect(requestActionsForStatus('accepted')).toEqual({ canAccept: false, canReject: true });
+    expect(requestActionsForStatus('on_the_way')).toEqual({ canAccept: false, canReject: false });
+    expect(requestActionsForStatus('in_progress')).toEqual({ canAccept: false, canReject: false });
+    expect(requestActionsForStatus('completed')).toEqual({ canAccept: false, canReject: false });
+    expect(requestActionsForStatus('cancelled')).toEqual({ canAccept: false, canReject: false });
   });
 });
 

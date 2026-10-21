@@ -9,6 +9,7 @@
 import {
   initDraftFromHandoff,
   validateStep,
+  type RequestAttachment,
   type ServiceRequestDraft,
   type ServiceRequestHandoff,
   type ServiceRequestStep,
@@ -27,10 +28,10 @@ export type ServiceRequestEvent =
   | { readonly type: 'SET_PROBLEM'; readonly problemId: string | null }
   | { readonly type: 'SET_CUSTOM_PROBLEM'; readonly text: string }
   | { readonly type: 'SET_DESCRIPTION'; readonly text: string }
-  | { readonly type: 'ADD_PHOTO'; readonly photoId: string; readonly labelAr: string }
+  | { readonly type: 'ADD_PHOTO'; readonly photo: RequestAttachment }
   | { readonly type: 'REMOVE_PHOTO'; readonly photoId: string }
   | { readonly type: 'SET_LOCATION'; readonly locationId: string }
-  | { readonly type: 'SET_APPOINTMENT'; readonly slotId: string | null }
+  | { readonly type: 'SET_PREFERRED_AT'; readonly preferredAtISO: string | null }
   | { readonly type: 'NEXT' }
   | { readonly type: 'BACK' }
   | { readonly type: 'GOTO'; readonly step: ServiceRequestStep };
@@ -56,7 +57,7 @@ export const INITIAL_SERVICE_REQUEST_STATE: ServiceRequestState = {
     descriptionAr: '',
     photos: [],
     locationId: null,
-    appointmentSlotId: null,
+    preferredAtISO: null,
   },
   stepError: null,
 };
@@ -94,13 +95,13 @@ export function serviceRequestReducer(
       return { ...state, stepError: null, draft: { ...state.draft, descriptionAr: event.text } };
 
     case 'ADD_PHOTO':
-      if (state.draft.photos.some((p) => p.id === event.photoId)) return state;
+      if (state.draft.photos.some((p) => p.id === event.photo.id)) return state;
       return {
         ...state,
         stepError: null,
         draft: {
           ...state.draft,
-          photos: [...state.draft.photos, { id: event.photoId, labelAr: event.labelAr }],
+          photos: [...state.draft.photos, event.photo],
         },
       };
 
@@ -114,8 +115,12 @@ export function serviceRequestReducer(
     case 'SET_LOCATION':
       return { ...state, stepError: null, draft: { ...state.draft, locationId: event.locationId } };
 
-    case 'SET_APPOINTMENT':
-      return { ...state, stepError: null, draft: { ...state.draft, appointmentSlotId: event.slotId } };
+    case 'SET_PREFERRED_AT':
+      return {
+        ...state,
+        stepError: null,
+        draft: { ...state.draft, preferredAtISO: event.preferredAtISO },
+      };
 
     case 'NEXT': {
       const error = validateStep(state.draft, state.step);

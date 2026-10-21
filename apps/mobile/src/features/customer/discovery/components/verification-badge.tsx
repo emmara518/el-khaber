@@ -7,8 +7,12 @@
  * unverified states differ in icon + text, never color alone.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
+
+import { BrandImage } from '@/ui/brand-image';
+import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 export function VerificationBadge({ verified }: { verified: boolean }) {
   if (verified) {
@@ -18,7 +22,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
         accessibilityLabel="موثّق من الخبير: تم التحقق من الهوية والخبرة"
         style={[styles.badge, styles.verified]}
       >
-        <Text style={[styles.icon, styles.verifiedText]}>✓</Text>
+        <BrandImage name="verified" size={16} />
         <Text style={[styles.label, styles.verifiedText]}>موثّق من الخبير</Text>
       </View>
     );
@@ -29,7 +33,7 @@ export function VerificationBadge({ verified }: { verified: boolean }) {
       accessibilityLabel="لم يتم توثيقه بعد"
       style={[styles.badge, styles.unverified]}
     >
-      <Text style={[styles.icon, styles.unverifiedText]}>○</Text>
+      <Icon name="circle" size={13} color={color.text.secondary} accessible={false} />
       <Text style={[styles.label, styles.unverifiedText]}>لم يتم توثيقه بعد</Text>
     </View>
   );
@@ -43,7 +47,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
-    gap: spacing[1],
+    gap: spacing[1] + 2,
   },
   verified: {
     backgroundColor: color.success.soft,
@@ -53,13 +57,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: color.border.default,
   },
-  icon: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
-  },
   label: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
+    ...type.label,
   },
   verifiedText: {
     color: color.success.DEFAULT,

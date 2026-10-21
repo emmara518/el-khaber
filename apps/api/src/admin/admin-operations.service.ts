@@ -1,0 +1,617 @@
+/**
+ * ADMIN verification + catalog + service-request operations
+ * (Task 10K). Sources: docs/09_ADMIN.md §6/§10/§11, docs/07 §18.
+ *
+ * Verification is a state machine (pending/verified/rejected/suspended),
+ * Admin-only, audited — never arbitrated by a user role or hidden in a
+ * client. Reviews moderation: admin list + deletion per policy (audited).
+ * Service-request operation: admin detail + status override (audited).
+ */
+
+import { buildPageMeta } from '@khabir/shared-types';
+import { Injectable, NotFoundException } from '@nestjs/common';
+
+
+import { ConflictException, ValidationException } from '../common/errors';
+import { PrismaService } from '../database/prisma.service';
+import {
+  requestAssignedNotification,
+  requestStatusNotification,
+  verificationNotification,
+} from '../notifications/notification-events';
+import { NotificationsService } from '../notifications/notifications.service';
+
+import type { Prisma } from '@prisma/client';
+
+// Verification state machine (docs/09_ADMIN.md §6).
+type VerificationState = 'pending' | 'verified' | 'rejected' | 'suspended';
+
+const REQUEST_OVERWRITABLE: ReadonlySet<string> = new Set([
+  'pending',
+  'accepted',
+  'on_the_way',
+  'in_progress',
+  'completed',
+  'cancelled',
+]);
+
+@Injectable()
+export class AdminOperationsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  // --- Verification state machine (docs/09 §6) ------------------------------
+
+  async listTechnicians(query: {
+    page: number;
+    limit: number;
+    q?: string;
+    verificationStatus?: string;
+  }): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
+    const { page, limit } = query;
+    const where: Prisma.TechnicianProfileWhereInput = {
+      ...(query.verificationStatus !== undefined
+        ? { verificationStatus: query.verificationStatus as never }
+        : {}),
+      ...(query.q !== undefined
+        ? {
+            user: {
+              OR: [
+                { email: { contains: query.q, mode: 'insensitive' as const } },
+                { phone: { contains: query.q } },
+              ],
+            },
+          }
+        : {}),
+    };
+    const [total, rows] = await Promise.all([
+      this.prisma.technicianProfile.count({ where }),
+      this.prisma.technicianProfile.findMany({
+        where,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          displayName: true,
+          verificationStatus: true,
+          experienceYears: true,
+          completedServicesCount: true,
+          ratingAverage: true,
+          ratingCount: true,
+          availabilityStatus: true,
+          user: { select: { id: true, email: true, phone: true, status: true, createdAt: true } },
+        },
+      }),
+    ]);
+    return { items: rows, meta: buildPageMeta(page, limit, total) };
+  }
+
+  /**
+   * Verification decision (docs/09 §6, WP-Admin-02). A review reason is
+   * REQUIRED for rejected/suspended (400 otherwise); it is stored in
+   * the audit trail and notified to the affected user. No document
+   * store exists for technicians/merchants — the reviewable record is
+   * the profile itself (fields, services, ratings, areas).
+   */
+  async setVerification(
+    adminId: string,
+    kind: 'technician' | 'merchant',
+    profileId: string,
+    status: VerificationState,
+    reason?: string,
+  ): Promise<Record<string, unknown>> {
+    const trimmedReason = reason?.trim() ?? '';
+    if ((status === 'rejected' || status === 'suspended') && trimmedReason.length === 0) {
+      throw new ValidationException('A review reason is required to reject or suspend', {
+        reason: 'Provide the review reason',
+      });
+    }
+    const now = new Date();
+    const result = await this.prisma.$transaction(async (tx) => {
+      if (kind === 'technician') {
+        const before = await tx.technicianProfile.findFirst({
+          where: { id: profileId },
+          select: { id: true, verificationStatus: true, userId: true },
+        });
+        if (before === null) {
+          return 'not-found' as const;
+        }
+        if (before.verificationStatus === status) {
+          return 'unchanged' as const;
+        }
+        const row = await tx.technicianProfile.update({
+          where: { id: profileId },
+          data: { verificationStatus: status },
+          select: { id: true, verificationStatus: true, userId: true },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorAdminId: adminId,
+            entityType: 'technician_verification',
+            entityId: profileId,
+            action: `admin.verification.${status}`,
+            beforeJson: { verificationStatus: before.verificationStatus } as never,
+            afterJson: {
+              verificationStatus: status,
+              userId: row.userId,
+              ...(trimmedReason.length > 0 ? { reason: trimmedReason } : {}),
+            } as never,
+          },
+        });
+        // Business event → persisted notification, same transaction (WP-2B):
+        // the affected technician is notified of the decision; `pending`
+        // never notifies and a rolled-back decision leaves no phantom row.
+        // WP-Notifications: navigation payload carries ids only (no PII).
+        if (status !== 'pending') {
+          await this.notifications.create(
+            row.userId,
+            {
+              ...verificationNotification(status, trimmedReason),
+              dataJson: { profileId, kind: 'technician', status },
+            },
+            tx,
+          );
+        }
+        return {
+          id: row.id,
+          verificationStatus: row.verificationStatus,
+          userId: row.userId,
+          at: now,
+        } as const;
+      }
+      const before = await tx.merchantProfile.findFirst({
+        where: { id: profileId },
+        select: { id: true, verificationStatus: true, userId: true },
+      });
+      if (before === null) {
+        return 'not-found' as const;
+      }
+      if (before.verificationStatus === status) {
+        return 'unchanged' as const;
+      }
+      const row = await tx.merchantProfile.update({
+        where: { id: profileId },
+        data: { verificationStatus: status },
+        select: { id: true, verificationStatus: true, userId: true },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorAdminId: adminId,
+          entityType: 'merchant_verification',
+          entityId: profileId,
+          action: `admin.verification.${status}`,
+          beforeJson: { verificationStatus: before.verificationStatus } as never,
+          afterJson: {
+            verificationStatus: status,
+            userId: row.userId,
+            ...(trimmedReason.length > 0 ? { reason: trimmedReason } : {}),
+          } as never,
+        },
+      });
+      // Business event → persisted notification, same transaction (WP-2B).
+      // WP-Notifications: navigation payload carries ids only (no PII).
+      if (status !== 'pending') {
+        await this.notifications.create(
+          row.userId,
+          {
+            ...verificationNotification(status, trimmedReason),
+            dataJson: { profileId, kind: 'merchant', status },
+          },
+          tx,
+        );
+      }
+      return {
+        id: row.id,
+        verificationStatus: row.verificationStatus,
+        userId: row.userId,
+        at: now,
+      } as const;
+    });
+    if (result === 'not-found') {
+      throw new NotFoundException(
+        `${kind === 'technician' ? 'Technician' : 'Merchant'} profile not found`,
+      );
+    }
+    if (result === 'unchanged') {
+      throw new ConflictException('Verification state already set');
+    }
+    return result;
+  }
+
+  async listMerchants(query: {
+    page: number;
+    limit: number;
+    q?: string;
+    verificationStatus?: string;
+  }): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
+    const { page, limit } = query;
+    const where: Prisma.MerchantProfileWhereInput = {
+      ...(query.verificationStatus !== undefined
+        ? { verificationStatus: query.verificationStatus as never }
+        : {}),
+      ...(query.q !== undefined
+        ? {
+            OR: [
+              { businessName: { contains: query.q, mode: 'insensitive' as const } },
+              { contactPhone: { contains: query.q } },
+              { user: { email: { contains: query.q, mode: 'insensitive' as const } } },
+            ],
+          }
+        : {}),
+    };
+    const [total, rows] = await Promise.all([
+      this.prisma.merchantProfile.count({ where }),
+      this.prisma.merchantProfile.findMany({
+        where,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          businessName: true,
+          contactPhone: true,
+          verificationStatus: true,
+          user: { select: { id: true, email: true, status: true, createdAt: true } },
+        },
+      }),
+    ]);
+    return { items: rows, meta: buildPageMeta(page, limit, total) };
+  }
+
+  // --- Service-request operations ------------------------------------------
+
+  async listServiceRequests(query: {
+    page: number;
+    limit: number;
+    status?: string;
+  }): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
+    const { page, limit } = query;
+    const where: Prisma.ServiceRequestWhereInput =
+      query.status !== undefined ? { status: query.status as never } : {};
+    const [total, rows] = await Promise.all([
+      this.prisma.serviceRequest.count({ where }),
+      this.prisma.serviceRequest.findMany({
+        where,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          status: true,
+          problemTitle: true,
+          problemDescription: true,
+          scheduledAt: true,
+          createdAt: true,
+          customer: { select: { id: true, email: true } },
+          technician: { select: { id: true, displayName: true } },
+        },
+      }),
+    ]);
+    return { items: rows, meta: buildPageMeta(page, limit, total) };
+  }
+
+  async setServiceRequestStatus(
+    adminId: string,
+    id: string,
+    status: string,
+  ): Promise<Record<string, unknown>> {
+    if (!REQUEST_OVERWRITABLE.has(status)) {
+      throw new ConflictException('Unsupported status');
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.serviceRequest.findFirst({
+        where: { id },
+        select: { id: true, status: true, customerId: true },
+      });
+      if (before === null) {
+        return 'not-found' as const;
+      }
+      if (before.status === status) {
+        return 'unchanged' as const;
+      }
+      const now = new Date();
+      const row = await tx.serviceRequest.update({
+        where: { id },
+        data: {
+          status: status as never,
+          ...(status === 'cancelled' ? { cancelledAt: now } : {}),
+          ...(status === 'completed' ? { completedAt: now } : {}),
+        },
+        select: { id: true, status: true, customerId: true },
+      });
+      await tx.serviceRequestStatusHistory.create({
+        data: {
+          serviceRequestId: id,
+          fromStatus: before.status,
+          toStatus: status as never,
+          changedByUserId: null, // admin override (no user actor)
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorAdminId: adminId,
+          entityType: 'service_request',
+          entityId: id,
+          action: 'admin.service_request.override',
+          beforeJson: { status: before.status } as never,
+          afterJson: { status } as never,
+        },
+      });
+      // WP-Notifications: preference-gated + Arabic copy (no English status
+      // leak) + navigation payload. Same transaction as the override.
+      await this.notifications.create(
+        row.customerId,
+        {
+          ...requestStatusNotification(status as 'pending' | 'accepted' | 'on_the_way' | 'in_progress' | 'completed' | 'cancelled'),
+          dataJson: { serviceRequestId: id, status },
+        },
+        tx,
+      );
+      return { id: row.id, status } as const;
+    });
+    if (result === 'not-found') {
+      throw new NotFoundException('Service request not found');
+    }
+    if (result === 'unchanged') {
+      throw new ConflictException('Service request already in this status');
+    }
+    return result;
+  }
+
+  /**
+   * Admin technician assignment (WP-Admin-03, docs/09 §10).
+   *
+   * Rules (no new lifecycle states, no silent overrides):
+   * - the request must exist (404) and be `pending` (409 otherwise —
+   *   assigned/active requests move through the lifecycle, and the
+   *   status-override route stays the only other admin write);
+   * - the technician profile must exist (404) and be `verified`
+   *   (409 otherwise — unverified/suspended technicians are never
+   *   assigned by the platform);
+   * - the write is atomic (`updateMany` guarded on pending): a racing
+   *   transition surfaces as 409, never a silent overwrite;
+   * - audited + both parties notified in the same transaction.
+   */
+  async assignServiceRequest(
+    adminId: string,
+    id: string,
+    technicianId: string,
+  ): Promise<Record<string, unknown>> {
+    const technician = await this.prisma.technicianProfile.findFirst({
+      where: { id: technicianId },
+      select: { id: true, userId: true, displayName: true, verificationStatus: true },
+    });
+    if (technician === null) {
+      throw new NotFoundException('Technician not found');
+    }
+    if (technician.verificationStatus !== 'verified') {
+      throw new ConflictException('Technician is not verified');
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.serviceRequest.findFirst({
+        where: { id },
+        select: { id: true, status: true, customerId: true, technicianId: true },
+      });
+      if (before === null) {
+        return 'not-found' as const;
+      }
+      if (before.status !== 'pending') {
+        return 'invalid-state' as const;
+      }
+      if (before.technicianId === technicianId) {
+        return 'unchanged' as const;
+      }
+      const updated = await tx.serviceRequest.updateMany({
+        where: { id, status: 'pending' },
+        data: { technicianId },
+      });
+      if (updated.count === 0) {
+        return 'stale' as const;
+      }
+      await tx.auditLog.create({
+        data: {
+          actorAdminId: adminId,
+          entityType: 'service_request',
+          entityId: id,
+          action: 'admin.service_request.assign',
+          beforeJson: { technicianId: before.technicianId } as never,
+          afterJson: { technicianId } as never,
+        },
+      });
+      await this.notifications.create(
+        technician.userId,
+        {
+          ...requestAssignedNotification('technician'),
+          dataJson: { serviceRequestId: id, technicianId },
+        },
+        tx,
+      );
+      await this.notifications.create(
+        before.customerId,
+        {
+          ...requestAssignedNotification('customer'),
+          dataJson: { serviceRequestId: id, technicianId },
+        },
+        tx,
+      );
+      return { id, status: 'pending', technicianId } as const;
+    });
+    if (result === 'not-found') {
+      throw new NotFoundException('Service request not found');
+    }
+    if (result === 'invalid-state') {
+      throw new ConflictException('Only pending requests can be assigned');
+    }
+    if (result === 'unchanged') {
+      throw new ConflictException('Technician already assigned to this request');
+    }
+    if (result === 'stale') {
+      throw new ConflictException('Service request changed concurrently');
+    }
+    return result;
+  }
+
+  // --- Review moderation ---------------------------------------------------
+
+  async listReviews(query: {
+    page: number;
+    limit: number;
+  }): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
+    const { page, limit } = query;
+    const where: Prisma.ReviewWhereInput = {};
+    const [total, rows] = await Promise.all([
+      this.prisma.review.count({ where }),
+      this.prisma.review.findMany({
+        where,
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
+          serviceRequest: { select: { id: true, status: true } },
+          technician: { select: { id: true, displayName: true } },
+          tagAssignments: { select: { tag: { select: { labelAr: true } } } },
+        },
+      }),
+    ]);
+    return { items: rows, meta: buildPageMeta(page, limit, total) };
+  }
+
+  /**
+   * Review removal (docs/09 §11, WP-Admin-04). The model has no
+   * moderation/hidden state, so removal is a hard delete — and therefore
+   * requires a review reason, stored in the audit trail. Derived
+   * technician metrics are recomputed from the remaining reviews.
+   */
+  async removeReview(
+    adminId: string,
+    reviewId: string,
+    reason: string,
+  ): Promise<Record<string, unknown>> {
+    const trimmedReason = reason.trim();
+    return this.prisma
+      .$transaction(async (tx) => {
+        const review = await tx.review.findFirst({
+          where: { id: reviewId },
+          select: { id: true, technicianId: true, rating: true },
+        });
+        if (review === null) {
+          return 'not-found' as const;
+        }
+        await tx.review.delete({ where: { id: reviewId } });
+        // Recompute derived metrics (docs/06 §27).
+        const ratings = await tx.review.findMany({
+          where: { technicianId: review.technicianId },
+          select: { rating: true },
+        });
+        const count = ratings.length;
+        const average = count === 0 ? 0 : ratings.reduce((s, r) => s + r.rating, 0) / count;
+        await tx.technicianProfile.update({
+          where: { id: review.technicianId },
+          data: {
+            ratingAverage: count === 0 ? null : Math.round(average * 100) / 100,
+            ratingCount: count,
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorAdminId: adminId,
+            entityType: 'review',
+            entityId: reviewId,
+            action: 'admin.review.remove',
+            beforeJson: { rating: review.rating } as never,
+            afterJson: { removed: true, reason: trimmedReason } as never,
+          },
+        });
+        return { id: reviewId, removed: true } as const;
+      })
+      .then((r) => {
+        if (r === 'not-found') {
+          throw new NotFoundException('Review not found');
+        }
+        return r as Record<string, unknown>;
+      });
+  }
+
+  // --- Audit log read (docs/09 §17) ----------------------------------------
+
+  async listAuditLogs(query: {
+    page: number;
+    limit: number;
+    entityType?: string;
+  }): Promise<{ items: Array<Record<string, unknown>>; meta: ReturnType<typeof buildPageMeta> }> {
+    const { page, limit } = query;
+    const where: Prisma.AuditLogWhereInput =
+      query.entityType !== undefined ? { entityType: query.entityType } : {};
+    const [total, rows] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          actorUserId: true,
+          actorAdminId: true,
+          entityType: true,
+          entityId: true,
+          action: true,
+          beforeJson: true,
+          afterJson: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+    return { items: rows, meta: buildPageMeta(page, limit, total) };
+  }
+
+  // --- Dashboard metrics (docs/09 §4) --------------------------------------
+
+  async metrics(): Promise<Record<string, unknown>> {
+    const [
+      usersCount,
+      techniciansCount,
+      merchantsCount,
+      pendingServiceRequests,
+      activeServiceRequests,
+      completedServiceRequests,
+      cancelledServiceRequests,
+      activeSubscriptions,
+      technicianProfilesCount,
+      merchantProfilesCount,
+    ] = await Promise.all([
+      this.prisma.user.count(),
+      this.prisma.technicianProfile.count(),
+      this.prisma.merchantProfile.count(),
+      this.prisma.serviceRequest.count({ where: { status: 'pending' } }),
+      this.prisma.serviceRequest.count({
+        where: { status: { in: ['on_the_way', 'in_progress'] } },
+      }),
+      this.prisma.serviceRequest.count({ where: { status: 'completed' } }),
+      this.prisma.serviceRequest.count({ where: { status: 'cancelled' } }),
+      this.prisma.subscription.count({ where: { status: 'active' } }),
+      this.prisma.technicianProfile.count({ where: { verificationStatus: 'verified' } }),
+      this.prisma.merchantProfile.count({ where: { verificationStatus: 'verified' } }),
+    ]);
+    return {
+      usersCount,
+      techniciansCount,
+      merchantsCount,
+      serviceRequests: {
+        pending: pendingServiceRequests,
+        active: activeServiceRequests,
+        completed: completedServiceRequests,
+        cancelled: cancelledServiceRequests,
+      },
+      activeSubscriptions,
+      verified: { technicians: technicianProfilesCount, merchants: merchantProfilesCount },
+    };
+  }
+}

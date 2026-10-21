@@ -47,9 +47,10 @@ const SEED: ReadonlyArray<SeedRow> = [
     id: 'tin-001',
     customerNameAr: 'أم نورة',
     applianceAr: 'مكيف',
+    applianceSlug: 'air_conditioner',
     problemAr: 'صيانة مكيف سبليت',
     descriptionAr: 'المكيف يبرد بشكل ضعيف منذ يومين مع صوت مزعج عند التشغيل.',
-    locationAr: 'الرياض – حي العليا',
+    locationAr: 'القاهرة – مدينة نصر',
     timeAr: 'اليوم ٥:٠٠ م',
     createdAr: 'اليوم ٩:١٥ ص',
     appointmentAr: 'اليوم ٥:٠٠ م',
@@ -57,11 +58,12 @@ const SEED: ReadonlyArray<SeedRow> = [
   },
   {
     id: 'tin-002',
-    customerNameAr: 'أبو فهد',
+    customerNameAr: 'أبو كريم',
     applianceAr: 'مكيف',
+    applianceSlug: 'air_conditioner',
     problemAr: 'تنقيط مياه من الوحدة الداخلية',
     descriptionAr: 'تنقيط مستمر منذ أمس مع ضعف في التبريد.',
-    locationAr: 'الرياض – حي الملز',
+    locationAr: 'القاهرة – المعادي',
     timeAr: 'غدًا ٩:٠٠ ص',
     createdAr: 'اليوم ١٠:٠٥ ص',
     appointmentAr: 'غدًا ٩:٠٠ ص',
@@ -71,9 +73,10 @@ const SEED: ReadonlyArray<SeedRow> = [
     id: 'tin-003',
     customerNameAr: 'أبو خالد',
     applianceAr: 'مكيف',
+    applianceSlug: 'air_conditioner',
     problemAr: 'تنظيف فلاتر',
     descriptionAr: 'صيانة دورية وتنظيف شامل للوحدة الداخلية.',
-    locationAr: 'الرياض – حي النزهة',
+    locationAr: 'الجيزة – الدقي',
     timeAr: 'اليوم ٧:٠٠ م',
     createdAr: 'أمس ٤:٠٠ م',
     appointmentAr: 'اليوم ٧:٠٠ م',
@@ -83,9 +86,10 @@ const SEED: ReadonlyArray<SeedRow> = [
     id: 'tin-004',
     customerNameAr: 'أم سارة',
     applianceAr: 'ثلاجة',
+    applianceSlug: 'refrigerator',
     problemAr: 'ضعف التبريد',
     descriptionAr: 'التبريد ضعيف في الجزء السفلي منذ ثلاثة أيام.',
-    locationAr: 'الرياض – حي العليا',
+    locationAr: 'القاهرة – مدينة نصر',
     timeAr: 'اليوم ٢:٠٠ م',
     createdAr: 'اليوم ٨:٣٠ ص',
     appointmentAr: null,
@@ -93,11 +97,12 @@ const SEED: ReadonlyArray<SeedRow> = [
   },
   {
     id: 'tin-005',
-    customerNameAr: 'أبو تركي',
+    customerNameAr: 'أبو يوسف',
     applianceAr: 'مكيف',
+    applianceSlug: 'air_conditioner',
     problemAr: 'صيانة مكيف سبليت',
     descriptionAr: 'فحص شامل وإعادة تعبئة عند الحاجة.',
-    locationAr: 'الرياض – حي الملز',
+    locationAr: 'القاهرة – المعادي',
     timeAr: 'اليوم ١:٠٠ م',
     createdAr: 'أمس ٦:٠٠ م',
     appointmentAr: 'اليوم ١:٠٠ م',
@@ -107,9 +112,10 @@ const SEED: ReadonlyArray<SeedRow> = [
     id: 'tin-006',
     customerNameAr: 'أم ليان',
     applianceAr: 'غسالة',
+    applianceSlug: 'washing_machine',
     problemAr: 'اهتزاز قوي أثناء العصر',
     descriptionAr: 'تم الفحص والإصلاح واستبدال مساعدات.',
-    locationAr: 'الرياض – حي الشفا',
+    locationAr: 'الإسكندرية – سموحة',
     timeAr: 'أمس ١١:٠٠ ص',
     createdAr: 'أمس ٩:٠٠ ص',
     appointmentAr: 'أمس ١١:٠٠ ص',
@@ -117,11 +123,12 @@ const SEED: ReadonlyArray<SeedRow> = [
   },
   {
     id: 'tin-007',
-    customerNameAr: 'أبو راكان',
+    customerNameAr: 'أبو مروان',
     applianceAr: 'ثلاجة',
+    applianceSlug: 'refrigerator',
     problemAr: 'صوت مرتفع',
     descriptionAr: 'ألغى العميل الطلب قبل الموعد.',
-    locationAr: 'الرياض – حي النزهة',
+    locationAr: 'الجيزة – المهندسين',
     timeAr: 'أمس ٣:٠٠ م',
     createdAr: 'أمس ١٠:٠٠ ص',
     appointmentAr: null,
@@ -197,7 +204,8 @@ export class MockTechnicianRequestsDataSource implements TechnicianRequestsDataS
 /**
  * Shared session instance: list / detail / active-service screens
  * must observe the SAME in-memory session state so transitions stay
- * consistent across navigation (T-D §19). Deterministic; replaced
- * wholesale by the future API adapter.
+ * consistent across navigation (T-D §19). Deterministic; the shipped
+ * screens use the real API adapter instead, this mock remains the
+ * deterministic fixture for the spec suite only.
  */
 export const sharedTechnicianRequestsSource = new MockTechnicianRequestsDataSource();

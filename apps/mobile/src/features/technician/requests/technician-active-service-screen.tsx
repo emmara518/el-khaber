@@ -1,40 +1,43 @@
 /**
- * Technician Active Service screen (T-D).
+ * Technician Active Service screen (T-D) — Customer visual language.
  *
- * "ماذا أفعل الآن؟": current status + hint, request context
- * (customer/appliance/problem/location/appointment), and exactly ONE
- * documented next action per state (accepted → أنا في الطريق →
- * on_the_way; on_the_way → بدء العمل → in_progress; in_progress →
- * إنهاء الخدمة with confirmation → completed). Terminal states show
- * no actions. Stale/error keep the current state visible with safe
- * Arabic copy and retry. Shares the shared request session source so
- * list/detail/active remain consistent.
+ * AppHeader → PageTitle ("ماذا أفعل الآن؟") → current service card →
+ * lifecycle timeline → exactly ONE documented next action per state,
+ * plus chat when the request is active. No cinematic header/scene.
+ * Chat renders in the technician role (correct side + counterparty).
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { ChatDialog } from '../../customer/chat/chat-dialog';
-import { MockChatDataSource } from '../../customer/chat/mock-chat-data-source';
-import { ListEmpty, ListError, ListLoading } from '../../customer/components/list-state-view';
 
+import { buildTechnicianTimeline, TECHNICIAN_STATUS_LABELS } from './technician-request-types';
 import { useTechnicianActiveServiceViewModel } from './use-technician-active-service-view-model';
 
 import type { TechnicianRequestsDataSource } from './mock-technician-requests-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
-import { Card, StatusBadge } from '@/ui';
-
+import { joinNonEmpty } from '@/lib/api-format';
+import { useRefreshOnFocus } from '@/lib/use-refresh-on-focus';
+import {
+  ActionButton,
+  AppHeader,
+  ApplianceThumb,
+  Card,
+  Icon,
+  LifecycleTimeline,
+  ListEmpty,
+  ListError,
+  ListLoading,
+  PageTitle,
+  SectionHeading,
+  StatusBadge,
+  statusBrandAsset,
+} from '@/ui';
+import { fontFamily, type } from '@/ui/typography';
 
 const STATUS_HINTS: Record<string, string> = {
   accepted: 'تم قبول الطلب. عند توجّهك إلى العميل، أكّد الانطلاق.',
@@ -54,207 +57,175 @@ export default function TechnicianActiveServiceScreen({
   const { t } = useI18n();
   const router = useRouter();
   const vm = useTechnicianActiveServiceViewModel(requestId, source);
+  useRefreshOnFocus(vm.reload);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
+  const header = (
+    <AppHeader
+      onPressBack={() => router.replace('/(technician)/orders')}
+      onPressNotifications={() => router.push('/(technician)/notifications')}
+      onPressAvatar={() => router.push('/(technician)/profile')}
+    />
+  );
+
   if (vm.loadStatus === 'loading') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.active.title')}
-        </Text>
-        <ListLoading label={t('state.loading')} />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="الخدمة النشطة" title={t('tech.active.title')} />
+          <ListLoading label={t('state.loading')} brandAsset="toolbox" />
+        </ScrollView>
+      </View>
     );
   }
 
   if (vm.loadStatus === 'error') {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text accessibilityRole="header" style={styles.title}>
-          {t('tech.active.title')}
-        </Text>
-        <ListError
-          title={t('tech.active.loadError')}
-          message={vm.loadError?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={vm.reload}
-        />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="الخدمة النشطة" title={t('tech.active.title')} />
+          <ListError
+            title={t('tech.active.loadError')}
+            message={vm.loadError?.message ?? ''}
+            retryLabel={t('state.retry')}
+            onRetry={vm.reload}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
   const request = vm.request;
   if (!request) {
     return (
-      <ScrollView contentContainerStyle={styles.content}>
-        <ListEmpty
-          icon="🛠️"
-          iconLabel="طلب غير موجود"
-          title={t('tech.request.missing')}
-          body={t('tech.request.missingBody')}
-          actionLabel={t('tech.active.backToList')}
-          onAction={() => router.replace('/(technician)/orders')}
-        />
-      </ScrollView>
+      <View style={styles.root}>
+        {header}
+        <ScrollView contentContainerStyle={styles.content}>
+          <PageTitle eyebrow="الخدمة النشطة" title={t('tech.active.title')} />
+          <ListEmpty
+            icon="tool"
+            iconLabel="طلب غير موجود"
+            brandAsset="no-results"
+            title={t('tech.request.missing')}
+            body={t('tech.request.missingBody')}
+            actionLabel={t('tech.active.backToList')}
+            onAction={() => router.replace('/(technician)/orders')}
+          />
+        </ScrollView>
+      </View>
     );
   }
 
   const hint = STATUS_HINTS[request.status] ?? '';
-  const isTerminal = request.status === 'completed' || request.status === 'cancelled';
   const showCompleteConfirm = request.status === 'in_progress' && confirmingComplete;
   const submitting = vm.actionStatus === 'submitting';
+  const canChat = request.status === 'on_the_way' || request.status === 'in_progress';
+  const steps = buildTechnicianTimeline(request.status).map((s) => ({
+    key: s.status,
+    label: TECHNICIAN_STATUS_LABELS[s.status],
+    state: s.state,
+  }));
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.heading}>
-        <View>
-          <Text accessibilityRole="header" style={styles.title}>
-            {t('tech.active.title')}
-          </Text>
-          <Text style={styles.ref}>
-            {t('tech.request.ref')}: {request.id}
-          </Text>
-        </View>
-        <StatusBadge status={request.status} label={request.statusLabelAr} />
-      </View>
+    <View style={styles.root}>
+      {header}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <PageTitle eyebrow="ماذا أفعل الآن؟" title={request.statusLabelAr} body={hint} />
 
-      <Card
-        background={isTerminal ? color.surface.base : color.brand.navy}
-        borderColor={isTerminal ? color.border.default : color.brand.navy}
-        padded
-        style={styles.now}
-      >
-        <Text style={[styles.nowLabel, isTerminal && styles.nowLabelMuted]}>
-          {t('tech.active.now')}
-        </Text>
-        <Text style={[styles.nowHint, isTerminal && styles.nowHintMuted]}>{hint}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.customer')}</Text>
-        <Text style={styles.value}>{request.customerNameAr}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.problem')}</Text>
-        <Text style={styles.value}>
-          {request.applianceAr} · {request.problemAr}
-        </Text>
-        <Text style={styles.body}>{request.descriptionAr}</Text>
-      </Card>
-
-      <Card background={color.surface.base} padded style={styles.card}>
-        <Text style={styles.sectionLabel}>{t('tech.request.logistics')}</Text>
-        <Text style={styles.value}>📍 {request.locationAr}</Text>
-        {request.appointmentAr !== null ? (
-          <Text style={styles.value}>🕐 {request.appointmentAr}</Text>
-        ) : null}
-      </Card>
-
-      {vm.actionStatus === 'success' && vm.actionResult !== null ? (
-        vm.actionResult.status === 'completed' ? (
-          <Card
-            background={color.success.soft}
-            borderColor={color.success.DEFAULT}
-            padded
-            style={styles.card}
-          >
-            <Text accessibilityRole="alert" style={styles.successTitle}>
-              {t('tech.active.completedTitle')}
+        <Card background={color.surface.base} padded style={styles.card}>
+          <View style={styles.headRow}>
+            <ApplianceThumb slug={request.applianceSlug} size={72} />
+            <View style={styles.headCopy}>
+              <StatusBadge status={request.status} label={request.statusLabelAr} icon={statusBrandAsset(request.status)} />
+              <Text style={styles.headTitle} numberOfLines={2}>
+                {joinNonEmpty([request.applianceAr, request.problemAr])}
+              </Text>
+              <Text style={styles.meta} numberOfLines={1}>
+                {request.customerNameAr}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.valueRow}>
+            <Icon name="map-pin" size={16} color={color.text.secondary} accessibilityLabel="الموقع" />
+            <Text style={styles.value} numberOfLines={1}>
+              {request.locationAr || '—'}
             </Text>
-            <Text style={styles.body}>{t('tech.active.completedBody')}</Text>
+          </View>
+          {request.appointmentAr !== null ? (
+            <View style={styles.valueRow}>
+              <Icon name="calendar" size={16} color={color.text.secondary} accessibilityLabel={t('tech.request.appointment')} />
+              <Text style={styles.value}>{`${t('tech.request.appointment')}: ${request.appointmentAr}`}</Text>
+            </View>
+          ) : null}
+        </Card>
+
+        <View style={styles.section}>
+          <SectionHeading title="مسار الخدمة" eyebrow="الحالة المسجلة للطلب" />
+          <Card background={color.surface.base} padded style={styles.card}>
+            <LifecycleTimeline steps={steps} />
           </Card>
-        ) : (
-          <Card
-            background={color.success.soft}
-            borderColor={color.success.DEFAULT}
-            padded
-            style={styles.card}
-          >
+        </View>
+
+        {vm.actionStatus === 'success' && vm.actionResult !== null ? (
+          <Card background={color.success.soft} borderColor={color.success.DEFAULT} padded style={styles.card}>
             <Text accessibilityRole="alert" style={styles.successTitle}>
-              {t('tech.active.advanced')}
+              {vm.actionResult.status === 'completed' ? t('tech.active.completedTitle') : t('tech.active.advanced')}
             </Text>
             <Text style={styles.body}>
-              {t('tech.active.nowState')} {request.statusLabelAr}
+              {vm.actionResult.status === 'completed'
+                ? t('tech.active.completedBody')
+                : `${t('tech.active.nowState')} ${request.statusLabelAr}`}
             </Text>
           </Card>
-        )
-      ) : null}
+        ) : null}
 
-      {vm.actionStatus === 'error' ? (
-        <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${vm.actionError ?? ''}`} style={styles.inlineError}>
-          <Text style={styles.inlineErrorText}>{vm.actionError}</Text>
-        </View>
-      ) : null}
+        {vm.actionStatus === 'error' ? (
+          <View accessibilityRole="alert" accessibilityLabel={`خطأ: ${vm.actionError ?? ''}`} style={styles.inlineError}>
+            <Text style={styles.inlineErrorText}>{vm.actionError}</Text>
+          </View>
+        ) : null}
 
-      {vm.nextActionAr !== null ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={vm.nextActionAr}
-          accessibilityState={{ disabled: submitting, busy: submitting }}
-          onPress={() => {
-            if (request.status === 'in_progress') {
-              setConfirmingComplete(true);
-            } else {
-              vm.advance();
-            }
-          }}
-          disabled={submitting}
-          style={({ pressed }) => [
-            styles.primary,
-            submitting && styles.disabled,
-            pressed && !submitting && styles.pressed,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator
-              accessibilityLabel="جارٍ تحديث حالة الطلب"
-              color={color.surface.base}
-            />
-          ) : (
-            <Text style={styles.primaryText}>{vm.nextActionAr}</Text>
-          )}
-        </Pressable>
-      ) : null}
+        {vm.nextActionAr !== null ? (
+          <ActionButton
+            variant="accent"
+            icon="arrow-left"
+            label={vm.nextActionAr}
+            loading={submitting}
+            loadingLabel="جارٍ تحديث حالة الطلب"
+            onPress={() => {
+              if (request.status === 'in_progress') setConfirmingComplete(true);
+              else vm.advance();
+            }}
+          />
+        ) : null}
 
-      {vm.actionStatus === 'error' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('state.retry')}
-          onPress={vm.resetAction}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-        >
-          <Text style={styles.secondaryText}>{t('state.retry')}</Text>
-        </Pressable>
-      ) : null}
+        {vm.actionStatus === 'error' ? (
+          <ActionButton variant="secondary" label={t('state.retry')} onPress={vm.resetAction} />
+        ) : null}
 
-      {request.status === 'on_the_way' || request.status === 'in_progress' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`مراسلة العميل ${request.customerNameAr}`}
-          onPress={() => setChatOpen(true)}
-          style={({ pressed }) => [styles.chat, pressed && styles.pressed]}
-        >
-          <Text style={styles.chatText}>💬 {t('tech.active.chat')}</Text>
-        </Pressable>
-      ) : null}
+        {canChat ? (
+          <ActionButton variant="primary" icon="message-circle" label={t('tech.active.chat')} onPress={() => setChatOpen(true)} />
+        ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('tech.active.backToList')}
-        onPress={() => router.replace('/(technician)/orders')}
-        style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}
-      >
-        <Text style={styles.secondaryText}>{t('tech.active.backToList')}</Text>
-      </Pressable>
+        <ActionButton
+          variant="secondary"
+          label={t('tech.active.backToList')}
+          onPress={() => router.replace('/(technician)/orders')}
+        />
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
 
       <ChatDialog
         visible={chatOpen}
         onClose={() => setChatOpen(false)}
         conversationId={`req-chat-${request.id}`}
         technicianNameAr={request.customerNameAr}
-        source={new MockChatDataSource({ sender: 'technician' })}
+        peerNameAr={request.customerNameAr}
+        serviceTitle={request.applianceAr}
+        role="technician"
       />
 
       <Modal
@@ -271,195 +242,52 @@ export default function TechnicianActiveServiceScreen({
             </Text>
             <Text style={styles.body}>{t('tech.active.confirmCompleteBody')}</Text>
             <View style={styles.dialogActions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('tech.active.confirmYes')}
-                accessibilityState={{ disabled: submitting, busy: submitting }}
+              <ActionButton
+                variant="primary"
+                label={t('tech.active.confirmYes')}
+                loading={submitting}
+                loadingLabel="جارٍ إنهاء الخدمة"
                 onPress={() => {
                   setConfirmingComplete(false);
                   vm.advance();
                 }}
-                disabled={submitting}
-                style={({ pressed }) => [styles.primaryInline, pressed && styles.pressed]}
-              >
-                <Text style={styles.primaryText}>{t('tech.active.confirmYes')}</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t('tech.active.confirmNo')}
+                style={styles.dialogAction}
+              />
+              <ActionButton
+                variant="secondary"
+                label={t('tech.active.confirmNo')}
                 onPress={() => setConfirmingComplete(false)}
-                style={({ pressed }) => [styles.secondaryInline, pressed && styles.pressed]}
-              >
-                <Text style={styles.secondaryText}>{t('tech.active.confirmNo')}</Text>
-              </Pressable>
+                style={styles.dialogAction}
+              />
             </View>
           </Card>
         </View>
       </Modal>
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
-    paddingBottom: spacing[8],
-  },
-  heading: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing[3],
-  },
-  title: {
-    color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  ref: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-  },
-  now: {
-    marginTop: spacing[3],
-    gap: spacing[1],
-    paddingVertical: spacing[4],
-  },
-  nowLabel: {
-    color: color.brand.gold,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  nowLabelMuted: {
-    color: color.text.secondary,
-  },
-  nowHint: {
-    color: color.surface.base,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  nowHintMuted: {
-    color: color.text.secondary,
-  },
-  card: {
-    marginTop: spacing[3],
-    gap: spacing[1],
-  },
-  sectionLabel: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  value: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  body: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-    lineHeight: 26,
-  },
-  successTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
+  section: { gap: spacing[3] },
+  card: { gap: spacing[3] },
+  headRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  headCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
+  headTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  valueRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  value: { ...type.bodyMedium, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
+  meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
+  body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
+  successTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
   inlineError: {
     backgroundColor: color.error.soft,
     borderWidth: 1,
     borderColor: color.error.DEFAULT,
     borderRadius: radius.md,
     padding: spacing[3],
-    marginTop: spacing[3],
   },
-  inlineErrorText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.body,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  primary: {
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[4],
-  },
-  primaryText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  primaryInline: {
-    flex: 1,
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.brand.navy,
-    borderRadius: radius.md,
-    minHeight: 52,
-    marginTop: spacing[4],
-  },
-  chatText: {
-    color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
-  },
-  secondary: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing[3],
-  },
-  secondaryInline: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: color.border.default,
-    backgroundColor: color.surface.base,
-    borderRadius: radius.md,
-    minHeight: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryText: {
-    color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-  },
-  disabled: {
-    opacity: 0.6,
-  },
-  pressed: {
-    opacity: 0.8,
-  },
+  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
   scrim: {
     flex: 1,
     backgroundColor: color.overlay.scrim,
@@ -467,23 +295,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
   },
-  dialog: {
-    width: '100%',
-    maxWidth: 420,
-    gap: spacing[2],
-  },
-  dialogTitle: {
-    color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
-    textAlign: 'right',
-  },
-  dialogActions: {
-    flexDirection: 'row',
-    gap: spacing[3],
-    marginTop: spacing[2],
-  },
-  bottomSpacer: {
-    height: spacing[6],
-  },
+  dialog: { width: '100%', maxWidth: 420, gap: spacing[2] },
+  dialogTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
+  dialogActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[2] },
+  dialogAction: { flex: 1 },
+  bottomSpacer: { height: spacing[2] },
 });

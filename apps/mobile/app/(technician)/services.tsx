@@ -1,6 +1,10 @@
-import { ShellPlaceholder } from '../../src/features/shell/shell-placeholder';
+import TechnicianServicesScreen from '../../src/features/technician/services/technician-services-screen';
 
-/** Technician services — shell placeholder (Phase 1, no product logic). */
+/**
+ * Route entry: Technician Services (T-F). Attach/detach catalog
+ * services through the real /technician/services endpoints. Presentation
+ * lives in the feature folder behind `useTechnicianServicesViewModel`.
+ */
 export default function TechnicianServicesRoute() {
-  return <ShellPlaceholder roleAr="فني" titleAr="الخدمات" />;
+  return <TechnicianServicesScreen />;
 }

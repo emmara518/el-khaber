@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { MockMerchantHomeDataSource } from './mock-merchant-home-data-source';
+import { ApiMerchantHomeDataSource } from './api-merchant-home-data-source';
 
 import type { MerchantHomeViewModel } from './merchant-home-types';
 
@@ -29,7 +29,7 @@ export function useMerchantHomeViewModel(): MerchantHomeState {
   useEffect(() => {
     let cancelled = false;
     setState({ status: 'loading', data: null, error: null });
-    new MockMerchantHomeDataSource()
+    new ApiMerchantHomeDataSource()
       .getHome({ role: 'merchant' })
       .then((data) => {
         if (cancelled) return;

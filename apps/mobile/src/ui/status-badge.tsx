@@ -1,6 +1,10 @@
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { BrandImage } from './brand-image';
+import { type } from './typography';
+
+import type { BrandAssetName } from './brand-assets';
 import type { OrderStatus } from '../features/customer/home/data/customer-home-types';
 import type { CustomerRequestStatus } from '../features/customer/requests/customer-requests-types';
 import type { MerchantProductStatus } from '../features/merchant/products/merchant-product-types';
@@ -8,6 +12,8 @@ import type { MerchantProductStatus } from '../features/merchant/products/mercha
 interface StatusBadgeProps {
   status: OrderStatus | CustomerRequestStatus | MerchantProductStatus;
   label: string;
+  /** Optional approved status emblem rendered before the label. */
+  icon?: BrandAssetName;
 }
 
 /**
@@ -22,7 +28,7 @@ interface StatusBadgeProps {
  * (success), completed (muted), cancelled (error tint). Product
  * statuses (docs/06 §21): active (success), suspended (muted).
  */
-export function StatusBadge({ status, label }: StatusBadgeProps) {
+export function StatusBadge({ status, label, icon }: StatusBadgeProps) {
   const { background, foreground } = TONE[status];
   return (
     <View
@@ -30,6 +36,7 @@ export function StatusBadge({ status, label }: StatusBadgeProps) {
       accessible
       accessibilityLabel={label}
     >
+      {icon ? <BrandImage name={icon} size={16} /> : null}
       <Text style={[styles.text, { color: foreground }]}>{label}</Text>
     </View>
   );
@@ -53,12 +60,14 @@ const TONE: Record<
 const styles = StyleSheet.create({
   pill: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
     paddingHorizontal: spacing[3],
     paddingVertical: spacing[1],
     borderRadius: radius.pill,
   },
   text: {
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.semibold,
+    ...type.label,
   },
 });

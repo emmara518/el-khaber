@@ -17,6 +17,7 @@ import type {
   MerchantProfileDataSource,
   MerchantProfileDraft,
 } from './merchant-profile-types';
+import type { PickedPhoto } from '../../../lib/profile-photo';
 
 export class MerchantProfileSaveError extends Error {
   constructor(message = 'فشل حفظ بيانات المتجر. حاول مجددًا') {
@@ -30,9 +31,12 @@ const APPROVED_SEED: MerchantProfile = {
   initialsAr: 'م',
   phoneAr: '0512345678',
   bioAr: 'متجر متخصص في الأجهزة المنزلية ولوازم الصيانة بضمان معتمد من المتجر.',
-  cityAr: 'الرياض',
+  cityAr: 'الجيزة — الدقي',
   verification: 'approved',
   verificationNoteAr: 'تم التحقق من بيانات متجرك.',
+  // WP-01: the mock carries no logo (null readback; upload/delete are
+  // no-ops — no backend, no uploads).
+  logoUrl: null,
 };
 
 export type MerchantProfileSeed =
@@ -125,6 +129,20 @@ export class MockMerchantProfileDataSource implements MerchantProfileDataSource 
       verification: 'pending' as MerchantVerificationStatus,
       verificationNoteAr: 'تم إرسال بيانات المتجر للمراجعة.',
     };
+    return JSON.parse(JSON.stringify(this.current)) as MerchantProfile;
+  }
+
+  async uploadLogo(_input: { role: 'merchant'; photo: PickedPhoto }): Promise<MerchantProfile> {
+    if (this.mode === 'failing') {
+      throw new MerchantProfileSaveError('فشل رفع الشعار. حاول مجددًا');
+    }
+    return JSON.parse(JSON.stringify(this.current)) as MerchantProfile;
+  }
+
+  async deleteLogo(_input: { role: 'merchant' }): Promise<MerchantProfile> {
+    if (this.mode === 'failing') {
+      throw new MerchantProfileSaveError('فشل حذف الشعار. حاول مجددًا');
+    }
     return JSON.parse(JSON.stringify(this.current)) as MerchantProfile;
   }
 }

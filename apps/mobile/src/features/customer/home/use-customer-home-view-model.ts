@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
-import { MockCustomerHomeDataSource } from './data/mock-customer-home-data-source';
+import { ApiCustomerHomeDataSource } from './api-customer-home-data-source';
 
 import type {
   CustomerHomeDataSource,
@@ -15,26 +15,30 @@ export interface CustomerHomeViewModelState {
   error: Error | null;
 }
 
+export interface CustomerHomeViewModelResult extends CustomerHomeViewModelState {
+  reload: () => void;
+}
+
 /**
  * View-model hook for the Customer Home screen.
  *
  * The hook owns only the data lifecycle. The presenter (the Home
  * screen component) reads `status` and `data` and renders the
- * appropriate state. The data source is currently a mock; when the
- * real API is wired, the data source implementation is swapped and
- * the hook contract does not change.
+ * appropriate state. The data source is the real API adapter.
  */
-export function useCustomerHomeViewModel(): CustomerHomeViewModelState {
+export function useCustomerHomeViewModel(): CustomerHomeViewModelResult {
   const [state, setState] = useState<CustomerHomeViewModelState>({
     status: 'loading',
     data: null,
     error: null,
   });
 
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
-    const source: CustomerHomeDataSource = new MockCustomerHomeDataSource();
-    setState({ status: 'loading', data: null, error: null });
+    const source: CustomerHomeDataSource = new ApiCustomerHomeDataSource();
+    setState((prev) => ({ ...prev, status: 'loading', error: null }));
     source
       .getHome({ role: 'customer' })
       .then((data) => {
@@ -52,7 +56,9 @@ export function useCustomerHomeViewModel(): CustomerHomeViewModelState {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [attempt]);
 
-  return state;
+  const reload = useCallback(() => setAttempt((n) => n + 1), []);
+
+  return { ...state, reload };
 }

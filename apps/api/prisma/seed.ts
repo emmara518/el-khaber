@@ -94,7 +94,7 @@ async function main(): Promise<void> {
           nameEn: tier.nameEn,
           billingInterval: 'monthly',
           price: 0.0,
-          currency: 'SAR',
+          currency: 'EGP',
           isActive: false,
           sortOrder: tier.sortOrder,
         },

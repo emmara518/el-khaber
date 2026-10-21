@@ -5,6 +5,9 @@
  * generated from `docs/api/openapi.yaml` (ADR-0003) via
  * `scripts/gen-types.ts` and re-exported from `./generated/api-contract`.
  * Never hand-edit the generated file.
+ *
+ * NOTE: keep line comments on their own lines — a collapsed single-line
+ * format would comment out the entire export list after the first `//`.
  */
 
 export { ROLE, USER_STATUS, ERROR_CODE, buildPageMeta } from './envelope';
@@ -20,4 +23,53 @@ export type {
   AuthUserDto,
   AuthSessionDto,
   MeDto,
+  ApplianceCategoryDto,
+  LocationDto,
+  FaultSummaryDto,
+  FaultDto,
+  ServiceDto,
+  TechnicianServiceDto,
+  TechnicianPublicDto,
+  ServiceRequestStatus,
+  CreateServiceRequestDto,
+  ServiceRequestSummaryDto,
+  ServiceRequestStatusHistoryDto,
+  ServiceRequestDto,
+  ServiceRequestMediaUploadUrlDto,
+  ServiceRequestMediaDto,
+  ServiceRequestMediaUrlDto,
+  MerchantProfileDto,
+  UpdateMerchantProfileDto,
+  MerchantProductDto,
+  CreateMerchantProductDto,
+  UpdateMerchantProductDto,
+  PublicMerchantRefDto,
+  PublicProductDto,
+  ConversationDto,
+  ConversationSummaryDto,
+  MessageDto,
+  ReviewSummaryDto,
+  ReviewTagDto,
+  NotificationDto,
+  NotificationPreferencesDto,
+  UnreadCountDto,
+  SubscriptionPlanDto,
+  PaymentSubmissionDto,
+  ProofUploadUrlDto,
+  PaymentMethodConfigDto,
+  CurrentSubscriptionDto,
+  MeSubscriptionDto,
+  MeEntitlementsDto,
+  PaymentReviewResultDto,
+  AdminGrantResultDto,
+  AdminNotificationResultDto,
+  TechnicianSelfProfileDto,
+  TechnicianSelfServiceDto,
+  TechnicianSelfAreaDto,
+  TechnicianStatsDto,
+  AvatarUploadDto,
+  MerchantLogoUploadDto,
+  UpdateTechnicianProfileDto,
+  CreateTechnicianServiceDto,
+  TechnicianSelfService,
 } from './generated/api-contract';

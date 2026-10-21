@@ -4,7 +4,11 @@
 // generated and applied via `prisma migrate dev` / `prisma migrate deploy`.
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Deployment (Railway/containers) runs a runtime whose detected OpenSSL
+  // differs from the build image; ship both engines so the client resolves.
+  // This affects only client binary generation — no model/DB change.
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -50,6 +54,11 @@ model User {
   passwordHash  String     @map("password_hash") @db.VarChar(255)
   role          UserRole
   status        UserStatus @default(active)
+  // Bumped on security events (logout, password reset, suspension) to
+  // invalidate every previously issued access token immediately. The
+  // column name intentionally matches the Prisma field name (no @map)
+  // so migration SQL, schema, and client agree on "tokenVersion".
+  tokenVersion  Int        @default(0)
   // Whether the user has verified the contact channel they registered with.
   // Foundation field only; verification flow belongs to a later task.
   phoneVerified Boolean    @default(false) @map("phone_verified")
@@ -74,12 +83,36 @@ model User {
   sentMessages               Message[]
   favorites                  Favorite[]
   subscriptions              Subscription[]
+  paymentSubmissions         PaymentSubmission[]
+  entitlementGrants          EntitlementGrant[]
   notifications              Notification[]
+  notificationPreference     NotificationPreference?
   auditLogEntries            AuditLog[]
 
   @@index([role])
   @@index([status])
   @@map("users")
+}
+
+// -----------------------------------------------------------------------------
+// Rate limiting (shared store for multi-instance safety)
+// -----------------------------------------------------------------------------
+// Implements fixed-window rate limiting with atomic upserts. Keys are scoped
+// by (policy, identifier, ip) to support per-route policies (auth vs default).
+// Fail-closed: if the database is unavailable, requests are rejected.
+
+model RateLimitBucket {
+  id        String   @id @default(uuid()) @db.Uuid
+  policy    String   @db.VarChar(64)          // e.g., "auth", "default"
+  identifier String  @db.VarChar(255)         // email/phone/IP composite
+  windowStart DateTime @map("window_start") @db.Timestamptz // Fixed window start
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([policy, identifier, windowStart])
+  @@index([policy, identifier])
+  @@map("rate_limit_buckets")
 }
 
 // -----------------------------------------------------------------------------
@@ -160,11 +193,17 @@ model AdminUser {
   passwordHash String     @map("password_hash") @db.VarChar(255)
   role         AdminRole
   status       UserStatus @default(active)
+  // Same immediate-revocation mechanism as User.tokenVersion; the admin
+  // guard rejects admin JWTs whose tokenVersion lags the database.
+  tokenVersion Int        @default(0)
   lastLoginAt  DateTime?  @map("last_login_at")
   createdAt    DateTime   @default(now()) @map("created_at")
   updatedAt    DateTime   @updatedAt @map("updated_at")
 
-  refreshTokens AdminRefreshToken[]
+  refreshTokens          AdminRefreshToken[]
+  paymentReviewDecisions PaymentSubmission[]
+  entitlementGrantsGiven EntitlementGrant[]
+  auditLogEntries        AuditLog[]
 
   @@index([role])
   @@index([status])
@@ -305,16 +344,53 @@ model TechnicianProfile {
   createdAt              DateTime                     @default(now()) @map("created_at")
   updatedAt              DateTime                     @updatedAt @map("updated_at")
 
-  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   services        TechnicianService[]
   serviceRequests ServiceRequest[]
   reviews         Review[]
   favorites       Favorite[]
+  serviceAreas    TechnicianServiceArea[]
 
   @@index([verificationStatus])
   @@index([ratingAverage])
   @@index([availabilityStatus])
   @@map("technician_profiles")
+}
+
+// -----------------------------------------------------------------------------
+// Technician service areas (Task 10E-R1, CTO-approved)
+// -----------------------------------------------------------------------------
+// A technician covers one or more geographic service areas. Each area is a
+// technician-owned coverage point: a human-readable area label (search/display
+// metadata — the documented "منطقة الخدمة") plus the authoritative logical
+// coordinates and a PostGIS geography point DERIVED from them by the shared
+// database trigger (single geographic source of truth, same pattern as the
+// `locations` table). This enables the documented radius/area discovery
+// filters (docs/07_API.md §6) once their exact query semantics are ratified.
+
+model TechnicianServiceArea {
+  id           String                    @id @default(uuid()) @db.Uuid
+  technicianId String                    @map("technician_id") @db.Uuid
+  // Technician-entered area label. Unique per technician (duplicate
+  // service-area prevention).
+  labelAr      String                    @map("label_ar") @db.VarChar(128)
+  // Logical coordinates. Nullable since Task 10J-R1: technician-entered
+  // LABEL-ONLY areas (the onboarding UI's preset district names) carry no
+  // coordinates; the derived geography stays NULL and radius filtering
+  // honestly excludes such entries. Coordinates optional, never invented.
+  latitude     Decimal?                  @map("latitude") @db.Decimal(9, 6)
+  longitude    Decimal?                  @map("longitude") @db.Decimal(9, 6)
+  // PostGIS geography(Point, 4326), derived from latitude/longitude by the
+  // shared trigger. Managed outside Prisma; excluded from the client.
+  coordinates  Unsupported("geography")?
+  createdAt    DateTime                  @default(now()) @map("created_at")
+  updatedAt    DateTime                  @updatedAt @map("updated_at")
+
+  technician TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@unique([technicianId, labelAr])
+  @@index([technicianId])
+  @@map("technician_service_areas")
 }
 
 model MerchantProfile {
@@ -350,9 +426,14 @@ model Location {
   city        String?                   @db.VarChar(128)
   region      String?                   @db.VarChar(128)
   country     String?                   @db.VarChar(128)
-  // Documented logical coordinates (docs/06_DATABASE.md §6).
-  latitude    Decimal                   @map("latitude") @db.Decimal(9, 6)
-  longitude   Decimal                   @map("longitude") @db.Decimal(9, 6)
+  // Documented logical coordinates (docs/06_DATABASE.md §6). Nullable since
+  // Task REM-001: docs/06 §6 says "store exact coordinates only when
+  // required", and no map/geocoding provider is approved, so a customer
+  // location may be label/address-only. The coordinate-derivation trigger
+  // already handles NULL latitude/longitude (same pattern as
+  // technician_service_areas).
+  latitude    Decimal?                  @map("latitude") @db.Decimal(9, 6)
+  longitude   Decimal?                  @map("longitude") @db.Decimal(9, 6)
   // PostGIS geography(Point, 4326). Derived from latitude/longitude by a
   // database trigger (see migration) so there is exactly one business truth.
   // Managed outside Prisma; excluded from the generated client.
@@ -458,6 +539,9 @@ model TechnicianService {
   service    Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@id([technicianId, serviceId])
+  // Migration 20260911000000 added this index deliberately (lookup by
+  // service). Keep the schema in sync so `migrate diff` stays clean.
+  @@index([serviceId])
   @@map("technician_services")
 }
 
@@ -514,7 +598,7 @@ model ServiceRequestStatusHistory {
   serviceRequestId String                @map("service_request_id") @db.Uuid
   // Null for the initial creation event.
   fromStatus       ServiceRequestStatus? @map("from_status")
-  toStatus         ServiceRequestStatus
+  toStatus         ServiceRequestStatus  @map("to_status")
   changedByUserId  String?               @map("changed_by_user_id") @db.Uuid
   note             String?
   createdAt        DateTime              @default(now()) @map("created_at")
@@ -602,16 +686,23 @@ model ReviewTagAssignment {
 
 model Conversation {
   id               String    @id @default(uuid()) @db.Uuid
-  // One conversation per service request.
-  serviceRequestId String    @unique @map("service_request_id") @db.Uuid
+  // A conversation is scoped to EITHER a service request (customer ↔
+  // technician) OR a product (initiator ↔ merchant). Exactly one is set
+  // (enforced by a CHECK constraint in the migration). Product
+  // conversations are keyed by (product, initiator) to stay idempotent.
+  serviceRequestId String?   @unique @map("service_request_id") @db.Uuid
+  productId        String?   @map("product_id") @db.Uuid
+  initiatorUserId  String?   @map("initiator_user_id") @db.Uuid
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   closedAt         DateTime? @map("closed_at")
 
-  serviceRequest ServiceRequest            @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  serviceRequest ServiceRequest?           @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  product        Product?                  @relation(fields: [productId], references: [id], onDelete: Cascade)
   participants   ConversationParticipant[]
   messages       Message[]
 
+  @@unique([productId, initiatorUserId])
   @@map("conversations")
 }
 
@@ -685,6 +776,7 @@ model Product {
   updatedAt     DateTime      @updatedAt @map("updated_at")
 
   merchant MerchantProfile @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
 
   @@unique([merchantId, slug])
   @@index([merchantId, status])
@@ -712,8 +804,9 @@ model SubscriptionPlan {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  subscriptions Subscription[]
-  entitlements  PlanEntitlement[]
+  subscriptions      Subscription[]
+  entitlements       PlanEntitlement[]
+  paymentSubmissions PaymentSubmission[]
 
   @@unique([role, code])
   @@map("subscription_plans")
@@ -727,7 +820,8 @@ model Entitlement {
   featureGroup  String  @map("feature_group") @db.VarChar(64)
   isActive      Boolean @default(true) @map("is_active")
 
-  plans PlanEntitlement[]
+  plans  PlanEntitlement[]
+  grants EntitlementGrant[]
 
   @@map("entitlements")
 }
@@ -760,8 +854,9 @@ model Subscription {
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @updatedAt @map("updated_at")
 
-  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  paymentSubmissions PaymentSubmission[]
 
   @@index([userId, status])
   @@map("subscriptions")
@@ -770,6 +865,10 @@ model Subscription {
 // -----------------------------------------------------------------------------
 // Notifications (persistence only — no delivery infrastructure)
 // -----------------------------------------------------------------------------
+// WP-Notifications: per-user delivery preferences for the two USER-TOGGLABLE
+// notification families (`request_status`, `subscription`). `verification`
+// decisions and admin operational messages are MANDATORY and never gated —
+// no preference key exists for them, so they cannot be disabled.
 
 model Notification {
   id        String    @id @default(uuid()) @db.Uuid
@@ -787,24 +886,121 @@ model Notification {
   @@map("notifications")
 }
 
+model NotificationPreference {
+  userId             String   @id @map("user_id") @db.Uuid
+  // Maintenance request updates (docs/02 §3.12). Default ON.
+  requestStatus      Boolean  @default(true) @map("request_status")
+  // Subscription + manual-payment review updates (docs/02 §3.12). Default ON.
+  subscription       Boolean  @default(true) @map("subscription")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notification_preferences")
+}
+
 // -----------------------------------------------------------------------------
 // Admin audit log (foundation for audited admin mutations — docs/09_ADMIN.md §14)
 // -----------------------------------------------------------------------------
 
 model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
   // Nullable: system actions have no human actor. Admin actors are
   // referenced through their linked user record when one exists.
-  actorUserId String?  @map("actor_user_id") @db.Uuid
-  entityType  String   @map("entity_type") @db.VarChar(64)
-  entityId    String   @map("entity_id") @db.VarChar(64)
-  action      String   @db.VarChar(64)
-  beforeJson  Json?    @map("before_json")
-  afterJson   Json?    @map("after_json")
-  createdAt   DateTime @default(now()) @map("created_at")
+  actorUserId  String?  @map("actor_user_id") @db.Uuid
+  // Admin actor for audited ADMIN actions (admin accounts are separate from users).
+  actorAdminId String?  @map("actor_admin_id") @db.Uuid
+  entityType   String   @map("entity_type") @db.VarChar(64)
+  entityId     String   @map("entity_id") @db.VarChar(64)
+  action       String   @db.VarChar(64)
+  beforeJson   Json?    @map("before_json")
+  afterJson    Json?    @map("after_json")
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  actorUser User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorUser  User?      @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorAdmin AdminUser? @relation(fields: [actorAdminId], references: [id], onDelete: SetNull)
 
   @@index([entityType, entityId])
+  @@index([actorAdminId])
   @@map("audit_logs")
+}
+
+// -----------------------------------------------------------------------------
+// Manual payments + admin grants (Task 10I, CTO-approved)
+// MVP: manual transfer only (instapay | vodafone_cash). Payment verification
+// is ADMIN-authoritative; user submissions are never trusted. Proof IMAGE
+// storage does not exist yet (reported gap) � the typed reference field is
+// reserved for the future media task.
+// -----------------------------------------------------------------------------
+
+enum PaymentMethodType {
+  instapay
+  vodafone_cash
+}
+
+enum PaymentSubmissionStatus {
+  pending
+  approved
+  rejected
+}
+
+model PaymentMethodConfig {
+  id                String            @id @default(uuid()) @db.Uuid
+  method            PaymentMethodType @unique
+  accountIdentifier String            @map("account_identifier") @db.VarChar(255)
+  displayName       String            @map("display_name") @db.VarChar(255)
+  isEnabled         Boolean           @default(true) @map("is_enabled")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  @@map("payment_method_configs")
+}
+
+model PaymentSubmission {
+  id                String                  @id @default(uuid()) @db.Uuid
+  userId            String                  @map("user_id") @db.Uuid
+  planId            String                  @map("plan_id") @db.Uuid
+  // Linked subscription created by ADMIN approval (null while pending/rejected).
+  subscriptionId    String?                 @map("subscription_id") @db.Uuid
+  method            PaymentMethodType
+  transferReference String                  @map("transfer_reference") @db.VarChar(100)
+  // Typed reference reserved for the future proof-media task.
+  proofStorageKey   String?                 @map("proof_storage_key") @db.VarChar(512)
+  // Proof lifecycle metadata (PHASE 20): bound on confirm after HEAD +
+  // magic-byte validation. Nullable so pre-existing submissions stay valid.
+  proofMimeType     String?                 @map("proof_mime_type") @db.VarChar(128)
+  proofByteSize     Int?                    @map("proof_byte_size")
+  proofConfirmedAt  DateTime?               @map("proof_confirmed_at")
+  status            PaymentSubmissionStatus @default(pending)
+  reviewedByAdminId String?                 @map("reviewed_by_admin_id") @db.Uuid
+  reviewedAt        DateTime?               @map("reviewed_at")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan            SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscription    Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  reviewedByAdmin AdminUser?       @relation(fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([planId])
+  @@map("payment_submissions")
+}
+
+model EntitlementGrant {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  entitlementId    String   @map("entitlement_id") @db.Uuid
+  grantedByAdminId String?  @map("granted_by_admin_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlement    Entitlement @relation(fields: [entitlementId], references: [id], onDelete: Restrict)
+  grantedByAdmin AdminUser?  @relation(fields: [grantedByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, entitlementId])
+  @@index([userId])
+  @@map("entitlement_grants")
 }

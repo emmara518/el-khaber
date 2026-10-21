@@ -2,8 +2,8 @@ import MerchantCatalogScreen from '../../src/features/merchant/products/merchant
 
 /**
  * Route entry: Merchant Catalog (M-C) — display-only product list
- * behind `useMerchantProductsViewModel` (mock today, real API
- * adapter for GET /merchant/products later).
+ * behind `useMerchantProductsViewModel` backed by the real API adapter
+ * (GET /merchant/products).
  */
 export default function MerchantProductsRoute() {
   return <MerchantCatalogScreen />;

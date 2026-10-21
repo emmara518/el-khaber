@@ -2,6 +2,8 @@ import { color, spacing, typography } from '@khabir/ui-tokens';
 import { type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { fontFamily } from './typography';
+
 interface IconTextProps {
   glyph: ReactNode;
   label: string;
@@ -54,9 +56,9 @@ const styles = StyleSheet.create({
     marginEnd: spacing[1],
   },
   glyph: {
-    fontWeight: typography.weight.semibold,
+    fontFamily: fontFamily.semibold,
   },
   label: {
-    fontWeight: typography.weight.regular,
+    fontFamily: fontFamily.regular,
   },
 });

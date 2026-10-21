@@ -29,7 +29,9 @@ function readNumber(name: string, fallback: number): number {
     return fallback;
   }
   const n = Number.parseInt(raw, 10);
-  if (Number.isNaN(n) || n < 0) {
+  // Strict integer check: parseInt('1.5') silently truncates to 1 — a
+  // misconfigured value like that must be fatal, not silently coerced.
+  if (Number.isNaN(n) || n < 0 || !Number.isInteger(n) || n.toString() !== raw.trim()) {
     throw new Error(`Invalid number for ${name}: ${raw}`);
   }
   return n;
@@ -48,6 +50,18 @@ export interface AppConfig {
   readonly globalPrefix: string;
   readonly corsOrigins: readonly string[];
   readonly databaseUrl: string;
+  readonly directUrl: string;
+  /**
+   * Express `trust proxy` hop count (numeric semantics: trust the socket
+   * chain only up to `this` many hops, i.e. `i < hops` in proxy-addr).
+   * AUD-007 (S-2): the API must sit behind exactly ONE reverse proxy (the
+   * Render edge) in production, so req.ip becomes the real client address
+   * taken from the X-Forwarded-For entry the proxy itself appended — any
+   * attacker-supplied entries further left in the chain stay untrusted.
+   * Defaults: production 1 hop, otherwise 0 (no proxy). Set explicitly via
+   * TRUST_PROXY_HOPS; a malformed value is fatal (fail-closed).
+   */
+  readonly trustProxyHops: number;
   readonly auth: {
     readonly accessSecret: string;
     readonly accessTtlSeconds: number;
@@ -66,6 +80,18 @@ export interface AppConfig {
     readonly ttlSeconds: number;
     readonly max: number;
     readonly authMax: number;
+    /** Failed logins allowed per source IP within the IP window. */
+    readonly loginIpMax: number;
+    readonly loginIpTtlSeconds: number;
+    /** Failed logins allowed per account within the user window. */
+    readonly loginUserMax: number;
+    readonly loginUserTtlSeconds: number;
+  };
+  readonly identity: {
+    /** Failed logins per (identifier, ip) before a temporary lock. */
+    readonly maxFailedLogins: number;
+    /** Temporary lock duration in seconds; locks always auto-expire. */
+    readonly failureLockSeconds: number;
   };
 }
 
@@ -79,6 +105,17 @@ export function getConfig(): AppConfig {
   const env = (readString('NODE_ENV', 'development') as AppConfig['env']) ?? 'development';
   const accessSecret = requireString('JWT_ACCESS_SECRET');
   const adminAccessSecret = requireString('ADMIN_JWT_ACCESS_SECRET');
+  const JWT_SECRET_MIN_LENGTH = 32;
+  if (accessSecret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `JWT_ACCESS_SECRET must be at least ${String(JWT_SECRET_MIN_LENGTH)} characters.`,
+    );
+  }
+  if (adminAccessSecret.length < JWT_SECRET_MIN_LENGTH) {
+    throw new Error(
+      `ADMIN_JWT_ACCESS_SECRET must be at least ${String(JWT_SECRET_MIN_LENGTH)} characters.`,
+    );
+  }
   if (accessSecret === adminAccessSecret) {
     throw new Error('JWT_ACCESS_SECRET and ADMIN_JWT_ACCESS_SECRET must differ');
   }
@@ -88,7 +125,14 @@ export function getConfig(): AppConfig {
     port: readNumber('PORT', 3000),
     globalPrefix: readString('API_GLOBAL_PREFIX', 'api/v1'),
     corsOrigins: readList('CORS_ORIGINS'),
-    databaseUrl: requireString('DATABASE_URL'),
+    databaseUrl: requireString('DATABASE_URL'),    // Prisma requires DIRECT_URL for migrations/DDL even though the pooled
+    // DATABASE_URL serves runtime traffic. Fail fast here instead of
+    // surfacing a cryptic Prisma error later.
+    directUrl: requireString('DIRECT_URL'),
+    // AUD-007: 1 hop behind the Render proxy in production, 0 (direct,
+    // e.g. local/supertest) elsewhere. readNumber throws on a malformed
+    // value — fail-closed.
+    trustProxyHops: readNumber('TRUST_PROXY_HOPS', env === 'production' ? 1 : 0),
     auth: {
       accessSecret,
       accessTtlSeconds: readNumber('JWT_ACCESS_TTL', 900),
@@ -105,8 +149,22 @@ export function getConfig(): AppConfig {
     },
     rateLimit: {
       ttlSeconds: readNumber('RATE_LIMIT_TTL', 60),
-      max: readNumber('RATE_LIMIT_MAX', 20),
+      // General request budget per IP per instance (V2.1 default: 120/min).
+      max: readNumber('RATE_LIMIT_MAX', 120),
+      // Brute-force budget for auth endpoints (login/register/refresh/reset).
       authMax: readNumber('AUTH_RATE_LIMIT_MAX', 10),
+      // Layered failed-login protection: one IP cannot burn an account's
+      // budget, and one account cannot be brute-forced across many IPs.
+      loginIpMax: readNumber('AUTH_LOGIN_IP_MAX', 5),
+      loginIpTtlSeconds: readNumber('AUTH_LOGIN_IP_TTL', 900),
+      loginUserMax: readNumber('AUTH_LOGIN_USER_MAX', 20),
+      loginUserTtlSeconds: readNumber('AUTH_LOGIN_USER_TTL', 3600),
+    },
+    identity: {
+      // Provisional defaults pending CTO ratification (Task 10D §6):
+      // no thresholds were documented anywhere.
+      maxFailedLogins: readNumber('AUTH_MAX_FAILED_LOGINS', 5),
+      failureLockSeconds: readNumber('AUTH_FAILURE_LOCK_SECONDS', 900),
     },
   };
 

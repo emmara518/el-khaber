@@ -2,21 +2,22 @@
  * Technician profile domain (T-B) — the single coherent technician
  * model for this frontend area.
  *
- * Fields mirror docs/06_DATABASE.md §4 (display_name, bio,
- * avatar, verification_status, experience_years, rating_average,
- * rating_count) plus the working facets discovery already uses
- * (specialties, appliances, services, areas). No KYC/document
- * taxonomy exists in the docs, so verification stays a generic
- * 4-state status with user-safe copy — never invented paperwork.
+ * Canonical rule (WP-3, CTO): professional coverage (specialties,
+ * appliances, services) is DERIVED from the existing `TechnicianService`
+ * relation + the service catalog — never stored as free-form profile
+ * text and never duplicated into profile columns. The editable profile
+ * draft therefore carries only display_name/bio/experience_years plus the
+ * account phone and service areas. Services are selected by canonical
+ * catalog service UUID (see the onboarding machine) and persisted through
+ * `/technician/services`.
  */
 
-import type { ApplianceSlug } from '../../customer/home/data/customer-home-types';
+import type { PickedPhoto } from '../../../lib/profile-photo';
 
-export type TechnicianVerificationStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'action_required';
+/** The three supported home-appliance slugs (server-seeded categories). */
+export type TechnicianApplianceSlug = 'washing_machine' | 'refrigerator' | 'air_conditioner';
+
+export type TechnicianVerificationStatus = 'pending' | 'approved' | 'rejected' | 'action_required';
 
 export interface TechnicianProfile {
   readonly displayNameAr: string;
@@ -24,8 +25,16 @@ export interface TechnicianProfile {
   readonly phoneAr: string;
   readonly bioAr: string;
   readonly experienceYears: number | null;
+  /**
+   * WP-01: server-issued public avatar URL (GET /technician/profile
+   * `avatarUrl`) or null when absent. Never a storage key.
+   */
+  readonly avatarUrl: string | null;
+  /** Derived from attached services' catalog categories (read-only). */
   readonly specialtiesAr: ReadonlyArray<string>;
-  readonly appliances: ReadonlyArray<ApplianceSlug>;
+  /** Derived from attached services' catalog categories (read-only). */
+  readonly appliances: ReadonlyArray<TechnicianApplianceSlug>;
+  /** Derived from attached services (read-only). */
   readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
   readonly verification: TechnicianVerificationStatus;
@@ -35,21 +44,31 @@ export interface TechnicianProfile {
   readonly completedCount: number;
 }
 
-export interface TechnicianProfileDataSource {
-  getProfile(input: { role: 'technician' }): Promise<TechnicianProfile>;
-  saveProfile(input: { role: 'technician'; profile: TechnicianProfileDraft }): Promise<TechnicianProfile>;
-  submitVerificationProfile(input: { role: 'technician'; profile: TechnicianProfileDraft }): Promise<TechnicianProfile>;
+/** Canonical service selection to reconcile through `/technician/services`. */
+export interface TechnicianProfileSaveInput {
+  readonly role: 'technician';
+  readonly profile: TechnicianProfileDraft;
+  /** Canonical catalog service UUIDs (empty = no services attached). */
+  readonly serviceIds?: ReadonlyArray<string>;
 }
 
-/** Editable subset — identity metrics (rating/counts) are server-owned. */
+export interface TechnicianProfileDataSource {
+  getProfile(input: { role: 'technician' }): Promise<TechnicianProfile>;
+  saveProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile>;
+  submitVerificationProfile(input: TechnicianProfileSaveInput): Promise<TechnicianProfile>;
+  uploadAvatar(input: { role: 'technician'; photo: PickedPhoto }): Promise<TechnicianProfile>;
+  deleteAvatar(input: { role: 'technician' }): Promise<TechnicianProfile>;
+}
+
+/**
+ * Editable profile subset. Identity metrics (rating/counts) are
+ * server-owned; coverage is derived from services.
+ */
 export interface TechnicianProfileDraft {
   readonly displayNameAr: string;
   readonly phoneAr: string;
   readonly bioAr: string;
   readonly experienceYears: number | null;
-  readonly specialtiesAr: ReadonlyArray<string>;
-  readonly appliances: ReadonlyArray<ApplianceSlug>;
-  readonly servicesAr: ReadonlyArray<string>;
   readonly areasAr: ReadonlyArray<string>;
 }
 
@@ -58,9 +77,6 @@ export const EMPTY_PROFILE_DRAFT: TechnicianProfileDraft = {
   phoneAr: '',
   bioAr: '',
   experienceYears: null,
-  specialtiesAr: [],
-  appliances: [],
-  servicesAr: [],
   areasAr: [],
 };
 
@@ -70,44 +86,25 @@ export function draftFromProfile(profile: TechnicianProfile): TechnicianProfileD
     phoneAr: profile.phoneAr,
     bioAr: profile.bioAr,
     experienceYears: profile.experienceYears,
-    specialtiesAr: profile.specialtiesAr,
-    appliances: profile.appliances,
-    servicesAr: profile.servicesAr,
     areasAr: profile.areasAr,
   };
 }
 
-/** Home-appliance domain only — no generic trades, ever. */
-export const SPECIALTY_OPTIONS: ReadonlyArray<string> = [
-  'تبريد وتكييف',
-  'غسالات أوتوماتيك',
-  'ثلاجات وفريزرات',
-];
-
-export const SERVICE_OPTIONS: ReadonlyArray<string> = [
-  'إصلاح الغسالات',
-  'تنظيف الفلاتر',
-  'فحص التسرب',
-  'فحص تبريد الثلاجات',
-  'تنظيف ملفات التهوية',
-  'صيانة المكيفات',
-  'تنظيف فلاتر المكيف',
-  'فحص غاز التبريد',
-];
-
+// Egyptian service areas (governorate – district). Egypt-market demo data.
 export const AREA_OPTIONS: ReadonlyArray<string> = [
-  'النزهة',
-  'الملز',
-  'العليا',
-  'الشفا',
-  'جدة – الروضة',
+  'القاهرة – مدينة نصر',
+  'القاهرة – المعادي',
+  'الجيزة – الدقي',
+  'الإسكندرية – سموحة',
+  'المنوفية – شبين الكوم',
 ];
 
-export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: ApplianceSlug; titleAr: string }> = [
-  { slug: 'washing_machine', titleAr: 'غسالات' },
-  { slug: 'refrigerator', titleAr: 'ثلاجات' },
-  { slug: 'air_conditioner', titleAr: 'تكييفات' },
-];
+export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: TechnicianApplianceSlug; titleAr: string }> =
+  [
+    { slug: 'washing_machine', titleAr: 'غسالات' },
+    { slug: 'refrigerator', titleAr: 'ثلاجات' },
+    { slug: 'air_conditioner', titleAr: 'تكييفات' },
+  ];
 
 /** Mirrors shared-validation phoneSchema (7–15 digits, optional +). */
 const PHONE_RE = /^\+?[0-9]{7,15}$/u;
@@ -118,7 +115,9 @@ export function validateTechnicianPhone(phone: string): string | null {
   return PHONE_RE.test(v) ? null : 'رقم الهاتف يجب أن يكون من ٧ إلى ١٥ رقمًا';
 }
 
-export function validateProfileDraft(draft: TechnicianProfileDraft): Partial<Record<string, string>> {
+export function validateProfileDraft(
+  draft: TechnicianProfileDraft,
+): Partial<Record<string, string>> {
   const errors: Partial<Record<string, string>> = {};
   if (draft.displayNameAr.trim().length < 2) errors.displayNameAr = 'أدخل الاسم (حرفان على الأقل)';
   const phoneError = validateTechnicianPhone(draft.phoneAr);
@@ -126,11 +125,13 @@ export function validateProfileDraft(draft: TechnicianProfileDraft): Partial<Rec
   if (draft.experienceYears !== null && (draft.experienceYears < 0 || draft.experienceYears > 50)) {
     errors.experienceYears = 'سنوات الخبرة يجب أن تكون بين ٠ و٥٠';
   }
-  if (draft.specialtiesAr.length === 0) errors.specialtiesAr = 'اختر تخصصًا واحدًا على الأقل';
-  if (draft.appliances.length === 0) errors.appliances = 'اختر جهازًا واحدًا على الأقل';
-  if (draft.servicesAr.length === 0) errors.servicesAr = 'اختر خدمة واحدة على الأقل';
   if (draft.areasAr.length === 0) errors.areasAr = 'اختر منطقة خدمة واحدة على الأقل';
   return errors;
+}
+
+/** Service selection validation (canonical catalog UUIDs). */
+export function validateServiceSelection(serviceIds: ReadonlyArray<string>): string | null {
+  return serviceIds.length === 0 ? 'اختر خدمة واحدة على الأقل' : null;
 }
 
 /** Pure multi-select toggle shared by every selector (unit-tested). */
@@ -140,32 +141,32 @@ export function toggleStringList<T>(list: ReadonlyArray<T>, value: T): ReadonlyA
 
 /** Conservative 4-state copy — generic messages, no legal claims. */
 export function verificationStatusCopy(status: TechnicianVerificationStatus): {
-  icon: string;
+  icon: 'check-circle' | 'clock' | 'x-circle' | 'alert-circle';
   titleAr: string;
   bodyAr: string;
 } {
   switch (status) {
     case 'approved':
       return {
-        icon: '✓',
+        icon: 'check-circle',
         titleAr: 'تم التحقق',
         bodyAr: 'تم التحقق من بياناتك. ملفك ظاهر الآن للعملاء.',
       };
     case 'pending':
       return {
-        icon: '◷',
+        icon: 'clock',
         titleAr: 'قيد المراجعة',
         bodyAr: 'تم إرسال البيانات للمراجعة. سنعلمك فور انتهائها.',
       };
     case 'rejected':
       return {
-        icon: '✕',
+        icon: 'x-circle',
         titleAr: 'تعذر اعتماد البيانات',
         bodyAr: 'لم يتم اعتماد البيانات الحالية. راجع بياناتك وحدثها ثم أعد الإرسال.',
       };
     case 'action_required':
       return {
-        icon: '!',
+        icon: 'alert-circle',
         titleAr: 'يحتاج إلى تحديث البيانات',
         bodyAr: 'نحتاج إلى تحديث بعض بياناتك قبل إتمام المراجعة.',
       };

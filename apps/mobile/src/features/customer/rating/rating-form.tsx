@@ -7,11 +7,17 @@
  * retry with input preserved.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { RATING_LABELS_AR, RATING_TAGS_AR, type RatingDataSource } from './rating-types';
+
+import { RATING_LABELS_AR, type RatingDataSource } from './rating-types';
 import { useRatingViewModel } from './use-rating-view-model';
+
+import { BrandImage } from '@/ui/brand-image';
+import { Chip } from '@/ui/chip';
+import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 export function RatingForm({
   requestId,
@@ -33,7 +39,9 @@ export function RatingForm({
         accessibilityLabel="تم إرسال تقييمك بنجاح. شكرًا لك."
         style={styles.done}
       >
-        <Text style={styles.doneEmoji}>✓</Text>
+        <View style={styles.doneScene}>
+          <BrandImage name="rate-us" size={116} />
+        </View>
         <Text style={styles.doneTitle}>تم إرسال تقييمك بنجاح</Text>
         <Text style={styles.doneBody}>شكرًا لك — تقييمك يساعد عملاء آخرين على الاختيار بثقة.</Text>
       </View>
@@ -54,13 +62,16 @@ export function RatingForm({
               accessibilityRole="radio"
               accessibilityLabel={`${value} من ٥: ${RATING_LABELS_AR[value]}${vm.stars === value ? '، محدد حاليًا' : ''}`}
               accessibilityState={{ selected: vm.stars === value, checked: vm.stars === value }}
+              aria-checked={vm.stars === value}
               onPress={() => vm.selectStars(value)}
               disabled={submitting}
               style={({ pressed }) => [styles.star, pressed && !submitting && styles.pressed]}
             >
-              <Text style={[styles.starGlyph, selected ? styles.starOn : styles.starOff]}>
-                {selected ? '★' : '☆'}
-              </Text>
+              <Icon
+                name="star"
+                size={34}
+                color={selected ? color.brand.gold : color.border.default}
+              />
             </Pressable>
           );
         })}
@@ -74,27 +85,27 @@ export function RatingForm({
         </Text>
       ) : null}
 
-      <Text style={styles.groupLabel}>ما الذي أعجبك؟ (اختياري)</Text>
-      <View style={styles.tags}>
-        {RATING_TAGS_AR.map((tag) => {
-          const on = vm.tags.includes(tag);
-          return (
-            <Pressable
-              key={tag}
-              accessibilityRole="checkbox"
-              accessibilityLabel={`وسم: ${tag}${on ? '، محدد' : ''}`}
-              accessibilityState={{ selected: on, checked: on }}
-              onPress={() => vm.toggle(tag)}
-              disabled={submitting}
-              style={({ pressed }) => [styles.tag, on && styles.tagOn, pressed && styles.pressed]}
-            >
-              <Text style={[styles.tagText, on && styles.tagTextOn]}>
-                {on ? '✓ ' : ''}{tag}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {vm.tagsStatus === 'loaded' && vm.availableTags.length > 0 ? (
+        <>
+          <Text style={styles.groupLabel}>ما الذي أعجبك؟ (اختياري)</Text>
+          <View style={styles.tags}>
+            {vm.availableTags.map((tag) => {
+              const on = vm.selectedTagIds.includes(tag.id);
+              return (
+                <Chip
+                  key={tag.id}
+                  label={tag.labelAr}
+                  selectionMode="multiple"
+                  selected={on}
+                  disabled={submitting}
+                  accessibilityLabel={`وسم: ${tag.labelAr}${on ? '، محدد' : ''}`}
+                  onPress={() => vm.toggleTagId(tag.id)}
+                />
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       <TextInput
         accessibilityLabel="تعليق إضافي، اختياري"
@@ -123,7 +134,7 @@ export function RatingForm({
         style={({ pressed }) => [styles.submit, submitting && styles.disabled, pressed && !submitting && styles.pressed]}
       >
         {submitting ? (
-          <ActivityIndicator accessibilityLabel="جارٍ إرسال التقييم" color={color.surface.base} />
+          <ActivityIndicator color={color.surface.base} />
         ) : (
           <Text style={styles.submitText}>إرسال التقييم</Text>
         )}
@@ -150,9 +161,8 @@ const styles = StyleSheet.create({
     gap: spacing[3],
   },
   heading: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -170,31 +180,20 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  starGlyph: {
-    fontSize: 36,
-  },
-  starOn: {
-    color: color.brand.gold,
-  },
-  starOff: {
-    color: color.border.default,
-  },
   ratingLabel: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
     textAlign: 'center',
   },
   error: {
+    ...type.body,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
   groupLabel: {
+    ...type.bodyMedium,
     color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
     textAlign: 'right',
   },
   tags: {
@@ -202,36 +201,13 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing[2],
   },
-  tag: {
-    borderWidth: 1,
-    borderColor: color.border.default,
-    borderRadius: radius.pill,
-    backgroundColor: color.surface.base,
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    minHeight: 44,
-    justifyContent: 'center',
-  },
-  tagOn: {
-    borderColor: color.brand.gold,
-    borderWidth: 2,
-    backgroundColor: color.brand.goldSoft,
-  },
-  tagText: {
-    color: color.text.secondary,
-    fontSize: typography.size.body,
-  },
-  tagTextOn: {
-    color: color.text.primary,
-    fontWeight: typography.weight.bold,
-  },
   input: {
     borderWidth: 1,
     borderColor: color.border.default,
     borderRadius: radius.md,
     backgroundColor: color.surface.base,
     color: color.text.primary,
-    fontSize: typography.size.body,
+    ...type.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
   },
@@ -250,9 +226,8 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   submitText: {
+    ...type.button,
     color: color.surface.base,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
   },
   retry: {
     borderWidth: 1,
@@ -264,27 +239,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryText: {
+    ...type.bodyMedium,
     color: color.brand.navy,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
   },
   done: {
     alignItems: 'center',
     gap: spacing[2],
     paddingVertical: spacing[4],
   },
-  doneEmoji: {
-    fontSize: 48,
-    color: color.success.DEFAULT,
+  doneBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: color.success.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneScene: {
+    width: '100%',
+    height: 140,
+    borderRadius: radius.lg,
+    backgroundColor: color.surface.subtle,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   doneTitle: {
+    ...type.h3,
     color: color.text.primary,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
   },
   doneBody: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
   },
 });

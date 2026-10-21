@@ -7,160 +7,183 @@
  * business logic is explicitly out of scope (Phase-2 brief §16).
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
+import { color, radius, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { ListError, ListLoading } from '../components/list-state-view';
-
+import { profileLocationLabel } from './location-label';
 import { useCustomerProfileViewModel } from './use-customer-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { joinNonEmpty } from '@/lib/api-format';
 import { useAuthStore } from '@/lib/auth-store';
-import { Avatar, Card, Pill } from '@/ui';
+import {
+  ActionButton,
+  AppHeader,
+  Card,
+  Icon,
+  ListError,
+  ListLoading,
+  MenuDivider,
+  MenuRow,
+  PageTitle,
+  Pill,
+  ProfilePhotoSection,
+  StatTile,
+  type,
+} from '@/ui';
 
 export default function CustomerProfileScreen() {
   const { t } = useI18n();
   const router = useRouter();
-  const { status, data, error, retry } = useCustomerProfileViewModel();
+  const vm = useCustomerProfileViewModel();
+  const { status, data, error, retry } = vm;
   const logout = useAuthStore((s) => s.logout);
 
+  // The API exposes no customer city/district yet (reported gap). Build the
+  // location line from real, non-empty parts only — never a dangling " - ".
+  const locationLabel = data !== null ? profileLocationLabel(data.cityAr, data.districtAr) : null;
+
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text accessibilityRole="header" style={styles.title}>
-        {t('profile.title')}
-      </Text>
-
-      {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
-      {status === 'error' ? (
-        <ListError
-          title={t('requests.error.title')}
-          message={error?.message ?? ''}
-          retryLabel={t('state.retry')}
-          onRetry={retry}
-        />
-      ) : null}
-      {status === 'loaded' && data ? (
-        <>
-          <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.hero}>
-            <Avatar
-              initials={data.initialsAr}
-              size={72}
-              background={color.brand.gold}
-              foreground={color.brand.navy}
-              accessibilityLabel={`الصورة الرمزية لـ ${data.displayNameAr}`}
+    <View style={styles.root}>
+      <AppHeader
+        onPressNotifications={() => router.push('/(customer)/notifications')}
+        onPressAvatar={() => router.push('/(customer)/profile')}
+      />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.editorial}>
+          <PageTitle
+            eyebrow="حسابي"
+            title={t('profile.title')}
+            body="بياناتك وطلباتك واشتراكك في مكان واحد."
+          />
+          {status === 'loading' ? <ListLoading label={t('state.loading')} /> : null}
+          {status === 'error' ? (
+            <ListError
+              asset="fault_empty"
+              title={t('requests.error.title')}
+              message={error?.message ?? ''}
+              retryLabel={t('state.retry')}
+              onRetry={retry}
             />
-            <Text style={styles.name}>{data.displayNameAr}</Text>
-            <Text style={styles.meta}>
-              {data.phoneAr} · {data.memberSinceAr}
-            </Text>
-            <Pill
-              background={color.brand.navyDeep}
-              color={color.brand.goldSoft}
-              accessibilityLabel={`الموقع: ${data.cityAr}، ${data.districtAr}`}
-            >
-              {`📍 ${data.cityAr} - ${data.districtAr}`}
-            </Pill>
-          </Card>
+          ) : null}
+          {status === 'loaded' && data ? (
+            <>
+              <Card
+                background={color.brand.navy}
+                borderColor={color.brand.navy}
+                padded
+                style={styles.hero}
+              >
+                <ProfilePhotoSection
+                  imageUrl={data.avatarUrl}
+                  pendingUri={vm.pendingPhoto?.uri ?? null}
+                  initialsAr={data.initialsAr}
+                  nameAr={data.displayNameAr}
+                  status={vm.photoStatus}
+                  error={vm.photoError}
+                  onPickLibrary={vm.pickFromLibrary}
+                  onTakeCamera={vm.takeWithCamera}
+                  onConfirmUpload={vm.confirmPhotoUpload}
+                  onCancelPending={vm.cancelPendingPhoto}
+                  onDelete={vm.deletePhoto}
+                  onRetry={vm.retryPhoto}
+                  onDismissStatus={vm.dismissPhotoStatus}
+                />
+                <Text style={styles.name}>{data.displayNameAr}</Text>
+                <Text style={styles.meta}>{joinNonEmpty([data.phoneAr, data.memberSinceAr])}</Text>
+                <Pill
+                  background={color.brand.navyDeep}
+                  color={color.brand.goldSoft}
+                  accessibilityLabel={
+                    locationLabel !== null ? `الموقع: ${locationLabel}` : t('profile.location.none')
+                  }
+                  leading={
+                    <Icon
+                      name="map-pin"
+                      size={14}
+                      color={color.brand.goldSoft}
+                      accessibilityLabel="الموقع"
+                    />
+                  }
+                >
+                  {locationLabel ?? t('profile.location.none')}
+                </Pill>
+              </Card>
 
-          <View style={styles.stats}>
-            <Card background={color.surface.base} padded style={styles.stat}>
-              <Text style={styles.statNumber}>{data.activeOrdersCount}</Text>
-              <Text style={styles.statLabel}>طلبات نشطة</Text>
-            </Card>
-            <Card background={color.surface.base} padded style={styles.stat}>
-              <Text style={styles.statNumber}>{data.completedOrdersCount}</Text>
-              <Text style={styles.statLabel}>طلبات مكتملة</Text>
-            </Card>
-          </View>
+              <View style={styles.stats}>
+                <StatTile icon="clipboard" value={data.activeOrdersCount} label="طلبات نشطة" />
+                <StatTile
+                  icon="check-circle"
+                  value={data.completedOrdersCount}
+                  label="طلبات مكتملة"
+                />
+              </View>
 
-          <Card background={color.surface.base} style={styles.menu}>
-            <MenuRow
-              icon="📋"
-              label={t('profile.menu.orders')}
-              onPress={() => router.push('/(customer)/requests')}
-            />
-            <MenuDivider />
-            <MenuRow
-              icon="🔍"
-              label={t('discovery.title')}
-              onPress={() => router.push('/(customer)/find-technician')}
-            />
-            <MenuDivider />
-            <MenuRow icon="🔔" label={t('profile.menu.notifications')} soonLabel={t('profile.comingSoon')} />
-            <MenuDivider />
-            <MenuRow icon="⭐" label={t('profile.menu.subscription')} soonLabel={t('profile.comingSoon')} />
-            <MenuDivider />
-            <MenuRow icon="🎧" label={t('profile.menu.support')} hint={data.supportHoursAr} />
-          </Card>
+              <Card background={color.surface.base} style={styles.menu}>
+                <MenuRow
+                  icon="clipboard"
+                  label={t('profile.menu.orders')}
+                  onPress={() => router.push('/(customer)/requests')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="search"
+                  label={t('discovery.title')}
+                  onPress={() => router.push('/(customer)/find-technician')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="bell"
+                  label={t('profile.menu.notifications')}
+                  onPress={() => router.push('/(customer)/notifications')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="award"
+                  label={t('profile.menu.subscription')}
+                  onPress={() => router.push('/(customer)/subscription')}
+                />
+                <MenuDivider />
+                <MenuRow
+                  icon="headphones"
+                  label={t('profile.menu.support')}
+                  hint={data.supportHoursAr}
+                />
+              </Card>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('profile.menu.logout')}
-            onPress={() => void logout()}
-            style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-          >
-            <Text style={styles.logoutText}>🚪 {t('profile.menu.logout')}</Text>
-          </Pressable>
-        </>
-      ) : null}
-      <View style={styles.bottomSpacer} />
-    </ScrollView>
-  );
-}
-
-function MenuRow({
-  icon,
-  label,
-  hint,
-  soonLabel,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  hint?: string;
-  soonLabel?: string;
-  onPress?: () => void;
-}) {
-  const interactive = typeof onPress === 'function';
-  return (
-    <Pressable
-      accessibilityRole={interactive ? 'button' : 'text'}
-      accessibilityLabel={soonLabel ? `${label}، ${soonLabel}` : hint ? `${label}. ${hint}` : label}
-      onPress={onPress}
-      disabled={!interactive}
-      style={({ pressed }) => [styles.row, pressed && interactive && styles.pressed]}
-    >
-      <Text style={styles.rowIcon}>{icon}</Text>
-      <View style={styles.rowText}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {hint ? <Text style={styles.rowHint}>{hint}</Text> : null}
-      </View>
-      {soonLabel ? (
-        <View style={styles.soon}>
-          <Text style={styles.soonText}>{soonLabel}</Text>
+              <ActionButton
+                variant="destructive"
+                icon="log-out"
+                label={t('profile.menu.logout')}
+                onPress={() => void logout()}
+                style={styles.logoutAction}
+              />
+            </>
+          ) : null}
+          <View style={styles.bottomSpacer} />
         </View>
-      ) : interactive ? (
-        <Text style={styles.chevron}>‹</Text>
-      ) : null}
-    </Pressable>
+      </ScrollView>
+    </View>
   );
-}
-
-function MenuDivider() {
-  return <View style={styles.divider} />;
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: color.surface.subtle,
+    direction: 'rtl',
+  },
   content: {
-    paddingHorizontal: spacing[5],
-    paddingTop: spacing[6],
     paddingBottom: spacing[8],
   },
+  editorial: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+  },
   title: {
+    ...type.h2,
     color: color.text.primary,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
     writingDirection: 'rtl',
     marginBottom: spacing[4],
@@ -171,99 +194,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   name: {
+    ...type.h2,
     color: color.surface.base,
-    fontSize: typography.size.h2,
-    fontWeight: typography.weight.bold,
   },
   meta: {
+    ...type.body,
     color: color.brand.goldSoft,
-    fontSize: typography.size.body,
   },
   stats: {
     flexDirection: 'row',
     gap: spacing[3],
     marginTop: spacing[4],
   },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statNumber: {
-    color: color.text.primary,
-    fontSize: typography.size.h1,
-    fontWeight: typography.weight.bold,
-  },
-  statLabel: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
+  logoutAction: {
+    marginTop: spacing[4],
   },
   menu: {
     marginTop: spacing[4],
-    paddingHorizontal: spacing[4],
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing[3],
-    paddingVertical: spacing[3],
-    minHeight: 56,
-  },
-  rowIcon: {
-    fontSize: 22,
-  },
-  rowText: {
-    flex: 1,
-  },
-  rowLabel: {
-    color: color.text.primary,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.medium,
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  rowHint: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-    marginTop: spacing[1],
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  soon: {
-    backgroundColor: color.surface.subtle,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing[3],
-    paddingVertical: spacing[1],
-  },
-  soonText: {
-    color: color.text.secondary,
-    fontSize: typography.size.caption,
-  },
-  chevron: {
-    color: color.text.secondary,
-    fontSize: 22,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: color.border.default,
-  },
-  logout: {
-    marginTop: spacing[4],
-    borderWidth: 1,
-    borderColor: color.error.DEFAULT,
-    borderRadius: radius.md,
-    minHeight: 52,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: color.surface.base,
-  },
-  pressed: {
-    opacity: 0.75,
-  },
-  logoutText: {
-    color: color.error.DEFAULT,
-    fontSize: typography.size.button,
-    fontWeight: typography.weight.semibold,
+    paddingHorizontal: 0,
   },
   bottomSpacer: {
     height: spacing[6],

@@ -1,0 +1,22 @@
+-- ACL hardening: revoke client-facing privileges on rate_limit_buckets.
+--
+-- Context / rationale
+-- -------------------
+-- The rate_limit_buckets table stores rate limiting counters. The NestJS API
+-- accesses this table through Prisma using the trusted backend database role.
+-- Supabase PostgREST roles (anon / authenticated) are NOT used by the app,
+-- but table ACLs still granted them SELECT, INSERT, UPDATE, DELETE and
+-- TRUNCATE. RLS is enabled with no permissive policies, which restricts
+-- ordinary row operations, but TRUNCATE is not row-filtered by RLS, so the
+-- grants themselves must be removed.
+--
+-- This revokes direct table privileges from the client-facing roles only.
+-- It does NOT touch postgres / service_role, does NOT change any other
+-- table, and does NOT alter the Prisma schema (no model change).
+-- Revoking absent privileges is a no-op, so re-application is safe.
+--
+-- Scope note: applied to khabir-dev on 2026-10-11 and recorded here so that
+-- environments built from migrations converge to the same ACL state.
+-- khabir-prod is explicitly out of scope for this migration.
+
+REVOKE ALL PRIVILEGES ON TABLE public."rate_limit_buckets" FROM anon, authenticated;

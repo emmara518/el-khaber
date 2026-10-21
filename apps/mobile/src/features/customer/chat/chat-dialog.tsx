@@ -5,8 +5,9 @@
  * and send button. Closing never leaves the tracking screen.
  */
 
-import { color, radius, spacing, typography } from '@khabir/ui-tokens';
-import { useRef } from 'react';
+import { color, radius, spacing } from '@khabir/ui-tokens';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useRef } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -18,40 +19,58 @@ import {
   View,
 } from 'react-native';
 
+
+import { reactNativeAppState } from './chat-app-state';
 import { useChatViewModel } from './use-chat-view-model';
 
-import type { ChatDataSource } from './chat-types';
-import type { ChatMessage } from './chat-types';
+import type { ChatDataSource, ChatMessage, ChatRole } from './chat-types';
+
+import { BrandImage } from '@/ui/brand-image';
+import { Icon } from '@/ui/icon';
+import { type } from '@/ui/typography';
 
 export function ChatDialog({
   visible,
   onClose,
   conversationId,
   technicianNameAr,
+  serviceTitle,
   source,
+  role = 'customer',
+  peerNameAr,
 }: {
   visible: boolean;
   onClose: () => void;
   conversationId: string;
   technicianNameAr: string;
+  serviceTitle?: string;
   source?: ChatDataSource;
+  /** Signed-in side of the 1:1 conversation. Defaults to `customer`. */
+  role?: ChatRole;
+  /** Display name of the other participant; falls back to `technicianNameAr`. */
+  peerNameAr?: string;
 }) {
+  const peer = peerNameAr ?? technicianNameAr;
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      accessibilityLabel={`محادثة مع ${technicianNameAr}`}
+      accessibilityLabel={`محادثة مع ${peer}`}
       onRequestClose={onClose}
     >
       <View style={styles.scrim}>
         <View style={styles.sheet}>
-          <ChatBody
-            conversationId={conversationId}
-            technicianNameAr={technicianNameAr}
-            onClose={onClose}
-            source={source}
-          />
+          {visible ? (
+            <ChatBody
+              conversationId={conversationId}
+              technicianNameAr={peer}
+              serviceTitle={serviceTitle}
+              onClose={onClose}
+              source={source}
+              role={role}
+            />
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -61,23 +80,48 @@ export function ChatDialog({
 export function ChatBody({
   conversationId,
   technicianNameAr,
+  serviceTitle,
   onClose,
   source,
+  role = 'customer',
 }: {
   conversationId: string;
   technicianNameAr: string;
+  serviceTitle?: string;
   onClose: () => void;
   source?: ChatDataSource;
+  role?: ChatRole;
 }) {
-  const vm = useChatViewModel(conversationId, 'customer', source);
+  const focusRef = useRef(true);
+  const firstFocus = useRef(true);
+  const isFocused = useCallback(() => focusRef.current, []);
+  const vm = useChatViewModel(conversationId, role, source, reactNativeAppState, isFocused);
   const scrollRef = useRef<ScrollView>(null);
+  const refresh = vm.refresh;
+
+  // No polling while the dialog's screen is blurred. Returning to the
+  // screen refreshes immediately instead of waiting for the next tick.
+  useFocusEffect(
+    useCallback(() => {
+      const isFirst = firstFocus.current;
+      firstFocus.current = false;
+      focusRef.current = true;
+      if (!isFirst) refresh();
+      return () => {
+        focusRef.current = false;
+      };
+    }, [refresh]),
+  );
 
   return (
     <View style={styles.body}>
       <View style={styles.header}>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>{technicianNameAr}</Text>
-          <Text style={styles.headerSub}>محادثة الطلب الحالي</Text>
+        <View style={styles.headerIdentity}>
+          <BrandImage name="technician" size={46} style={styles.headerAvatar} />
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>{technicianNameAr}</Text>
+            <Text style={styles.headerSub}>{serviceTitle ?? 'محادثة الطلب الحالي'}</Text>
+          </View>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -85,7 +129,7 @@ export function ChatBody({
           onPress={onClose}
           style={({ pressed }) => [styles.close, pressed && styles.pressed]}
         >
-          <Text style={styles.closeText}>✕</Text>
+          <Icon name="x" size={20} color={color.surface.base} accessible={false} />
         </Pressable>
       </View>
 
@@ -111,7 +155,17 @@ export function ChatBody({
         {vm.loadStatus === 'loaded' ? (
           vm.messages.length === 0 ? (
             <View style={styles.center}>
-              <Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة أدناه.</Text>
+              <View style={styles.emptyScene}>
+                <BrandImage name="messages" size={84} />
+              </View>
+              <Text style={styles.emptyTitle}>ابدأ المحادثة</Text>
+              <Text style={styles.muted}>
+                {role === 'merchant'
+                  ? 'لا توجد رسائل بعد. رد على استفسار العميل.'
+                  : role === 'technician'
+                    ? 'لا توجد رسائل بعد. تواصل مع العميل لتأكيد الوصول أو تفاصيل الخدمة.'
+                    : 'لا توجد رسائل بعد. اسأل الفني عن موعد الوصول أو تفاصيل الخدمة.'}
+              </Text>
             </View>
           ) : (
             <ScrollView
@@ -124,6 +178,7 @@ export function ChatBody({
                 <MessageBubble
                   key={message.id}
                   message={message}
+                  role={role}
                   onRetry={() => vm.retryFailed(message.id)}
                 />
               ))}
@@ -148,6 +203,9 @@ export function ChatBody({
           textAlign="right"
           multiline
           editable={!vm.sending}
+          returnKeyType="send"
+          blurOnSubmit={false}
+          onSubmitEditing={vm.send}
         />
         <Pressable
           accessibilityRole="button"
@@ -162,9 +220,15 @@ export function ChatBody({
           ]}
         >
           {vm.sending ? (
-            <ActivityIndicator accessibilityLabel="جارٍ الإرسال" color={color.surface.base} size="small" />
+            <ActivityIndicator color={color.surface.base} size="small" />
           ) : (
-            <Text style={styles.sendText}>➤</Text>
+            <Icon
+              name="send"
+              size={20}
+              color={color.surface.base}
+              style={styles.sendIcon}
+              accessible={false}
+            />
           )}
         </Pressable>
       </View>
@@ -172,12 +236,20 @@ export function ChatBody({
   );
 }
 
-function MessageBubble({ message, onRetry }: { message: ChatMessage; onRetry: () => void }) {
-  const outgoing = message.sender === 'customer';
+function MessageBubble({
+  message,
+  role,
+  onRetry,
+}: {
+  message: ChatMessage;
+  role: ChatRole;
+  onRetry: () => void;
+}) {
+  const outgoing = message.sender === role;
   return (
     <View style={[styles.bubbleRow, outgoing ? styles.outgoingRow : styles.incomingRow]}>
       <View
-        accessibilityLabel={`${outgoing ? 'رسالتك' : 'رسالة الفني'}: ${message.textAr}، ${message.timeAr}${
+        accessibilityLabel={`${outgoing ? 'رسالتك' : 'رسالة الطرف الآخر'}: ${message.textAr}، ${message.timeAr}${
           message.status === 'error' ? '، فشل الإرسال' : message.status === 'sending' ? '، جارٍ الإرسال' : ''
         }`}
         style={[styles.bubble, outgoing ? styles.outgoing : styles.incoming]}
@@ -196,7 +268,8 @@ function MessageBubble({ message, onRetry }: { message: ChatMessage; onRetry: ()
             onPress={onRetry}
             style={styles.bubbleRetry}
           >
-            <Text style={styles.bubbleRetryText}>إعادة الإرسال ⟳</Text>
+            <Icon name="rotate-ccw" size={13} color={color.brand.gold} />
+            <Text style={styles.bubbleRetryText}>إعادة الإرسال</Text>
           </Pressable>
         ) : null}
       </View>
@@ -232,15 +305,45 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
   },
+  headerIdentity: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  headerAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: color.brand.gold,
+    backgroundColor: color.brand.navyDeep,
+  },
+  emptyScene: {
+    width: 120,
+    height: 120,
+    borderRadius: radius.lg,
+    backgroundColor: color.surface.subtle,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    ...type.h3,
+    color: color.text.primary,
+    textAlign: 'center',
+    writingDirection: 'rtl',
+    marginTop: spacing[2],
+  },
   headerTitle: {
+    ...type.h3,
     color: color.surface.base,
-    fontSize: typography.size.h3,
-    fontWeight: typography.weight.bold,
     textAlign: 'right',
   },
   headerSub: {
+    ...type.caption,
     color: color.brand.goldSoft,
-    fontSize: typography.size.caption,
     marginTop: spacing[1],
     textAlign: 'right',
   },
@@ -249,11 +352,6 @@ const styles = StyleSheet.create({
     minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  closeText: {
-    color: color.surface.base,
-    fontSize: 20,
-    fontWeight: typography.weight.bold,
   },
   history: {
     flex: 1,
@@ -293,10 +391,9 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.navy,
   },
   bubbleText: {
-    fontSize: typography.size.body,
+    ...type.body,
     textAlign: 'right',
     writingDirection: 'rtl',
-    lineHeight: 24,
   },
   incomingText: {
     color: color.text.primary,
@@ -305,7 +402,7 @@ const styles = StyleSheet.create({
     color: color.surface.base,
   },
   bubbleTime: {
-    fontSize: typography.size.caption,
+    ...type.caption,
     marginTop: spacing[1],
     textAlign: 'right',
     opacity: 0.8,
@@ -314,25 +411,26 @@ const styles = StyleSheet.create({
     marginTop: spacing[1],
     minHeight: 44,
     justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
   },
   bubbleRetryText: {
+    ...type.label,
     color: color.brand.gold,
-    fontSize: typography.size.caption,
-    fontWeight: typography.weight.bold,
   },
   sendError: {
+    ...type.caption,
     color: color.error.DEFAULT,
-    fontSize: typography.size.caption,
     textAlign: 'right',
   },
   errorText: {
+    ...type.bodyMedium,
     color: color.error.DEFAULT,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
   },
   muted: {
+    ...type.body,
     color: color.text.secondary,
-    fontSize: typography.size.body,
     textAlign: 'center',
   },
   retry: {
@@ -344,9 +442,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   retryText: {
+    ...type.bodyMedium,
     color: color.surface.base,
-    fontSize: typography.size.body,
-    fontWeight: typography.weight.semibold,
   },
   composer: {
     flexDirection: 'row',
@@ -360,7 +457,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: color.surface.base,
     color: color.text.primary,
-    fontSize: typography.size.body,
+    ...type.body,
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     minHeight: 52,
@@ -380,9 +477,7 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.8,
   },
-  sendText: {
-    color: color.surface.base,
-    fontSize: 20,
+  sendIcon: {
     transform: [{ scaleX: -1 }],
   },
 });

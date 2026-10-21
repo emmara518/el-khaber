@@ -1,0 +1,362 @@
+/*
+ * Landing global styles. Arabic-first, RTL, calm motion only.
+ * No letter-spacing on Arabic text (renders as disconnected forms).
+ */
+
+:root {
+  --font-arabic: 'Segoe UI', 'Tahoma', 'Noto Naskh Arabic', 'Noto Sans Arabic',
+    system-ui, -apple-system, sans-serif;
+  --navy: #0b1f3a;
+  --navy-deep: #06172d;
+  --gold: #e9a824;
+  --gold-soft: #f7e7bd;
+  --ink: #10213a;
+  --muted: #697586;
+  --line: #e4e8ee;
+  --paper: #ffffff;
+  --paper-subtle: #f7f8fa;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Anchored sections must clear the sticky header (~60px) */
+section[id] {
+  scroll-margin-top: 76px;
+}
+
+body {
+  font-family: var(--font-arabic);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  color: var(--ink);
+  background: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid #e9a824;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+button,
+a {
+  font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 16px;
+  top: -48px;
+  z-index: 50;
+  background: var(--navy);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 14px;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Entrance: gentle rise, staggered via inline delay */
+@keyframes rise-in {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.55s ease-out both;
+}
+
+/* Soft continuous float for hero visual accents */
+@keyframes soft-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.soft-float {
+  animation: soft-float 6s ease-in-out infinite;
+}
+
+/* Cinematic hero: deep navy stage with gold ambience */
+.hero-cinematic {
+  position: relative;
+  overflow: clip;
+  color: #fff;
+  background:
+    radial-gradient(720px 340px at 85% -10%, rgba(233, 168, 36, 0.22), transparent 65%),
+    radial-gradient(620px 420px at 12% 110%, rgba(64, 110, 178, 0.35), transparent 60%),
+    linear-gradient(180deg, #0b1f3a 0%, #06172d 100%);
+}
+
+.hero-cinematic::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(to left, transparent, rgba(233, 168, 36, 0.55), transparent);
+  pointer-events: none;
+}
+
+.hero-copy-light {
+  color: #d7e0ec;
+}
+
+.nav-link {
+  transition: color 0.15s ease;
+}
+
+.nav-link:hover {
+  color: var(--ink);
+}
+
+.btn-primary,
+.btn-ghost,
+.btn-gold {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn-primary:hover,
+.btn-gold:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(6, 23, 45, 0.28);
+}
+
+.btn-ghost:hover {
+  border-color: var(--navy);
+}
+
+/*
+ * Spotlight card — React Bits `SpotlightCard-TS-CSS` pattern adapted to
+ * tokens: a gold-tinted radial highlight follows the cursor (CSS vars
+ * set in components/spotlight-card.tsx). Pointer-only enhancement;
+ * the base card is unchanged for touch/keyboard users.
+ */
+.spotlight-card {
+  position: relative;
+  overflow: hidden;
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+}
+
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--mouse-x) var(--mouse-y),
+    rgba(233, 168, 36, 0.14),
+    transparent 65%
+  );
+  opacity: 0;
+  transition: opacity 0.45s ease;
+  pointer-events: none;
+}
+
+.spotlight-card:hover::before,
+.spotlight-card:focus-within::before {
+  opacity: 1;
+}
+
+/*
+ * Scroll reveal — Animotion `SC01 Scroll Fade In` pattern: sections fade
+ * and rise as they enter the viewport. Progressive enhancement via
+ * animation-timeline; browsers without support render content normally.
+ */
+@supports (animation-timeline: view()) {
+  .reveal {
+    animation: rise-in 0.6s ease-out both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+}
+
+/* Store badges: subtle press-ready hover */
+.store-badge {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.store-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(6, 23, 45, 0.35);
+}
+
+/* Product image frames (real app scenes, webp) */
+.img-frame {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  background: #0e2748;
+}
+
+.img-frame-light {
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  box-shadow: 0 12px 32px rgba(11, 31, 58, 0.12);
+  overflow: hidden;
+  background: var(--paper);
+}
+
+.img-frame img,
+.img-frame-light img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.caption {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.caption-on-dark {
+  font-size: 12.5px;
+  color: #9fb0c7;
+  line-height: 1.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .rise-in,
+  .soft-float,
+  .reveal,
+  .store-badge {
+    animation: none;
+  }
+  .spotlight-card::before {
+    display: none;
+  }
+  .store-badge:hover,
+  .btn-primary:hover,
+  .btn-gold:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+.ltr {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* Layout shells */
+.shell {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.shell-narrow {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-inline: 20px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 48px;
+  align-items: center;
+}
+
+.visual-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.visual-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: end;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 960px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+  .hero-grid > .hero-copy {
+    order: 1;
+  }
+  .grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .hide-sm {
+    display: none !important;
+  }
+  .hero-h1 {
+    font-size: 30px !important;
+    line-height: 1.35 !important;
+  }
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+  .visual-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
