@@ -1,8 +1,18 @@
 # الخبير — Production Deploy Runbook
 
+> **Current status (2026-10-21): historical baseline, not production-verified.**
+> The release is at `4506bd7aed56cbdf9b53720f63fed2d4db8dd49c`; production
+> database/secrets/hosting/legal gates are still open. Use the current
+> `docs/releases/V2.1.0-RELEASE-GATE.md`,
+> `docs/releases/PRODUCTION-DATABASE-RESTORE-RUNBOOK.md`, and
+> `docs/releases/DEPLOYMENT-PROVENANCE-AND-ROLLBACK.md` for the current
+> procedures. Do not assume any historical claim in this file about a
+> `khabir-prod` database is still true; this engineering session did not
+> access it.
+
 **Path:** `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md`
 **Version:** 1.0 (2026-09-19)
-**Status:** Actionable runbook. No deployment has been executed from it yet.
+**Status:** Historical reference. No deployment has been executed from it yet.
 **Companion:** `docs/11_PRODUCTION.md` (readiness baseline), `docs/12_RELEASE.md` (release manifest).
 
 This runbook is the only in-session deliverable for the deployed-API blocker:
