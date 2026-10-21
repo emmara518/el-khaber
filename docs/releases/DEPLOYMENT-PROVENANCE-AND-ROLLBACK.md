@@ -36,6 +36,7 @@ The current artifact must not be used as release evidence.
 | Created | 2026-10-09T23:44:18Z |
 | Status | `SUCCESS` / instance `RUNNING` |
 | Image digest | `sha256:28954e7df16046acc769fe1877e94b1cfa97894a7cb8c148d5bedbf3e447b8ec` |
+| Health check | `healthcheckPath: null` (not configured) |
 | Source metadata | `source.repo: null`; no Git branch/commit in the deployment metadata |
 | Verification | **NOT VERIFIED** against `739f9eb` |
 
