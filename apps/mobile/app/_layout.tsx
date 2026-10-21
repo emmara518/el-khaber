@@ -1,7 +1,8 @@
 import { Stack, useRootNavigationState, useRouter, useSegments } from 'expo-router';
+import Head from 'expo-router/head';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
-import { I18nManager, StyleSheet } from 'react-native';
+import { type PropsWithChildren, useEffect } from 'react';
+import { I18nManager, Platform, StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -9,6 +10,7 @@ import { groupForSegments, resolveRouteForSession } from '../src/features/auth/r
 import { useI18n } from '../src/i18n/use-i18n';
 import { useAuthStore } from '../src/lib/auth-store';
 import { AppErrorBoundary } from '../src/ui/app-error-boundary';
+import { APP_DOCUMENT_TITLE } from '../src/ui/app-title';
 import { useAppFonts } from '../src/ui/fonts';
 
 /**
@@ -41,17 +43,33 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <StatusBar style="light" />
-        <AppErrorBoundary>
-          <AuthGate />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: '#FFFFFF' },
-            }}
-          />
-        </AppErrorBoundary>
+        {Platform.OS === 'web' ? (
+          <Head>
+            <title>{APP_DOCUMENT_TITLE}</title>
+          </Head>
+        ) : null}
+        <MainLandmark>
+          <AppErrorBoundary>
+            <AuthGate />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: '#FFFFFF' },
+              }}
+            />
+          </AppErrorBoundary>
+        </MainLandmark>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function MainLandmark({ children }: PropsWithChildren) {
+  if (Platform.OS !== 'web') return <>{children}</>;
+  return (
+    <View role="main" style={styles.main}>
+      {children}
+    </View>
   );
 }
 
@@ -90,6 +108,9 @@ function AuthGate() {
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  main: {
     flex: 1,
   },
 });
