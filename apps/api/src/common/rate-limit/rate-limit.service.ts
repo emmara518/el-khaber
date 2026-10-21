@@ -13,6 +13,8 @@
  * Source: docs/16_V2_READINESS_AUDIT.md P0 item 3.
  */
 
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Logger } from '@nestjs/common';
 
 import { getConfig } from '../../config/app.config';
@@ -98,9 +100,14 @@ export class RateLimitService {
     const resetAt = new Date(windowStart.getTime() + policy.ttlSeconds * 1000);
 
     try {
+      // The legacy UUID/timestamp defaults were intentionally removed by
+      // migration 20261020091000. Supply both values here: the schema uses a
+      // client-generated UUID, and `updated_at` must be written on INSERT as
+      // well as on the conflict update.
       const bucket = await this.prisma.$queryRaw<{ count: number }[]>`
-        INSERT INTO "rate_limit_buckets" ("policy", "identifier", "window_start", "count")
-        VALUES (${policyName}, ${identifier}, ${windowStart}, 1)
+        INSERT INTO "rate_limit_buckets"
+          ("id", "policy", "identifier", "window_start", "count", "updated_at")
+        VALUES (${randomUUID()}::uuid, ${policyName}, ${identifier}, ${windowStart}, 1, ${now})
         ON CONFLICT ("policy", "identifier", "window_start") DO UPDATE
         SET "count" = "rate_limit_buckets"."count" + 1,
             "updated_at" = now()
