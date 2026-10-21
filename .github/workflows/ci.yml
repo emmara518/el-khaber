@@ -347,6 +347,9 @@ jobs:
           ref: 94bdfcb46958c5798f9406e238e6ae3da13c98a4
           fetch-depth: 1
 
+      - name: Verify legacy checkout SHA
+        run: test "$(git rev-parse HEAD)" = "$LEGACY_SHA"
+
       - name: Assert isolated test database configuration
         run: |
           node - <<'NODE'
@@ -440,7 +443,9 @@ jobs:
           if (!log.includes('rate-limit.service.ts') && !log.includes('rate_limit_buckets')) {
             problems.push('expected rate-limit defect context was not found');
           }
-          if (!/(failed|FAIL)/.test(log)) problems.push('no failing test summary was found');
+          if (!/(Failed Tests|\b[1-9]\d*\s+failed\b)/.test(log)) {
+            problems.push('no nonzero failing test summary was found');
+          }
           if (problems.length > 0) {
             console.error(`Negative control invalid: ${problems.join('; ')}`);
             process.exit(1);
