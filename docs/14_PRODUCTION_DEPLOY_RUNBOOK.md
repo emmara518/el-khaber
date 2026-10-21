@@ -1,7 +1,7 @@
 # الخبير — Production Deploy Runbook
 
 > **Current status (2026-10-21): historical baseline, not production-verified.**
-> The release is at `4506bd7aed56cbdf9b53720f63fed2d4db8dd49c`; production
+> The release is at `739f9ebc964d0415686f1827942d8b07a3f70c30`; production
 > database/secrets/hosting/legal gates are still open. Use the current
 > `docs/releases/V2.1.0-RELEASE-GATE.md`,
 > `docs/releases/PRODUCTION-DATABASE-RESTORE-RUNBOOK.md`, and
@@ -13,7 +13,8 @@
 **Path:** `docs/14_PRODUCTION_DEPLOY_RUNBOOK.md`
 **Version:** 1.0 (2026-09-19)
 **Status:** Historical reference. No deployment has been executed from it yet.
-**Companion:** `docs/11_PRODUCTION.md` (readiness baseline), `docs/12_RELEASE.md` (release manifest).
+**Companion:** `docs/11_PRODUCTION.md` (readiness baseline),
+`docs/releases/V2.1.0-RELEASE-GATE.md` (current gate).
 
 This runbook is the only in-session deliverable for the deployed-API blocker:
 there is no prod Supabase project, no container-host account, and no prod

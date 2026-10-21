@@ -2,7 +2,7 @@
 
 **Status:** procedure ready; current UAT deployment provenance **NOT VERIFIED**.
 **Release:** `release/v2.1.0-uat` @
-`4506bd7aed56cbdf9b53720f63fed2d4db8dd49c`
+`739f9ebc964d0415686f1827942d8b07a3f70c30`
 **Issue:** [#28](https://github.com/emmara518/el-khaber/issues/28)
 
 > This runbook does not authorize a deploy. No deployment was performed during
@@ -20,11 +20,27 @@ Read-only Vercel inspection on 2026-10-21:
 | URL | `https://el-khabir-j2psuh563-egypthub.vercel.app` |
 | Alias | `https://el-khabir-uat.vercel.app` |
 | Target | production |
-| Created | 2026-10-09 (predates release `4506bd7`) |
+| Created | 2026-10-09 (predates release `739f9eb`) |
 | Source metadata | **none** (`inspect --json` has no Git branch/commit fields) |
-| Verification | **NOT VERIFIED** against `4506bd7` or any P0/fix commit |
+| Verification | **NOT VERIFIED** against `739f9eb` or any P0/fix commit |
 
 The current artifact must not be used as release evidence.
+
+### UAT API (Railway, read-only inspection)
+
+| Field | Value |
+| --- | --- |
+| Project | `pleasant-forgiveness` (`f54e22ae-fa25-4ae1-b2b2-0aef0d6503f2`) |
+| Service | `khabir-api` (`e6d2b191-5e7f-44f1-b6a8-10f9b1b38eb5`) |
+| Deployment | `e16086c4-338c-4fb2-bc57-bf16fde1dbfa` |
+| Created | 2026-10-09T23:44:18Z |
+| Status | `SUCCESS` / instance `RUNNING` |
+| Image digest | `sha256:28954e7df16046acc769fe1877e94b1cfa97894a7cb8c148d5bedbf3e447b8ec` |
+| Source metadata | `source.repo: null`; no Git branch/commit in the deployment metadata |
+| Verification | **NOT VERIFIED** against `739f9eb` |
+
+The Railway project `refreshing-creativity` contains only old failed
+September deployments and is not the current UAT API.
 
 ## 2. Required deployment record
 

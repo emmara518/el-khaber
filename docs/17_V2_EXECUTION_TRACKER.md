@@ -1,8 +1,9 @@
-# V2 Execution Tracker
+# V2 Execution Tracker (historical)
 
-**Branch:** `review/final-production-release`
-**Started:** 2026-10-10
-**Status:** IN PROGRESS
+> **Historical tracker — not the current release gate.** Current state:
+> `docs/releases/V2.1.0-RELEASE-GATE.md`, issue #30. Open email/provider and
+> hosting items are tracked in #27/#25; do not treat the old PITR/prod-DB
+> statements below as verified.
 
 ---
 
