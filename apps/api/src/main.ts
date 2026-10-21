@@ -57,6 +57,10 @@ async function bootstrap(): Promise<void> {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
 
+  // Graceful shutdown: stop accepting connections and run lifecycle hooks
+  // (Prisma disconnects in `onModuleDestroy`) before the process exits.
+  app.enableShutdownHooks(['SIGTERM', 'SIGINT']);
+
   app.setGlobalPrefix(config.globalPrefix);
   app.use(cookieParser());
 
