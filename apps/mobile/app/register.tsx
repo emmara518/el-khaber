@@ -33,7 +33,7 @@ import {
   SocialAuthButtons,
   type SocialProvider,
 } from '../src/features/auth/components/social-auth-buttons';
-import { TermsCheckbox } from '../src/features/auth/components/terms-checkbox';
+import { ConsentLink, TermsCheckbox } from '../src/features/auth/components/terms-checkbox';
 import { isRole } from '../src/features/auth/role-routing';
 import { ROLE_OPTIONS } from '../src/features/auth/roles';
 import { useAuthStore } from '../src/lib/auth-store';
@@ -169,25 +169,24 @@ export default function RegisterRoute() {
       <TermsCheckbox
         checked={termsAccepted}
         onToggle={() => setTermsAccepted((value) => !value)}
+        label="أوافق على شروط الاستخدام وسياسة الخصوصية"
+        prefix="أوافق على"
       >
-        أوافق على{' '}
-        <Text
-          accessibilityRole="link"
-          accessibilityLabel="شروط الاستخدام"
+        <ConsentLink
+          label="شروط الاستخدام"
           onPress={() => setNotice('شروط الاستخدام ستُتاح عند نشر النسخة الرسمية.')}
           style={styles.termsLink}
         >
           شروط الاستخدام
-        </Text>
+        </ConsentLink>
         {' '}و{' '}
-        <Text
-          accessibilityRole="link"
-          accessibilityLabel="سياسة الخصوصية"
+        <ConsentLink
+          label="سياسة الخصوصية"
           onPress={() => setNotice('سياسة الخصوصية ستُتاح عند نشر النسخة الرسمية.')}
           style={styles.termsLink}
         >
           سياسة الخصوصية
-        </Text>
+        </ConsentLink>
       </TermsCheckbox>
 
       <AuthButton
