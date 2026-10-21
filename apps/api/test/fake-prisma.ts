@@ -498,10 +498,12 @@ class FakePrismaClient {
   $queryRaw<T = unknown>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T[]> {
     const sql = strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
     if (sql.includes('INSERT INTO "rate_limit_buckets"') && sql.includes('ON CONFLICT')) {
-      const policyVal = values[0] as string;
-      const identifierVal = values[1] as string;
-      const windowStartVal = values[2] as Date;
-      const countVal = Number(values[3] ?? 1);
+      const idVal = values[0] as string;
+      const policyVal = values[1] as string;
+      const identifierVal = values[2] as string;
+      const windowStartVal = values[3] as Date;
+      const updatedAtVal = values[4] as Date;
+      const countVal = 1;
 
       const existing = this.rateLimitBuckets.find(
         (b) =>
@@ -512,17 +514,17 @@ class FakePrismaClient {
 
       if (existing) {
         existing.count += countVal;
-        existing.updatedAt = new Date();
+        existing.updatedAt = updatedAtVal ?? new Date();
         return Promise.resolve([{ count: existing.count }] as unknown as T[]);
       } else {
         const newBucket: RateLimitBucketRow = {
-          id: randomUUID(),
+          id: idVal,
           policy: policyVal,
           identifier: identifierVal,
           windowStart: windowStartVal,
           count: countVal,
           createdAt: new Date(),
-          updatedAt: new Date(),
+          updatedAt: updatedAtVal ?? new Date(),
         };
         this.rateLimitBuckets.push(newBucket);
         return Promise.resolve([{ count: countVal }] as unknown as T[]);
