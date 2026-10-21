@@ -23,6 +23,8 @@ run against production or with real users.
   used, invalidates refresh families; reused and expired tokens return 401.
 - `apps/api/test/identity.e2e.spec.ts` / `rate-limit-layers.e2e.spec.ts` —
   throttling and enumeration-safe forgot-password behavior.
+- `workers/password-reset-delivery` — 28/28 worker tests pass for routing,
+  auth, malformed input, phone-only unsupported delivery, and provider failure.
 
 Missing: live delivery to the designated mailbox and provider message-ID
 evidence.
