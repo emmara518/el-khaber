@@ -70,7 +70,6 @@ export function AuthField({
       >
         {startIcon ? <Icon name={startIcon} size={20} color={color.text.secondary} /> : null}
         <TextInput
-          accessibilityRole="none"
           accessibilityLabel={error ? `${inputLabel}. خطأ: ${error}` : inputLabel}
           accessibilityState={{ disabled: !editable }}
           style={styles.input}

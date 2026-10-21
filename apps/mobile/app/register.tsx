@@ -126,7 +126,6 @@ export default function RegisterRoute() {
           <SocialAuthButtons onProvider={handleSocial} disabled={loading} />
         </>
       ) : null}
-      {notice ? <AuthAlert kind="info" message={notice} /> : null}
 
       <OrDivider label="أو أنشئ حسابًا جديدًا" />
 
@@ -231,7 +230,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   termsLink: {
-    color: color.warning.DEFAULT,
+    color: color.brand.navy,
     fontFamily: fontFamily.semibold,
     textDecorationLine: 'underline',
   },

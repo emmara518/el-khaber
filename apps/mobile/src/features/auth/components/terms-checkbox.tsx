@@ -128,13 +128,12 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: radius.sm,
     borderWidth: 1.5,
-    borderColor: color.border.default,
+    borderColor: color.brand.navy,
     backgroundColor: color.surface.base,
     alignItems: 'center',
     justifyContent: 'center',
   },
   boxChecked: {
-    borderColor: color.brand.gold,
     backgroundColor: color.brand.gold,
   },
   prefix: {
