@@ -295,4 +295,13 @@ describe('HTTP E2E — security isolation', () => {
       .send({});
     expect(foreignCancel.status).toBe(404);
   });
+
+  it('exposes only non-sensitive build identification for deployment verification', async () => {
+    const res = await request(ctx.app.getHttpServer()).get(`${base}/version`).expect(200);
+    expect(res.body.data.status).toBe('ok');
+    expect(typeof res.body.data.version).toBe('string');
+    expect(typeof res.body.data.commit).toBe('string');
+    expect(res.body.data.commit).toMatch(/^([0-9a-f]{7,12}|unknown)$/);
+    expect(Object.keys(res.body.data).sort()).toEqual(['commit', 'status', 'version']);
+  });
 });

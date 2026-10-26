@@ -5,6 +5,15 @@
 **Scope:** Web-first production, UAT/engineering candidate, Native Android, and
 the backend/database/admin/mobile evidence behind them.
 
+> **Post-audit addendum (same day, later):** the remediation that was
+> uncommitted at audit time is now frozen at
+> `a528d94b220c0ff03bee88b47d434fe25f134718` on
+> `release/v2.1.0-rc-20261026`, with CI run `40368144424` green on that exact
+> SHA. See `docs/releases/V2.1.0-RC-20261026.md`. The statements below about
+> the working tree are preserved as the audit-time record; they do not
+> describe the frozen candidate. Production remains **NO-GO**, PR #19 remains
+> unmerged, and the external gates (#24–#28, #30) remain open.
+
 ---
 
 ## 0. Executive Decision

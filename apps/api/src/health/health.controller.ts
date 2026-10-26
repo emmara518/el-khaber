@@ -18,6 +18,39 @@ interface ReadinessResponse {
   };
 }
 
+/**
+ * Non-sensitive build identification. Deployment verification compares this
+ * commit with the intended release SHA; it never exposes configuration or
+ * secrets. Platform-provided variables are read in precedence order.
+ */
+interface VersionResponse {
+  status: 'ok';
+  version: string;
+  commit: string;
+}
+
+const COMMIT_ENV_KEYS = [
+  'GIT_COMMIT_SHA',
+  'RENDER_GIT_COMMIT',
+  'RAILWAY_GIT_COMMIT_SHA',
+  'VERCEL_GIT_COMMIT_SHA',
+] as const;
+
+function resolveCommit(): string {
+  for (const key of COMMIT_ENV_KEYS) {
+    const value = process.env[key]?.trim();
+    if (value !== undefined && /^[0-9a-f]{7,40}$/i.test(value)) {
+      return value.slice(0, 12).toLowerCase();
+    }
+  }
+  return 'unknown';
+}
+
+function resolveVersion(): string {
+  const value = process.env['APP_VERSION']?.trim();
+  return value !== undefined && value !== '' ? value : '0.0.1';
+}
+
 @Injectable()
 export class HealthService {
   private readonly logger = new StructuredLogger(HealthService.name);
@@ -27,6 +60,11 @@ export class HealthService {
   liveness(): LivenessResponse {
     return { status: 'ok', service: 'api' };
   }
+
+  version(): VersionResponse {
+    return { status: 'ok', version: resolveVersion(), commit: resolveCommit() };
+  }
+
 
   async readiness(): Promise<ReadinessResponse> {
     try {
@@ -81,5 +119,10 @@ export class HealthController {
   @Get('ready')
   ready(): Promise<{ data: ReadinessResponse }> {
     return this.healthService.readiness().then((result) => ({ data: result }));
+  }
+
+  @Get('version')
+  version(): { data: VersionResponse } {
+    return { data: this.healthService.version() };
   }
 }

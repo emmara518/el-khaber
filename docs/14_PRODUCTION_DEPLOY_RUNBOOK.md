@@ -1,7 +1,10 @@
 # الخبير — Production Deploy Runbook
 
 > **Current status (2026-10-21): historical baseline, not production-verified.**
-> The release is at `739f9ebc964d0415686f1827942d8b07a3f70c30`; production
+> The last merged release is `739f9ebc964d0415686f1827942d8b07a3f70c30`; the
+> verified remediation candidate is
+> `a528d94b220c0ff03bee88b47d434fe25f134718` (see
+> `docs/releases/V2.1.0-RC-20261026.md`) and is not merged yet. Production
 > database/secrets/hosting/legal gates are still open. Use the current
 > `docs/releases/V2.1.0-RELEASE-GATE.md`,
 > `docs/releases/PRODUCTION-DATABASE-RESTORE-RUNBOOK.md`, and

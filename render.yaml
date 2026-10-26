@@ -22,11 +22,12 @@ services:
     plan: free                        # upgrade requires explicit owner approval
     region: frankfurt                 # keep in the EU database region
     repo: https://github.com/emmara518/el-khaber
-    branch: main                      # merged, reviewed release only
+    branch: release/v2.1.0-uat         # reviewed release branch; main only after PR #17 is merged and re-verified
     autoDeploy: false                 # deploys require an explicit manual action
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
-    healthCheckPath: /api/v1/health
+    # Readiness (database + migrations + schema), not process-only liveness.
+    healthCheckPath: /api/v1/ready
     envVars:
       # --- runtime ---
       - key: NODE_ENV

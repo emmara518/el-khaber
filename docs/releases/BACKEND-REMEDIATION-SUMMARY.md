@@ -8,6 +8,12 @@
 committed, pushed, merged, migrated remotely, or deployed. Release decision
 remains **NO-GO**.
 
+> **Superseded 2026-10-26:** this remediation was frozen at
+> `a528d94b220c0ff03bee88b47d434fe25f134718` on
+> `release/v2.1.0-rc-20261026` and CI-verified (run `40368144424`). The
+> working-tree statements below are the 2026-10-24 historical record. See
+> `docs/releases/V2.1.0-RC-20261026.md` for current evidence.
+
 Batch reports are historical snapshots:
 
 - `docs/releases/BACKEND-REMEDIATION-L1.md`
