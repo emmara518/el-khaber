@@ -78,7 +78,6 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.goldSoft,
     borderRadius: radius.xl,
     overflow: 'hidden',
-    direction: 'rtl',
     ...shadow.medium,
   },
   mark: {
@@ -96,7 +95,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'stretch',
   },
   assetStage: {
@@ -123,7 +121,7 @@ const styles = StyleSheet.create({
     color: color.brand.navy,
   },
   titleGold: {
-    color: color.warning.DEFAULT,
+    color: color.warning.ink,
   },
   body: {
     ...type.body,
@@ -138,7 +136,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.brand.gold,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],
@@ -152,7 +149,6 @@ const styles = StyleSheet.create({
   secondary: {
     minHeight: 40,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[1],

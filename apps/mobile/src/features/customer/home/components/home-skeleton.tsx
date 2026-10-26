@@ -66,7 +66,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[3],
   },
   appliance: {

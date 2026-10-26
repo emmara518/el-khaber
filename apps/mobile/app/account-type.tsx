@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ROLE_OPTIONS, RoleSelectionCard } from '../src/features/auth/components/role-selection-card';
 import { Icon } from '../src/ui/icon';
+import { FORM_MAX_WIDTH } from '../src/ui/layout';
 import { HERO_ASPECT_RATIO, roleSelectionAssets } from '../src/ui/role-selection-assets';
 import { fontFamily, type } from '../src/ui/typography';
 
@@ -169,8 +170,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
     flexGrow: 1,
-    direction: 'rtl',
     gap: spacing[4],
   },
   brand: {
@@ -228,7 +231,6 @@ const styles = StyleSheet.create({
   },
   roles: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'stretch',
     gap: spacing[2],
   },
@@ -246,7 +248,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: color.brand.gold,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],
@@ -268,7 +269,6 @@ const styles = StyleSheet.create({
   },
   loginRow: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

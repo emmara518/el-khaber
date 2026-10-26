@@ -10,6 +10,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiTechnicianRequestsDataSource } from './api-technician-requests-data-source';
 import {
   RequestActionError,
@@ -61,7 +63,7 @@ export function useTechnicianRequestsViewModel(
       setRequests(data);
       setListStatus('loaded');
     } catch (err) {
-      setListError(err instanceof Error ? err : new Error(String(err)));
+      setListError(toUserError(err, 'تعذّر تحميل الطلبات. حاول مرة أخرى.'));
       setListStatus('error');
     }
   }, [source]);

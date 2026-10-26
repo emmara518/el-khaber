@@ -118,10 +118,10 @@ const VARIANT: Record<
   },
   destructive: {
     container: { backgroundColor: color.surface.base, borderColor: color.error.DEFAULT },
-    text: { color: color.error.DEFAULT },
+    text: { color: color.error.ink },
   },
   destructiveSolid: {
-    container: { backgroundColor: color.error.DEFAULT, borderColor: color.error.DEFAULT },
+    container: { backgroundColor: color.error.ink, borderColor: color.error.ink },
     text: { color: color.surface.base },
   },
 };
@@ -134,7 +134,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

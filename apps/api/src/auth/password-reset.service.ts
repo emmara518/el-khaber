@@ -93,7 +93,10 @@ export class PasswordResetService {
 
     const user = await this.prisma.user.findFirst({ where: { email } });
 
-    if (user !== null) {
+    // A pending email change has not proved ownership of the new address.
+    // Do not issue a reset token for it (AUTH-001). The response remains
+    // indistinguishable from an unknown account.
+    if (user !== null && user.emailChangePending !== true) {
       // A new request invalidates every outstanding token for the account:
       // only the most recent email can be used.
       await this.prisma.passwordResetToken.updateMany({
@@ -177,6 +180,19 @@ export class PasswordResetService {
     const newPasswordHash = await hashPassword(input.newPassword);
 
     await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      // Atomic single-use claim. The pre-check above is only for a friendly
+      // message; concurrent requests must race on this conditional update.
+      // Exactly one transaction can flip used_at from NULL; the loser reads
+      // count=0 after the winner commits and is rejected.
+      const claimed = await tx.passwordResetToken.updateMany({
+        where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
+        data: { usedAt: now },
+      });
+      if (claimed.count !== 1) {
+        throw new AuthInvalidException('Invalid or expired reset token');
+      }
+
       // Rotate the password and bump tokenVersion in the same write: every
       // access token issued before the reset is rejected by the guard on
       // its next request (its tokenVersion lags the database).
@@ -184,16 +200,11 @@ export class PasswordResetService {
         where: { id: record.userId },
         data: { passwordHash: newPasswordHash, tokenVersion: { increment: 1 } },
       });
-      // Mark this token used.
-      await tx.passwordResetToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      });
       // Invalidate every refresh-token family for this user. This
       // forces re-authentication on every device.
       await tx.refreshToken.updateMany({
         where: { userId: record.userId, revokedAt: null },
-        data: { revokedAt: new Date(), revokedReason: 'password_reset' },
+        data: { revokedAt: now, revokedReason: 'password_reset' },
       });
     });
   }

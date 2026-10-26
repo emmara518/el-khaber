@@ -449,7 +449,9 @@ export interface PaymentReviewResultDto {
  * Manual payment submission (pending → approved | rejected by ADMIN only).
  */
 export interface PaymentSubmissionDto {
+  amount: number;
   createdAt: string;
+  currency: string;
   id: string;
   method: 'instapay' | 'vodafone_cash';
   planId: string;

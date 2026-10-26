@@ -4,6 +4,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiOrderDataSource } from './api-order-data-source';
 
 import type { OrderDataSource, OrderDetail } from './order-detail-types';
@@ -46,7 +48,7 @@ export function useOrderViewModel(
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل تفاصيل الطلب. حاول مرة أخرى.'),
         });
       });
     return () => {

@@ -116,12 +116,32 @@ export function canCancelRenewal(current: CurrentSubscription): boolean {
   return current.status === 'active' && current.renewalEnabled;
 }
 
+/**
+ * A plan represents the current active subscription when its id matches, or
+ * when a legacy/duplicate plan row carries the same offering identity
+ * (name, price, currency and billing interval). The latter prevents the
+ * current plan being offered again under a second database id.
+ */
+export function isPlanCurrent(
+  plan: SubscriptionPlan,
+  current: CurrentSubscription | null,
+): boolean {
+  if (current === null || current.status !== 'active') return false;
+  if (current.planId === plan.id) return true;
+  return (
+    current.planNameAr === plan.nameAr &&
+    current.price === plan.price &&
+    current.currency === plan.currency &&
+    current.billingInterval === plan.billingInterval
+  );
+}
+
 /** A plan is selectable only when it is not the current active plan. */
 export function canSelectPlan(
   plan: SubscriptionPlan,
   current: CurrentSubscription | null,
 ): boolean {
-  return current?.status === 'active' ? plan.id !== current.planId : true;
+  return !isPlanCurrent(plan, current);
 }
 
 /**
@@ -134,7 +154,7 @@ export function subscribeNextAction(
   plan: SubscriptionPlan,
   current: CurrentSubscription | null,
 ): { kind: 'current' | 'available'; labelAr: string } {
-  if (current?.status === 'active' && current.planId === plan.id) {
+  if (current !== null && isPlanCurrent(plan, current)) {
     return {
       kind: 'current' as const,
       labelAr: current.renewalEnabled

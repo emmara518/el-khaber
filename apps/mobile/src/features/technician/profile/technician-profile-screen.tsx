@@ -26,6 +26,7 @@ import {
 import { useTechnicianProfileViewModel } from './use-technician-profile-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
@@ -214,7 +215,11 @@ export default function TechnicianProfileScreen({
                 accessibilityLabel="الخبرة"
               />
               <Text style={styles.value}>
-                {profile.experienceYears === null ? '—' : `${profile.experienceYears} سنوات خبرة`}
+                {profile.experienceYears === null
+                  ? '—'
+                  : profile.experienceYears === 1
+                    ? 'سنة خبرة واحدة'
+                    : `${formatArNumber(profile.experienceYears)} سنوات خبرة`}
               </Text>
             </View>
           </Card>
@@ -242,7 +247,7 @@ export default function TechnicianProfileScreen({
           <Card background={color.surface.base} padded style={styles.card}>
             <RatingStars rating={profile.rating} reviewCount={profile.reviewCount} />
             <Text style={styles.meta}>
-              {t('tech.profile.completed')}: {profile.completedCount}
+              {t('tech.profile.completed')}: {formatArNumber(profile.completedCount)}
             </Text>
           </Card>
         </View>
@@ -255,6 +260,12 @@ export default function TechnicianProfileScreen({
             onPress={vm.startEdit}
           />
         )}
+        <ActionButton
+          variant="secondary"
+          icon="credit-card"
+          label={t('tech.subscription.title')}
+          onPress={() => router.push('/(technician)/subscription')}
+        />
         <ActionButton
           variant="secondary"
           icon="settings"
@@ -430,7 +441,7 @@ const styles = StyleSheet.create({
   section: { gap: spacing[3] },
   card: { gap: spacing[2] },
   identity: { gap: spacing[2] },
-  identityRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  identityRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   identityCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
   name: { ...type.h3, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   roleArt: {
@@ -441,7 +452,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statusCard: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  statusCard: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   statusIconWrap: {
     width: 44,
     height: 44,
@@ -459,7 +470,7 @@ const styles = StyleSheet.create({
   },
   muted: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
-  valueRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  valueRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   value: {
     ...type.bodyMedium,
     color: color.text.primary,
@@ -505,7 +516,7 @@ const styles = StyleSheet.create({
   },
   inlineErrorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -519,7 +530,7 @@ const styles = StyleSheet.create({
   },
   savedText: {
     ...type.bodyMedium,
-    color: color.success.DEFAULT,
+    color: color.success.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

@@ -14,6 +14,7 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Fragment } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { formatArNumber } from '@/lib/api-format';
 import { Icon } from '@/ui/icon';
 import { fontFamily, type } from '@/ui/typography';
 
@@ -32,7 +33,7 @@ export function StepProgress({ steps, current }: StepProgressProps) {
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityLabel={`الخطوة ${current + 1} من ${steps.length}: ${currentLabel}`}
+      accessibilityLabel={`الخطوة ${formatArNumber(current + 1)} من ${formatArNumber(steps.length)}: ${currentLabel}`}
       style={styles.root}
     >
       {steps.map((label, index) => {
@@ -78,7 +79,6 @@ export function StepProgress({ steps, current }: StepProgressProps) {
 const styles = StyleSheet.create({
   root: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'flex-start',
     paddingVertical: spacing[4],
   },

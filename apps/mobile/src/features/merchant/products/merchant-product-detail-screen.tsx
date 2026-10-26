@@ -26,6 +26,7 @@ import type { MerchantProductStatus } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber, formatArPrice } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
@@ -39,6 +40,7 @@ import {
   StatusBadge,
   type,
 } from '@/ui';
+import { CONTENT_MAX_WIDTH } from '@/ui/layout';
 
 export default function MerchantProductDetailScreen({
   productId,
@@ -138,13 +140,12 @@ export default function MerchantProductDetailScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}>
         <PageTitle
-          eyebrow={`منتج ${product.id} · ${product.statusLabelAr}`}
+          eyebrow={`المنتجات · ${product.statusLabelAr}`}
           title={product.nameAr}
-          body={`${t('merchant.product.ref')}: ${product.id}`}
         />
         <View style={styles.heroMetaRow}>
           {product.price !== null ? (
-            <Text style={styles.heroPrice}>{product.price} جنيه</Text>
+            <Text style={styles.heroPrice}>{formatArPrice(product.price)}</Text>
           ) : (
             <Text style={styles.heroNoPrice}>{t('merchant.catalog.noPrice')}</Text>
           )}
@@ -164,7 +165,7 @@ export default function MerchantProductDetailScreen({
             <StatusBadge status={product.status} label={product.statusLabelAr} />
             {product.stockQuantity !== null ? (
               <Text style={styles.stockLine}>
-                {t('merchant.product.stock')}: {product.stockQuantity}
+                {t('merchant.product.stock')}: {formatArNumber(product.stockQuantity)}
               </Text>
             ) : null}
           </View>
@@ -384,9 +385,11 @@ function ProductActions({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
   content: {
-    direction: 'rtl',
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     paddingBottom: spacing[8],
   },
   header: {
@@ -395,13 +398,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[3],
     gap: spacing[3],
   },
-  heroMetaRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center' },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center' },
   section: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[3] },
   detailTitle: { ...type.h2, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', padding: spacing[5] },
   successCard: { marginHorizontal: spacing[5], gap: spacing[2] },
-  heroPrice: { ...type.h2, color: color.brand.gold, textAlign: 'right', writingDirection: 'rtl' },
+  heroPrice: { ...type.h2, color: color.brand.goldInk, textAlign: 'right', writingDirection: 'rtl' },
   heroNoPrice: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  showcase: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3], padding: spacing[3], backgroundColor: color.surface.base, borderRadius: radius.md, borderWidth: 1, borderColor: color.border.default },
+  showcase: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3], padding: spacing[3], backgroundColor: color.surface.base, borderRadius: radius.md, borderWidth: 1, borderColor: color.border.default },
   showcaseMeta: { alignItems: 'flex-end', gap: spacing[2] },
   stockLine: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   body: {
@@ -480,7 +483,7 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     ...type.button,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
   },
   destructiveSolid: {
     flex: 1,
@@ -514,7 +517,7 @@ const styles = StyleSheet.create({
   },
   inlineErrorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -543,7 +546,6 @@ const styles = StyleSheet.create({
   },
   dialogActions: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[3],
     marginTop: spacing[2],
   },

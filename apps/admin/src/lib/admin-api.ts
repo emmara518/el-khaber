@@ -180,7 +180,21 @@ async function requestEnvelope<T>(
     throw new AdminApiError(0, 'NETWORK', 'تعذر الاتصال بالخادم. تحقق من الإنترنت');
   }
   const text = await res.text();
-  const parsed: ApiEnvelope<T> = text.length > 0 ? JSON.parse(text) : {};
+  // A non-JSON response (proxy error page, truncated body, HTML 502) must
+  // surface as a typed Arabic error — never an unhandled SyntaxError.
+  let parsed: ApiEnvelope<T>;
+  try {
+    parsed = text.length > 0 ? (JSON.parse(text) as ApiEnvelope<T>) : {};
+  } catch {
+    if (res.status === 401) {
+      clearAdminSession();
+    }
+    throw new AdminApiError(
+      res.ok ? 502 : res.status,
+      'INVALID_RESPONSE',
+      'تعذر قراءة استجابة الخادم. حاول مجددًا',
+    );
+  }
   if (!res.ok || parsed.error !== undefined) {
     const err = parsed.error ?? { code: 'INTERNAL_ERROR', message: '' };
     if (

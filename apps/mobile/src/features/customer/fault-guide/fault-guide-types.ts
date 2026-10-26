@@ -22,6 +22,12 @@ export interface FaultSymptom {
   readonly id: string;
   readonly applianceSlug: ApplianceSlug;
   readonly titleAr: string;
+  /**
+   * Published short summary from `FaultSummaryDto.summaryAr`. Optional so
+   * fixtures without copy stay honest (no invented content); when present
+   * it participates in text search only.
+   */
+  readonly summaryAr?: string;
   /** Frequency hint shown on the symptom card (e.g. "شائع جدًا"). */
   readonly frequencyAr: string;
 }

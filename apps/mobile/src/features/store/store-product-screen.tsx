@@ -15,7 +15,9 @@ import { ChatDialog } from '../customer/chat/chat-dialog';
 import { useStoreProductViewModel } from './use-store-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArPrice } from '@/lib/api-format';
 import { ActionButton, AppHeader, Card, Icon, ListEmpty, ListError, ListLoading, ProductImage, SectionHeading, type } from '@/ui';
+import { CONTENT_MAX_WIDTH } from '@/ui/layout';
 
 export function StoreProductScreen({
   role,
@@ -86,7 +88,7 @@ export function StoreProductScreen({
                 </Text>
               ) : null}
               {data.price !== null ? (
-                <Text style={styles.price}>{data.price} جنيه</Text>
+                <Text style={styles.price}>{formatArPrice(data.price)}</Text>
               ) : (
                 <Text style={styles.noPrice}>{t('store.product.priceUnspecified')}</Text>
               )}
@@ -124,11 +126,18 @@ export function StoreProductScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
-  content: { paddingHorizontal: spacing[5], paddingTop: spacing[3], paddingBottom: spacing[8], gap: spacing[3] },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[3],
+    paddingBottom: spacing[8],
+    gap: spacing[3],
+  },
   back: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[2],
     minHeight: 44,

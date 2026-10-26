@@ -24,6 +24,7 @@ import { useMerchantProductFormViewModel } from './use-merchant-product-form-vie
 import { useI18n } from '@/i18n/use-i18n';
 import { AppHeader, Card, FormField, PageTitle, ProductImage } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
+import { FORM_MAX_WIDTH } from '@/ui/layout';
 import { type } from '@/ui/typography';
 
 export default function MerchantProductFormScreen({
@@ -224,9 +225,11 @@ export default function MerchantProductFormScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
   content: {
-    direction: 'rtl',
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
     paddingBottom: spacing[8],
   },
   header: {
@@ -260,7 +263,7 @@ const styles = StyleSheet.create({
   },
   inlineErrorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

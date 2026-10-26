@@ -1,9 +1,12 @@
 import { color, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+
 import { Icon } from './icon';
 import { ratingSpokenLabel } from './rating-label';
 import { fontFamily } from './typography';
+
+import { formatArDecimal, formatArNumber } from '@/lib/api-format';
 
 interface RatingStarsProps {
   rating: number;
@@ -34,11 +37,11 @@ export function RatingStars({
     <View accessibilityRole="text" accessibilityLabel={spoken} style={styles.row}>
       <Icon name="star" size={fontSize === typography.size.caption ? 13 : 15} color={color.brand.gold} accessible={false} />
       <Text style={[styles.rating, { fontSize, color: valueColor }]}>
-        {rating.toFixed(1)}
+        {formatArDecimal(rating, 1)}
       </Text>
       {showCount ? (
         <Text style={[styles.count, { fontSize, color: countColor }]}>
-          ({reviewCount})
+          ({formatArNumber(reviewCount)})
         </Text>
       ) : null}
     </View>

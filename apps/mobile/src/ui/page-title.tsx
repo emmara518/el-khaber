@@ -28,7 +28,7 @@ export function PageTitle({ eyebrow, title, body }: PageTitleProps) {
 }
 
 const styles = StyleSheet.create({
-  root: { gap: spacing[1], direction: 'rtl' },
+  root: { gap: spacing[1] },
   eyebrow: { ...type.label, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   title: { ...type.h1, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   body: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },

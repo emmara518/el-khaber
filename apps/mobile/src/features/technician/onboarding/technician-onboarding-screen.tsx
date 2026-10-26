@@ -25,7 +25,9 @@ import { useTechnicianOnboardingViewModel } from './use-technician-onboarding-vi
 import type { TechnicianServicesDataSource } from '../services/technician-services-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber } from '@/lib/api-format';
 import { ActionButton, AppHeader, Card, Icon, PageTitle, SectionHeading } from '@/ui';
+import { FORM_MAX_WIDTH } from '@/ui/layout';
 import { type } from '@/ui/typography';
 
 
@@ -113,10 +115,10 @@ export default function TechnicianOnboardingScreen({
       <PageTitle eyebrow="التوثيق" title="إكمال ملف الفني" />
       <Text
         accessibilityRole="text"
-        accessibilityLabel={`الخطوة ${index + 1} من ${ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
+        accessibilityLabel={`الخطوة ${formatArNumber(index + 1)} من ${formatArNumber(ONBOARDING_STEPS.length)}: ${STEP_TITLES[step]}`}
         style={styles.stepLabel}
       >
-        الخطوة {index + 1} من {ONBOARDING_STEPS.length}: {STEP_TITLES[step]}
+        الخطوة {formatArNumber(index + 1)} من {formatArNumber(ONBOARDING_STEPS.length)}: {STEP_TITLES[step]}
       </Text>
       <View style={styles.dots}>
         {ONBOARDING_STEPS.map((s, i) => (
@@ -270,7 +272,12 @@ function ReviewSummary({
     {
       key: 'exp',
       label: 'الخبرة',
-      value: draft.experienceYears === null ? '—' : `${draft.experienceYears} سنوات`,
+      value:
+        draft.experienceYears === null
+          ? '—'
+          : draft.experienceYears === 1
+            ? 'سنة واحدة'
+            : `${formatArNumber(draft.experienceYears)} سنوات`,
       step: 'info',
     },
     { key: 'srv', label: 'الخدمات', value: selected.map((s) => s.nameAr).join('، ') || '—', step: 'services' },
@@ -321,7 +328,14 @@ function ReviewSummary({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surface.subtle },
-  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8] },
+  content: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[8],
+  },
   stepLabel: { ...type.bodyMedium, color: color.brand.navy, marginTop: spacing[2], textAlign: 'right' },
   dots: { flexDirection: 'row', gap: spacing[1], marginTop: spacing[3], justifyContent: 'center' },
   dot: {
@@ -345,7 +359,7 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     marginTop: spacing[3],
   },
-  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  inlineErrorText: { ...type.body, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl' },
   nav: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[5] },
   navBack: { flex: 1 },
   navNext: { flex: 2 },

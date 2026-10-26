@@ -12,9 +12,12 @@ import { color, radius, spacing } from '@khabir/ui-tokens';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+
 import { Icon } from './icon';
 import { fontFamily, type } from './typography';
 import { UnreadBadge } from './unread-badge';
+
+import { formatArNumber } from '@/lib/api-format';
 
 interface AppHeaderProps {
   /** Centred brand wordmark. Defaults to الخبير. */
@@ -64,7 +67,9 @@ export function AppHeader({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                notificationCount > 0 ? `الإشعارات، ${notificationCount} غير مقروء` : 'الإشعارات'
+                notificationCount > 0
+                  ? `الإشعارات، ${formatArNumber(notificationCount)} غير مقروء`
+                  : 'الإشعارات'
               }
               onPress={onPressNotifications}
               hitSlop={8}
@@ -73,7 +78,7 @@ export function AppHeader({
               <Icon name="bell" size={18} color={color.brand.navy} />
               <UnreadBadge
                 count={notificationCount}
-                format={(n) => (n > 9 ? '٩+' : n.toLocaleString('ar-EG'))}
+                format={(n) => (n > 9 ? `${formatArNumber(9)}+` : formatArNumber(n))}
                 style={styles.badge}
               />
             </Pressable>
@@ -124,7 +129,6 @@ const styles = StyleSheet.create({
   safe: { backgroundColor: color.brand.navy },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     paddingHorizontal: spacing[4],
     paddingVertical: spacing[3],
@@ -134,7 +138,6 @@ const styles = StyleSheet.create({
   slotEnd: {
     width: 'auto',
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[2],
     justifyContent: 'flex-end',
@@ -156,9 +159,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: color.surface.base,
     alignItems: 'center',
     justifyContent: 'center',
@@ -167,16 +170,15 @@ const styles = StyleSheet.create({
   },
   avatarText: { ...type.label, color: color.brand.navy, fontFamily: fontFamily.bold },
   iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: color.surface.base,
     alignItems: 'center',
     justifyContent: 'center',
   },
   availability: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[1] + 2,
     backgroundColor: color.brand.goldSoft,

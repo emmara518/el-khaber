@@ -12,7 +12,15 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { BrandImage } from './brand-image';
 import { Card } from './card';
@@ -46,19 +54,51 @@ function StateBrand({ name, size = 128 }: { name: BrandAssetName; size?: number 
 
 export function ListLoading({
   label,
-  asset,
   brandAsset,
 }: {
   label: string;
   asset?: SceneAssetName;
   brandAsset?: BrandAssetName;
 }) {
+  const opacity = useSharedValue(0.55);
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(1, { duration: 900, reduceMotion: ReduceMotion.System }),
+      -1,
+      true,
+    );
+  }, [opacity]);
+  const pulse = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
   return (
-    <Card background={color.surface.base} padded style={styles.center}>
-      {brandAsset ? <StateBrand name={brandAsset} size={112} /> : <StateScene asset={asset} height={112} />}
-      <ActivityIndicator accessibilityLabel={label} color={color.brand.navy} />
-      <Text style={styles.muted}>{label}</Text>
-    </Card>
+    <Animated.View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityLiveRegion="polite"
+      style={[styles.skeletonCard, pulse]}
+    >
+      <View style={styles.skeletonHeader}>
+        {brandAsset ? (
+          <StateBrand name={brandAsset} size={44} />
+        ) : (
+          <View style={styles.skeletonAvatar} />
+        )}
+        <View style={styles.skeletonLines}>
+          <View style={[styles.skeletonLine, styles.skeletonLineTitle]} />
+          <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+        </View>
+      </View>
+      {[0, 1, 2].map((row) => (
+        <View key={row} style={styles.skeletonRow}>
+          <View style={styles.skeletonSquare} />
+          <View style={styles.skeletonLines}>
+            <View style={[styles.skeletonLine, styles.skeletonLineWide]} />
+            <View style={[styles.skeletonLine, styles.skeletonLineShort]} />
+          </View>
+        </View>
+      ))}
+    </Animated.View>
   );
 }
 
@@ -153,6 +193,57 @@ export function ListError({
 }
 
 const styles = StyleSheet.create({
+  skeletonCard: {
+    backgroundColor: color.surface.base,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: color.border.default,
+    padding: spacing[4],
+    marginTop: spacing[5],
+    gap: spacing[3],
+  },
+  skeletonHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    marginBottom: spacing[1],
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  skeletonAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: color.border.default,
+  },
+  skeletonSquare: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: color.border.default,
+  },
+  skeletonLines: {
+    flex: 1,
+    gap: spacing[2],
+  },
+  skeletonLine: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: color.border.default,
+  },
+  skeletonLineTitle: {
+    width: '55%',
+    height: 14,
+  },
+  skeletonLineWide: {
+    width: '85%',
+  },
+  skeletonLineShort: {
+    width: '45%',
+  },
   scene: {
     width: '100%',
     borderRadius: radius.lg,

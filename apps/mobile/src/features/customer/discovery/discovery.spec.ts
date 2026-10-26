@@ -8,9 +8,11 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { SERVICE_AREA_LABELS, SERVICE_AREA_OPTIONS, serviceAreaMatches } from '../../../lib/service-areas';
 import { MockFaultGuideDataSource } from '../fault-guide/mock-fault-guide-data-source';
 
 import { availabilityForDto } from './api-technician-data-source';
+import { getTechnicianMatchReasons } from './discovery-match';
 import { MockTechnicianDataSource } from './mock-technician-data-source';
 import {
   activeFilterCount,
@@ -20,6 +22,8 @@ import {
   EMPTY_TECHNICIAN_FILTERS,
   findTechnician,
   isUuid,
+  removeTechnicianFilter,
+  resolveDiscoveryEmptyKind,
   resolveSearchContext,
 } from './technician-types';
 import { useTechniciansViewModel } from './use-technicians-view-model';
@@ -259,5 +263,157 @@ describe('service request handoff', () => {
       pathname: '/(customer)/request-service',
       params: { technicianId: 'tech-4' },
     });
+  });
+});
+
+describe('empty-state classification (Batch A)', () => {
+  it('treats an unfiltered empty list as a truly empty catalogue', () => {
+    expect(resolveDiscoveryEmptyKind(false)).toBe('catalog');
+  });
+
+  it('treats an empty list with any active filter as "no matches"', () => {
+    expect(resolveDiscoveryEmptyKind(true)).toBe('filtered');
+  });
+});
+
+describe('per-filter removal (Batch A)', () => {
+  const allFilters = {
+    ...EMPTY_TECHNICIAN_FILTERS,
+    query: 'غسالة',
+    appliance: 'washing_machine' as const,
+    specialty: 'إصلاح الغسالات',
+    serviceId: 'service-1',
+    area: 'مدينة نصر',
+    minRating: 4.8,
+    availableOnly: true,
+  };
+
+  it('removing the appliance also clears the appliance-scoped service', () => {
+    const next = removeTechnicianFilter(allFilters, 'appliance');
+    expect(next.appliance).toBeNull();
+    expect(next.specialty).toBeNull();
+    expect(next.serviceId).toBeNull();
+    expect(next.query).toBe(allFilters.query);
+    expect(next.area).toBe(allFilters.area);
+  });
+
+  it('removing the service keeps every other filter intact', () => {
+    const next = removeTechnicianFilter(allFilters, 'serviceId');
+    expect(next.specialty).toBeNull();
+    expect(next.serviceId).toBeNull();
+    expect(next.appliance).toBe('washing_machine');
+    expect(next.minRating).toBe(4.8);
+  });
+
+  it.each([
+    ['query', 'query', ''],
+    ['area', 'area', null],
+    ['minRating', 'minRating', null],
+    ['availableOnly', 'availableOnly', false],
+  ] as const)('removing %s clears only that filter', (_name, key, expected) => {
+    const next = removeTechnicianFilter(allFilters, key);
+    expect(next[key]).toEqual(expected);
+    expect(next.appliance).toBe('washing_machine');
+    expect(next.serviceId).toBe('service-1');
+  });
+
+  it('never mutates the input object', () => {
+    const snapshot = { ...allFilters };
+    removeTechnicianFilter(allFilters, 'appliance');
+    expect(allFilters).toEqual(snapshot);
+  });
+});
+
+describe('service-area vocabulary (Batch A)', () => {
+  it('every filter value matches at least one technician-selectable label', () => {
+    for (const option of SERVICE_AREA_OPTIONS) {
+      expect(
+        SERVICE_AREA_LABELS.some((label) => serviceAreaMatches(label, option.value)),
+        `filter "${option.value}" matches no canonical area`,
+      ).toBe(true);
+    }
+  });
+
+  it('every technician-selectable label is reachable from the customer filter', () => {
+    for (const label of SERVICE_AREA_LABELS) {
+      expect(
+        SERVICE_AREA_OPTIONS.some((option) => serviceAreaMatches(label, option.value)),
+        `area "${label}" is unreachable from the customer filter`,
+      ).toBe(true);
+    }
+  });
+
+  it('has no duplicate filter values or labels', () => {
+    expect(new Set(SERVICE_AREA_OPTIONS.map((o) => o.value)).size).toBe(
+      SERVICE_AREA_OPTIONS.length,
+    );
+    expect(new Set(SERVICE_AREA_OPTIONS.map((o) => o.labelAr)).size).toBe(
+      SERVICE_AREA_OPTIONS.length,
+    );
+  });
+});
+
+describe('technician match reasons (Batch A)', () => {
+  async function loadFirst() {
+    const techs = await loadTechnicians();
+    const tech = techs.find((t) => t.id === 'tech-1');
+    if (tech === undefined) throw new Error('fixture tech-1 missing');
+    return tech;
+  }
+
+  it('explains only matches proven by the returned technician data', async () => {
+    const tech = await loadFirst();
+    const reasons = getTechnicianMatchReasons(tech, {
+      appliance: 'washing_machine',
+      applianceLabel: 'غسالات',
+      serviceLabel: 'إصلاح الغسالات',
+      area: 'مدينة نصر',
+      availableOnly: true,
+      faultSymptomTitle: null,
+    });
+    expect(reasons).toContain('يخدم غسالات');
+    expect(reasons).toContain('يقدم إصلاح الغسالات');
+    expect(reasons).toContain('يغطي مدينة نصر');
+    expect(reasons.length).toBeLessThanOrEqual(3);
+  });
+
+  it('adds the fault context first only when a fault title is supplied', async () => {
+    const tech = await loadFirst();
+    const reasons = getTechnicianMatchReasons(tech, {
+      appliance: 'washing_machine',
+      applianceLabel: 'غسالات',
+      serviceLabel: null,
+      area: null,
+      availableOnly: false,
+      faultSymptomTitle: 'تسرب مياه أسفل الغسالة',
+    });
+    expect(reasons[0]).toBe('من نتائج عرض «تسرب مياه أسفل الغسالة»');
+  });
+
+  it('never invents a reason from an active filter the technician does not satisfy', async () => {
+    const tech = await loadFirst();
+    const reasons = getTechnicianMatchReasons(tech, {
+      appliance: 'refrigerator',
+      applianceLabel: 'ثلاجات',
+      serviceLabel: 'صيانة المكيفات',
+      area: 'حلوان',
+      availableOnly: false,
+      faultSymptomTitle: 'ضعف التبريد',
+    });
+    expect(reasons).toEqual([]);
+  });
+
+  it('reports availability only when the technician is actually available', async () => {
+    const tech = await loadFirst();
+    expect(
+      getTechnicianMatchReasons(tech, {
+        appliance: null,
+        applianceLabel: null,
+        serviceLabel: null,
+        area: null,
+        availableOnly: true,
+        faultSymptomTitle: null,
+      }),
+    ).toEqual(['متاح الآن']);
   });
 });

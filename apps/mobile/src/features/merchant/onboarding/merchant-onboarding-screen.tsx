@@ -24,8 +24,10 @@ import {
 import { useMerchantOnboardingViewModel } from './use-merchant-onboarding-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber } from '@/lib/api-format';
 import { AppHeader, Card, Chip, FormField, Icon, PageTitle, SectionHeading } from '@/ui';
 import { BrandImage } from '@/ui/brand-image';
+import { FORM_MAX_WIDTH } from '@/ui/layout';
 import { type } from '@/ui/typography';
 
 const STEP_TITLES: Record<MerchantOnboardingStep, string> = {
@@ -92,16 +94,15 @@ export default function MerchantOnboardingScreen({
         <PageTitle
           eyebrow="إعداد المتجر"
           title="إكمال ملف المتجر"
-          body={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
         />
       </View>
       <View style={styles.editorial}>
       <Text
         accessibilityRole="text"
-        accessibilityLabel={`الخطوة ${index + 1} من ${MERCHANT_ONBOARDING_STEPS.length}: ${STEP_TITLES[step]}`}
+        accessibilityLabel={`الخطوة ${formatArNumber(index + 1)} من ${formatArNumber(MERCHANT_ONBOARDING_STEPS.length)}: ${STEP_TITLES[step]}`}
         style={styles.stepLabel}
       >
-        الخطوة {index + 1} من {MERCHANT_ONBOARDING_STEPS.length}: {STEP_TITLES[step]}
+        الخطوة {formatArNumber(index + 1)} من {formatArNumber(MERCHANT_ONBOARDING_STEPS.length)}: {STEP_TITLES[step]}
       </Text>
       <View style={styles.dots}>
         {MERCHANT_ONBOARDING_STEPS.map((s, i) => (
@@ -303,8 +304,11 @@ function ReviewSummary({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
   content: {
+    width: '100%',
+    maxWidth: FORM_MAX_WIDTH,
+    alignSelf: 'center',
     paddingBottom: spacing[8],
   },
   padded: {
@@ -379,7 +383,7 @@ const styles = StyleSheet.create({
   },
   fieldError: {
     ...type.caption,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -399,7 +403,7 @@ const styles = StyleSheet.create({
   },
   inlineErrorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

@@ -356,7 +356,7 @@ function ProfileEditForm({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle,  },
   content: {
     paddingBottom: spacing[8],
   },
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   },
   fieldError: {
     ...type.caption,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   inlineErrorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
   },
   savedText: {
     ...type.bodyMedium,
-    color: color.success.DEFAULT,
+    color: color.success.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

@@ -62,4 +62,21 @@ describe('RateLimitService raw insert', () => {
     expect(normalizedSql).toMatch(/SET "count" = "rate_limit_buckets"\."count" \+ 1/i);
     expect(normalizedSql).toMatch(/"updated_at" = now\(\)/i);
   });
+
+  it('hashes over-long identifiers so the VARCHAR(255) column never overflows', async () => {
+    queryRaw.mockClear();
+    const longIdentifier = `${'a'.repeat(240)}@example.com|2001:db8::1`;
+    expect(longIdentifier.length).toBeGreaterThan(255);
+
+    await service.checkLimit('login', longIdentifier);
+
+    const values = (queryRaw.mock.calls[0] as unknown as [TemplateStringsArray, ...unknown[]]).slice(
+      1,
+    );
+    const stored = values[2] as string;
+
+    expect(stored).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(stored.length).toBeLessThanOrEqual(255);
+    expect(stored).not.toContain('example.com');
+  });
 });

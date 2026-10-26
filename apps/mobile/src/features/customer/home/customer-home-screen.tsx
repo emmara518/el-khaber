@@ -1,10 +1,7 @@
 import { color, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-
-import { TechnicalDataDialog } from '../components/technical-data-dialog';
 import { requestTrackingRoute } from '../orders/request-routes';
 
 import { ApplianceCard } from './components/appliance-card';
@@ -25,6 +22,7 @@ import type { BrandAssetName } from '@/ui/brand-assets';
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
 import { useI18n } from '@/i18n/use-i18n';
 import { AppHeader, ListEmpty, ListError } from '@/ui';
+import { CONTENT_MAX_WIDTH } from '@/ui/layout';
 
 /** Service icon → approved brand mark (same vocabulary as the tiles). */
 const SERVICE_ASSET: Record<QuickServiceItem['icon'], BrandAssetName> = {
@@ -45,10 +43,10 @@ const SERVICE_BODY: Record<string, string> = {
 export default function CustomerHomeScreen() {
   const { t } = useI18n();
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const compactAppliances = width < 360;
   const { status, data, error, reload } = useCustomerHomeViewModel();
   const notifications = useNotificationsViewModel('customer');
-  const [technicalOpen, setTechnicalOpen] = useState(false);
-
   const go = (route: 'maintenance' | 'find-technician' | 'requests') =>
     router.replace(
       route === 'maintenance'
@@ -97,12 +95,16 @@ export default function CustomerHomeScreen() {
               >
                 <View style={styles.applianceRow}>
                   {data.appliances.map((item) => (
-                    <ApplianceCard
+                    <View
                       key={item.slug}
-                      item={item}
-                      onPress={() => go('maintenance')}
-                      onPressInfo={() => setTechnicalOpen(true)}
-                    />
+                      style={[styles.applianceCell, compactAppliances && styles.applianceCellCompact]}
+                    >
+                      <ApplianceCard
+                        item={item}
+                        onPress={() => go('maintenance')}
+                        compact={width < 430}
+                      />
+                    </View>
                   ))}
                 </View>
               </HomeSection>
@@ -195,20 +197,28 @@ export default function CustomerHomeScreen() {
           </>
         ) : null}
       </ScrollView>
-      <TechnicalDataDialog visible={technicalOpen} onClose={() => setTechnicalOpen(false)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
   content: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[4],
     paddingBottom: spacing[8],
   },
-  applianceRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] + 2 },
-  serviceRail: { flexDirection: 'row', direction: 'rtl', gap: spacing[3] },
+  applianceRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2] + 2,
+  },
+  applianceCell: { flex: 1, minWidth: 0 },
+  applianceCellCompact: { flexBasis: '48%', flexGrow: 0 },
+  serviceRail: { flexDirection: 'row', gap: spacing[3] },
   storeWrap: { marginTop: spacing[6] },
   subscriptionWrap: { marginTop: spacing[6] },
   stack: { gap: spacing[3] },

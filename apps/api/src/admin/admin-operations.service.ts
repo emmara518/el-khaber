@@ -57,12 +57,17 @@ export class AdminOperationsService {
         : {}),
       ...(query.q !== undefined
         ? {
-            user: {
-              OR: [
-                { email: { contains: query.q, mode: 'insensitive' as const } },
-                { phone: { contains: query.q } },
-              ],
-            },
+            OR: [
+              { displayName: { contains: query.q, mode: 'insensitive' as const } },
+              {
+                user: {
+                  OR: [
+                    { email: { contains: query.q, mode: 'insensitive' as const } },
+                    { phone: { contains: query.q } },
+                  ],
+                },
+              },
+            ],
           }
         : {}),
     };
@@ -304,7 +309,13 @@ export class AdminOperationsService {
     const result = await this.prisma.$transaction(async (tx) => {
       const before = await tx.serviceRequest.findFirst({
         where: { id },
-        select: { id: true, status: true, customerId: true },
+        select: {
+          id: true,
+          status: true,
+          customerId: true,
+          acceptedAt: true,
+          startedAt: true,
+        },
       });
       if (before === null) {
         return 'not-found' as const;
@@ -317,6 +328,12 @@ export class AdminOperationsService {
         where: { id },
         data: {
           status: status as never,
+          ...(['accepted', 'on_the_way', 'in_progress', 'completed'].includes(status)
+            ? { acceptedAt: before.acceptedAt ?? now }
+            : {}),
+          ...(['on_the_way', 'in_progress', 'completed'].includes(status)
+            ? { startedAt: before.startedAt ?? now }
+            : {}),
           ...(status === 'cancelled' ? { cancelledAt: now } : {}),
           ...(status === 'completed' ? { completedAt: now } : {}),
         },
@@ -592,7 +609,7 @@ export class AdminOperationsService {
       this.prisma.merchantProfile.count(),
       this.prisma.serviceRequest.count({ where: { status: 'pending' } }),
       this.prisma.serviceRequest.count({
-        where: { status: { in: ['on_the_way', 'in_progress'] } },
+        where: { status: { in: ['accepted', 'on_the_way', 'in_progress'] } },
       }),
       this.prisma.serviceRequest.count({ where: { status: 'completed' } }),
       this.prisma.serviceRequest.count({ where: { status: 'cancelled' } }),

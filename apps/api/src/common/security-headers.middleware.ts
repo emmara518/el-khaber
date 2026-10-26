@@ -26,6 +26,10 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
   res.setHeader('Origin-Agent-Cluster', '?1');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  // API responses can contain bearer tokens (auth) or user data. Never let
+  // an intermediary or client cache them.
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
   res.removeHeader('X-Powered-By');
   next();
 }

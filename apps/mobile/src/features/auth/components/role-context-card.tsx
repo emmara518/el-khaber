@@ -82,11 +82,9 @@ const styles = StyleSheet.create({
     borderColor: color.border.default,
     padding: spacing[4],
     gap: spacing[3],
-    direction: 'rtl',
   },
   head: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },
@@ -130,13 +128,11 @@ const styles = StyleSheet.create({
   },
   changeRow: {
     flexDirection: 'row',
-    direction: 'rtl',
     justifyContent: 'flex-end',
   },
   change: {
     minHeight: 44,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

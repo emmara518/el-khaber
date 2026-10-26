@@ -35,4 +35,8 @@ describe('subscription presentation (WP-6B)', () => {
     expect(priceLineAr(199, 'SAR', 'monthly')).toBe('199 · شهري');
     expect(priceLineAr(0, 'SAR', 'weekly')).toBe('0');
   });
+
+  it('groups large prices consistently', () => {
+    expect(priceLineAr(1450, 'EGP', 'monthly')).toContain('1,450');
+  });
 });

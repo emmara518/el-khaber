@@ -9,8 +9,11 @@
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { StyleSheet, Text, View } from 'react-native';
 
+
 import { Icon, type IconName } from './icon';
 import { type } from './typography';
+
+import { formatArNumber } from '@/lib/api-format';
 
 interface StatTileProps {
   value: string | number;
@@ -19,19 +22,20 @@ interface StatTileProps {
 }
 
 export function StatTile({ value, label, icon }: StatTileProps) {
+  const displayValue = typeof value === 'number' ? formatArNumber(value) : value;
   return (
     <View
       style={styles.tile}
       accessible
       accessibilityRole="text"
-      accessibilityLabel={`${String(value)} ${label}`}
+      accessibilityLabel={`${displayValue} ${label}`}
     >
       {icon ? (
         <View style={styles.iconWrap}>
           <Icon name={icon} size={18} color={color.brand.navy} />
         </View>
       ) : null}
-      <Text style={styles.value}>{value}</Text>
+      <Text style={styles.value}>{displayValue}</Text>
       <Text style={styles.label} numberOfLines={2}>
         {label}
       </Text>

@@ -60,7 +60,13 @@ function createService(): Mocks {
     readPrefix: vi.fn(async () => PNG_PREFIX),
     delete: vi.fn(async () => undefined),
   };
-  const prisma = { paymentSubmission: { findFirst, updateMany } };
+  const prisma: {
+    paymentSubmission: { findFirst: typeof findFirst; updateMany: typeof updateMany };
+    $transaction: (fn: (tx: unknown) => Promise<unknown>) => Promise<unknown>;
+  } = {
+    paymentSubmission: { findFirst, updateMany },
+    $transaction: async (fn) => fn(prisma),
+  };
   const audit = { log: auditLog };
   const service = new ProofService(
     prisma as never,
@@ -152,6 +158,7 @@ describe('confirmProof', () => {
     expect(result).toMatchObject({ id: SUBMISSION, proofStorageKey: KEY, proofMimeType: 'image/png' });
     expect(mocks.auditLog).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.payment.proof_confirm', entityId: SUBMISSION }),
+      expect.anything(),
     );
   });
 
@@ -175,11 +182,13 @@ describe('confirmProof', () => {
     await expect(mocks.service.confirmProof(USER, SUBMISSION, KEY)).rejects.toMatchObject({
       code: 'UPLOAD_REJECTED',
     });
+    expect(mocks.storage.delete).not.toHaveBeenCalled();
 
     mocks.storage.head.mockResolvedValueOnce({ exists: true, sizeBytes: 99 * 1024 * 1024, mimeType: 'image/png' });
     await expect(mocks.service.confirmProof(USER, SUBMISSION, KEY)).rejects.toMatchObject({
       code: 'UPLOAD_REJECTED',
     });
+    expect(mocks.storage.delete).toHaveBeenCalledWith(KEY);
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
@@ -194,6 +203,7 @@ describe('confirmProof', () => {
     await expect(mocks.service.confirmProof(USER, SUBMISSION, KEY)).rejects.toMatchObject({
       code: 'UPLOAD_REJECTED',
     });
+    expect(mocks.storage.delete).toHaveBeenCalledWith(KEY);
     expect(mocks.updateMany).not.toHaveBeenCalled();
   });
 
@@ -203,6 +213,7 @@ describe('confirmProof', () => {
       code: 'CONFLICT',
       status: 409,
     });
+    expect(mocks.storage.delete).toHaveBeenCalledWith(KEY);
   });
 
   it('returns 404 for foreign-owned submissions without leaking existence', async () => {

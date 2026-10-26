@@ -17,6 +17,7 @@ import { priceLineAr } from './subscription-presentation';
 import {
   canCancelRenewal,
   canSelectPlan,
+  isPlanCurrent,
   subscribeNextAction,
   type PaymentMethod,
   type SubscriptionPlan,
@@ -171,7 +172,7 @@ export default function SubscriptionScreen({ role }: { role: SubscriptionRole })
                     <PlanCard
                       key={plan.id}
                       plan={plan}
-                      isCurrent={current?.status === 'active' && current.planId === plan.id}
+                      isCurrent={isPlanCurrent(plan, current)}
                       selectable={canSelectPlan(plan, current)}
                       nextLabel={subscribeNextAction(plan, current).labelAr}
                       selectLabel={t('subscription.select.action')}
@@ -617,8 +618,8 @@ function ProofDialog({ vm }: { vm: SubscriptionViewState }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
-  content: { paddingTop: spacing[6], paddingBottom: spacing[8], direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle,  },
+  content: { paddingTop: spacing[6], paddingBottom: spacing[8],  },
   titleWrap: { paddingHorizontal: spacing[5], paddingBottom: spacing[4] },
   sections: { paddingHorizontal: spacing[5], gap: spacing[4] },
   section: { gap: spacing[3] },
@@ -637,7 +638,7 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   muted: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  error: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  error: { ...type.body, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl' },
   note: {
     ...type.caption,
     color: color.text.secondary,
@@ -734,7 +735,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
-  dialogActions: { flexDirection: 'row', direction: 'rtl', gap: spacing[3], marginTop: spacing[3] },
+  dialogActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[3] },
   pressed: { opacity: 0.85 },
   disabled: { opacity: 0.6 },
 });

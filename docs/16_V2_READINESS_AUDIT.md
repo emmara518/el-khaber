@@ -1,4 +1,8 @@
-# الخبير — V2 Readiness Audit (evidence-backed)
+# الخبير — V2 Readiness Audit (historical)
+
+> **Historical audit — not current readiness evidence.** Current release state:
+> `docs/releases/V2.1.0-RELEASE-GATE.md` and issue #30. Some findings below
+> were fixed after this audit; do not use it as a current gate.
 
 **Path:** `docs/16_V2_READINESS_AUDIT.md`
 **Status:** Audit only. **V2 implementation has NOT started.** No schema, security,

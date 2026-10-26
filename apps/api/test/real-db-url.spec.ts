@@ -23,9 +23,9 @@ afterEach(restore);
 describe('isolated test database guard', () => {
   it('accepts loopback and the CI service host', () => {
     expect(
-      assertIsolatedTestDatabaseUrl('postgresql://u:p@localhost:5432/db', 'test'),
+      assertIsolatedTestDatabaseUrl('postgresql://u:p@localhost:5432/khabir_test', 'test'),
     ).toContain('localhost');
-    expect(assertIsolatedTestDatabaseUrl('postgresql://u:p@postgres:5432/db', 'test')).toContain(
+    expect(assertIsolatedTestDatabaseUrl('postgresql://u:p@postgres:5432/khabir_test', 'test')).toContain(
       'postgres',
     );
   });
@@ -37,6 +37,9 @@ describe('isolated test database guard', () => {
     expect(() =>
       assertIsolatedTestDatabaseUrl('postgresql://u:p@10.0.0.5:5432/db', 'test'),
     ).toThrow(/not an isolated test database/i);
+    expect(() =>
+      assertIsolatedTestDatabaseUrl('postgresql://u:p@localhost:5432/khabir_dev', 'test'),
+    ).toThrow(/khabir_test/i);
   });
 
   it('fails closed in CI when TEST_DATABASE_URL is omitted', () => {

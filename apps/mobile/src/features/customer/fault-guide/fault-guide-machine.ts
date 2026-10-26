@@ -29,6 +29,12 @@ export interface FaultGuideState {
 export type FaultGuideEvent =
   | { readonly type: 'SELECT_APPLIANCE'; readonly slug: ApplianceSlug }
   | { readonly type: 'SELECT_SYMPTOM'; readonly symptomId: string }
+  | {
+      /** Cross-appliance text-search selection: starts the same resolve flow. */
+      readonly type: 'SELECT_SEARCH_RESULT';
+      readonly slug: ApplianceSlug;
+      readonly symptomId: string;
+    }
   | { readonly type: 'RESOLVE'; readonly found: boolean }
   | { readonly type: 'FAIL' }
   | { readonly type: 'BACK' }
@@ -51,6 +57,9 @@ export function faultGuideReducer(
     case 'SELECT_SYMPTOM':
       if (state.step !== 'SYMPTOM' || state.appliance === null) return state;
       return { ...state, step: 'LOADING', symptomId: event.symptomId };
+    case 'SELECT_SEARCH_RESULT':
+      if (state.step !== 'APPLIANCE') return state;
+      return { step: 'LOADING', appliance: event.slug, symptomId: event.symptomId };
     case 'RESOLVE':
       if (state.step !== 'LOADING') return state;
       return { ...state, step: event.found ? 'RESULT' : 'NO_MATCH' };

@@ -65,3 +65,8 @@ export function toUserMessage(err: unknown, fallback: string): string {
   }
   return fallback;
 }
+
+/** Wrap any thrown value in an Error carrying localized, user-safe copy. */
+export function toUserError(err: unknown, fallback: string): Error {
+  return new Error(toUserMessage(err, fallback));
+}

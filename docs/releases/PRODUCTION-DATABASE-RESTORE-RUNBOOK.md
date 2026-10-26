@@ -3,7 +3,7 @@
 **Status:** owner/DevOps procedure; production verification **BLOCKED** until
 issue #24 is completed.
 **Release:** `release/v2.1.0-uat` @
-`4506bd7aed56cbdf9b53720f63fed2d4db8dd49c`
+`739f9ebc964d0415686f1827942d8b07a3f70c30`
 **Scope:** production database isolation, migrations, access control,
 backups/PITR, and restore drills.
 
@@ -33,7 +33,7 @@ From a clean checkout of the exact reviewed SHA:
 
 ```sh
 git fetch origin
-git checkout --detach 4506bd7aed56cbdf9b53720f63fed2d4db8dd49c
+git checkout --detach 739f9ebc964d0415686f1827942d8b07a3f70c30
 
 export DATABASE_URL='<production runtime URL>'
 export DIRECT_URL='<production DDL URL>'

@@ -10,13 +10,13 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useNotificationPreferencesViewModel } from './use-notification-preferences-view-model';
 
 import type { NotificationsDataSource, NotificationsRole } from './notifications-data-source';
 
-import { Card, Icon, ListError, ListLoading } from '@/ui';
+import { AppSwitch, Card, Icon, ListError, ListLoading } from '@/ui';
 import { type } from '@/ui/typography';
 
 export function NotificationPreferencesCard({
@@ -115,16 +115,11 @@ function PreferenceRow({
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.hint}>{hint}</Text>
       </View>
-      <Switch
+      <AppSwitch
         value={value}
         onValueChange={onChange}
         disabled={disabled}
         accessibilityLabel={label}
-        accessibilityState={{ checked: value, disabled }}
-        aria-checked={value}
-        trackColor={{ false: color.border.default, true: color.brand.goldSoft }}
-        thumbColor={value ? color.brand.gold : color.surface.base}
-        ios_backgroundColor={color.border.default}
       />
     </View>
   );
@@ -132,16 +127,16 @@ function PreferenceRow({
 
 const styles = StyleSheet.create({
   card: { borderRadius: radius.lg, gap: spacing[3] },
-  heading: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  heading: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   headingText: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
-  row: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   copy: { flex: 1, gap: 2 },
   label: { ...type.label, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   hint: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   divider: { height: 1, backgroundColor: color.border.default },
   saving: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  saveErrorRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
-  saveError: { ...type.caption, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl', flex: 1 },
+  saveErrorRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  saveError: { ...type.caption, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl', flex: 1 },
   retryText: { ...type.label, color: color.brand.navy },
   mandatoryNote: {
     ...type.caption,

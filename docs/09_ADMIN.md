@@ -353,25 +353,28 @@ These are recommended permission boundaries and can be adjusted by CTO/business 
 ### Implementation note (WP-Admin-01): enforced route matrix
 
 Enforced server-side by `JwtAuthGuard` + `@AdminRoles(...)` against the
-database role (a role change applies on the next request; a mismatch
-returns the same 401 as any auth failure — accepted roles are never
+database role (a role change applies on the next request). Status
+semantics: an unauthenticated caller gets `401`; an authenticated admin
+whose stored role is not listed gets `403` (accepted roles are never
 leaked). The admin web console mirrors it (tabs hidden per role;
 mutations hidden per action) but the server is authoritative.
 
 | Route group                                                         | super_admin | operations_admin | content_admin | support_admin | finance_admin |
 | ------------------------------------------------------------------- | ----------- | ---------------- | ------------- | ------------- | ------------- |
-| `GET /admin/metrics`                                                | ✅          | ✅               | ✅            | ✅            | ✅            |
+| `GET /admin/metrics`                                                | ✅          | ✅               | ✅            | ✅            | —             |
 | `GET /admin/users`, `GET /admin/users/:id`                          | ✅          | ✅               | —             | ✅            | —             |
 | `GET /admin/technicians`, `GET /admin/merchants`                    | ✅          | ✅               | —             | ✅            | —             |
 | `POST …/verification` (+ reason, WP-Admin-02)                       | ✅          | ✅               | —             | —             | —             |
 | `GET /admin/service-requests`                                       | ✅          | ✅               | —             | ✅            | —             |
 | `POST …/status` (override)                                          | ✅          | ✅               | —             | —             | —             |
 | `POST …/assign` (WP-Admin-03, pending only)                         | ✅          | ✅               | —             | —             | —             |
-| `GET /admin/reviews`, `POST …/remove` (+ reason, WP-Admin-04)       | ✅          | ✅               | ✅            | ✅            | —             |
-| `GET /admin/payments/config`, `PUT …`                               | ✅          | —                | —             | —             | ✅            |
-| `GET /admin/payments/submissions…` (list/detail)                    | ✅          | ✅               | —             | ✅            | ✅            |
-| `POST …/approve`, `POST …/reject`, `GET …/proof-url`                | ✅          | —                | —             | —             | ✅            |
-| `POST /admin/subscriptions/grant`, `POST /admin/entitlements/grant` | ✅          | —                | —             | —             | ✅            |
+| `GET /admin/reviews`                                                | ✅          | ✅               | ✅            | ✅            | —             |
+| `POST /admin/reviews/:id/remove` (+ reason, WP-Admin-04)            | ✅          | —                | ✅            | —             | —             |
+| `GET /admin/payments/config`, `PUT /admin/payments/config/:method`  | ✅          | —                | —             | —             | —             |
+| `GET /admin/payments/submissions…` (list/detail)                    | ✅          | ✅               | —             | ✅            | —             |
+| `POST …/approve`, `POST …/reject`                                   | ✅          | —                | —             | —             | —             |
+| `GET …/proof-url` (proof view, audit `admin.payment.proof_view`)    | ✅          | ✅               | —             | —             | —             |
+| `POST /admin/subscriptions/grant`, `POST /admin/entitlements/grant` | ✅          | —                | —             | —             | —             |
 | `POST /admin/notifications`                                         | ✅          | ✅               | —             | ✅            | —             |
 | `GET /admin/audit-logs`                                             | ✅          | ✅               | —             | —             | —             |
 
@@ -381,9 +384,20 @@ Deviations from the recommended table (explicit, adjustable by CTO):
   row scope exists to implement “limited” safely).
 - Merchant verification follows the technician rule (super/ops); the
   table lists technician verification only.
-- Grants/notifications follow “Manage plans” (finance) with super
-  included; notify additionally allows ops/support as operational
-  messaging (documented interpretation).
+- Review REMOVAL is narrower than “Manage reviews”: super+content only
+  (view remains open to all four reviewing roles) — removal is an
+  irreversible hard delete, so ops/support are read-only there. The web
+  console hides the removal control accordingly.
+- Manual-payment decisions (approve/reject) AND grants are super-only;
+  finance_admin is not wired to any admin route in the current build
+  (the recommended table lists finance for plans/pricing/config, but no
+  route group currently carries `finance_admin`). Payment config reads
+  and updates are also super-only.
+- Proof viewing (`GET …/proof-url`) is super+ops — deliberately separate
+  from approve/reject so ops can review a submission without being able
+  to decide it.
+- Notifications additionally allow ops/support as operational messaging
+  (documented interpretation).
 - “Suspend user” has no endpoint (no identity mutation surface exists);
   recorded as a remaining gap, not implemented here.
 

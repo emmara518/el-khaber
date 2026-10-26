@@ -1,5 +1,6 @@
 import { color } from '@khabir/ui-tokens';
 import { Slot, usePathname, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -32,7 +33,8 @@ export default function CustomerTabsLayout() {
   if (isFlow) {
     return (
       <View style={styles.root}>
-        <SafeAreaView edges={['bottom']} style={styles.safe}>
+        <StatusBar style="dark" />
+        <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
           <View style={styles.content}>
             <Slot />
           </View>

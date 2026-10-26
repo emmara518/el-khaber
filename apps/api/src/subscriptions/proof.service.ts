@@ -112,47 +112,62 @@ export class ProofService {
       throw uploadRejected('No uploaded proof found for this key — upload the file first');
     }
     if (header.sizeBytes === null || !isProofSizeAccepted(header.sizeBytes, maxBytes)) {
-      throw uploadRejected(`Proof size is not accepted (max ${maxBytes} bytes)`);
+      await this.rejectAndDelete(
+        storageKey,
+        `Proof size is not accepted (max ${maxBytes} bytes)`,
+      );
     }
     const declared = header.mimeType?.trim().toLowerCase() ?? null;
     if (declared !== null && !isAllowedProofMime(declared)) {
-      throw uploadRejected('Uploaded proof has an unsupported MIME type');
+      await this.rejectAndDelete(storageKey, 'Uploaded proof has an unsupported MIME type');
     }
 
     const prefix = await this.storage.readPrefix(storageKey, MAGIC_BYTES_TO_READ);
     if (prefix === null) {
+      await this.storage.delete(storageKey).catch(() => undefined);
       throw uploadRejected('Uploaded proof could not be read — upload the file first');
     }
     const sniffed = detectMimeFromMagicBytes(prefix);
     if (sniffed === null) {
+      await this.storage.delete(storageKey).catch(() => undefined);
       throw uploadRejected('Uploaded file is not a supported image (magic-byte check failed)');
     }
     if (declared !== null && sniffed !== declared) {
-      throw uploadRejected('Uploaded content does not match its declared MIME type');
+      await this.rejectAndDelete(storageKey, 'Uploaded content does not match its declared MIME type');
     }
     const mimeType: ProofMimeType = sniffed;
 
     const now = new Date();
-    const claimed = await this.prisma.paymentSubmission.updateMany({
-      where: { id: submissionId, status: 'pending' },
-      data: {
-        proofStorageKey: storageKey,
-        proofMimeType: mimeType,
-        proofByteSize: header.sizeBytes,
-        proofConfirmedAt: now,
-      },
-    });
-    if (claimed.count === 0) {
-      throw new ConflictException('Payment submission has already been reviewed');
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.paymentSubmission.updateMany({
+          where: { id: submissionId, status: 'pending' },
+          data: {
+            proofStorageKey: storageKey,
+            proofMimeType: mimeType,
+            proofByteSize: header.sizeBytes,
+            proofConfirmedAt: now,
+          },
+        });
+        if (claimed.count === 0) {
+          throw new ConflictException('Payment submission has already been reviewed');
+        }
+        await this.audit.log(
+          {
+            actorUserId: userId,
+            entityType: 'payment_submission',
+            entityId: submissionId,
+            action: 'user.payment.proof_confirm',
+            after: { storageKey, mimeType, sizeBytes: header.sizeBytes },
+          },
+          tx,
+        );
+      });
+    } catch (error) {
+      // The transaction did not commit, so the proof must not remain orphaned.
+      await this.storage.delete(storageKey).catch(() => undefined);
+      throw error;
     }
-
-    await this.audit.log({
-      actorUserId: userId,
-      entityType: 'payment_submission',
-      entityId: submissionId,
-      action: 'user.payment.proof_confirm',
-      after: { storageKey, mimeType, sizeBytes: header.sizeBytes },
-    });
 
     return {
       id: submissionId,
@@ -192,6 +207,12 @@ export class ProofService {
       downloadUrl: grant.url,
       expiresInSeconds: grant.expiresInSeconds,
     };
+  }
+
+  /** Deletes an object that failed validation, then throws the 400. */
+  private async rejectAndDelete(storageKey: string, message: string): Promise<never> {
+    await this.storage.delete(storageKey).catch(() => undefined);
+    throw uploadRejected(message);
   }
 
   /** Loads the submission or throws uniform 404 / stale 409. */

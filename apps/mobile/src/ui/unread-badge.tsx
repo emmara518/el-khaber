@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     paddingHorizontal: spacing[1],
-    backgroundColor: color.error.DEFAULT,
+    backgroundColor: color.error.ink,
     alignItems: 'center',
     justifyContent: 'center',
   },

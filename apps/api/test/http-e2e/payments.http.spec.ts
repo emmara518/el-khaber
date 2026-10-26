@@ -79,6 +79,8 @@ describe('HTTP E2E — payment flows', () => {
       .expect(200);
     const row = own.body.data.find((s: { id: string }) => s.id === submissionId);
     expect(row.status).toBe('pending');
+    expect(row.amount).toBe(99);
+    expect(row.currency).toBe('EGP');
 
     // No subscription yet.
     const current = await request(ctx.app.getHttpServer())
@@ -86,6 +88,18 @@ describe('HTTP E2E — payment flows', () => {
       .set(auth(customer.accessToken))
       .expect(200);
     expect(current.body.data).toBeNull();
+  });
+
+  it('returns the existing pending submission for an identical retry', async () => {
+    const customer = await register('customer', 'pay-idempotent@example.com');
+    const first = await submitPayment(customer, 'TRX-IDEMPOTENT-1');
+    const second = await submitPayment(customer, 'TRX-IDEMPOTENT-1');
+    expect(second).toBe(first);
+    expect(
+      await ctx.prisma.paymentSubmission.count({
+        where: { userId: customer.userId, transferReference: 'TRX-IDEMPOTENT-1' },
+      }),
+    ).toBe(1);
   });
 
   it('Admin approval: active subscription + audit + notification (one transaction)', async () => {
@@ -136,6 +150,15 @@ describe('HTTP E2E — payment flows', () => {
       .set(auth(customer.accessToken))
       .expect(200);
     expect(notifications.body.data.map((n: { titleAr: string }) => n.titleAr)).toContain('تم رفض إثبات الدفع');
+  });
+
+  it('rejects an unknown payment submission with 404, not 409', async () => {
+    const admin = await loginAdmin();
+    await request(ctx.app.getHttpServer())
+      .post(`${base}/admin/payments/submissions/00000000-0000-4000-8000-000000000099/reject`)
+      .set(auth(admin))
+      .send({ reason: 'unknown submission probe' })
+      .expect(404);
   });
 
   it('concurrent Admin approvals: exactly one wins, no duplicate subscription or notification', async () => {

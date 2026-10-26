@@ -12,6 +12,8 @@
  * `/technician/services`.
  */
 
+import { SERVICE_AREA_LABELS } from '../../../lib/service-areas';
+
 import type { PickedPhoto } from '../../../lib/profile-photo';
 
 /** The three supported home-appliance slugs (server-seeded categories). */
@@ -90,14 +92,8 @@ export function draftFromProfile(profile: TechnicianProfile): TechnicianProfileD
   };
 }
 
-// Egyptian service areas (governorate – district). Egypt-market demo data.
-export const AREA_OPTIONS: ReadonlyArray<string> = [
-  'القاهرة – مدينة نصر',
-  'القاهرة – المعادي',
-  'الجيزة – الدقي',
-  'الإسكندرية – سموحة',
-  'المنوفية – شبين الكوم',
-];
+/** Canonical technician-selectable areas (single shared source). */
+export const AREA_OPTIONS: ReadonlyArray<string> = SERVICE_AREA_LABELS;
 
 export const APPLIANCE_OPTIONS: ReadonlyArray<{ slug: TechnicianApplianceSlug; titleAr: string }> =
   [

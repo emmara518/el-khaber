@@ -13,7 +13,42 @@ interface ReadinessResponse {
   status: 'ready';
   checks: {
     database: 'ok';
+    migrations: 'ok';
+    schema: 'ok';
   };
+}
+
+/**
+ * Non-sensitive build identification. Deployment verification compares this
+ * commit with the intended release SHA; it never exposes configuration or
+ * secrets. Platform-provided variables are read in precedence order.
+ */
+interface VersionResponse {
+  status: 'ok';
+  version: string;
+  commit: string;
+}
+
+const COMMIT_ENV_KEYS = [
+  'GIT_COMMIT_SHA',
+  'RENDER_GIT_COMMIT',
+  'RAILWAY_GIT_COMMIT_SHA',
+  'VERCEL_GIT_COMMIT_SHA',
+] as const;
+
+function resolveCommit(): string {
+  for (const key of COMMIT_ENV_KEYS) {
+    const value = process.env[key]?.trim();
+    if (value !== undefined && /^[0-9a-f]{7,40}$/i.test(value)) {
+      return value.slice(0, 12).toLowerCase();
+    }
+  }
+  return 'unknown';
+}
+
+function resolveVersion(): string {
+  const value = process.env['APP_VERSION']?.trim();
+  return value !== undefined && value !== '' ? value : '0.0.1';
 }
 
 @Injectable()
@@ -26,10 +61,34 @@ export class HealthService {
     return { status: 'ok', service: 'api' };
   }
 
+  version(): VersionResponse {
+    return { status: 'ok', version: resolveVersion(), commit: resolveCommit() };
+  }
+
+
   async readiness(): Promise<ReadinessResponse> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      return { status: 'ready', checks: { database: 'ok' } };
+      const [pendingRows, userRows] = await Promise.all([
+        this.prisma.$queryRaw<Array<{ pending: number }>>`
+          SELECT count(*)::int AS pending
+          FROM "_prisma_migrations"
+          WHERE finished_at IS NULL AND rolled_back_at IS NULL
+        `,
+        this.prisma.$queryRaw<Array<{ count: number }>>`
+          SELECT count(*)::int AS count FROM "users"
+        `,
+      ]);
+      const pending = Number(pendingRows[0]?.pending ?? 0);
+      if (pending !== 0) {
+        throw new Error(`database has ${String(pending)} unfinished migration(s)`);
+      }
+      // The users query proves the runtime role can read a critical migrated
+      // table, not merely open a TCP connection.
+      void userRows;
+      return {
+        status: 'ready',
+        checks: { database: 'ok', migrations: 'ok', schema: 'ok' },
+      };
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'database unreachable';
       this.logger.error('readiness check failed', {
@@ -60,5 +119,10 @@ export class HealthController {
   @Get('ready')
   ready(): Promise<{ data: ReadinessResponse }> {
     return this.healthService.readiness().then((result) => ({ data: result }));
+  }
+
+  @Get('version')
+  version(): { data: VersionResponse } {
+    return { data: this.healthService.version() };
   }
 }

@@ -23,6 +23,7 @@ import { useNotificationsViewModel } from './use-notifications-view-model';
 
 import type { NotificationItem, NotificationsDataSource } from './notifications-data-source';
 
+import { formatArNumber } from '@/lib/api-format';
 import { AppHeader, Card, Icon, ListEmpty, ListError, ListLoading, PageTitle } from '@/ui';
 import { type } from '@/ui/typography';
 
@@ -105,7 +106,9 @@ export function NotificationListScreen({
                     style={({ pressed }) => [styles.markAll, pressed && styles.pressed]}
                   >
                     <Icon name="check-circle" size={16} color={color.brand.navy} accessible={false} />
-                    <Text style={styles.markAllText}>تعليم الكل كمقروء ({vm.unreadCount})</Text>
+                    <Text style={styles.markAllText}>
+                      تعليم الكل كمقروء ({formatArNumber(vm.unreadCount)})
+                    </Text>
                   </Pressable>
                 ) : null}
                 {vm.mutationError !== null ? (
@@ -177,12 +180,11 @@ function NotificationRow({ item, onPress }: { item: NotificationItem; onPress: (
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle,  },
   content: { paddingBottom: spacing[8] },
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[3] },
   markAll: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[2],
     alignSelf: 'flex-start',
@@ -190,10 +192,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing[2],
   },
   markAllText: { ...type.label, color: color.brand.navy },
-  mutationError: { ...type.caption, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  mutationError: { ...type.caption, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl' },
   list: { gap: spacing[3] },
   card: { borderRadius: radius.lg },
-  row: { flexDirection: 'row', direction: 'rtl', alignItems: 'flex-start', gap: spacing[3] },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing[3] },
   tile: {
     width: 40,
     height: 40,

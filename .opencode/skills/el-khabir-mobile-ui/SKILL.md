@@ -101,3 +101,30 @@ Never change API routes/payloads/contracts, auth, lifecycle rules, subscriptions
 permissions, notification semantics, or DB schema. Modify the existing app; do
 not rebuild it. Keep every existing test passing. Mobile only — never touch
 `apps/admin` or `apps/landing`.
+
+## 13. Skill routing and version reality
+
+Load order for mobile UI work:
+
+1. This skill + `@khabir/ui-tokens` — authority.
+2. `ui-ux-pro-max` — design intelligence (styles, palettes, typography, UX
+   checks). Run
+   `python .opencode/skills/ui-ux-pro-max/scripts/search.py "<query>" --domain style|typography|ux|color`
+   or `--stack react-native`. Results are candidates: map them onto existing
+   tokens; never introduce a competing palette, font or spacing scale. Do not
+   `--persist` generated design systems into the repo.
+3. `expo-overview` first for any Expo task, then the leaf skill:
+   `expo-design-system` (tokens/component conventions), `expo-animation`
+   (Reanimated/gestures), `expo-router` (navigation), `expo-native-ui`
+   (platform styling).
+
+Version reality: Expo SDK 52, RN 0.76, expo-router 4, Reanimated 3.16. The Expo
+skills document newer SDKs; discard APIs absent from v52 (NativeTabs,
+`@expo/ui`, Reanimated 4, expo-router `Color`,
+`expo-router/react-navigation`) unless the task explicitly includes an SDK
+upgrade.
+
+Never adopt a second styling system: `StyleSheet` + tokens only. React Native
+Reusables requires NativeWind/Uniwind and a `className` pipeline; it is
+reference-only for now. Port patterns into `src/ui`; do not add Tailwind or
+NativeWind config.

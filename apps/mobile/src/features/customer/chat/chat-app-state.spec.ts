@@ -1,6 +1,6 @@
+import { AppState } from 'react-native';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { AppState } from 'react-native';
 
 import { reactNativeAppState } from './chat-app-state';
 

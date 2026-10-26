@@ -18,7 +18,7 @@ import { NotFoundException } from './errors';
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
 /** Path parameter names that are always entity UUIDs in this API. */
-const UUID_PARAM_NAMES = new Set(['id', 'serviceId']);
+const UUID_PARAM_NAMES = new Set(['id', 'serviceId', 'mediaId']);
 
 @Injectable()
 export class UuidParamPipe implements PipeTransform {

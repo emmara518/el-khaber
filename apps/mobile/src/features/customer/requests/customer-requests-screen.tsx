@@ -152,7 +152,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: color.surface.subtle,
-    direction: 'rtl',
   },
   content: {
     paddingBottom: spacing[8],
@@ -165,6 +164,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing[2],
     paddingVertical: spacing[4],
+    paddingEnd: spacing[5],
   },
   pressed: {
     opacity: 0.75,

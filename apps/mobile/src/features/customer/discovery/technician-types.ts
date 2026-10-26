@@ -102,14 +102,6 @@ export const RATING_OPTIONS: ReadonlyArray<{ value: number | null; labelAr: stri
   { value: 4.8, labelAr: '4.8 فأعلى' },
 ];
 
-export const AREA_OPTIONS: ReadonlyArray<string> = [
-  'مدينة نصر',
-  'المعادي',
-  'مصر الجديدة',
-  'حلوان',
-  'الإسكندرية – سموحة',
-];
-
 /**
  * Deterministic mock filtering — every predicate is a simple match.
  *
@@ -187,6 +179,54 @@ export function activeFilterCount(filters: TechnicianSearchFilters): number {
   if (filters.area !== null) count += 1;
   if (filters.availableOnly) count += 1;
   return count;
+}
+
+export type TechnicianFilterKey =
+  | 'query'
+  | 'appliance'
+  | 'serviceId'
+  | 'area'
+  | 'minRating'
+  | 'availableOnly';
+
+/**
+ * Empty-state kind (approved Batch-A rule):
+ * - any active filter → the catalogue may be populated, so the honest
+ *   state is "no matching results";
+ * - no active filter + empty list → the catalogue itself is empty.
+ *
+ * Pure + unit-tested; production passes the real `activeFilterCount`.
+ */
+export type DiscoveryEmptyKind = 'catalog' | 'filtered';
+
+export function resolveDiscoveryEmptyKind(hasActiveFilters: boolean): DiscoveryEmptyKind {
+  return hasActiveFilters ? 'filtered' : 'catalog';
+}
+
+/**
+ * Remove one active filter without touching the others. Appliance and
+ * service are coupled: removing the appliance also clears the service
+ * (services are scoped per appliance), and removing the service clears
+ * its display label. The caller clears fault context separately.
+ */
+export function removeTechnicianFilter(
+  filters: TechnicianSearchFilters,
+  key: TechnicianFilterKey,
+): TechnicianSearchFilters {
+  switch (key) {
+    case 'query':
+      return { ...filters, query: '' };
+    case 'appliance':
+      return { ...filters, appliance: null, specialty: null, serviceId: null };
+    case 'serviceId':
+      return { ...filters, specialty: null, serviceId: null };
+    case 'area':
+      return { ...filters, area: null };
+    case 'minRating':
+      return { ...filters, minRating: null };
+    case 'availableOnly':
+      return { ...filters, availableOnly: false };
+  }
 }
 
 export interface SearchContext {

@@ -7,6 +7,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../lib/api-error';
+
 import { ApiStoreDataSource } from './api-store-data-source';
 
 import type { StoreDataSource, StoreProduct } from './store-types';
@@ -53,7 +55,7 @@ export function useStoreViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setState({ status: 'error', data: null, error: err instanceof Error ? err : new Error(String(err)) });
+        setState({ status: 'error', data: null, error: toUserError(err, 'تعذّر تحميل المنتجات. حاول مرة أخرى.') });
       });
     return () => {
       cancelled = true;
@@ -92,7 +94,7 @@ export function useStoreProductViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setState({ status: 'error', data: null, error: err instanceof Error ? err : new Error(String(err)) });
+        setState({ status: 'error', data: null, error: toUserError(err, 'تعذّر تحميل المنتجات. حاول مرة أخرى.') });
       });
     return () => {
       cancelled = true;

@@ -9,6 +9,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { toUserMessage } from '../../../lib/api-error';
+
 import { ApiRatingDataSource } from './api-rating-data-source';
 import { toggleTag, validateRating, type RatingDataSource, type ReviewTag } from './rating-types';
 
@@ -98,7 +100,7 @@ export function useRatingViewModel(
         });
         setSubmitStatus('success');
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'فشل إرسال التقييم');
+        setSubmitError(toUserMessage(err, 'فشل إرسال التقييم'));
         setSubmitStatus('error');
       }
     })();

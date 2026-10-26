@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiFaultGuideDataSource } from './api-fault-guide-data-source';
 import {
   INITIAL_FAULT_GUIDE_STATE,
@@ -39,6 +41,7 @@ export interface FaultGuideViewModel {
   detail: FaultDetail | null;
   selectAppliance: (slug: ApplianceSlug) => void;
   selectSymptom: (symptomId: string) => void;
+  selectSearchResult: (slug: ApplianceSlug, symptomId: string) => void;
   back: () => void;
   restart: () => void;
   retryResolve: () => void;
@@ -69,7 +72,7 @@ export function useFaultGuideViewModel(): FaultGuideViewModel {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err : new Error(String(err)));
+        setLoadError(toUserError(err, 'تعذّر تحميل دليل الأعطال. حاول مرة أخرى.'));
         setLoadStatus('error');
       });
     return () => {
@@ -123,6 +126,8 @@ export function useFaultGuideViewModel(): FaultGuideViewModel {
     detail,
     selectAppliance: (slug) => dispatch({ type: 'SELECT_APPLIANCE', slug }),
     selectSymptom: (symptomId) => dispatch({ type: 'SELECT_SYMPTOM', symptomId }),
+    selectSearchResult: (slug, symptomId) =>
+      dispatch({ type: 'SELECT_SEARCH_RESULT', slug, symptomId }),
     back: () => dispatch({ type: 'BACK' }),
     restart: () => dispatch({ type: 'RESTART' }),
     retryResolve,

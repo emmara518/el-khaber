@@ -102,7 +102,13 @@ export function getConfig(): AppConfig {
     return cached;
   }
 
-  const env = (readString('NODE_ENV', 'development') as AppConfig['env']) ?? 'development';
+  const rawEnv = readString('NODE_ENV', 'development');
+  if (rawEnv !== 'development' && rawEnv !== 'test' && rawEnv !== 'production') {
+    throw new Error(
+      `Invalid NODE_ENV: ${rawEnv} (expected development, test, or production)`,
+    );
+  }
+  const env = rawEnv as AppConfig['env'];
   const accessSecret = requireString('JWT_ACCESS_SECRET');
   const adminAccessSecret = requireString('ADMIN_JWT_ACCESS_SECRET');
   const JWT_SECRET_MIN_LENGTH = 32;
@@ -118,6 +124,16 @@ export function getConfig(): AppConfig {
   }
   if (accessSecret === adminAccessSecret) {
     throw new Error('JWT_ACCESS_SECRET and ADMIN_JWT_ACCESS_SECRET must differ');
+  }
+  if (env === 'production') {
+    for (const [name, secret] of [
+      ['JWT_ACCESS_SECRET', accessSecret],
+      ['ADMIN_JWT_ACCESS_SECRET', adminAccessSecret],
+    ] as const) {
+      if (/replace-me|change-me|placeholder/i.test(secret)) {
+        throw new Error(`${name} still contains a template placeholder`);
+      }
+    }
   }
 
   cached = {

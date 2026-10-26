@@ -6,7 +6,7 @@ import { RateLimitService } from '../src/common/rate-limit/rate-limit.service';
 import { createFakePrisma } from './fake-prisma';
 
 /**
- * Unit tests for the failed-login attempt protection (Task 10D §6).
+ * Unit tests for the failed-login attempt protection (Task 10D Â§6).
  * Semantics: bounded failures -> temporary lock -> automatic expiry,
  * scoped to the (identifier, ip) PAIR.
  */
@@ -65,7 +65,7 @@ describe('login attempt guard', () => {
     expect(guard.isLocked('user@example.com', '1.1.1.1')).toBe(false);
   });
 
-  it('scopes the lock to the (identifier, ip) pair — third parties cannot lock victims out', async () => {
+  it('scopes the lock to the (identifier, ip) pair â€” third parties cannot lock victims out', async () => {
     const guard = await makeGuard();
     for (let i = 0; i < 5; i += 1) {
       // Attacker hammers a victim's identifier from a different IP.
@@ -170,6 +170,20 @@ describe('SharedStoreLoginAttemptGuard', () => {
     const spy = vi.spyOn(rateLimit, 'checkLimit');
     const sharedGuard = new SharedStoreLoginAttemptGuard(rateLimit);
     await sharedGuard.recordFailure('user@example.com', '1.1.1.1');
-    expect(spy).toHaveBeenCalledWith('login', 'user@example.com|1.1.1.1');
+    expect(spy).toHaveBeenCalledWith('login', 'user:user@example.com|1.1.1.1');
+  });
+
+  it('keeps user and admin account lock buckets separate', async () => {
+    const prisma = createFakePrisma();
+    const rateLimit = new RateLimitService(prisma as never);
+    const check = vi.spyOn(rateLimit, 'checkLimit');
+    const peek = vi.spyOn(rateLimit, 'peekLimit');
+    const sharedGuard = new SharedStoreLoginAttemptGuard(rateLimit);
+
+    await sharedGuard.recordFailure('shared@example.com', '1.1.1.1', 'user');
+    await sharedGuard.isLocked('shared@example.com', '1.1.1.1', 'admin');
+
+    expect(check).toHaveBeenCalledWith('login-user', 'user:shared@example.com');
+    expect(peek).toHaveBeenCalledWith('login-user', 'admin:shared@example.com');
   });
 });

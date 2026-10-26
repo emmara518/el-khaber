@@ -22,20 +22,29 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import type { TechnicianFilterKey } from '../technician-types';
+
 import { useI18n } from '@/i18n/use-i18n';
 import { BrandImage } from '@/ui/brand-image';
+import { Chip } from '@/ui/chip';
 import { Icon } from '@/ui/icon';
 import { type } from '@/ui/typography';
 
 export function DiscoveryEmptyState({
   hasActiveFilters,
   catalogEmpty,
+  activeFilters,
+  onRemoveFilter,
+  onEditSearch,
   onClearFilters,
   onRetry,
   onGuide,
 }: {
   hasActiveFilters: boolean;
   catalogEmpty: boolean;
+  activeFilters: ReadonlyArray<{ key: TechnicianFilterKey; labelAr: string }>;
+  onRemoveFilter: (key: TechnicianFilterKey) => void;
+  onEditSearch: () => void;
   onClearFilters: () => void;
   onRetry: () => void;
   onGuide: () => void;
@@ -83,16 +92,49 @@ export function DiscoveryEmptyState({
       </Text>
       <Text style={styles.body}>{body}</Text>
 
-      <View style={styles.hints}>
-        <View style={styles.hintRow}>
-          <Icon name="check" size={14} color={color.brand.navy} accessibilityLabel="تلميح" />
-          <Text style={styles.hintText}>{t('discovery.empty.hintFilters')}</Text>
+      {catalogEmpty ? (
+        <View style={styles.hints}>
+          <View style={styles.hintRow}>
+            <Icon name="check" size={14} color={color.brand.navy} accessibilityLabel="تلميح" />
+            <Text style={styles.hintText}>{t('discovery.empty.hintLater')}</Text>
+          </View>
         </View>
-        <View style={styles.hintRow}>
-          <Icon name="check" size={14} color={color.brand.navy} accessibilityLabel="تلميح" />
-          <Text style={styles.hintText}>{t('discovery.empty.hintLater')}</Text>
-        </View>
-      </View>
+      ) : (
+        <>
+          {activeFilters.length > 0 ? (
+            <View style={styles.filterChips}>
+              {activeFilters.map((filter) => (
+                <Chip
+                  key={filter.key}
+                  label={filter.labelAr}
+                  icon="x"
+                  selectionMode="multiple"
+                  selected={false}
+                  accessibilityLabel={`${t('discovery.empty.removeFilter')}: ${filter.labelAr}`}
+                  onPress={() => onRemoveFilter(filter.key)}
+                />
+              ))}
+            </View>
+          ) : null}
+          {activeFilters.some((filter) => filter.key === 'query') ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('discovery.empty.editSearch')}
+              onPress={onEditSearch}
+              style={({ pressed }) => [styles.editSearch, pressed && styles.pressed]}
+            >
+              <Icon name="search" size={16} color={color.brand.navy} />
+              <Text style={styles.editSearchText}>{t('discovery.empty.editSearch')}</Text>
+            </Pressable>
+          ) : null}
+          <View style={styles.hints}>
+            <View style={styles.hintRow}>
+              <Icon name="check" size={14} color={color.brand.navy} accessibilityLabel="تلميح" />
+              <Text style={styles.hintText}>{t('discovery.empty.hintFilters')}</Text>
+            </View>
+          </View>
+        </>
+      )}
 
       <View style={styles.actions}>
         {hasActiveFilters ? (
@@ -167,6 +209,26 @@ const styles = StyleSheet.create({
     ...type.body,
     color: color.text.secondary,
     textAlign: 'center',
+    writingDirection: 'rtl',
+  },
+  filterChips: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2],
+    marginTop: spacing[2],
+  },
+  editSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    minHeight: 44,
+    paddingHorizontal: spacing[2],
+  },
+  editSearchText: {
+    ...type.button,
+    color: color.brand.navy,
+    textAlign: 'right',
     writingDirection: 'rtl',
   },
   hints: {

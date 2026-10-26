@@ -50,9 +50,17 @@ import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-
       provide: PASSWORD_RESET_DELIVERY,
       useFactory: () => {
         const url = process.env['PASSWORD_RESET_DELIVERY_URL']?.trim();
-        if (url !== undefined && url.length > 0 && /^https?:\/\//u.test(url)) {
-          const token = process.env['PASSWORD_RESET_DELIVERY_TOKEN']?.trim() ?? '';
-          return new HttpPasswordResetDelivery(url, token.length > 0 ? token : null);
+        if (url !== undefined && url.length > 0) {
+          const config = getConfig();
+          const isHttps = /^https:\/\//u.test(url);
+          const isHttp = /^http:\/\//u.test(url);
+          if (config.env === 'production' && !isHttps) {
+            throw new Error('PASSWORD_RESET_DELIVERY_URL must use https in production');
+          }
+          if (isHttp || isHttps) {
+            const token = process.env['PASSWORD_RESET_DELIVERY_TOKEN']?.trim() ?? '';
+            return new HttpPasswordResetDelivery(url, token.length > 0 ? token : null);
+          }
         }
         return new DeferredPasswordResetDelivery();
       },

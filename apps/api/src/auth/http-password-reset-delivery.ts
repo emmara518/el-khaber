@@ -15,6 +15,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type {
+  EmailVerificationDeliveryMessage,
   PasswordResetDeliveryMessage,
   PasswordResetDeliveryPort,
 } from './password-reset-delivery.port';
@@ -29,6 +30,22 @@ export class HttpPasswordResetDelivery implements PasswordResetDeliveryPort {
   ) {}
 
   async sendPasswordReset(message: PasswordResetDeliveryMessage): Promise<void> {
+    await this.post({ purpose: 'password_reset', contact: message.contact, token: message.rawToken });
+  }
+
+  async sendEmailVerification(message: EmailVerificationDeliveryMessage): Promise<void> {
+    await this.post({
+      purpose: 'email_verification',
+      contact: message.contact,
+      token: message.rawToken,
+    });
+  }
+
+  private async post(payload: {
+    purpose: 'password_reset' | 'email_verification';
+    contact: { phone?: string; email?: string };
+    token: string;
+  }): Promise<void> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
@@ -38,16 +55,14 @@ export class HttpPasswordResetDelivery implements PasswordResetDeliveryPort {
           'content-type': 'application/json',
           ...(this.bearerToken !== null ? { authorization: `Bearer ${this.bearerToken}` } : {}),
         },
-        body: JSON.stringify({
-          purpose: 'password_reset',
-          contact: message.contact,
-          token: message.rawToken,
-        }),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       if (!response.ok) {
         // Status only — never the token, never the response body.
-        throw new Error(`password reset delivery failed with status ${String(response.status)}`);
+        throw new Error(
+          `${payload.purpose} delivery failed with status ${String(response.status)}`,
+        );
       }
     } finally {
       clearTimeout(timer);

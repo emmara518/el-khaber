@@ -17,7 +17,12 @@ import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable } from '@nestjs/common';
 
 
-import { ConflictException, InvalidStateTransitionException, NotFoundException } from '../common/errors';
+import {
+  ConflictException,
+  InvalidStateTransitionException,
+  isUniqueConstraintError,
+  NotFoundException,
+} from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
 import type { ReviewSummaryDto } from '@khabir/shared-types';
@@ -92,8 +97,11 @@ export class ReviewsService {
       }
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const review = await tx.review.create({
+    let created: { id: string };
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM technician_profiles WHERE id = ${request.technicianId as string}::uuid FOR UPDATE`;
+        const review = await tx.review.create({
         data: {
           serviceRequestId: requestId,
           customerId,
@@ -121,8 +129,14 @@ export class ReviewsService {
         where: { id: request.technicianId as string },
         data: { ratingAverage: Math.round(average * 100) / 100, ratingCount: count },
       });
-      return review;
-    });
+        return review;
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('Review already exists for this request');
+      }
+      throw error;
+    }
 
     const row = await this.prisma.review.findFirstOrThrow({
       where: { id: created.id },

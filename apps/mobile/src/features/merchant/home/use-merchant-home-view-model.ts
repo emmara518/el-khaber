@@ -5,6 +5,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiMerchantHomeDataSource } from './api-merchant-home-data-source';
 
 import type { MerchantHomeViewModel } from './merchant-home-types';
@@ -40,7 +42,7 @@ export function useMerchantHomeViewModel(): MerchantHomeState {
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل البيانات. حاول مرة أخرى.'),
         });
       });
     return () => {

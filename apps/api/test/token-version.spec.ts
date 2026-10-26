@@ -157,7 +157,10 @@ describe('JwtAuthGuard tokenVersion verification', () => {
     const jwt = new JwtService(USER_JWT_CONFIG);
     const tx = {
       user: { update: vi.fn(async () => undefined) },
-      passwordResetToken: { update: vi.fn(async () => undefined) },
+      passwordResetToken: {
+        update: vi.fn(async () => undefined),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+      },
       refreshToken: { updateMany: vi.fn(async () => undefined) },
     };
     const prisma = {
@@ -208,7 +211,7 @@ describe('JwtAuthGuard tokenVersion verification', () => {
   it('does not affect valid sessions: a token carrying the current tokenVersion keeps working', async () => {
     const jwt = new JwtService(USER_JWT_CONFIG);
     // After the bump, a freshly issued token embeds the new version and
-    // is accepted — only pre-event tokens are rejected.
+    // is accepted â€” only pre-event tokens are rejected.
     const freshToken = await jwt.signAsync({
       sub: 'u1',
       role: 'customer',
@@ -285,7 +288,7 @@ describe('AuthService tokenVersion issuance and revocation', () => {
       },
       refreshToken: { create: vi.fn(async () => undefined) },
       // WP-01: issueSession resolves the role-appropriate profile image;
-      // no profile row here → avatarUrl: null (covered explicitly).
+      // no profile row here â†’ avatarUrl: null (covered explicitly).
       customerProfile: { findFirst: vi.fn(async () => null) },
     } as unknown as PrismaService;
 
@@ -337,7 +340,7 @@ describe('AuthService tokenVersion issuance and revocation', () => {
     await service.logout('raw-refresh-token');
 
     expect(refreshTokenUpdateMany).toHaveBeenCalledWith({
-      where: { familyId: 'f1', revokedAt: null },
+      where: { userId: 'u1', revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedReason: 'logout' },
     });
     expect(update).toHaveBeenCalledWith({
@@ -405,7 +408,7 @@ describe('AdminAuthService tokenVersion issuance and revocation', () => {
     await service.logout('raw-admin-refresh-token');
 
     expect(refreshTokenUpdateMany).toHaveBeenCalledWith({
-      where: { familyId: 'af1', revokedAt: null },
+      where: { adminId: 'a1', revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedReason: 'logout' },
     });
     expect(adminUpdate).toHaveBeenCalledWith({

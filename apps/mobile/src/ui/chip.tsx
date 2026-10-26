@@ -15,7 +15,7 @@
  */
 
 import { color, radius, spacing } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { Icon, type IconName } from './icon';
 import { fontFamily, type } from './typography';
@@ -64,13 +64,22 @@ export function Chip({
   }
 
   const toggle = selectionMode === 'multiple';
+  const isWeb = Platform.OS === 'web';
+  const webPressed: { 'aria-pressed'?: boolean } =
+    isWeb && !toggle ? { 'aria-pressed': selected } : {};
   return (
     <Pressable
-      accessibilityRole={toggle ? 'checkbox' : 'tab'}
+      {...webPressed}
+      accessibilityRole={toggle ? 'checkbox' : 'button'}
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={toggle ? { checked: selected, disabled } : { selected, disabled }}
+      accessibilityState={
+        toggle
+          ? { checked: selected, disabled }
+          : isWeb
+            ? { disabled }
+            : { selected, disabled }
+      }
       aria-checked={toggle ? selected : undefined}
-      aria-selected={toggle ? undefined : selected}
       aria-disabled={disabled || undefined}
       disabled={disabled}
       onPress={onPress}
@@ -108,7 +117,6 @@ export function Chip({
 const styles = StyleSheet.create({
   base: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[1],

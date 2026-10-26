@@ -16,11 +16,13 @@
  */
 
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
-import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
+import { useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import Animated from 'react-native-reanimated';
 
 import { BrandImage, usePressScale, type BrandAssetName } from '@/ui';
 import { Icon, type IconName } from '@/ui/icon';
+import { CONTENT_MAX_WIDTH } from '@/ui/layout';
 import { fontFamily, type } from '@/ui/typography';
 
 export interface ShellTab {
@@ -42,16 +44,23 @@ export function RoleTabBar({
   onChange: (id: string) => void;
   style?: ViewStyle;
 }) {
+  const isWeb = Platform.OS === 'web';
   return (
-    <View style={[styles.bar, style]}>
-      {tabs.map((tab) => (
-        <RoleTabItem
-          key={tab.id}
-          tab={tab}
-          isActive={tab.id === active}
-          onPress={() => onChange(tab.id)}
-        />
-      ))}
+    <View
+      role={isWeb ? 'navigation' : undefined}
+      aria-label={isWeb ? 'التنقل السفلي' : undefined}
+      style={[styles.bar, style]}
+    >
+      <View style={styles.barInner}>
+        {tabs.map((tab) => (
+          <RoleTabItem
+            key={tab.id}
+            tab={tab}
+            isActive={tab.id === active}
+            onPress={() => onChange(tab.id)}
+          />
+        ))}
+      </View>
     </View>
   );
 }
@@ -66,16 +75,47 @@ function RoleTabItem({
   onPress: () => void;
 }) {
   const scale = usePressScale(0.92);
+  const [focused, setFocused] = useState(false);
+  const isWeb = Platform.OS === 'web';
+  const webKeyboardProps =
+    isWeb
+      ? {
+          onKeyDown: (event: {
+            key: string;
+            repeat?: boolean;
+            preventDefault: () => void;
+          }) => {
+            if (event.repeat) return;
+            if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+              event.preventDefault();
+              onPress();
+            }
+          },
+        }
+      : {};
+  const focusedStyle =
+    isWeb && focused
+      ? ({
+          outlineStyle: 'solid',
+          outlineWidth: 2,
+          outlineColor: color.surface.base,
+          outlineOffset: -2,
+        } as unknown as ViewStyle)
+      : undefined;
   return (
     <Pressable
+      {...webKeyboardProps}
       onPress={onPress}
       onPressIn={scale.onPressIn}
       onPressOut={scale.onPressOut}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: isActive }}
-      aria-selected={isActive}
-      accessibilityLabel={isActive ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
-      style={styles.item}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      accessibilityRole={isWeb ? 'link' : 'tab'}
+      accessibilityState={isWeb ? undefined : { selected: isActive }}
+      aria-selected={isWeb ? undefined : isActive}
+      aria-current={isWeb && isActive ? 'page' : undefined}
+      accessibilityLabel={isActive && !isWeb ? `${tab.labelAr}، الصفحة الحالية` : tab.labelAr}
+      style={[styles.item, focusedStyle]}
     >
       <Animated.View style={scale.style}>
         <View style={[styles.iconPill, isActive && styles.iconPillActive]}>
@@ -102,9 +142,6 @@ function RoleTabItem({
 
 const styles = StyleSheet.create({
   bar: {
-    flexDirection: 'row',
-    direction: 'rtl',
-    justifyContent: 'space-around',
     alignItems: 'center',
     paddingTop: spacing[2],
     paddingBottom: spacing[2],
@@ -113,6 +150,14 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     ...shadow.high,
+  },
+  barInner: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
   },
   item: {
     flex: 1,
@@ -135,8 +180,6 @@ const styles = StyleSheet.create({
   },
   label: {
     ...type.navigation,
-    fontSize: 10,
-    lineHeight: 14,
     width: '100%',
     textAlign: 'center',
     writingDirection: 'rtl',

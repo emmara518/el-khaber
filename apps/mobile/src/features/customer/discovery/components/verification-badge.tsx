@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     ...type.label,
   },
   verifiedText: {
-    color: color.success.DEFAULT,
+    color: color.success.ink,
   },
   unverifiedText: {
     color: color.text.secondary,

@@ -17,22 +17,30 @@ import { type } from '@/ui/typography';
 
 export function TechnicianResultCard({
   technician,
+  matchReasons = [],
   onPress,
 }: {
   technician: Technician;
+  matchReasons?: ReadonlyArray<string>;
   onPress: () => void;
 }) {
   const content = getTechnicianCardContent(technician);
   const serviceAsset = applianceBrandAsset(technician.appliances[0] ?? '') ?? 'toolbox';
   const press = usePressScale(0.985);
   const hasTrust = content.rating !== null || content.verified || content.availability.length > 0;
+  const reasonsLabel =
+    matchReasons.length > 0 ? `لماذا يظهر: ${matchReasons.join('، ')}` : null;
 
   return (
     <Animated.View style={press.style}>
       <Pressable
         accessible
         accessibilityRole="button"
-        accessibilityLabel={content.accessibilityLabel}
+        accessibilityLabel={
+          reasonsLabel !== null
+            ? `${content.accessibilityLabel}، ${reasonsLabel}`
+            : content.accessibilityLabel
+        }
         onPress={onPress}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
@@ -69,6 +77,12 @@ export function TechnicianResultCard({
                       <Text style={styles.serviceText}>{service}</Text>
                     </View>
                   ))}
+                </View>
+              ) : null}
+              {reasonsLabel !== null ? (
+                <View style={styles.matchRow}>
+                  <Icon name="check" size={16} color={color.brand.navy} />
+                  <Text style={styles.matchText}>{reasonsLabel}</Text>
                 </View>
               ) : null}
               {hasTrust ? (
@@ -113,7 +127,6 @@ export function TechnicianResultCard({
 const styles = StyleSheet.create({
   card: {
     overflow: 'hidden',
-    direction: 'rtl',
   },
   monogramPanel: {
     backgroundColor: color.brand.navy,
@@ -171,6 +184,21 @@ const styles = StyleSheet.create({
   },
   serviceText: {
     ...type.label,
+    color: color.brand.navy,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  matchRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing[2],
+    padding: spacing[3],
+    borderRadius: radius.md,
+    backgroundColor: color.brand.goldSoft,
+  },
+  matchText: {
+    flex: 1,
+    ...type.caption,
     color: color.brand.navy,
     textAlign: 'right',
     writingDirection: 'rtl',

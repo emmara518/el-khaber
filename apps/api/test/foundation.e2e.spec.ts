@@ -146,7 +146,7 @@ describe('api foundation e2e', () => {
       const res = await request(app.getHttpServer())
         .patch('/api/v1/me')
         .set('Authorization', `Bearer ${session.accessToken}`)
-        .send({ email: 'me1-new@example.com' })
+        .send({ email: 'me1-new@example.com', current_password: 'sup3rsecretP4ss' })
         .expect(200);
       expect(res.body.data.email).toBe('me1-new@example.com');
       expect(res.body.data.emailVerified).toBe(false);
@@ -178,7 +178,7 @@ describe('api foundation e2e', () => {
       const res = await request(app.getHttpServer())
         .patch('/api/v1/me')
         .set('Authorization', `Bearer ${session.accessToken}`)
-        .send({ email: 'me3-new@example.com', role: 'merchant', status: 'suspended', phoneVerified: true })
+        .send({ email: 'me3-new@example.com', current_password: 'sup3rsecretP4ss', role: 'merchant', status: 'suspended', phoneVerified: true })
         .expect(200);
       expect(res.body.data.role).toBe('customer');
       expect(res.body.data.status).toBe('active');
@@ -350,7 +350,10 @@ describe('api foundation e2e', () => {
 
     it('GET /ready verifies the database dependency', async () => {
       const res = await request(app.getHttpServer()).get('/api/v1/ready').expect(200);
-      expect(res.body.data).toEqual({ status: 'ready', checks: { database: 'ok' } });
+      expect(res.body.data).toEqual({
+        status: 'ready',
+        checks: { database: 'ok', migrations: 'ok', schema: 'ok' },
+      });
     });
 
     it('GET /ready returns 503 when database is unavailable', async () => {

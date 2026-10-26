@@ -61,6 +61,21 @@ function isKnownSlug(value: string | null | undefined): value is ApplianceSlug {
   return value !== null && value !== undefined && (KNOWN_SLUGS as ReadonlyArray<string>).includes(value);
 }
 
+/**
+ * Map a published summary to the guide's symptom model. `summaryAr` is
+ * carried verbatim for text search; nothing is synthesized when absent.
+ */
+export function mapFaultListItem(dto: FaultSummaryDto, slug: ApplianceSlug): FaultSymptom {
+  return {
+    id: dto.id,
+    applianceSlug: slug,
+    titleAr: dto.nameAr,
+    ...(dto.summaryAr.trim().length > 0 ? { summaryAr: dto.summaryAr } : {}),
+    // severityLevel has no documented Arabic value set → empty chip.
+    frequencyAr: '',
+  };
+}
+
 export function mapFaultDetail(dto: FaultDto): FaultDetail {
   return {
     symptomId: dto.id,
@@ -101,13 +116,7 @@ export class ApiFaultGuideDataSource implements FaultGuideDataSource {
     for (const fault of faults) {
       const slug = slugById.get(fault.applianceCategoryId);
       if (!isKnownSlug(slug)) continue;
-      symptoms.push({
-        id: fault.id,
-        applianceSlug: slug,
-        titleAr: fault.nameAr,
-        // severityLevel has no documented Arabic value set → empty chip.
-        frequencyAr: '',
-      });
+      symptoms.push(mapFaultListItem(fault, slug));
     }
 
     // Prefetch the published content for every listed symptom so the

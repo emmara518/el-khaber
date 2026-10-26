@@ -9,14 +9,17 @@ import { ApiFaultGuideDataSource } from '../fault-guide/api-fault-guide-data-sou
 
 import { DiscoveryEmptyState } from './components/discovery-empty-state';
 import { TechnicianResultCard } from './components/technician-result-card';
+import { getTechnicianMatchReasons } from './discovery-match';
 import {
   ACTIVE_APPLIANCE_FILTERS,
   activeFilterCount,
-  AREA_OPTIONS,
   buildTechnicianListQuery,
   EMPTY_TECHNICIAN_FILTERS,
   RATING_OPTIONS,
+  removeTechnicianFilter,
+  resolveDiscoveryEmptyKind,
   resolveSearchContext,
+  type TechnicianFilterKey,
   type TechnicianSearchFilters,
 } from './technician-types';
 import { useTechniciansViewModel } from './use-technicians-view-model';
@@ -25,7 +28,9 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ServiceDto } from '@khabir/shared-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber } from '@/lib/api-format';
 import { categoryIdBySlug, getCatalogServices } from '@/lib/catalog-reference';
+import { SERVICE_AREA_OPTIONS } from '@/lib/service-areas';
 import { Card, Chip, ListError, ListLoading, PageTitle, type } from '@/ui';
 import { applianceBrandAsset, SceneAction, SceneObject, SceneSection } from '@/ui/cinematic';
 import { Icon } from '@/ui/icon';
@@ -177,6 +182,28 @@ export default function TechnicianSearchScreen() {
     filters.minRating !== null ? `التقييم: ${filters.minRating} فأعلى` : null,
     filters.availableOnly ? 'المتاحون فقط' : null,
   ].filter((label): label is string => label !== null);
+  // Approved Batch-A rule: active filters mean "filtered empty", otherwise
+  // an empty list means the catalogue itself is empty. No extra request.
+  const emptyKind = resolveDiscoveryEmptyKind(activeCount > 0);
+  const activeFilterChips: Array<{ key: TechnicianFilterKey; labelAr: string }> = [];
+  if (filters.query.trim().length > 0) {
+    activeFilterChips.push({ key: 'query', labelAr: `البحث: ${filters.query.trim()}` });
+  }
+  if (filters.appliance !== null) {
+    activeFilterChips.push({ key: 'appliance', labelAr: applianceLabel });
+  }
+  if (selectedSpecialtyName !== null) {
+    activeFilterChips.push({ key: 'serviceId', labelAr: selectedSpecialtyName });
+  }
+  if (filters.area !== null) {
+    activeFilterChips.push({ key: 'area', labelAr: filters.area });
+  }
+  if (filters.minRating !== null) {
+    activeFilterChips.push({ key: 'minRating', labelAr: `التقييم: ${filters.minRating} فأعلى` });
+  }
+  if (filters.availableOnly) {
+    activeFilterChips.push({ key: 'availableOnly', labelAr: 'المتاحون فقط' });
+  }
 
   function selectAppliance(value: TechnicianSearchFilters['appliance']) {
     // A new appliance resets the service selection (services are scoped
@@ -204,6 +231,22 @@ export default function TechnicianSearchScreen() {
     setDraft(EMPTY_TECHNICIAN_FILTERS);
     setFaultId(null);
     setPanelOpen(false);
+  }
+
+  function removeFilter(key: TechnicianFilterKey) {
+    setFilters((current) => removeTechnicianFilter(current, key));
+    setDraft((current) => removeTechnicianFilter(current, key));
+    if (key === 'appliance') {
+      setFaultId(null);
+    }
+  }
+
+  function editSearch() {
+    Keyboard.dismiss();
+    scrollRef.current?.scrollTo({ y: searchOffset.current, animated: true });
+    // Web can drop focus while the scroll animation is still running;
+    // native focus is immediate. The scroll itself always works.
+    setTimeout(() => searchRef.current?.focus(), 500);
   }
 
   return (
@@ -360,17 +403,17 @@ export default function TechnicianSearchScreen() {
                     </FilterGroup>
                   ) : null}
                   <FilterGroup label="مناطق الخدمة">
-                    {AREA_OPTIONS.map((area) => (
+                    {SERVICE_AREA_OPTIONS.map((option) => (
                       <Chip
-                        key={area}
-                        label={area}
+                        key={option.value}
+                        label={option.labelAr}
                         selectionMode="multiple"
-                        selected={draft.area === area}
-                        accessibilityLabel={`مناطق الخدمة: ${area}`}
+                        selected={draft.area === option.value}
+                        accessibilityLabel={`مناطق الخدمة: ${option.labelAr}`}
                         onPress={() =>
                           setDraft((current) => ({
                             ...current,
-                            area: current.area === area ? null : area,
+                            area: current.area === option.value ? null : option.value,
                           }))
                         }
                       />
@@ -444,7 +487,10 @@ export default function TechnicianSearchScreen() {
             results.length === 0 ? (
               <DiscoveryEmptyState
                 hasActiveFilters={activeCount > 0}
-                catalogEmpty={data.length === 0}
+                catalogEmpty={emptyKind === 'catalog'}
+                activeFilters={activeFilterChips}
+                onRemoveFilter={removeFilter}
+                onEditSearch={editSearch}
                 onClearFilters={clearAll}
                 onRetry={retry}
                 onGuide={() => {
@@ -455,29 +501,47 @@ export default function TechnicianSearchScreen() {
             ) : (
               <SceneSection
                 style={styles.list}
-                title={`نتائج البحث (${results.length})`}
+                title={`نتائج البحث (${formatArNumber(results.length)})`}
                 eyebrow="قارن ثم اختر"
-                body="تعرّف على التخصص والخدمات ومناطق العمل من الملف الشخصي."
+                body={`${t('discovery.results.order')} — ${t('discovery.results.body')}`}
               >
-                {results.map((technician) => (
-                  <TechnicianResultCard
-                    key={technician.id}
-                    technician={technician}
-                    onPress={() => {
-                      Keyboard.dismiss();
-                      router.push({
-                        pathname: '/(customer)/technician/[id]',
-                        params: {
-                          id: technician.id,
-                          ...(filters.appliance !== null ? { appliance: filters.appliance } : {}),
-                          ...(context !== null && filters.appliance === context.applianceSlug
-                            ? { symptomId: context.symptomId }
-                            : {}),
-                        },
-                      });
-                    }}
-                  />
-                ))}
+                {results.map((technician) => {
+                  const matchReasons = getTechnicianMatchReasons(technician, {
+                    appliance: filters.appliance,
+                    applianceLabel: filters.appliance !== null ? applianceLabel : null,
+                    serviceLabel: selectedSpecialtyName,
+                    area: filters.area,
+                    availableOnly: filters.availableOnly,
+                    faultSymptomTitle:
+                      context !== null &&
+                      context.faultId !== null &&
+                      filters.appliance === context.applianceSlug
+                        ? context.symptomTitleAr
+                        : null,
+                  });
+                  return (
+                    <TechnicianResultCard
+                      key={technician.id}
+                      technician={technician}
+                      matchReasons={matchReasons}
+                      onPress={() => {
+                        Keyboard.dismiss();
+                        router.push({
+                          pathname: '/(customer)/technician/[id]',
+                          params: {
+                            id: technician.id,
+                            ...(filters.appliance !== null
+                              ? { appliance: filters.appliance }
+                              : {}),
+                            ...(context !== null && filters.appliance === context.applianceSlug
+                              ? { symptomId: context.symptomId }
+                              : {}),
+                          },
+                        });
+                      }}
+                    />
+                  );
+                })}
               </SceneSection>
             )
           ) : null}
@@ -500,7 +564,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: color.surface.subtle,
-    direction: 'rtl',
   },
   navigation: {
     flexDirection: 'row',

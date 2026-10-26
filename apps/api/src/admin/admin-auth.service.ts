@@ -49,13 +49,13 @@ export class AdminAuthService {
 
     // Same failed-attempt protection and enumeration-safe rejection as
     // the user login (Task 10D §6, §10).
-    if (await this.loginAttempts.isLocked(identifier, ip)) {
+    if (await this.loginAttempts.isLocked(identifier, ip, 'admin')) {
       throw new AuthInvalidException();
     }
 
     const admin = await this.prisma.adminUser.findUnique({ where: { email: input.email } });
     if (!admin) {
-      await this.loginAttempts.recordFailure(identifier, ip);
+      await this.loginAttempts.recordFailure(identifier, ip, 'admin');
       // Constant-time-ish: still verify a dummy hash.
       await verifyPassword(
         '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -65,14 +65,14 @@ export class AdminAuthService {
     }
     const ok = await verifyPassword(admin.passwordHash, input.password);
     if (!ok) {
-      await this.loginAttempts.recordFailure(identifier, ip);
+      await this.loginAttempts.recordFailure(identifier, ip, 'admin');
       throw new AuthInvalidException();
     }
     if (admin.status !== USER_STATUS.active) {
       throw new AuthInvalidException('Account is not active');
     }
 
-    await this.loginAttempts.recordSuccess(identifier, ip);
+    await this.loginAttempts.recordSuccess(identifier, ip, 'admin');
 
     await this.prisma.adminUser.update({
       where: { id: admin.id },
@@ -128,8 +128,9 @@ export class AdminAuthService {
     if (!record || record.revokedAt !== null) {
       return;
     }
+    // Logout is global for this admin authority: revoke every family.
     await this.prisma.adminRefreshToken.updateMany({
-      where: { familyId: record.familyId, revokedAt: null },
+      where: { adminId: record.adminId, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'logout' },
     });
     // Invalidate every admin access token issued before the logout.

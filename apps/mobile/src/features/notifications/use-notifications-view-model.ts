@@ -15,6 +15,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserMessage } from '../../lib/api-error';
+
 import {
   ApiNotificationsDataSource,
   NOTIFICATIONS_PAGE_LIMIT,
@@ -134,7 +136,7 @@ export function useNotificationsViewModel(
         setPage((p) => p + 1);
         setHasMore(next.hasNext);
       } catch (err: unknown) {
-        setMutationError(err instanceof Error ? err.message : 'تعذر تحميل المزيد');
+        setMutationError(toUserMessage(err, 'تعذر تحميل المزيد'));
       } finally {
         setLoadingMore(false);
       }
@@ -152,7 +154,7 @@ export function useNotificationsViewModel(
           );
           await refreshUnread();
         } catch (err: unknown) {
-          setMutationError(err instanceof Error ? err.message : 'تعذر تحديث الإشعار');
+          setMutationError(toUserMessage(err, 'تعذر تحديث الإشعار'));
         }
       })();
     },
@@ -167,7 +169,7 @@ export function useNotificationsViewModel(
         setData((current) => (current ?? []).map((item) => ({ ...item, read: true })));
         await refreshUnread();
       } catch (err: unknown) {
-        setMutationError(err instanceof Error ? err.message : 'تعذر تحديث الإشعارات');
+        setMutationError(toUserMessage(err, 'تعذر تحديث الإشعارات'));
       }
     })();
   }, [stableSource, role, refreshUnread]);

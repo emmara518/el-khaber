@@ -15,7 +15,7 @@ import { PrismaClient } from '@prisma/client';
 
 import { AppModule } from '../../dist/app.module';
 import { hashPassword } from '../../dist/auth/password';
-import { getConfig } from '../../dist/config/app.config';
+import { configureApp } from '../../dist/bootstrap/configure-app';
 
 import { assertTestDatabaseIdentity, resolveTestDatabaseUrl } from './env';
 
@@ -65,7 +65,7 @@ export interface HttpTestContext {
 export async function createHttpTestApp(): Promise<HttpTestContext> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication();
-  app.setGlobalPrefix(getConfig().globalPrefix);
+  configureApp(app as never);
   await app.init();
 
   const prisma = new PrismaClient({ datasources: { db: { url: TEST_DB.url } } });
@@ -116,6 +116,7 @@ const ALL_TABLES = [
   'appliance_categories',
   'refresh_tokens',
   'password_reset_tokens',
+  'email_verification_tokens',
   'admin_refresh_tokens',
   'users',
   'admin_users',

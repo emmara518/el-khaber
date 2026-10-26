@@ -1,5 +1,8 @@
 import type { Technician } from '../technician-types';
 
+import { formatArDecimal, formatArNumber } from '@/lib/api-format';
+
+
 function cleanLabels(labels: ReadonlyArray<string>): string[] {
   return [...new Set(labels.map((label) => label.trim()).filter(Boolean))];
 }
@@ -39,7 +42,7 @@ export function getTechnicianCardContent(technician: Technician) {
       ...specialties,
       ...services,
       rating !== null
-        ? `التقييم ${rating.value.toFixed(1)} من ٥، عدد التقييمات ${rating.count}`
+        ? `التقييم ${formatArDecimal(rating.value, 1)} من ${formatArNumber(5)}، عدد التقييمات ${formatArNumber(rating.count)}`
         : '',
       verified ? 'موثّق من الخبير: تم التحقق من الهوية والخبرة' : '',
       availability,

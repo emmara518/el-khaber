@@ -43,6 +43,8 @@ export default function CustomerProfileScreen() {
   // The API exposes no customer city/district yet (reported gap). Build the
   // location line from real, non-empty parts only — never a dangling " - ".
   const locationLabel = data !== null ? profileLocationLabel(data.cityAr, data.districtAr) : null;
+  const activeOrdersLabel = data?.activeOrdersCount === 1 ? 'طلب نشط' : 'طلبات نشطة';
+  const completedOrdersLabel = data?.completedOrdersCount === 1 ? 'طلب مكتمل' : 'طلبات مكتملة';
 
   return (
     <View style={styles.root}>
@@ -112,11 +114,11 @@ export default function CustomerProfileScreen() {
               </Card>
 
               <View style={styles.stats}>
-                <StatTile icon="clipboard" value={data.activeOrdersCount} label="طلبات نشطة" />
+                <StatTile icon="clipboard" value={data.activeOrdersCount} label={activeOrdersLabel} />
                 <StatTile
                   icon="check-circle"
                   value={data.completedOrdersCount}
-                  label="طلبات مكتملة"
+                  label={completedOrdersLabel}
                 />
               </View>
 
@@ -172,7 +174,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: color.surface.subtle,
-    direction: 'rtl',
   },
   content: {
     paddingBottom: spacing[8],

@@ -165,7 +165,7 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: spacing[6], paddingBottom: spacing[8], direction: 'rtl' },
+  content: { paddingTop: spacing[6], paddingBottom: spacing[8],  },
   sections: { paddingHorizontal: spacing[5], gap: spacing[3] },
   heroMeta: { gap: spacing[2], marginTop: spacing[2], alignItems: 'flex-start' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] + 2, marginBottom: spacing[1] },

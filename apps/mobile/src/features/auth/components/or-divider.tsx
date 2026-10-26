@@ -23,7 +23,6 @@ export function OrDivider({ label }: { label: string }) {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },

@@ -28,7 +28,7 @@ const repoRoot = resolve(apiDir, '..', '..');
 
 const TEST_URL =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://khabir_test:khabir_test_pw@localhost:55432/khabir_test?schema=public';
+  'postgresql://khabir:khabir@localhost:5433/khabir_test?schema=public';
 
 function assertLocalTestUrl(url) {
   const parsed = new URL(url);

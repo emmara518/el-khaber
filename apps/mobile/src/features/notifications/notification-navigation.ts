@@ -10,7 +10,7 @@
  *   technician: `/(technician)/orders/:id`, merchant: none.
  * - subscriptionId / submissionId (type `subscription`) →
  *   customer: `/(customer)/subscription`, merchant: `/(merchant)/subscription`,
- *   technician: `/(technician)/profile` (no dedicated subscription screen).
+ *   technician: `/(technician)/subscription`.
  * - verification type / profileId → the role's profile screen.
  */
 
@@ -51,7 +51,7 @@ export function resolveNotificationTarget(
   ) {
     if (role === 'customer') return '/(customer)/subscription';
     if (role === 'merchant') return '/(merchant)/subscription';
-    return '/(technician)/profile';
+    return '/(technician)/subscription';
   }
 
   if (input.type === 'verification' || asId(data['profileId']) !== null) {

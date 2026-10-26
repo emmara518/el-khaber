@@ -73,6 +73,7 @@ function createService(): Mocks {
   const prisma = {
     serviceRequest: { findFirst: requestFindFirst },
     technicianProfile: { findFirst: profileFindFirst },
+    $queryRaw: vi.fn(async () => []),
     serviceRequestMedia: {
       count: mediaCount,
       create: mediaCreate,
@@ -198,6 +199,7 @@ describe('confirmMedia', () => {
         action: 'user.service_request.media_confirm',
         entityId: REQUEST,
       }),
+      expect.anything(),
     );
     expect(mocks.storage.delete).not.toHaveBeenCalled();
   });

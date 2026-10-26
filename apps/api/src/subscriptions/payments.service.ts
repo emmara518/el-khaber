@@ -21,7 +21,12 @@ import { Injectable } from '@nestjs/common';
 
 
 import { AuditService } from '../audit/audit.service';
-import { ConflictException, NotFoundException, ValidationException } from '../common/errors';
+import {
+  ConflictException,
+  isUniqueConstraintError,
+  NotFoundException,
+  ValidationException,
+} from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 import {
   paymentApprovedNotification,
@@ -43,6 +48,8 @@ const SUBMISSION_SELECT = {
   id: true,
   userId: true,
   planId: true,
+  amount: true,
+  currency: true,
   subscriptionId: true,
   method: true,
   transferReference: true,
@@ -61,6 +68,8 @@ function submissionToDto(row: SubmissionRow): Record<string, unknown> {
     id: row.id,
     userId: row.userId,
     planId: row.planId,
+    amount: Number(row.amount),
+    currency: row.currency,
     subscriptionId: row.subscriptionId,
     method: row.method,
     transferReference: row.transferReference,
@@ -119,7 +128,7 @@ export class PaymentsService {
   ): Promise<Record<string, unknown>> {
     const plan = await this.prisma.subscriptionPlan.findFirst({
       where: { id: input.plan_id },
-      select: { id: true, role: true, isActive: true },
+      select: { id: true, role: true, isActive: true, price: true, currency: true },
     });
     if (plan === null) {
       throw new NotFoundException('Plan not found');
@@ -152,18 +161,38 @@ export class PaymentsService {
       });
     }
 
-    const row = await this.prisma.paymentSubmission.create({
-      data: {
-        userId,
-        planId: input.plan_id,
-        method: input.method as PaymentMethodType,
-        transferReference: input.transfer_reference,
-        proofStorageKey: null,
-        status: 'pending',
-      },
-      select: SUBMISSION_SELECT,
-    });
-    return submissionToDto(row);
+    try {
+      const row = await this.prisma.paymentSubmission.create({
+        data: {
+          userId,
+          planId: input.plan_id,
+          amount: plan.price,
+          currency: plan.currency,
+          method: input.method as PaymentMethodType,
+          transferReference: input.transfer_reference,
+          proofStorageKey: null,
+          status: 'pending',
+        },
+        select: SUBMISSION_SELECT,
+      });
+      return submissionToDto(row);
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+      const existing = await this.prisma.paymentSubmission.findFirst({
+        where: {
+          userId,
+          planId: input.plan_id,
+          transferReference: input.transfer_reference,
+        },
+        select: SUBMISSION_SELECT,
+      });
+      if (existing !== null && existing.status === 'pending') {
+        return submissionToDto(existing);
+      }
+      throw new ConflictException('Payment submission already exists');
+    }
   }
 
   /** Own submissions, newest first (resubmission history is preserved). */
@@ -289,6 +318,8 @@ export class PaymentsService {
             id: true,
             userId: true,
             planId: true,
+            amount: true,
+            currency: true,
             status: true,
             plan: { select: { isActive: true, role: true } },
             user: { select: { role: true } },
@@ -362,6 +393,8 @@ export class PaymentsService {
               subscriptionId: subscription.id,
               userId: submission.userId,
               planId: submission.planId,
+              amount: Number(submission.amount),
+              currency: submission.currency,
               ...(note !== undefined ? { note } : {}),
             } as never,
           },
@@ -407,19 +440,22 @@ export class PaymentsService {
   ): Promise<Record<string, unknown>> {
     const result = await this.prisma.$transaction(
       async (tx) => {
+        const submission = await tx.paymentSubmission.findFirst({
+          where: { id },
+          select: { userId: true, status: true },
+        });
+        if (submission === null) {
+          return 'not-found' as const;
+        }
+        if (submission.status !== 'pending') {
+          return 'stale' as const;
+        }
         const claimed = await tx.paymentSubmission.updateMany({
           where: { id, status: 'pending' },
           data: { status: 'rejected', reviewedByAdminId: adminId, reviewedAt: new Date() },
         });
         if (claimed.count === 0) {
           return 'stale' as const;
-        }
-        const submission = await tx.paymentSubmission.findFirst({
-          where: { id },
-          select: { userId: true },
-        });
-        if (submission === null) {
-          return 'not-found' as const;
         }
         await tx.auditLog.create({
           data: {

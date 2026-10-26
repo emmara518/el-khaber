@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
+import { toUserMessage } from '../../../lib/api-error';
 import { ApiMerchantProfileDataSource } from '../profile/api-merchant-profile-data-source';
 
 import {
@@ -66,7 +67,7 @@ export function useMerchantOnboardingViewModel(
         setSubmitted(result);
         setSubmitStatus('submitted');
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'فشل إرسال بيانات المتجر');
+        setSubmitError(toUserMessage(err, 'فشل إرسال بيانات المتجر'));
         setSubmitStatus('error');
       }
     })();

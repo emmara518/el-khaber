@@ -163,7 +163,7 @@ export class ServiceRequestsService {
     }
     if (input.service_id !== undefined) {
       const service = await this.prisma.service.findFirst({
-        where: { id: input.service_id },
+        where: { id: input.service_id, applianceCategoryId: input.appliance_category_id },
         select: { id: true },
       });
       if (service === null) {
@@ -172,7 +172,7 @@ export class ServiceRequestsService {
     }
     if (input.fault_id !== undefined) {
       const fault = await this.prisma.fault.findFirst({
-        where: { id: input.fault_id },
+        where: { id: input.fault_id, applianceCategoryId: input.appliance_category_id },
         select: { id: true },
       });
       if (fault === null) {

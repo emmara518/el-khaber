@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   alertErrorText: {
-    color: color.error.DEFAULT,
+    color: color.error.ink,
   },
   link: {
     minHeight: 44,

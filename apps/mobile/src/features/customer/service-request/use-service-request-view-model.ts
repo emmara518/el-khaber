@@ -9,6 +9,8 @@
 
 import { useCallback, useEffect, useReducer, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../../lib/api-error';
+
 import {
   ApiServiceRequestDataSource,
   type ServiceRequestDataSource,
@@ -103,7 +105,7 @@ export function useServiceRequestViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setFormError(err instanceof Error ? err : new Error(String(err)));
+        setFormError(toUserError(err, 'تعذّر إرسال الطلب. حاول مرة أخرى.'));
         setFormStatus('error');
       });
     return () => {
@@ -152,7 +154,7 @@ export function useServiceRequestViewModel(
         setFailedPhotos(failed);
         setSubmitStatus(failed.length === 0 ? 'success' : 'partial');
       } catch (err) {
-        setSubmitError(err instanceof Error ? err.message : 'فشل إرسال الطلب. حاول مرة أخرى');
+        setSubmitError(toUserMessage(err, 'فشل إرسال الطلب. حاول مرة أخرى'));
         setSubmitStatus('error');
       }
     })();
@@ -192,7 +194,7 @@ export function useServiceRequestViewModel(
           dispatch({ type: 'SET_LOCATION', locationId: created.id });
           setLocationStatus('idle');
         } catch (err) {
-          setLocationError(err instanceof Error ? err.message : 'تعذر حفظ الموقع. حاول مجددًا');
+          setLocationError(toUserMessage(err, 'تعذر حفظ الموقع. حاول مجددًا'));
           setLocationStatus('error');
         }
       })();

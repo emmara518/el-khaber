@@ -14,6 +14,7 @@ import { useTechnicianReviewsViewModel } from './use-technician-reviews-view-mod
 import type { TechnicianReviewsDataSource } from './technician-reviews-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber } from '@/lib/api-format';
 import {
   AppHeader,
   Card,
@@ -58,7 +59,7 @@ export default function TechnicianReviewsScreen({
             <Card background={color.brand.navy} borderColor={color.brand.navy} padded style={styles.summary}>
               <RatingStars rating={data.rating} reviewCount={data.reviewCount} onDark />
               <Text style={styles.summaryText}>
-                {data.reviewCount} {t('tech.reviews.count')}
+                {formatArNumber(data.reviewCount)} {t('tech.reviews.count')}
               </Text>
             </Card>
 
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
   summaryText: { ...type.body, color: color.brand.goldSoft },
   list: { gap: spacing[3] },
   review: { gap: spacing[1] },
-  reviewTop: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between' },
+  reviewTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   reviewAuthor: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
   reviewDate: { ...type.caption, color: color.text.secondary },
   reviewText: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },

@@ -4,7 +4,9 @@
 here. Production values are **NOT VERIFIED** until issue #25 records the
 platform setup evidence.
 **Release:** `release/v2.1.0-uat` @
-`4506bd7aed56cbdf9b53720f63fed2d4db8dd49c`
+`739f9ebc964d0415686f1827942d8b07a3f70c30`
+**Verified candidate (not merged):** `a528d94b220c0ff03bee88b47d434fe25f134718`
+on `release/v2.1.0-rc-20261026` — see `V2.1.0-RC-20261026.md`
 
 ## Runtime
 
@@ -17,6 +19,8 @@ platform setup evidence.
 | `TRUST_PROXY_HOPS` | `1` | Numeric; one trusted proxy hop; update only if topology changes |
 | `REPLICAS` | `1` for launch | General HTTP throttle is per-instance; login lockout is PostgreSQL-backed |
 | `MULTI_INSTANCE` | `false` for launch | Informational topology log; do not claim horizontal scale |
+| `APP_VERSION` | optional | Human-readable version returned by `/api/v1/version`; non-sensitive |
+| `GIT_COMMIT_SHA` | optional | Build identity for `/api/v1/version`; Render/Railway/Vercel inject their own equivalents automatically. Never a secret |
 
 ## Database
 

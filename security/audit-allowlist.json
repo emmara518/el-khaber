@@ -32,6 +32,14 @@
       "owner": "emmara518",
       "expiresAt": "2026-11-20",
       "remediation": "Re-evaluate with the Expo SDK upgrade; remove if micromatch/braces bump becomes available."
+    },
+    {
+      "id": "GHSA-mrhx-c7xc-m3w5",
+      "package": "zod",
+      "justification": "CVE-2023-54404 requires an UNBOUNDED array schema to accumulate per-element issues. Every array schema in the request-validation surface is bounded: tag_ids max 10 and technician areas max 10 (packages/shared-validation/src/index.ts). Non-array payloads fail with a single type issue. Nest/Express also caps JSON bodies at 100kb. Zod 3.x has no backport; the only fix is zod 4.6.6, a breaking major upgrade that is outside release-prep scope.",
+      "owner": "emmara518",
+      "expiresAt": "2026-11-26",
+      "remediation": "Schedule the zod 4 migration in a dedicated task; re-review this waiver before expiry. Add .max() to any new array schema."
     }
   ]
 }
