@@ -2,7 +2,12 @@ name: ci
 
 on:
   push:
-    branches: [main, release/v2.1.0-uat, review/final-production-release]
+    # Release candidates must be CI-verified on push; a green run on a
+    # different branch is not evidence for the candidate SHA.
+    branches:
+      - main
+      - release/**
+      - review/final-production-release
   # The V2.1 work is reviewed as a stacked PR chain; every base branch in
   # that stack must run CI, not only main.
   pull_request:
