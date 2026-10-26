@@ -8,6 +8,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiCustomerRequestsDataSource } from './api-customer-requests-data-source';
 
 import type { CustomerRequestsDataSource, CustomerRequestsViewModel } from './customer-requests-types';
@@ -44,7 +46,7 @@ export function useCustomerRequestsViewModel(source?: CustomerRequestsDataSource
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل الطلبات. حاول مرة أخرى.'),
         });
       });
     return () => {

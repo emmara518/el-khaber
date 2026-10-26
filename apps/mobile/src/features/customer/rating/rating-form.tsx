@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

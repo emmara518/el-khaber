@@ -12,7 +12,7 @@ import { Body, Controller, HttpCode, Param, Post, UseGuards } from '@nestjs/comm
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
-import { CurrentUser, type RequestUser } from '../common/decorators';
+import { CurrentUser, Roles, type RequestUser } from '../common/decorators';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { ApiEnvelopeError, ApiEnvelopeOk, ApiZodBody } from '../common/openapi/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -48,6 +48,7 @@ export class ProofController {
    */
   @Post('subscriptions/:id/proof-upload-url')
   @HttpCode(200)
+  @Roles('customer', 'technician', 'merchant')
   @ApiZodBody(proofUploadUrlSchema)
   @ApiEnvelopeOk('ProofUploadUrlDto', 200, 'Presigned PUT URL + server-generated storage key.')
   @ApiEnvelopeError(404, 'Submission not found or not owned.')
@@ -66,6 +67,7 @@ export class ProofController {
    */
   @Post('subscriptions/:id/proof-confirm')
   @HttpCode(200)
+  @Roles('customer', 'technician', 'merchant')
   @ApiZodBody(proofConfirmSchema)
   @ApiEnvelopeOk('PaymentSubmissionDto', 200, 'Proof validated and bound to the submission.')
   @ApiEnvelopeError(404, 'Submission not found or not owned.')

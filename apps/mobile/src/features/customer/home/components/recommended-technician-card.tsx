@@ -82,11 +82,9 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     gap: spacing[3],
-    direction: 'rtl',
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },
@@ -109,7 +107,6 @@ const styles = StyleSheet.create({
   },
   metaRow: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: spacing[3],
@@ -117,7 +114,6 @@ const styles = StyleSheet.create({
   },
   availability: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[1],
   },
@@ -129,7 +125,6 @@ const styles = StyleSheet.create({
   cta: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[1],
     minHeight: 40,

@@ -13,6 +13,8 @@ interface ReadinessResponse {
   status: 'ready';
   checks: {
     database: 'ok';
+    migrations: 'ok';
+    schema: 'ok';
   };
 }
 
@@ -28,8 +30,27 @@ export class HealthService {
 
   async readiness(): Promise<ReadinessResponse> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      return { status: 'ready', checks: { database: 'ok' } };
+      const [pendingRows, userRows] = await Promise.all([
+        this.prisma.$queryRaw<Array<{ pending: number }>>`
+          SELECT count(*)::int AS pending
+          FROM "_prisma_migrations"
+          WHERE finished_at IS NULL AND rolled_back_at IS NULL
+        `,
+        this.prisma.$queryRaw<Array<{ count: number }>>`
+          SELECT count(*)::int AS count FROM "users"
+        `,
+      ]);
+      const pending = Number(pendingRows[0]?.pending ?? 0);
+      if (pending !== 0) {
+        throw new Error(`database has ${String(pending)} unfinished migration(s)`);
+      }
+      // The users query proves the runtime role can read a critical migrated
+      // table, not merely open a TCP connection.
+      void userRows;
+      return {
+        status: 'ready',
+        checks: { database: 'ok', migrations: 'ok', schema: 'ok' },
+      };
     } catch (err) {
       const detail = err instanceof Error ? err.message : 'database unreachable';
       this.logger.error('readiness check failed', {

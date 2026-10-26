@@ -188,7 +188,15 @@ export class MerchantProductsService {
   }
 
   async remove(merchantId: string, id: string): Promise<void> {
-    // Documented in docs/07_API.md §17: permanent deletion, ownership-scoped.
+    // Preserve buyer/merchant conversation history. A product with any chat
+    // must be suspended instead of hard-deleted; the FK cascade would
+    // otherwise erase messages.
+    const conversations = await this.prisma.conversation.count({
+      where: { productId: id, product: { merchantId } },
+    });
+    if (conversations > 0) {
+      throw new ConflictException('Product has conversations; suspend it instead of deleting');
+    }
     const removed = await this.prisma.product.deleteMany({
       where: { id, merchantId },
     });

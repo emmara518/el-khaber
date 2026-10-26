@@ -13,9 +13,9 @@
  * Source: docs/16_V2_READINESS_AUDIT.md P0 item 3.
  */
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 
 import { getConfig } from '../../config/app.config';
 import { PrismaService } from '../../database/prisma.service';
@@ -34,13 +34,47 @@ export interface RateLimitPolicy {
   ttlSeconds: number;
 }
 
+/**
+ * `rate_limit_buckets.identifier` is VARCHAR(255). Long identifiers (a maximum
+ * length email plus an IPv6 address) must not surface a database error as a
+ * 500. Keys above this budget are replaced by a deterministic SHA-256 digest
+ * so the same input still maps to the same bucket.
+ */
+const MAX_IDENTIFIER_LENGTH = 200;
+const HASHED_IDENTIFIER_PREFIX = 'sha256:';
+
 @Injectable()
-export class RateLimitService {
+export class RateLimitService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RateLimitService.name);
   private readonly policies: Map<string, RateLimitPolicy>;
+  private pruneTimer: NodeJS.Timeout | null = null;
 
   constructor(private readonly prisma: PrismaService) {
     this.policies = this.buildPolicies();
+  }
+
+  onModuleInit(): void {
+    // Tests must not hold a timer/open handle. Production and local dev prune
+    // expired fixed windows once an hour; the timer is unref'ed so it never
+    // keeps the process alive during shutdown.
+    if (process.env['NODE_ENV'] === 'test') {
+      return;
+    }
+    this.pruneTimer = setInterval(() => {
+      void this.pruneExpired().catch((error: unknown) => {
+        this.logger.warn(
+          `rate-limit prune failed: ${error instanceof Error ? error.message : 'unknown'}`,
+        );
+      });
+    }, 60 * 60 * 1000);
+    this.pruneTimer.unref();
+  }
+
+  onModuleDestroy(): void {
+    if (this.pruneTimer !== null) {
+      clearInterval(this.pruneTimer);
+      this.pruneTimer = null;
+    }
   }
 
   private buildPolicies(): Map<string, RateLimitPolicy> {
@@ -98,6 +132,7 @@ export class RateLimitService {
       Math.floor(now.getTime() / (policy.ttlSeconds * 1000)) * (policy.ttlSeconds * 1000),
     );
     const resetAt = new Date(windowStart.getTime() + policy.ttlSeconds * 1000);
+    const bucketIdentifier = this.normalizeIdentifier(identifier);
 
     try {
       // The legacy UUID/timestamp defaults were intentionally removed by
@@ -107,7 +142,7 @@ export class RateLimitService {
       const bucket = await this.prisma.$queryRaw<{ count: number }[]>`
         INSERT INTO "rate_limit_buckets"
           ("id", "policy", "identifier", "window_start", "count", "updated_at")
-        VALUES (${randomUUID()}::uuid, ${policyName}, ${identifier}, ${windowStart}, 1, ${now})
+        VALUES (${randomUUID()}::uuid, ${policyName}, ${bucketIdentifier}, ${windowStart}, 1, ${now})
         ON CONFLICT ("policy", "identifier", "window_start") DO UPDATE
         SET "count" = "rate_limit_buckets"."count" + 1,
             "updated_at" = now()
@@ -158,12 +193,13 @@ export class RateLimitService {
     const windowStart = new Date(
       Math.floor(now.getTime() / (policy.ttlSeconds * 1000)) * (policy.ttlSeconds * 1000),
     );
+    const bucketIdentifier = this.normalizeIdentifier(identifier);
 
     const bucket = await this.prisma.rateLimitBucket.findUnique({
       where: {
         policy_identifier_windowStart: {
           policy: policyName,
-          identifier,
+          identifier: bucketIdentifier,
           windowStart,
         },
       },
@@ -189,9 +225,10 @@ export class RateLimitService {
     const windowStart = new Date(
       Math.floor(now.getTime() / (policy.ttlSeconds * 1000)) * (policy.ttlSeconds * 1000),
     );
+    const bucketIdentifier = this.normalizeIdentifier(identifier);
 
     await this.prisma.rateLimitBucket.deleteMany({
-      where: { policy: policyName, identifier, windowStart },
+      where: { policy: policyName, identifier: bucketIdentifier, windowStart },
     });
   }
 
@@ -207,6 +244,16 @@ export class RateLimitService {
       where: { windowStart: { lt: cutoff } },
     });
     return result.count;
+  }
+
+  /**
+   * Keep the stored key inside the VARCHAR(255) column budget. Short keys are
+   * unchanged (readable in the database); long keys are hashed deterministically.
+   */
+  private normalizeIdentifier(identifier: string): string {
+    if (identifier.length <= MAX_IDENTIFIER_LENGTH) return identifier;
+    const digest = createHash('sha256').update(identifier).digest('hex');
+    return `${HASHED_IDENTIFIER_PREFIX}${digest}`;
   }
 
   private sanitizeIdentifier(identifier: string): string {

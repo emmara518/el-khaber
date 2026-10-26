@@ -78,7 +78,6 @@ export class AdminUsersService {
       technicianProfile,
       merchantProfile,
       subscription,
-      technicianServicesCount,
       productsCount,
       serviceRequestsCount,
     ] = await Promise.all([
@@ -116,12 +115,19 @@ export class AdminUsersService {
           plan: { select: { code: true, nameAr: true } },
         },
       }),
-      this.prisma.service.count(),
       this.prisma.product.count({ where: { merchant: { userId: id } } }),
       this.prisma.serviceRequest.count({
         where: { OR: [{ customerId: id }, { technician: { userId: id } }] },
       }),
     ]);
+    // The technician's own attached catalog services — never the global
+    // service-catalog size (docs/09 §5 user detail).
+    const technicianServicesCount =
+      technicianProfile === null
+        ? 0
+        : await this.prisma.technicianService.count({
+            where: { technicianId: technicianProfile.id },
+          });
     return {
       user,
       profile,

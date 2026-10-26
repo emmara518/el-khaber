@@ -5,6 +5,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiConversationsDataSource } from './api-conversations-data-source';
 
 import type { ConversationsViewModel } from './conversations-types';
@@ -47,7 +49,7 @@ export function useConversationsViewModel(): ConversationsState {
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل المحادثات. حاول مرة أخرى.'),
         });
       });
     return () => {

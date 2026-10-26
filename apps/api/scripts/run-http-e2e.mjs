@@ -21,7 +21,7 @@ const shell = process.platform === 'win32';
 
 const testUrl =
   process.env.TEST_DATABASE_URL ??
-  'postgresql://khabir_test:khabir_test_pw@localhost:55432/khabir_test?schema=public';
+  'postgresql://khabir:khabir@localhost:5433/khabir_test?schema=public';
 
 // The harness imports the COMPILED app from dist/. Force a fresh emit so a
 // prior `nest build` (which deletes dist) followed by a stale incremental

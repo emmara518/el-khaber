@@ -53,6 +53,5 @@ const styles = StyleSheet.create({
   section: {
     paddingTop: spacing[6],
     gap: spacing[4],
-    direction: 'rtl',
   },
 });

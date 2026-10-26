@@ -43,14 +43,14 @@ export function StatusUnit({ status, label, icon, style }: StatusUnitProps) {
 }
 
 const TONE: Record<AnyStatus, string> = {
-  pending: color.warning.DEFAULT,
+  pending: color.warning.ink,
   accepted: color.brand.navy,
   on_the_way: color.brand.navy,
-  in_progress: color.success.DEFAULT,
+  in_progress: color.success.ink,
   scheduled: color.brand.navy,
   completed: color.text.secondary,
-  cancelled: color.error.DEFAULT,
-  active: color.success.DEFAULT,
+  cancelled: color.error.ink,
+  active: color.success.ink,
   suspended: color.text.secondary,
 };
 

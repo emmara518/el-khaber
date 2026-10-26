@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { toUserError } from '../../../lib/api-error';
 import { useSafeBack } from '../components/use-safe-back';
 
 import { ApiTechnicianDataSource } from './api-technician-data-source';
@@ -63,7 +64,7 @@ export default function TechnicianProfileScreen() {
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err : new Error(String(err)));
+        setError(toUserError(err, 'تعذّر تحميل بيانات الفني. حاول مرة أخرى.'));
         setStatus('error');
       });
     return () => {
@@ -153,14 +154,13 @@ function ProfileBody({
           />
           <View style={styles.identityCopy}>
             <VerificationBadge verified={technician.verified} />
-            <RatingStars rating={technician.rating} reviewCount={technician.reviewCount} />
+            <RatingStars rating={technician.rating} reviewCount={technician.reviewCount} onDark />
           </View>
         </View>
       </SceneHero>
       <View style={styles.editorial}>
         <SceneSection
           title={t('discovery.profile.about')}
-          eyebrow="نبذة"
           brandAsset="certified-technician"
         >
           <Text style={styles.body}>{technician.aboutAr}</Text>
@@ -228,7 +228,7 @@ function ProfileBody({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.brand.navy, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.brand.navy,  },
   content: { flexGrow: 1, backgroundColor: color.surface.subtle, paddingBottom: spacing[8] },
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4] },
   identity: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], marginTop: spacing[2] },

@@ -9,7 +9,7 @@
 
 import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { verificationCopy } from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
@@ -20,6 +20,7 @@ import { joinNonEmpty } from '@/lib/api-format';
 import {
   ActionButton,
   AppHeader,
+  AppSwitch,
   ApplianceThumb,
   BrandImage,
   Card,
@@ -146,16 +147,11 @@ export default function TechnicianHomeScreen() {
                   <Text style={styles.availabilityHint}>{t('tech.home.availability.saving')}</Text>
                 ) : null}
               </View>
-              <Switch
+              <AppSwitch
                 value={data.profile.available}
                 onValueChange={(next) => setAvailability(next)}
                 disabled={availabilitySaving}
                 accessibilityLabel={t('tech.home.availability.title')}
-                accessibilityState={{ checked: data.profile.available, disabled: availabilitySaving }}
-                aria-checked={data.profile.available}
-                trackColor={{ false: color.border.default, true: color.brand.goldSoft }}
-                thumbColor={data.profile.available ? color.brand.gold : color.surface.base}
-                ios_backgroundColor={color.border.default}
               />
             </View>
             {availabilityError !== null ? (
@@ -299,7 +295,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[5] },
   hero: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     backgroundColor: color.brand.goldSoft,
     borderRadius: radius.xl,
@@ -313,27 +308,26 @@ const styles = StyleSheet.create({
   heroTitle: { ...type.h1, color: color.brand.navy, textAlign: 'right', writingDirection: 'rtl' },
   heroBody: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl', opacity: 0.9 },
   heroArt: { width: 140, alignItems: 'center', justifyContent: 'center' },
-  statsRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  statsRow: { flexDirection: 'row', gap: spacing[2] },
   availabilityCard: { gap: spacing[3] },
   availabilityRow: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[3],
   },
   availabilityCopy: { flex: 1, minWidth: 0, gap: 2 },
-  availabilityLabelRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[2] },
+  availabilityLabelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
   availabilityDot: { width: 12, height: 12, borderRadius: radius.pill },
   dotOn: { backgroundColor: color.success.DEFAULT },
   dotOff: { backgroundColor: color.text.secondary },
   availabilityValue: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   availabilityHint: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
-  inlineError: { ...type.caption, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  inlineError: { ...type.caption, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl' },
   section: { gap: spacing[3] },
   stack: { gap: spacing[3] },
   activeCard: { gap: spacing[3] },
-  activeRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  activeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   activeCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
   activeTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
@@ -341,13 +335,12 @@ const styles = StyleSheet.create({
   requestCard: { padding: spacing[3] },
   requestTop: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing[2],
   },
   time: { ...type.caption, color: color.text.secondary },
-  quickRow: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  quickRow: { flexDirection: 'row', gap: spacing[2] },
   quickTile: {
     flex: 1,
     minWidth: 0,

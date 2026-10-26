@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     gap: spacing[2],
     paddingVertical: spacing[2],
     flexGrow: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
   },
   bubbleRow: {
     flexDirection: 'row',
@@ -417,16 +417,16 @@ const styles = StyleSheet.create({
   },
   bubbleRetryText: {
     ...type.label,
-    color: color.brand.gold,
+    color: color.brand.goldInk,
   },
   sendError: {
     ...type.caption,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
   },
   errorText: {
     ...type.bodyMedium,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
   },
   muted: {
     ...type.body,

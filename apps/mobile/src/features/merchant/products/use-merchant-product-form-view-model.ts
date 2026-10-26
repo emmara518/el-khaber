@@ -9,8 +9,9 @@
 
 import { useCallback, useState } from 'react';
 
+import { toUserMessage } from '../../../lib/api-error';
+
 import { ApiMerchantProductsDataSource } from './api-merchant-products-data-source';
-import { ProductMutationError } from './merchant-product-types';
 
 import type {
   MerchantProduct,
@@ -55,11 +56,7 @@ export function useMerchantProductFormViewModel(
           setSaved(result);
           setStatus('success');
         } catch (err) {
-          setFormError(
-            err instanceof ProductMutationError || err instanceof Error
-              ? err.message
-              : 'تعذر تحديث المنتج. حاول مجددًا',
-          );
+          setFormError(toUserMessage(err, 'تعذر تحديث المنتج. حاول مجددًا'));
           setStatus('error');
         }
       })();

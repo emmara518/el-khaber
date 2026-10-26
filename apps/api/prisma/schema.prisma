@@ -63,12 +63,17 @@ model User {
   // Foundation field only; verification flow belongs to a later task.
   phoneVerified Boolean    @default(false) @map("phone_verified")
   emailVerified Boolean    @default(false) @map("email_verified")
+  // True after an authenticated email change until the new address is
+  // verified. Password reset is refused while pending, so a stolen access
+  // token cannot redirect recovery mail and take over the account.
+  emailChangePending Boolean @default(false) @map("email_change_pending")
   lastLoginAt   DateTime?  @map("last_login_at")
   createdAt     DateTime   @default(now()) @map("created_at")
   updatedAt     DateTime   @updatedAt @map("updated_at")
 
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
+  refreshTokens            RefreshToken[]
+  passwordResetTokens      PasswordResetToken[]
+  emailVerificationTokens  EmailVerificationToken[]
 
   // Domain back-relations (Task 10B). One role-specific profile per user.
   customerProfile            CustomerProfile?
@@ -80,6 +85,7 @@ model User {
   requestMediaUploads        ServiceRequestMedia[]
   customerReviews            Review[]
   conversationParticipations ConversationParticipant[]
+  initiatedConversations     Conversation[]             @relation("ConversationInitiator")
   sentMessages               Message[]
   favorites                  Favorite[]
   subscriptions              Subscription[]
@@ -112,6 +118,7 @@ model RateLimitBucket {
 
   @@unique([policy, identifier, windowStart])
   @@index([policy, identifier])
+  @@index([windowStart])
   @@map("rate_limit_buckets")
 }
 
@@ -167,6 +174,30 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+// -----------------------------------------------------------------------------
+// Email-change verification tokens (one-time, short-lived)
+// -----------------------------------------------------------------------------
+// An authenticated email change is not trusted for password recovery until
+// the new address proves ownership. The token is stored hashed and is
+// bound to the exact new address, so a later email change cannot be
+// verified with an older link.
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  newEmail  String    @map("new_email") @db.VarChar(254)
+  tokenHash String    @unique @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 // -----------------------------------------------------------------------------
@@ -494,6 +525,7 @@ model Fault {
   serviceRequests   ServiceRequest[]
 
   @@unique([applianceCategoryId, slug])
+  @@unique([id, applianceCategoryId])
   @@map("faults")
 }
 
@@ -514,6 +546,7 @@ model Service {
   serviceRequests   ServiceRequest[]
 
   @@unique([applianceCategoryId, slug])
+  @@unique([id, applianceCategoryId])
   @@map("services")
 }
 
@@ -587,6 +620,8 @@ model ServiceRequest {
 
   @@index([customerId])
   @@index([technicianId])
+  @@index([customerId, createdAt])
+  @@index([technicianId, createdAt])
   @@index([status])
   @@index([createdAt])
   @@index([locationId])
@@ -652,6 +687,7 @@ model Review {
   tagAssignments ReviewTagAssignment[]
 
   @@index([technicianId])
+  @@index([technicianId, createdAt])
   @@map("reviews")
 }
 
@@ -699,6 +735,7 @@ model Conversation {
 
   serviceRequest ServiceRequest?           @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
   product        Product?                  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  initiator      User?                     @relation("ConversationInitiator", fields: [initiatorUserId], references: [id], onDelete: Cascade)
   participants   ConversationParticipant[]
   messages       Message[]
 
@@ -883,6 +920,7 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -923,6 +961,7 @@ model AuditLog {
 
   @@index([entityType, entityId])
   @@index([actorAdminId])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -961,6 +1000,11 @@ model PaymentSubmission {
   id                String                  @id @default(uuid()) @db.Uuid
   userId            String                  @map("user_id") @db.Uuid
   planId            String                  @map("plan_id") @db.Uuid
+  // Commercial snapshot at submission time. Approval must not depend on a
+  // later plan-price change; the manual transfer is reconciled against the
+  // amount the user saw when submitting.
+  amount            Decimal                 @db.Decimal(10, 2)
+  currency          String                  @db.VarChar(8)
   // Linked subscription created by ADMIN approval (null while pending/rejected).
   subscriptionId    String?                 @map("subscription_id") @db.Uuid
   method            PaymentMethodType
@@ -983,6 +1027,7 @@ model PaymentSubmission {
   subscription    Subscription?    @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   reviewedByAdmin AdminUser?       @relation(fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, planId, transferReference])
   @@index([userId])
   @@index([status])
   @@index([planId])

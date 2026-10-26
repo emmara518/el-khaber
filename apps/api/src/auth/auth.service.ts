@@ -21,17 +21,26 @@ import {
   type AuthUserDto,
   type Role,
 } from '@khabir/shared-types';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { type Prisma, type UserRole, UserStatus } from '@prisma/client';
 
 
-import { ConflictException, AuthInvalidException, NotFoundException } from '../common/errors';
+import {
+  AuthInvalidException,
+  ConflictException,
+  NotFoundException,
+  ValidationException,
+} from '../common/errors';
 import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-login-attempt.guard';
 import { getConfig } from '../config/app.config';
 import { PrismaService } from '../database/prisma.service';
 
 import { hashPassword, verifyPassword } from './password';
+import {
+  PASSWORD_RESET_DELIVERY,
+  type PasswordResetDeliveryPort,
+} from './password-reset-delivery.port';
 import { generateOpaqueToken, hashToken } from './token.util';
 
 export interface RegisterInput {
@@ -82,6 +91,9 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly loginAttempts: SharedStoreLoginAttemptGuard,
+    @Optional()
+    @Inject(PASSWORD_RESET_DELIVERY)
+    private readonly delivery?: PasswordResetDeliveryPort,
   ) {}
 
   async register(input: RegisterInput, meta: AuthMetadata): Promise<AuthSessionDto> {
@@ -233,8 +245,10 @@ export class AuthService {
     if (!record || record.revokedAt !== null) {
       return;
     }
+    // Logout is a global security action: revoke every family, not just the
+    // presented device's family. Refresh must not outlive a global logout.
     await this.prisma.refreshToken.updateMany({
-      where: { familyId: record.familyId, revokedAt: null },
+      where: { userId: record.userId, revokedAt: null },
       data: { revokedAt: new Date(), revokedReason: 'logout' },
     });
     // Invalidate every access token issued to this user before the logout.
@@ -275,7 +289,7 @@ export class AuthService {
    */
   async updateContactInfo(
     userId: string,
-    input: { phone?: string; email?: string },
+    input: { phone?: string; email?: string; currentPassword?: string },
   ): Promise<AuthUserDto> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -287,6 +301,7 @@ export class AuthService {
       email?: string;
       phoneVerified?: boolean;
       emailVerified?: boolean;
+      emailChangePending?: boolean;
     } = {};
 
     if (input.phone !== undefined) {
@@ -311,12 +326,27 @@ export class AuthService {
     }
 
     if (input.email !== undefined && input.email !== user.email) {
+      // A reset-capable address is a security boundary. Require the current
+      // password so a stolen access token alone cannot redirect recovery
+      // mail. The new address remains pending until its one-time link is
+      // consumed (AUTH-001).
+      if (input.currentPassword === undefined || input.currentPassword.length === 0) {
+        throw new ValidationException('current_password is required to change email', {
+          current_password: 'Required',
+        });
+      }
+      const passwordOk = await verifyPassword(user.passwordHash, input.currentPassword);
+      if (!passwordOk) {
+        throw new AuthInvalidException('Current password is incorrect');
+      }
+
       const clash = await this.prisma.user.findUnique({ where: { email: input.email } });
       if (clash !== null && clash.id !== userId) {
         throw new ConflictException('email already in use');
       }
       data.email = input.email;
       data.emailVerified = false;
+      data.emailChangePending = true;
     }
 
     let updated: Prisma.UserGetPayload<Record<string, never>>;
@@ -336,7 +366,86 @@ export class AuthService {
       throw error;
     }
 
+    if (data.email !== undefined) {
+      await this.issueEmailVerification(userId, data.email);
+    }
+
     return toAuthUserDto(updated, await this.profileAvatarUrl(userId, updated.role as Role));
+  }
+
+  /**
+   * Consumes a one-time email-change verification token. The token is
+   * bound to the exact new address; a later email change invalidates it.
+   */
+  async verifyEmailChange(rawToken: string): Promise<void> {
+    const tokenHash = hashToken(rawToken);
+    const record = await this.prisma.emailVerificationToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+    const now = new Date();
+
+    if (
+      record === null ||
+      record.usedAt !== null ||
+      record.expiresAt.getTime() <= now.getTime() ||
+      record.user.email !== record.newEmail
+    ) {
+      throw new AuthInvalidException('Invalid or expired email verification token');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const claimed = await tx.emailVerificationToken.updateMany({
+        where: { id: record.id, usedAt: null, expiresAt: { gt: now } },
+        data: { usedAt: now },
+      });
+      if (claimed.count !== 1) {
+        throw new AuthInvalidException('Invalid or expired email verification token');
+      }
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { emailVerified: true, emailChangePending: false },
+      });
+    });
+  }
+
+  /**
+   * Issues a single live verification link for a pending address. The raw
+   * token is only handed to the delivery adapter; the database stores its
+   * SHA-256 hash. Delivery failure leaves the pending state in place so the
+   * address cannot be used for recovery; the user can change it again with
+   * the current password.
+   */
+  private async issueEmailVerification(userId: string, email: string): Promise<void> {
+    const rawToken = generateOpaqueToken(48);
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.emailVerificationToken.updateMany({
+        where: { userId, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      await tx.emailVerificationToken.create({
+        data: { userId, newEmail: email, tokenHash, expiresAt },
+      });
+    });
+
+    if (this.delivery?.sendEmailVerification === undefined) {
+      new Logger(AuthService.name).warn(
+        'email verification delivery is not configured; address remains pending',
+      );
+      return;
+    }
+
+    try {
+      await this.delivery.sendEmailVerification({ contact: { email }, rawToken });
+    } catch (error: unknown) {
+      const status = error instanceof Error ? error.name : 'unknown error';
+      new Logger(AuthService.name).warn(
+        `email verification delivery failed (token not logged): ${status}`,
+      );
+    }
   }
 
   /**

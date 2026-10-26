@@ -88,6 +88,8 @@ describe('HTTP E2E — security isolation', () => {
     expect(res.headers['referrer-policy']).toBe('no-referrer');
     expect(res.headers['strict-transport-security']).toContain('max-age=');
     expect(res.headers['x-powered-by']).toBeUndefined();
+    // The harness uses the same bootstrap helper as main.ts.
+    expect(ctx.app.getHttpAdapter().getInstance().get('trust proxy')).toBe(0);
   });
 
   it('customer cannot read another customer\'s request (identical 404)', async () => {
@@ -176,6 +178,65 @@ describe('HTTP E2E — security isolation', () => {
     expect(bFetch.status).toBe(404);
     const bPatch = await request(ctx.app.getHttpServer()).patch(`${base}/merchant/products/${productId}`).set(auth(b.accessToken)).send({ nameAr: 'hack' });
     expect(bPatch.status).toBe(404);
+  });
+
+  it('blocks hard-deleting a product that has buyer conversations', async () => {
+    const merchant = await register('merchant', 'sec-m-delete@example.com');
+    const customer = await register('customer', 'sec-c-delete@example.com');
+    await request(ctx.app.getHttpServer())
+      .patch(`${base}/merchant/profile`)
+      .set(auth(merchant.accessToken))
+      .send({ businessName: 'Delete Guard' })
+      .expect(200);
+
+    const product = await request(ctx.app.getHttpServer())
+      .post(`${base}/merchant/products`)
+      .set(auth(merchant.accessToken))
+      .send({ nameAr: 'Guarded product' })
+      .expect(201);
+    const productId = product.body.data.id as string;
+
+    await request(ctx.app.getHttpServer())
+      .get(`${base}/products/${productId}/conversation`)
+      .set(auth(customer.accessToken))
+      .expect(200);
+
+    const deletion = await request(ctx.app.getHttpServer())
+      .delete(`${base}/merchant/products/${productId}`)
+      .set(auth(merchant.accessToken));
+    expect(deletion.status).toBe(409);
+    expect(
+      await ctx.prisma.conversation.count({ where: { productId } }),
+    ).toBe(1);
+  });
+
+  it('rejects a service that belongs to a different appliance category', async () => {
+    const customer = await register('customer', 'sec-category@example.com');
+    const technician = await verifiedTechnician('sec-category-tech@example.com');
+    const loc = await location(customer);
+    const otherCategory = await ctx.prisma.applianceCategory.create({
+      data: { nameAr: 'Other category', slug: `other-${Date.now()}`, isActive: true },
+    });
+    const otherService = await ctx.prisma.service.create({
+      data: {
+        applianceCategoryId: otherCategory.id,
+        nameAr: 'Other service',
+        slug: `other-service-${Date.now()}`,
+        isActive: true,
+      },
+    });
+
+    const res = await request(ctx.app.getHttpServer())
+      .post(`${base}/service-requests`)
+      .set(auth(customer.accessToken))
+      .send({
+        technician_id: technician.profileId,
+        location_id: loc,
+        appliance_category_id: baseline.categoryId,
+        service_id: otherService.id,
+        problem_description: 'cross-category probe',
+      });
+    expect(res.status).toBe(404);
   });
 
   it('Admin authority is isolated: users cannot reach admin routes; admin token rejected on user routes', async () => {

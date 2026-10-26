@@ -7,6 +7,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../../lib/api-error';
+
 import { ApiTechnicianHomeDataSource } from './api-technician-home-data-source';
 import { availabilityLabelAr } from './technician-home-types';
 
@@ -54,7 +56,7 @@ export function useTechnicianHomeViewModel(
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل البيانات. حاول مرة أخرى.'),
         });
       });
     return () => {
@@ -93,7 +95,7 @@ export function useTechnicianHomeViewModel(
           );
         } catch (err) {
           setAvailabilityError(
-            err instanceof Error ? err.message : 'تعذر تحديث حالة التوفر. حاول مجددًا',
+            toUserMessage(err, 'تعذر تحديث حالة التوفر. حاول مجددًا'),
           );
         } finally {
           setAvailabilitySaving(false);

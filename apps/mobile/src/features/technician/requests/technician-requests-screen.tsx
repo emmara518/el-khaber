@@ -250,15 +250,15 @@ export default function TechnicianRequestsScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: color.surface.subtle },
   content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8], gap: spacing[4] },
-  filters: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  filters: { flexDirection: 'row', gap: spacing[2], paddingEnd: spacing[5] },
   list: { gap: spacing[3] },
   card: { gap: spacing[3] },
-  cardRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   cardCopy: { flex: 1, minWidth: 0, gap: spacing[1] },
   cardTitle: { ...type.cardTitle, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
-  metaRow: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[1] },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[1] },
   meta: { ...type.caption, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl', flexShrink: 1 },
-  actions: { flexDirection: 'row', direction: 'rtl', gap: spacing[2] },
+  actions: { flexDirection: 'row', gap: spacing[2] },
   acceptAction: { flex: 2 },
   rejectAction: { flex: 1 },
   inlineError: {
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing[3],
   },
-  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  inlineErrorText: { ...type.body, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl' },
   body: { ...type.body, color: color.text.primary, textAlign: 'right', writingDirection: 'rtl' },
   scrim: {
     flex: 1,

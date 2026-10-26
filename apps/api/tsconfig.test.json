@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    "incremental": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/http-e2e/**/*.ts",
+    "test/real-db-url.ts",
+    "test/real-db-url.spec.ts",
+    "test/config.spec.ts",
+    "test/structured-logger.spec.ts",
+    "test/uuid-param.spec.ts",
+    "test/configure-app.spec.ts",
+    "test/token-version.spec.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

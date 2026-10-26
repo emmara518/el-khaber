@@ -1,11 +1,51 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatArDate, formatArDateTime, formatArTime, formatArYear, isToday, joinNonEmpty, toArabicDigits } from './api-format';
+import {
+  formatArDate,
+  formatArDateTime,
+  formatArDecimal,
+  formatArNumber,
+  formatArPrice,
+  formatArTime,
+  formatArYear,
+  isToday,
+  joinNonEmpty,
+  toArabicDigits,
+} from './api-format';
 
 describe('toArabicDigits', () => {
   it('converts ASCII digits to Arabic-Indic digits', () => {
     expect(toArabicDigits(12)).toBe('١٢');
     expect(toArabicDigits(0)).toBe('٠');
+  });
+});
+
+describe('formatArNumber / formatArDecimal / formatArPrice', () => {
+  it('formats zero, one and grouped large counts with Arabic-Indic digits', () => {
+    expect(formatArNumber(0)).toBe('٠');
+    expect(formatArNumber(1)).toBe('١');
+    const large = formatArNumber(1234);
+    expect(large).toContain('١');
+    expect(large).toContain('٢');
+    expect(large).not.toMatch(/[0-9]/);
+  });
+
+  it('formats decimals with the requested fixed precision', () => {
+    const decimal = formatArDecimal(4.5, 1);
+    expect(decimal).toContain('٤');
+    expect(decimal).not.toMatch(/[0-9]/);
+    expect(formatArDecimal(5, 1)).toContain('٥');
+  });
+
+  it('keeps the documented Latin grouped price policy', () => {
+    expect(formatArPrice(0)).toBe('0 جنيه');
+    expect(formatArPrice(1234)).toBe('1,234 جنيه');
+  });
+
+  it('returns an empty string for non-finite input', () => {
+    expect(formatArNumber(Number.NaN)).toBe('');
+    expect(formatArDecimal(Number.POSITIVE_INFINITY, 1)).toBe('');
+    expect(formatArPrice(Number.NEGATIVE_INFINITY)).toBe('');
   });
 });
 

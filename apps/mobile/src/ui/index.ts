@@ -51,6 +51,7 @@ export { ActionButton, type ActionButtonVariant } from './action-button';
 export { StatTile } from './stat-tile';
 export { ListLoading, ListEmpty, ListError } from './list-states';
 export { AppHeader } from './app-header';
+export { AppSwitch, switchColors } from './app-switch';
 export { PageTitle } from './page-title';
 export { SectionHeading } from './section-heading';
 export { ApplianceThumb } from './appliance-thumb';

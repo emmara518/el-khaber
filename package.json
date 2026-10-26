@@ -9,7 +9,8 @@
   },
   "pnpm": {
     "overrides": {
-      "@nestjs/platform-express>multer": "2.4.0",
+      "@nestjs/platform-express>multer": "2.5.0",
+      "body-parser": "1.20.9",
       "express>proxy-addr": "2.0.8",
       "express>path-to-regexp": "0.1.13",
       "@nestjs/platform-express>express": "4.22.3",
@@ -21,7 +22,7 @@
       "@expo/cli>tar": "7.5.22",
       "cacache>tar": "7.5.22",
       "shell-quote": "1.11.0",
-      "undici": "6.28.1",
+      "undici": "6.29.1",
       "@xmldom/xmldom": "0.8.15",
       "brace-expansion@1": "1.1.20",
       "brace-expansion@2": "2.1.6",

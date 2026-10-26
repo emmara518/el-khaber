@@ -90,6 +90,45 @@ Do not introduce a new system merely because it exists.
 Do not reject a better implementation merely because an older primitive
 already exists.
 
+## 4A. UI Intelligence Stack
+
+Installed skill layers:
+
+- `.opencode/skills/` — project rules (`el-khabir-mobile-ui`,
+  `arabic-typography`, `radix-themes`) and UI/UX Pro Max design intelligence
+  (`ui-ux-pro-max` plus its `design`, `design-system`, `brand`,
+  `banner-design`, `slides`, `ui-styling` companions).
+- `.agents/skills/` — official Expo skills: `expo-overview`,
+  `expo-design-system`, `expo-animation`, `expo-router`, `expo-native-ui`.
+  Update with `npx skills@latest update`.
+
+Precedence for any visual or interaction work:
+
+1. AGENTS.md, `docs/`, and functional contracts
+2. `@khabir/ui-tokens` — the only source of color, spacing, radius, shadow,
+   typography
+3. `el-khabir-mobile-ui` — product visual language, assets, RTL, states
+4. Expo skills — implementation patterns for design systems, motion, routing
+5. UI/UX Pro Max — searchable design intelligence and UX checks
+
+Rules:
+
+- UI/UX Pro Max output is evidence, not authority. Its palettes, font pairings,
+  spacing scales and stack advice are candidates. Never let them override
+  `@khabir/ui-tokens`, the Arabic-first direction, or the local-asset law.
+- Apply Expo skills to the installed SDK, not to the newest SDK they describe.
+  Current mobile baseline: Expo SDK 52, React Native 0.76, expo-router 4,
+  Reanimated 3.16. Verify versioned APIs at
+  `https://docs.expo.dev/versions/v52.0.0/`. SDK 54+/56+ guidance (NativeTabs,
+  `@expo/ui`, Reanimated 4, expo-router `Color`) does not apply here.
+- Mobile styling is React Native `StyleSheet` + tokens. There is no
+  NativeWind/Tailwind and no `className` pipeline.
+- React Native Reusables is NativeWind/Uniwind-based (`className`,
+  `components.json`, `global.css`, `cn`). It is NOT drop-in compatible.
+  Use it as a component/interaction reference and port the result into `src/ui`
+  with `StyleSheet` + tokens. Adopting it is a styling-architecture migration
+  and requires an explicit decision.
+
 ## 5. MCP Strategy
 
 Available MCP resources:

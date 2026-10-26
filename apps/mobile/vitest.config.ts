@@ -26,6 +26,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      // Mirror the app's tsconfig `@/*` path alias for unit tests.
+      '@/': `${path.resolve(__dirname, 'src')}/`,
       // Node-env test stub for the native keychain module (see
       // test/stubs/expo-secure-store-stub.ts). Production resolution
       // is unchanged; the app uses the real module.

@@ -30,6 +30,47 @@ export function toArabicDigits(value: number): string {
     .join('');
 }
 
+/**
+ * Canonical user-facing number formatting: Arabic-Indic digits with
+ * Arabic locale grouping. Never use this for identifiers, codes, API
+ * payloads or calculations.
+ */
+export function formatArNumber(value: number): string {
+  if (!Number.isFinite(value)) return '';
+  try {
+    return new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 }).format(value);
+  } catch {
+    return toArabicDigits(Math.trunc(value));
+  }
+}
+
+/** Canonical decimal formatting (fixed digits) for ratings and similar. */
+export function formatArDecimal(value: number, digits = 1): string {
+  if (!Number.isFinite(value)) return '';
+  try {
+    return new Intl.NumberFormat(LOCALE, {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(value);
+  } catch {
+    return toArabicDigits(Number(value.toFixed(digits)));
+  }
+}
+
+/**
+ * Price display policy: Latin grouped digits beside the Arabic currency
+ * word (the existing documented bidi-stable rendering). Prices are not
+ * converted to Arabic-Indic digits; no slug/identifier may use this.
+ */
+export function formatArPrice(value: number): string {
+  if (!Number.isFinite(value)) return '';
+  try {
+    return `${new Intl.NumberFormat('en-US').format(value)} جنيه`;
+  } catch {
+    return `${String(value)} جنيه`;
+  }
+}
+
 function startOfDay(date: Date): number {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
 }

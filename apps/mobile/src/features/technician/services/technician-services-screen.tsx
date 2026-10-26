@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
   section: { gap: spacing[3] },
   list: { gap: spacing[3] },
   card: { gap: spacing[2] },
-  row: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   tile: {
     width: 56,
     height: 56,
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     padding: spacing[3],
   },
-  inlineErrorText: { ...type.body, color: color.error.DEFAULT, textAlign: 'right', writingDirection: 'rtl' },
+  inlineErrorText: { ...type.body, color: color.error.ink, textAlign: 'right', writingDirection: 'rtl' },
   bottomSpacer: { height: spacing[2] },
   scrim: { flex: 1, backgroundColor: color.overlay.scrim, justifyContent: 'flex-end' },
   scrimCenter: {
@@ -263,7 +263,6 @@ const styles = StyleSheet.create({
   },
   sheetHeader: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing[4],
@@ -272,7 +271,7 @@ const styles = StyleSheet.create({
   sheetTitle: { ...type.h3, color: color.text.primary, textAlign: 'right', fontFamily: fontFamily.bold },
   close: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
   catalog: { paddingHorizontal: spacing[4], paddingBottom: spacing[6], gap: spacing[3] },
-  catalogCard: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
+  catalogCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing[3] },
   muted: { ...type.body, color: color.text.secondary, textAlign: 'center', writingDirection: 'rtl', paddingVertical: spacing[5] },
   pressed: { opacity: 0.85 },
   disabledRow: { opacity: 0.5 },

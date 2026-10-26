@@ -52,11 +52,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: spacing[4],
     gap: spacing[3],
-    direction: 'rtl',
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },

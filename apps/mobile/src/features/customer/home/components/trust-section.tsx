@@ -30,7 +30,7 @@ export function TrustSection() {
   return (
     <View style={styles.row}>
       {ITEMS.map((item) => (
-        <View key={item.title} style={styles.card} accessible accessibilityLabel={`${item.title}، ${item.subtitle}`}>
+        <View key={item.title} style={styles.card}>
           <BrandImage name={item.asset} size={44} />
           <Text style={styles.title} numberOfLines={2}>
             {item.title}
@@ -47,7 +47,6 @@ export function TrustSection() {
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[2],
   },
   card: {

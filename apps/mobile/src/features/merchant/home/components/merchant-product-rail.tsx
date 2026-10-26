@@ -12,6 +12,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { type MerchantProduct } from '../../products/merchant-product-types';
 
+import { formatArPrice } from '@/lib/api-format';
 import { BrandImage, Card, StatusBadge, type } from '@/ui';
 
 export function MerchantProductRail({
@@ -32,7 +33,7 @@ export function MerchantProductRail({
           key={product.id}
           accessibilityRole="button"
           accessibilityLabel={`عرض تفاصيل ${product.nameAr}، الحالة: ${product.statusLabelAr}${
-            product.price !== null ? `، السعر: ${product.price} جنيه` : ''
+            product.price !== null ? `، السعر: ${formatArPrice(product.price)}` : ''
           }`}
           onPress={() => onPressProduct(product)}
           style={({ pressed }) => [pressed && styles.pressed]}
@@ -51,7 +52,7 @@ export function MerchantProductRail({
               {product.nameAr}
             </Text>
             {product.price !== null ? (
-              <Text style={styles.price}>{formatPriceAr(product.price)}</Text>
+              <Text style={styles.price}>{formatArPrice(product.price)}</Text>
             ) : (
               <Text style={styles.noPrice}>السعر غير محدد</Text>
             )}
@@ -63,18 +64,9 @@ export function MerchantProductRail({
   );
 }
 
-/**
- * Grouped price copy. Grouping uses Latin digits so the numeric run stays
- * bidi-stable beside the Arabic currency word.
- */
-export function formatPriceAr(value: number): string {
-  return `${new Intl.NumberFormat('en-US').format(value)} جنيه`;
-}
-
 const styles = StyleSheet.create({
   rail: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[3],
     paddingVertical: spacing[1],
   },

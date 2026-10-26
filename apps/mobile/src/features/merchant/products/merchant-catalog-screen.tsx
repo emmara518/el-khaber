@@ -24,7 +24,9 @@ import type { MerchantProductFilters } from './merchant-product-types';
 import type { MerchantProductsDataSource } from './mock-merchant-products-data-source';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber, formatArPrice } from '@/lib/api-format';
 import { ActionButton, AppHeader, Card, Chip, ListEmpty, ListError, ListLoading, PageTitle, ProductImage, SearchField, StatusBadge, type } from '@/ui';
+import { CONTENT_MAX_WIDTH } from '@/ui/layout';
 
 
 export default function MerchantCatalogScreen({
@@ -93,7 +95,9 @@ export default function MerchantCatalogScreen({
             })}
           </View>
 
-          <Text style={styles.count}>عدد المنتجات: {filterMerchantProducts(data, filters).length}</Text>
+          <Text style={styles.count}>
+            عدد المنتجات: {formatArNumber(filterMerchantProducts(data, filters).length)}
+          </Text>
 
           {renderList(filterMerchantProducts(data, filters), t)}
         </>
@@ -130,8 +134,8 @@ export default function MerchantCatalogScreen({
             key={product.id}
             accessibilityRole="button"
             accessibilityLabel={`عرض تفاصيل ${product.nameAr}، الحالة: ${product.statusLabelAr}${
-              product.price !== null ? `، السعر: ${product.price} جنيه` : ''
-            }${product.stockQuantity !== null ? `، المخزون: ${product.stockQuantity}` : ''}`}
+              product.price !== null ? `، السعر: ${formatArPrice(product.price)}` : ''
+            }${product.stockQuantity !== null ? `، المخزون: ${formatArNumber(product.stockQuantity)}` : ''}`}
             onPress={() => router.push({ pathname: '/(merchant)/products/[id]', params: { id: product.id } })}
             style={({ pressed }) => [pressed && styles.pressed]}
           >
@@ -146,13 +150,13 @@ export default function MerchantCatalogScreen({
                     {product.descriptionAr}
                   </Text>
                   {product.price !== null ? (
-                    <Text style={styles.price}>{product.price} جنيه</Text>
+                    <Text style={styles.price}>{formatArPrice(product.price)}</Text>
                   ) : (
                     <Text style={styles.noPrice}>{t('merchant.catalog.noPrice')}</Text>
                   )}
                   {product.stockQuantity !== null ? (
                     <Text style={styles.stock}>
-                      {t('merchant.catalog.stock')}: {product.stockQuantity}
+                      {t('merchant.catalog.stock')}: {formatArNumber(product.stockQuantity)}
                     </Text>
                   ) : null}
                 </View>
@@ -172,10 +176,11 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: color.surface.subtle,
-    direction: 'rtl',
   },
   content: {
-    direction: 'rtl',
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     paddingBottom: spacing[8],
   },
   header: {
@@ -218,7 +223,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'flex-start',
     gap: spacing[3],
   },

@@ -193,7 +193,6 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[2],
     flexWrap: 'wrap',
     justifyContent: 'center',
@@ -209,7 +208,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -224,7 +223,7 @@ const styles = StyleSheet.create({
   },
   successText: {
     ...type.bodyMedium,
-    color: color.success.DEFAULT,
+    color: color.success.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },

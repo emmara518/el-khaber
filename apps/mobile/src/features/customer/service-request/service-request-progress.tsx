@@ -27,7 +27,7 @@ export function ServiceRequestProgress({ index }: { index: number }) {
 }
 
 const styles = StyleSheet.create({
-  root: { paddingVertical: spacing[4], gap: spacing[2], direction: 'rtl' },
+  root: { paddingVertical: spacing[4], gap: spacing[2],  },
   groups: { flexDirection: 'row', gap: spacing[2] },
   group: { flex: 1, gap: spacing[2] },
   line: { height: 4, borderRadius: 2, backgroundColor: color.border.default },

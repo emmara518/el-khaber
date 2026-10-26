@@ -49,7 +49,11 @@ export class MeController {
     @CurrentUser() current: RequestUser,
     @Body(new ZodValidationPipe(updateMeSchema)) body: UpdateMeInput,
   ): Promise<ApiSuccess<MeDto>> {
-    const user = await this.auth.updateContactInfo(current.id, body);
+    const user = await this.auth.updateContactInfo(current.id, {
+      phone: body.phone,
+      email: body.email,
+      currentPassword: body.current_password,
+    });
     return { data: user };
   }
 }

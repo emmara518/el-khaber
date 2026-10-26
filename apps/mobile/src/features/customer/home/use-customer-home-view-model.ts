@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiCustomerHomeDataSource } from './api-customer-home-data-source';
 
 import type {
@@ -50,7 +52,7 @@ export function useCustomerHomeViewModel(): CustomerHomeViewModelResult {
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل البيانات. حاول مرة أخرى.'),
         });
       });
     return () => {

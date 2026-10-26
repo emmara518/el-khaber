@@ -51,7 +51,7 @@ export function LifecycleTimeline({ steps }: { steps: ReadonlyArray<LifecycleSte
 }
 
 const styles = StyleSheet.create({
-  step: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3], minHeight: 44 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], minHeight: 44 },
   marker: {
     width: 32,
     height: 32,

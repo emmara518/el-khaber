@@ -54,7 +54,6 @@ export function SocialAuthButtons({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[3],
   },
   button: {
@@ -62,7 +61,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
     minHeight: 52,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

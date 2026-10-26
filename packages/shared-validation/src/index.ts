@@ -94,6 +94,13 @@ export const resetPasswordSchema = z.object({
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+/** Verify a pending email change with the one-time token. */
+export const verifyEmailSchema = z.object({
+  token: z.string().min(20).max(4096),
+});
+
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
 // -----------------------------------------------------------------------------
 // Current user (docs/07_API.md §5)
 // -----------------------------------------------------------------------------
@@ -108,6 +115,9 @@ export const updateMeSchema = z
   .object({
     phone: phoneSchema.optional(),
     email: emailSchema.optional(),
+    // Required by the service when `email` actually changes. Kept optional
+    // in the schema so a phone-only update remains backward compatible.
+    current_password: z.string().min(1).max(128).optional(),
   })
   .refine((v) => v.phone !== undefined || v.email !== undefined, {
     message: 'at least one of phone or email is required',

@@ -13,12 +13,14 @@ import {
   refreshSchema,
   registerSchema,
   resetPasswordSchema,
+  verifyEmailSchema,
   type ForgotPasswordInput,
   type LoginInput,
   type LogoutInput,
   type RefreshInput,
   type RegisterInput,
   type ResetPasswordInput,
+  type VerifyEmailInput,
 } from '@khabir/shared-validation';
 import {
   Body,
@@ -116,6 +118,21 @@ export class AuthController {
   @ApiEnvelopeError(400, 'Validation failed (canonical error envelope).')
   async logout(@Body() body: LogoutInput): Promise<void> {
     await this.auth.logout(body.refreshToken);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(200)
+  @AuthThrottle()
+  @UsePipes(new ZodValidationPipe(verifyEmailSchema))
+  @ApiZodBody(verifyEmailSchema)
+  @ApiEnvelopeOk('VerifiedEmailDto', 200, 'Pending email change verified.')
+  @ApiEnvelopeError(401, 'Invalid, expired, or already-used verification token.')
+  async verifyEmail(
+    @Body() body: VerifyEmailInput,
+  ): Promise<ApiSuccess<{ verified: true }>> {
+    await this.auth.verifyEmailChange(body.token);
+    return { data: { verified: true } };
   }
 
   @Public()

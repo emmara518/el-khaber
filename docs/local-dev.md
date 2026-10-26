@@ -99,30 +99,51 @@ PostGIS is enabled per project. From the Supabase dashboard:
 ### 3.3 Create a dedicated Prisma database user (recommended)
 
 Using the Supabase project owner (`postgres`) for the application is
-discouraged. Create a dedicated user:
+discouraged. However, the migrations enable RLS with **no policies** because
+the API is the only data path. Therefore the runtime role MUST be either the
+table owner (with `FORCE ROW LEVEL SECURITY` off) or a dedicated role with
+`BYPASSRLS`. A non-owner role without `BYPASSRLS` sees zero rows and fails
+writes. This is the DB-001 contract.
 
-1. **SQL Editor → New query** (as project owner):
+1. **SQL Editor — New query** (as project owner):
 
    ```sql
    -- Replace <STRONG_PASSWORD> with a strong unique password.
    CREATE USER khabir_prisma WITH PASSWORD '<STRONG_PASSWORD>';
    GRANT CONNECT ON DATABASE postgres TO khabir_prisma;
    GRANT USAGE ON SCHEMA public TO khabir_prisma;
-   -- Migrations need to create / alter tables during development.
+
+   -- RLS has no permissive policies. The trusted API role must bypass RLS.
+   ALTER ROLE khabir_prisma BYPASSRLS;
+
+   -- Development convenience only. In production, use a separate migration
+   -- role with CREATE/DDL and keep the runtime role DML-only.
    GRANT CREATE ON DATABASE postgres TO khabir_prisma;
-   GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO khabir_prisma;
-   GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO khabir_prisma;
+   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO khabir_prisma;
+   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO khabir_prisma;
    ALTER DEFAULT PRIVILEGES IN SCHEMA public
-     GRANT ALL PRIVILEGES ON TABLES TO khabir_prisma;
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO khabir_prisma;
    ALTER DEFAULT PRIVILEGES IN SCHEMA public
-     GRANT ALL PRIVILEGES ON SEQUENCES TO khabir_prisma;
+     GRANT USAGE, SELECT ON SEQUENCES TO khabir_prisma;
    ```
 
 2. Record the username (`khabir_prisma`) and password in the
    password manager.
 
-> For production Supabase projects, restrict the Prisma user to the
-> minimum set of privileges the application actually needs.
+3. Before a production deploy, prove the role contract against the target:
+
+   ```sh
+   pnpm --filter @khabir/api db:check-runtime-role
+   ```
+
+   The script prints role/ownership/RLS flags and fails if the runtime role
+   would be blocked by the no-policy RLS setup. It never prints the URL or a
+   password.
+
+> **Production least privilege:** use a dedicated runtime role with
+> `BYPASSRLS` and only DML/sequence privileges. Do not give the runtime role
+> `CREATE`, `ALTER`, `DROP`, or table ownership; run migrations with a
+> separate migration role.
 
 ### 3.4 Configure `apps/api/.env`
 
@@ -371,7 +392,11 @@ pnpm --filter @khabir/api test:http-e2e
 ```
 
 - `docker-compose.test.yml` defines the local `khabir_test` container
-  (PostGIS, bind port `55432`, `tmpfs` data so it is fully disposable).
+  (PostGIS, bind port `5433`, `tmpfs` data so it is fully disposable).
+- For a per-session instance that cannot collide with other sessions, use
+  `apps/api/scripts/provision-session-db.mjs` +
+  `docker-compose.test-session.yml` (unique compose project, port `5434`);
+  tear it down with `apps/api/scripts/teardown-session-db.mjs`.
 - `apps/api/test/http-e2e/env.ts` fails closed: if `TEST_DATABASE_URL` is
   missing, points at Supabase, names a dev/production database, or the
   safety marker row is absent, the suite refuses to boot.

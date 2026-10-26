@@ -43,7 +43,10 @@ export function intervalLabelAr(interval: string): string | null {
 export function priceLineAr(price: number, currency: string, interval: string): string {
   const currencyAr = currencyLabelAr(currency);
   const intervalAr = intervalLabelAr(interval);
-  const parts: string[] = [currencyAr !== null ? `${String(price)} ${currencyAr}` : String(price)];
+  const amount = Number.isFinite(price)
+    ? new Intl.NumberFormat('en-US').format(price)
+    : String(price);
+  const parts: string[] = [currencyAr !== null ? `${amount} ${currencyAr}` : amount];
   if (intervalAr !== null) parts.push(intervalAr);
   return parts.join(' · ');
 }

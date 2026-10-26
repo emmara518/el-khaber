@@ -122,16 +122,28 @@ Allowed fields (Task 10C contract detail):
 ```json
 {
   "phone": "+201001234567",
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "current_password": "current account password"
 }
 ```
 
 - At least one of `phone` / `email` is required; absent fields are unchanged.
 - `role`, `status`, verification flags, and credentials are NOT writable.
 - Changing a contact channel resets that channel's verification flag.
+- Changing `email` requires `current_password` (400 if omitted, 401 if wrong).
+  The new address is marked pending and password recovery is refused until
+  `POST /auth/verify-email` consumes the one-time link sent to that address.
+  This prevents a stolen access token from redirecting recovery mail.
 - A contact channel already used by another account returns `409 CONFLICT`.
 
 Response: `{ "data": MeDto }`.
+
+### POST `/auth/verify-email`
+
+Body: `{ "token": "<one-time token>" }`. Consumes the pending email-change
+link exactly once; a later email change invalidates the old link. Returns
+`{ "data": { "verified": true } }`, or `401 AUTH_INVALID` for expired/reused
+or stale links.
 
 ### POST `/me/avatar` (WP-01, customer only)
 
@@ -612,12 +624,15 @@ Implementation notes (Task 10I):
 - `GET /subscription-plans` returns ACTIVE plans for the JWT role (role-aware,
   paginated). Inactive plans never appear and can never be purchased or granted.
 - `POST /subscriptions` creates a PENDING manual payment submission
-  (plan_id + method + transfer_reference). `proof_storage_key` is NOT
+  (plan_id + method + transfer_reference). The server snapshots the plan's
+  `amount` and `currency` onto the submission; later plan-price changes do
+  not rewrite history. `(user_id, plan_id, transfer_reference)` is unique,
+  so a retry returns the existing pending submission instead of creating a
+  duplicate; a reviewed duplicate returns `409`. `proof_storage_key` is NOT
   accepted on creation (400) — proof attaches post-creation through the
   proof endpoints below. The submission stays pending until an Admin
   approves/rejects it via
-  `/admin/payments/submissions/:id/approve|reject`. Resubmission = a new
-  submission (history immutable).
+  `/admin/payments/submissions/:id/approve|reject`.
 - WP-Proof — payment proof attach flow (private S3 bucket, never the
   public avatar bucket): `POST /subscriptions/:id/proof-upload-url`
   `{mime_type}` → server-generated key + presigned PUT → client PUTs
@@ -830,6 +845,8 @@ Admin routes should be namespaced and protected, e.g.:
 /admin/service-requests
 /admin/reviews
 /admin/subscriptions
+/admin/plans
+/admin/entitlements
 /admin/notifications
 /admin/content
 /admin/audit-logs
@@ -841,17 +858,41 @@ Implementation notes (WP-Admin-01…04):
 
 - Every admin route requires the admin authority AND the calling
   admin's role (`@AdminRoles`, docs/09 §19 matrix) — enforced
-  server-side against the database role; mismatches return 401.
+  server-side against the database role. Status semantics:
+  unauthenticated → `401`; authenticated but role not listed → `403`.
 - Verification decisions (`POST …/verification {status, reason?}`):
   `reason` (4–500 chars) is REQUIRED for `rejected`/`suspended`,
   audited, and notified to the user. No KYC document store exists —
   the reviewable record is the profile itself.
 - Technician assignment (`POST /admin/service-requests/:id/assign
 {technician_id}`): pending requests only, verified technicians
-  only, atomic, audited, both parties notified.
+  only, atomic, audited, both parties notified. This is an EXCEPTION path:
+  the normal flow is the technician accepting the customer's request in
+  the app; the UI labels it as an exceptional intervention.
+- Grant catalogs (`GET /admin/plans`, `GET /admin/entitlements`):
+  `super_admin` only. Return ACTIVE plans (`id, role, code, nameAr, price,
+  currency, billingInterval`) and ACTIVE entitlements (`id, code, nameAr,
+  featureGroup`) so the console can pick labels instead of raw UUIDs.
+  Read-only; no audit entry, no mutation.
+- Admin technician search (`GET /admin/technicians?q=`): matches the
+  profile `displayName` OR the owner user's `email`/`phone` (verified
+  filter still server-enforced).
 - Review removal (`POST /admin/reviews/:id/remove {reason}`):
   irreversible hard delete, so `reason` (4–500 chars) is REQUIRED and
   audited; technician metrics are recomputed.
+- Decision idempotence/ordering (verified behavior): approval checks
+  "user has no other effective active subscription" BEFORE claiming the
+  pending submission — so replaying an approval whose subscription
+  already exists returns `409 User already has an active subscription`
+  (not the stale-review message). Rejection claims
+  pending→rejected first; for an unknown but well-formed id this yields
+  `409 Payment submission has already been reviewed` while an unknown
+  id on approve still reads `404` (this asymmetry is documented, not a
+  contract change).
+- Path-parameter validation: the global `UuidParamPipe`
+  (`apps/api/src/common/uuid-param.pipe.ts`, registered APP_PIPE)
+  treats a malformed (non-UUID) `:id` as "absent" and responds the
+  generic `404 Not found` envelope before reaching the service.
 
 ---
 

@@ -30,7 +30,8 @@ export function tabIdForPathname(pathname: string): TechnicianTabId | null {
  * - `/orders/[id]` — request detail (own back action),
  * - `/active-service` — the service execution screen (own actions),
  * - `/reviews` — the reviews detail (own back action),
- * - `/settings` — the account settings surface (own back action).
+ * - `/settings` — the account settings surface (own back action),
+ * - `/subscription` — the subscription/payment surface (own back action).
  *
  * `/orders` (the list) remains a tab root and keeps the tab bar.
  */
@@ -39,6 +40,7 @@ export function isTechnicianFlowRoute(pathname: string): boolean {
   if (pathname === '/active-service') return true;
   if (pathname === '/reviews') return true;
   if (pathname === '/settings') return true;
+  if (pathname === '/subscription') return true;
   if (pathname.startsWith('/orders/')) return true;
   return false;
 }

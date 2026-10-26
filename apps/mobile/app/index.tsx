@@ -140,7 +140,6 @@ const styles = StyleSheet.create({
   },
   navigation: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'flex-end',
   },

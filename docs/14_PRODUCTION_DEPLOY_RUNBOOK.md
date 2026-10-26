@@ -55,7 +55,7 @@ or rely on the in-container migration gate (see §2 — it applies pending
 migrations automatically before each deploy, fail-closed):
 
 ```sh
-pnpm --filter @khabir/api exec prisma migrate status   # expect: 15 applied, 0 pending
+pnpm --filter @khabir/api exec prisma migrate status   # tree contains 27; verify actual target, 0 pending
 ```
 
 Expected migration chain (additive, non-destructive):
@@ -76,16 +76,28 @@ Expected migration chain (additive, non-destructive):
 20261011202423_revoke_rate_limit_buckets_client_acl
 20261013000000_notification_preferences
 20261017000000_notification_preferences_hardening
+20261020090000_schema_consistency_defaults
+20261020091000_drop_legacy_uuid_defaults
+20261020092000_align_relation_on_update
+20261022100000_email_change_verification
+20261022110000_public_acl_hardening
+20261022120000_payment_snapshot_idempotency
+20261022130000_service_fault_category_integrity
+20261022140000_conversation_initiator_integrity
+20261022150000_rate_limit_prune_index
+20261022160000_money_coordinate_checks
+20261022170000_query_indexes
+20261022180000_status_timestamp_invariants
 ```
 
-**BOOTSTRAPPED 2026-09-20:** `khabir-prod` exists (ref `gvobmjqxpacpmemvjbvw`,
-eu-west-1, PostgreSQL 17.6, PostGIS 3.3.7, uuid-ossp 1.1, pgcrypto 1.3) with
-the 7/7 chain applied and `migrate status` clean. **Phase H (2026-10-03)
-note:** the prod chain is therefore at **7 of 8** — migration
-`20260916000000_merchant_product_conversations` (Phase D, additive/nullable
-`service_request_id` + product conversation support) is **applied to
-khabir-dev but NOT yet to khabir-prod**. Deploying this release requires that
-one additive migration; it is non-destructive (no drops, no data rewrite).
+**Historical bootstrap (2026-09-20):** the old project note recorded a
+partially applied chain. That statement is historical and MUST NOT be used to
+infer the current production state. The repository now contains 27
+migrations; `prisma migrate status` against the actual target is the only
+authority. Production migration state is **NOT VERIFIED** by this audit.
+Do not deploy an image that predates `c903e06` after the
+`20261020091000` default-drop migration (see the rollback floor check).
+
 Platform notes learned
 during bootstrap: direct `db.<ref>.supabase.co:5432` is IPv6-only from most
 networks — run all DDL through the session-mode pooler

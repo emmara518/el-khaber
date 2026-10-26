@@ -19,6 +19,7 @@ import { useConversationsViewModel } from './use-conversations-view-model';
 import type { ConversationItem } from './conversations-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArNumber } from '@/lib/api-format';
 import { ListEmpty, ListError, ListLoading } from '@/ui';
 import { AppHeader, Avatar, Card, PageTitle, type, UnreadBadge } from '@/ui';
 import { SceneSection } from '@/ui/cinematic';
@@ -67,9 +68,8 @@ export default function ConversationsScreen() {
                 />
               ) : (
                 <SceneSection
-                  eyebrow="المحادثات"
-                  title={`${data.conversations.length} محادثة`}
-                  body="افتح المحادثة للتواصل مع الفني."
+                  title={`${formatArNumber(data.conversations.length)} محادثة`}
+                  body="افتح المحادثات للتواصل مع الفني."
                 >
                   <View style={styles.list}>
                     {data.conversations.map((conversation) => (
@@ -115,7 +115,7 @@ function ConversationRow({
     conversation.lastMessageAr !== null && conversation.lastMessageAr.trim().length > 0;
   const label = `افتح محادثة مع ${conversation.technicianNameAr}${
     conversation.orderRefAr.length > 0 ? `، ${conversation.orderRefAr}` : ''
-  }${conversation.unreadCount > 0 ? `. ${conversation.unreadCount} رسائل غير مقروءة` : ''}`;
+  }${conversation.unreadCount > 0 ? `. ${formatArNumber(conversation.unreadCount)} رسائل غير مقروءة` : ''}`;
   return (
     <Pressable
       accessibilityRole="button"
@@ -151,7 +151,7 @@ function ConversationRow({
               <Text style={styles.snippetEmpty}>لا توجد رسائل بعد</Text>
             )}
           </View>
-          <UnreadBadge count={conversation.unreadCount} />
+            <UnreadBadge count={conversation.unreadCount} format={formatArNumber} />
         </View>
       </Card>
     </Pressable>
@@ -162,7 +162,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: color.surface.subtle,
-    direction: 'rtl',
   },
   content: {
     paddingBottom: spacing[8],

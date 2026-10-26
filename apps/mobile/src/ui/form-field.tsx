@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
   },
   error: {
     ...type.caption,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     marginTop: spacing[1],
     textAlign: 'right',
     writingDirection: 'rtl',

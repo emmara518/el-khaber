@@ -20,7 +20,7 @@ const TABS: ReadonlyArray<ShellTab> = [
   { id: 'orders', labelAr: 'الطلبات', icon: 'clipboard', asset: 'my-requests' },
   { id: 'services', labelAr: 'الخدمات', icon: 'tool', asset: 'maintenance' },
   { id: 'messages', labelAr: 'الرسائل', icon: 'message-circle', asset: 'messages' },
-  { id: 'profile', labelAr: 'الملف الشخصي', icon: 'user', asset: 'profile' },
+  { id: 'profile', labelAr: 'حسابي', icon: 'user', asset: 'profile' },
 ];
 
 export default function TechnicianTabsLayout() {

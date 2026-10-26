@@ -1,0 +1,31 @@
+# Disposable per-session PostgreSQL for the real-HTTP E2E lane.
+
+# The database NAME must stay `khabir_test` — apps/api/test/http-e2e/env.ts
+# is fail-closed on the name. Isolation comes from a unique compose project,
+# container name and host port (never from the database name).
+#
+#   KHABIR_TEST_SESSION_ID=batch2 \
+#   KHABIR_TEST_SESSION_PORT=5434 \
+#     node apps/api/scripts/provision-session-db.mjs
+#
+# Always tear down with `teardown-session-db.mjs` (scoped to the session
+# compose project), never with a global `docker compose down`.
+services:
+  session-db:
+    image: postgis/postgis:16-3.4
+    container_name: ${KHABIR_TEST_SESSION_CONTAINER:?set KHABIR_TEST_SESSION_CONTAINER}
+    environment:
+      POSTGRES_USER: khabir_test
+      POSTGRES_PASSWORD: khabir_test_pw
+      POSTGRES_DB: khabir_test
+    ports:
+      - "${KHABIR_TEST_SESSION_PORT:-5434}:5432"
+    volumes:
+      - ./apps/api/prisma/test-db-init.sql:/docker-entrypoint-initdb.d/10-supabase-roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khabir_test -d khabir_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    tmpfs:
+      - /var/lib/postgresql/data

@@ -8,6 +8,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../../lib/api-error';
+
 import { ApiChatDataSource } from './api-chat-data-source';
 import {
   markMessage,
@@ -73,7 +75,7 @@ export function useChatViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err : new Error(String(err)));
+        setLoadError(toUserError(err, 'تعذّر تحميل الرسائل. حاول مرة أخرى.'));
         setLoadStatus('error');
       });
     return () => {
@@ -123,7 +125,7 @@ export function useChatViewModel(
           );
         } catch (err) {
           setMessages((current) => markMessage(current, pendingId, { status: 'error' }));
-          setSendError(err instanceof Error ? err.message : 'فشل إرسال الرسالة');
+          setSendError(toUserMessage(err, 'فشل إرسال الرسالة'));
         } finally {
           setSending(false);
         }

@@ -14,6 +14,7 @@ import { useStoreViewModel } from './use-store-view-model';
 
 import { useI18n } from '@/i18n/use-i18n';
 import { AppHeader, ListEmpty, ListError, ListLoading, PageTitle, screenReveal } from '@/ui';
+import { CONTENT_MAX_WIDTH } from '@/ui/layout';
 
 export function StoreListScreen({
   role,
@@ -75,8 +76,15 @@ export function StoreListScreen({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
-  content: { paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: spacing[8] },
+  root: { flex: 1, backgroundColor: color.surface.subtle },
+  content: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[4],
+    paddingBottom: spacing[8],
+  },
   list: { gap: spacing[3], marginTop: spacing[2] },
   bottomSpacer: { height: spacing[6] },
 });

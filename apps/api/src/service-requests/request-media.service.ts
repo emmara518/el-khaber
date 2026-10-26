@@ -153,11 +153,14 @@ export class RequestMediaService {
       const mimeType: RequestMediaMimeType = sniffed;
 
       const created = await this.prisma.$transaction(async (tx) => {
+        // Serialize confirms for this request so two simultaneous uploads
+        // cannot both observe count < maxPerRequest and exceed the cap.
+        await tx.$queryRaw`SELECT id FROM service_requests WHERE id = ${requestId}::uuid FOR UPDATE`;
         const count = await tx.serviceRequestMedia.count({ where: { serviceRequestId: requestId } });
         if (count >= maxPerRequest) {
           throw new ConflictException(`At most ${maxPerRequest} photos per request`);
         }
-        return tx.serviceRequestMedia.create({
+        const created = await tx.serviceRequestMedia.create({
           data: {
             serviceRequestId: requestId,
             uploadedByUserId: userId,
@@ -166,14 +169,17 @@ export class RequestMediaService {
             fileSize: header.sizeBytes as number,
           },
         });
-      });
-
-      await this.audit.log({
-        actorUserId: userId,
-        entityType: 'service_request',
-        entityId: requestId,
-        action: 'user.service_request.media_confirm',
-        after: { mediaId: created.id, storageKey, mimeType, sizeBytes: created.fileSize },
+        await this.audit.log(
+          {
+            actorUserId: userId,
+            entityType: 'service_request',
+            entityId: requestId,
+            action: 'user.service_request.media_confirm',
+            after: { mediaId: created.id, storageKey, mimeType, sizeBytes: created.fileSize },
+          },
+          tx,
+        );
+        return created;
       });
 
       return {

@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../../lib/api-error';
 import {
   pickProfilePhotoFromLibrary,
   profilePhotoSizeErrorAr,
@@ -67,7 +68,7 @@ export function useCustomerProfileViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err : new Error(String(err)));
+        setError(toUserError(err, 'تعذّر تحميل البيانات. حاول مرة أخرى.'));
         setStatus('error');
       });
     return () => {
@@ -143,7 +144,7 @@ export function useCustomerProfileViewModel(
         setPendingPhoto(null);
         setPhotoStatus('uploaded');
       } catch (err) {
-        setPhotoError(err instanceof Error ? err.message : 'فشل رفع الصورة. حاول مجددًا.');
+        setPhotoError(toUserMessage(err, 'فشل رفع الصورة. حاول مجددًا.'));
         setPhotoStatus('error');
       }
     })();
@@ -166,7 +167,7 @@ export function useCustomerProfileViewModel(
         setData(updated);
         setPhotoStatus('deleted');
       } catch (err) {
-        setPhotoError(err instanceof Error ? err.message : 'فشل حذف الصورة. حاول مجددًا.');
+        setPhotoError(toUserMessage(err, 'فشل حذف الصورة. حاول مجددًا.'));
         setPhotoStatus('error');
       }
     })();

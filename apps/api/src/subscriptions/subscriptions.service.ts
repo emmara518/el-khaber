@@ -17,7 +17,7 @@ import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 
-import { ConflictException } from '../common/errors';
+import { ConflictException, isUniqueConstraintError } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 import {
   entitlementGrantedNotification,
@@ -212,11 +212,11 @@ export class SubscriptionsService {
       if (before.status !== 'active') {
         return 'not-active' as const;
       }
-      await tx.subscription.updateMany({
-        where: { id: subscriptionId, userId, status: 'active' },
+      const updated = await tx.subscription.updateMany({
+        where: { id: subscriptionId, userId, status: 'active', renewalEnabled: true },
         data: { renewalEnabled: false, cancelledAt: new Date() },
       });
-      if (before.renewalEnabled) {
+      if (updated.count === 1) {
         await this.notifications.create(
           userId,
           {
@@ -225,8 +225,10 @@ export class SubscriptionsService {
           },
           tx,
         );
+        return 'cancelled' as const;
       }
-      return 'cancelled' as const;
+      // A concurrent request already cancelled this renewal.
+      return 'unchanged' as const;
     });
     if (result === 'not-found') {
       throw new NotFoundException('Subscription not found');
@@ -354,11 +356,13 @@ export class SubscriptionsService {
     if (existing !== null) {
       throw new ConflictException('Entitlement already granted to this user');
     }
-    const created = await this.prisma.$transaction(async (tx) => {
-      const grant = await tx.entitlementGrant.create({
-        data: { userId, entitlementId, grantedByAdminId: adminId },
-        select: { id: true },
-      });
+    let created: { id: string };
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const grant = await tx.entitlementGrant.create({
+          data: { userId, entitlementId, grantedByAdminId: adminId },
+          select: { id: true },
+        });
       await tx.auditLog.create({
         data: {
           actorAdminId: adminId,
@@ -378,8 +382,44 @@ export class SubscriptionsService {
         },
         tx,
       );
-      return grant;
-    });
+        return grant;
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        throw new ConflictException('Entitlement already granted to this user');
+      }
+      throw error;
+    }
     return { id: created.id, userId, entitlementId, code: entitlement.code };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Admin grant pickers (labels instead of raw ids)
+  // ---------------------------------------------------------------------------
+
+  /** Active plans for the manual-grant picker (super-admin only). */
+  async adminListPlans(): Promise<Array<Record<string, unknown>>> {
+    return this.prisma.subscriptionPlan.findMany({
+      where: { isActive: true },
+      orderBy: [{ role: 'asc' }, { sortOrder: 'asc' }, { nameAr: 'asc' }],
+      select: {
+        id: true,
+        role: true,
+        code: true,
+        nameAr: true,
+        price: true,
+        currency: true,
+        billingInterval: true,
+      },
+    });
+  }
+
+  /** Active entitlements for the manual-grant picker (super-admin only). */
+  async adminListEntitlements(): Promise<Array<Record<string, unknown>>> {
+    return this.prisma.entitlement.findMany({
+      where: { isActive: true },
+      orderBy: { nameAr: 'asc' },
+      select: { id: true, code: true, nameAr: true, featureGroup: true },
+    });
   }
 }

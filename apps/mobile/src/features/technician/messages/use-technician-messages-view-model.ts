@@ -5,6 +5,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiTechnicianMessagesDataSource } from './api-technician-messages-data-source';
 
 import type {
@@ -52,7 +54,7 @@ export function useTechnicianMessagesViewModel(
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل المحادثات. حاول مرة أخرى.'),
         });
       });
     return () => {

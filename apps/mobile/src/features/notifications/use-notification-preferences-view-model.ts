@@ -8,6 +8,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserMessage } from '../../lib/api-error';
+
 import {
   ApiNotificationsDataSource,
   type NotificationPreferences,
@@ -55,7 +57,7 @@ export function useNotificationPreferencesViewModel(
         setStatus('loaded');
       } catch (err: unknown) {
         if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'تعذر تحميل التفضيلات');
+        setError(toUserMessage(err, 'تعذر تحميل التفضيلات'));
         setStatus('error');
       }
     })();
@@ -78,7 +80,7 @@ export function useNotificationPreferencesViewModel(
           const saved = await stableSource.updatePreferences({ role, preferences: next });
           setPreferences(saved);
         } catch (err: unknown) {
-          setSaveError(err instanceof Error ? err.message : 'تعذر حفظ التفضيلات');
+          setSaveError(toUserMessage(err, 'تعذر حفظ التفضيلات'));
         } finally {
           setSaving(false);
         }

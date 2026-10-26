@@ -18,6 +18,7 @@ import { useTechnicianMessagesViewModel } from './use-technician-messages-view-m
 
 import type { TechnicianConversationItem } from './technician-messages-types';
 
+import { formatArNumber } from '@/lib/api-format';
 import {
   AppHeader,
   Avatar,
@@ -79,7 +80,7 @@ export default function TechnicianMessagesScreen() {
                     key={conversation.id}
                     accessibilityRole="button"
                     accessibilityLabel={`افتح محادثة ${conversation.orderRefAr}${
-                      conversation.unreadCount > 0 ? `، ${conversation.unreadCount} غير مقروء` : ''
+                      conversation.unreadCount > 0 ? `، ${formatArNumber(conversation.unreadCount)} غير مقروء` : ''
                     }`}
                     onPress={() => setOpen(conversation)}
                     style={({ pressed }) => [pressed && styles.pressed]}
@@ -111,7 +112,7 @@ export default function TechnicianMessagesScreen() {
                             <Text style={styles.snippetEmpty}>لا توجد رسائل بعد</Text>
                           )}
                         </View>
-                        <UnreadBadge count={conversation.unreadCount} />
+                        <UnreadBadge count={conversation.unreadCount} format={formatArNumber} />
                         <Icon name="chevron-left" size={20} color={color.brand.navy} />
                       </View>
                     </Card>
@@ -152,11 +153,10 @@ const styles = StyleSheet.create({
   },
   list: { gap: spacing[3] },
   card: { gap: spacing[2] },
-  row: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3] },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   middle: { flex: 1, minWidth: 0 },
   topLine: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'space-between',
   },

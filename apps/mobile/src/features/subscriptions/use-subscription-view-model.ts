@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../lib/api-error';
 import {
   pickProfilePhotoFromLibrary,
   profilePhotoSizeErrorAr,
@@ -133,7 +134,7 @@ export function useSubscriptionViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err instanceof Error ? err : new Error(String(err)));
+        setError(toUserError(err, 'تعذّر تحميل بيانات الاشتراك. حاول مرة أخرى.'));
         setStatus('error');
       });
     return () => {
@@ -152,7 +153,7 @@ export function useSubscriptionViewModel(
         const updated = await subs.cancelRenewal({ role, subscriptionId: current.id });
         setCurrent(updated ?? current);
       } catch (err) {
-        setCancelError(err instanceof Error ? err.message : 'تعذر إلغاء التجديد. حاول مجددًا');
+        setCancelError(toUserMessage(err, 'تعذر إلغاء التجديد. حاول مجددًا'));
       } finally {
         setCancelling(false);
       }
@@ -183,7 +184,7 @@ export function useSubscriptionViewModel(
           setSubmissions(nextSubmissions);
           setSubmitStatus('success');
         } catch (err) {
-          setSubmitError(err instanceof Error ? err.message : 'تعذر إرسال طلب الدفع. حاول مجددًا');
+          setSubmitError(toUserMessage(err, 'تعذر إرسال طلب الدفع. حاول مجددًا'));
           setSubmitStatus('error');
         }
       })();
@@ -296,7 +297,7 @@ export function useSubscriptionViewModel(
       try {
         await runProofUpload(submissionId, photo, grant);
       } catch (err) {
-        setProofError(err instanceof Error ? err.message : 'تعذر إرفاق الإثبات. حاول مجددًا.');
+        setProofError(toUserMessage(err, 'تعذر إرفاق الإثبات. حاول مجددًا.'));
         setProofStatus('error');
       }
     })();

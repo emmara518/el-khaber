@@ -110,6 +110,8 @@ describe.skipIf(!hasRealDb)('subscriptions + payments (isolated test database)',
       data: {
         userId: customer.id,
         planId: plan.id,
+        amount: 49.99,
+        currency: 'EGP',
         method: 'instapay',
         transferReference: `${PROBE}-TRX-1`,
         status: 'pending',

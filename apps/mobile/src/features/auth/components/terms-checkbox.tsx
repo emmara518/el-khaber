@@ -112,7 +112,6 @@ export function ConsentLink({
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[1],
     minHeight: 44,

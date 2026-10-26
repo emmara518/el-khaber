@@ -27,8 +27,20 @@ export interface PasswordResetDeliveryMessage {
   rawToken: string;
 }
 
+export interface EmailVerificationDeliveryMessage {
+  /** The new address that must prove ownership. */
+  contact: { email: string };
+  /** The raw one-time token. Only the delivery adapter ever sees it. */
+  rawToken: string;
+}
+
 export interface PasswordResetDeliveryPort {
   sendPasswordReset(message: PasswordResetDeliveryMessage): Promise<void>;
+  /**
+   * Optional for backwards compatibility with test doubles that only
+   * exercise password reset. Production adapters MUST implement it.
+   */
+  sendEmailVerification?(message: EmailVerificationDeliveryMessage): Promise<void>;
 }
 
 @Injectable()
@@ -39,6 +51,10 @@ export class DeferredPasswordResetDelivery implements PasswordResetDeliveryPort 
    * the raw token, and MUST NOT report success/delivery.
    */
   async sendPasswordReset(_message: PasswordResetDeliveryMessage): Promise<void> {
+    return undefined;
+  }
+
+  async sendEmailVerification(_message: EmailVerificationDeliveryMessage): Promise<void> {
     return undefined;
   }
 }

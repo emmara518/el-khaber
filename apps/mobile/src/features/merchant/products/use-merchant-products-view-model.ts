@@ -8,6 +8,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../../lib/api-error';
+
 import { ApiMerchantProductsDataSource } from './api-merchant-products-data-source';
 
 import type { MerchantProductDataSource } from './merchant-product-types';
@@ -68,7 +70,7 @@ export function useMerchantProductsViewModel(
           ...s,
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل المنتجات. حاول مرة أخرى.'),
         }));
       });
     return () => {
@@ -101,10 +103,7 @@ export function useMerchantProductsViewModel(
           setState((s) => ({
             ...s,
             mutationStatus: 'error',
-            mutationError:
-              err instanceof Error
-                ? err.message
-                : 'تعذر تحديث المنتج. حاول مجددًا',
+            mutationError: toUserMessage(err, 'تعذر تحديث المنتج. حاول مجددًا'),
           }));
         }
       })();
@@ -136,7 +135,7 @@ export function useMerchantProductsViewModel(
             ...s,
             deleteStatus: 'error',
             deleteError:
-              err instanceof Error ? err.message : 'تعذر حذف المنتج. حاول مجددًا',
+              toUserMessage(err, 'تعذر حذف المنتج. حاول مجددًا'),
           }));
         }
       })();

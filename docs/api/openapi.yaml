@@ -970,8 +970,13 @@ components:
       additionalProperties: false
       description: Manual payment submission (pending → approved | rejected by ADMIN only).
       properties:
+        amount:
+          format: double
+          type: number
         createdAt:
           format: date-time
+          type: string
+        currency:
           type: string
         id:
           format: uuid
@@ -1013,6 +1018,8 @@ components:
         - id
         - userId
         - planId
+        - amount
+        - currency
         - subscriptionId
         - method
         - transferReference
@@ -1282,10 +1289,8 @@ components:
               nullable: true
               type: string
             latitude:
-              nullable: true
               type: number
             longitude:
-              nullable: true
               type: number
             region:
               nullable: true
@@ -2099,6 +2104,34 @@ paths:
           description: Invalid, expired, or replayed refresh token.
       tags:
         - admin-auth
+  /api/v1/admin/entitlements:
+    get:
+      operationId: AdminGrantsController_listEntitlements
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminEntitlementOptionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active entitlements for manual grants.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/admin/entitlements/grant:
     post:
       operationId: AdminGrantsController_grantEntitlement
@@ -2755,6 +2788,34 @@ paths:
         - bearer: []
       tags:
         - admin-payments
+  /api/v1/admin/plans:
+    get:
+      operationId: AdminGrantsController_listPlans
+      parameters: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminPlanOptionDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Active subscription plans for manual grants.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/admin/reviews:
     get:
       operationId: AdminController_listReviews
@@ -3334,9 +3395,8 @@ paths:
               properties:
                 email:
                   type: string
-                phone:
-                  pattern: ^\+?[0-9]{7,15}$
-                  type: string
+              required:
+                - email
               type: object
         required: true
       responses:
@@ -3575,6 +3635,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Invalid, expired, or already-used reset token.
+      tags:
+        - auth
+  /api/v1/auth/verify-email:
+    post:
+      operationId: AuthController_verifyEmail
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                token:
+                  maxLength: 4096
+                  minLength: 20
+                  type: string
+              required:
+                - token
+              type: object
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/VerifiedEmailDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Pending email change verified.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Invalid, expired, or already-used verification token.
       tags:
         - auth
   /api/v1/avatars-file/*:
@@ -4091,6 +4191,10 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                current_password:
+                  maxLength: 128
+                  minLength: 1
+                  type: string
                 email:
                   type: string
                 phone:

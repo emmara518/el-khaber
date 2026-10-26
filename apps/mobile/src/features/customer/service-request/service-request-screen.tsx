@@ -57,6 +57,7 @@ import {
   PHOTOS_MAX,
   STEP_INDEX,
   problemsForAppliance,
+  validateStep,
   type RequestAttachment,
   type ServiceRequestDraft,
   type ServiceRequestHandoff,
@@ -70,6 +71,7 @@ import type { FaultGuideData } from '../fault-guide/fault-guide-types';
 import type { ApplianceSlug } from '../home/data/customer-home-types';
 
 import { useI18n } from '@/i18n/use-i18n';
+import { formatArDecimal, formatArNumber } from '@/lib/api-format';
 import { APPLIANCE_LABELS as APPLIANCE_TITLES, APPLIANCE_ORDER } from '@/lib/appliance-labels';
 import { ListError, ListLoading } from '@/ui';
 import { ApplianceIcon, Avatar, Card, Icon, SectionHeading, type } from '@/ui';
@@ -205,7 +207,7 @@ export default function ServiceRequestScreen({
           title={initialUpload ? t('request.success.uploading') : t('request.success.title')}
           body={
             initialUpload
-              ? `جارٍ رفع الصور… (${String(done)} من ${String(photosTotal)})`
+              ? `جارٍ رفع الصور… (${formatArNumber(done)} من ${formatArNumber(photosTotal)})`
               : 'يمكنك الآن متابعة حالة الطلب ورد الفني. إرسال الطلب لا يعني تأكيد موعد الزيارة.'
           }
           {...(initialUpload
@@ -228,7 +230,7 @@ export default function ServiceRequestScreen({
         {partial ? (
           <SceneSection
             title={t('request.success.partialTitle')}
-            body={`تم إنشاء الطلب، ولم تُرفع ${String(failedCount)} من ${String(photosTotal)} صورة. يمكنك إعادة المحاولة الآن أو المتابعة وسيظهر الطلب للفني.`}
+            body={`تم إنشاء الطلب، ولم تُرفع ${formatArNumber(failedCount)} من ${formatArNumber(photosTotal)} صورة. يمكنك إعادة المحاولة الآن أو المتابعة وسيظهر الطلب للفني.`}
           >
             <SceneAction
               icon="arrow-up"
@@ -244,7 +246,7 @@ export default function ServiceRequestScreen({
           <SceneSection title={technician.nameAr} eyebrow={orderReferenceLabel(submission.requestId)} body={submission.createdAtAr}>
             <Text style={styles.contextValue}>{vm.machine.draft.appliance ? APPLIANCE_TITLES[vm.machine.draft.appliance] : ''}</Text>
             {!partial && photosTotal > 0 ? (
-              <Text style={styles.contextValue}>{`تم رفع ${String(uploadedCount)} من ${String(photosTotal)} صورة`}</Text>
+              <Text style={styles.contextValue}>{`تم رفع ${formatArNumber(uploadedCount)} من ${formatArNumber(photosTotal)} صورة`}</Text>
             ) : null}
             <SceneAction variant="secondary" disabled={retryBusy} label={t('request.success.orders')} onPress={() => router.replace('/(customer)/requests')} />
           </SceneSection>
@@ -255,6 +257,7 @@ export default function ServiceRequestScreen({
 
   const { step, draft, stepError } = vm.machine;
   const scene = REQUEST_SCENES[step];
+  const nextBlocked = validateStep(draft, step) !== null;
 
   return (
     <KeyboardAvoidingView
@@ -356,7 +359,17 @@ export default function ServiceRequestScreen({
       {step !== 'review' ? (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing[4]) }]}>
           <SceneAction style={{ flex: 1 }} variant="secondary" icon={NAV_ICONS.back} label={t('request.back')} disabled={step === 'appliance'} onPress={() => vm.dispatch({ type: 'BACK' })} />
-          <SceneAction style={{ flex: 2 }} icon={NAV_ICONS.next} label={step === 'photos' && draft.photos.length === 0 ? t('request.photos.continue') : t('request.next')} onPress={() => vm.dispatch({ type: 'NEXT' })} />
+          <SceneAction
+            style={{ flex: 2 }}
+            icon={NAV_ICONS.next}
+            label={
+              step === 'photos' && draft.photos.length === 0
+                ? t('request.photos.continue')
+                : t('request.next')
+            }
+            disabled={nextBlocked}
+            onPress={() => vm.dispatch({ type: 'NEXT' })}
+          />
         </View>
       ) : null}
     </KeyboardAvoidingView>
@@ -388,7 +401,7 @@ function RequestHeader({ technician, onExit }: { technician: Technician; onExit:
           <View style={styles.techMetaRow}>
             <Icon name="star" size={13} color={color.brand.gold} accessible={false} />
             <Text style={styles.techMeta}>
-              {technician.specialtiesAr.join(' · ')} · {technician.rating.toFixed(1)}
+              {technician.specialtiesAr.join(' · ')} · {formatArDecimal(technician.rating, 1)}
             </Text>
           </View>
         </View>
@@ -508,7 +521,7 @@ function DescriptionStep({
     <View>
       <SectionHeading title={t('request.description.title')} />
       <TextInput
-        accessibilityLabel={`${t('request.description.title')}، ${draft.descriptionAr.length} من ${DESCRIPTION_MAX} حرف`}
+        accessibilityLabel={`${t('request.description.title')}، ${formatArNumber(draft.descriptionAr.length)} من ${formatArNumber(DESCRIPTION_MAX)} حرف`}
         placeholder={t('request.description.placeholder')}
         placeholderTextColor={color.text.secondary}
         value={draft.descriptionAr}
@@ -519,7 +532,7 @@ function DescriptionStep({
         numberOfLines={5}
       />
       <Text style={styles.counter}>
-        {draft.descriptionAr.length} / {DESCRIPTION_MAX}
+        {formatArNumber(draft.descriptionAr.length)} / {formatArNumber(DESCRIPTION_MAX)}
       </Text>
     </View>
   );
@@ -819,7 +832,7 @@ function PhotosStep({
           ))}
         </View>
       )}
-      <Text style={styles.photosCounter}>{`${String(photos.length)} من ${String(PHOTOS_MAX)} صور`}</Text>
+      <Text style={styles.photosCounter}>{`${formatArNumber(photos.length)} من ${formatArNumber(PHOTOS_MAX)} صور`}</Text>
       <View style={styles.photosActions}>
         <SceneAction
           icon="image"
@@ -840,7 +853,7 @@ function PhotosStep({
         />
       </View>
       {atLimit ? (
-        <Text style={styles.photosHint}>{`بلغت الحد الأقصى (${String(PHOTOS_MAX)} صور). أزل صورة لإضافة غيرها.`}</Text>
+        <Text style={styles.photosHint}>{`بلغت الحد الأقصى (${formatArNumber(PHOTOS_MAX)} صور). أزل صورة لإضافة غيرها.`}</Text>
       ) : null}
       <SceneAction label={t('request.photos.editDescription')} variant="secondary" icon="arrow-right" onPress={onEditDescription} />
     </SceneSection>
@@ -894,7 +907,12 @@ function ReviewStep({
     {
       key: 'photos',
       label: t('request.review.photos'),
-      value: draft.photos.length > 0 ? `${draft.photos.length} صور` : t('request.review.noPhotos'),
+      value:
+        draft.photos.length > 0
+          ? draft.photos.length === 1
+            ? 'صورة واحدة'
+            : `${formatArNumber(draft.photos.length)} صور`
+          : t('request.review.noPhotos'),
       step: 'photos',
     },
     {
@@ -951,7 +969,7 @@ function ReviewStep({
         loading={busy}
         loadingLabel={
           uploading
-            ? `جارٍ رفع الصور… (${String(uploadProgress?.done ?? 0)}/${String(uploadProgress?.total ?? 0)})`
+            ? `جارٍ رفع الصور… (${formatArNumber(uploadProgress?.done ?? 0)}/${formatArNumber(uploadProgress?.total ?? 0)})`
             : 'جارٍ إرسال الطلب…'
         }
         onPress={submitStatus === 'error' ? onRetrySubmit : onSubmit}
@@ -962,16 +980,14 @@ function ReviewStep({
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  applianceContext: { flexDirection: 'row', direction: 'rtl', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[4], borderBottomWidth: 1, borderBottomColor: color.border.default },
+  applianceContext: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[4], borderBottomWidth: 1, borderBottomColor: color.border.default },
   stepBody: { paddingVertical: spacing[4] },
   content: {
-    direction: 'rtl',
     paddingHorizontal: spacing[5],
     paddingTop: spacing[6],
     paddingBottom: spacing[6],
   },
   footer: {
-    direction: 'rtl',
     flexDirection: 'row',
     gap: spacing[3],
     paddingHorizontal: spacing[5],
@@ -1002,7 +1018,7 @@ const styles = StyleSheet.create({
   },
   exitText: {
     ...type.bodyMedium,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
   },
   techCard: {
     flexDirection: 'row',
@@ -1040,7 +1056,7 @@ const styles = StyleSheet.create({
   },
   inlineErrorText: {
     ...type.body,
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     textAlign: 'right',
     writingDirection: 'rtl',
   },
@@ -1365,7 +1381,6 @@ const styles = StyleSheet.create({
   },
   photosActions: {
     flexDirection: 'row',
-    direction: 'rtl',
     gap: spacing[3],
     marginTop: spacing[3],
   },

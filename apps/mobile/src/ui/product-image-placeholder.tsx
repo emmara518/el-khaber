@@ -18,13 +18,15 @@ export function ProductImagePlaceholder({
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel={`رسم توضيحي، ليس صورة المنتج: ${nameAr}${
-        hasImage ? '، تعذّر عرض صورة المنتج المسجلة' : ''
-      }`}
+      accessibilityLabel={
+        hasImage
+          ? `تعذّر عرض صورة المنتج المسجلة: ${nameAr}`
+          : `لا توجد صورة للمنتج: ${nameAr}`
+      }
       style={[styles.tile, style]}
     >
       <BrandImage name="spare-parts" size={size} />
-      <Text style={styles.label}>رسم توضيحي</Text>
+      <Text style={styles.label}>لا توجد صورة</Text>
     </View>
   );
 }

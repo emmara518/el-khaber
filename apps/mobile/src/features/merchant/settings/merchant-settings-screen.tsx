@@ -93,7 +93,7 @@ export default function MerchantSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle,  },
   content: { paddingBottom: spacing[8] },
   editorial: { paddingHorizontal: spacing[5], paddingTop: spacing[4], gap: spacing[4] },
   menu: { paddingHorizontal: 0, paddingVertical: spacing[2] },

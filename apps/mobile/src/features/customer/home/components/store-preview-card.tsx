@@ -48,12 +48,10 @@ const styles = StyleSheet.create({
     backgroundColor: color.brand.goldSoft,
     borderRadius: radius.xl,
     overflow: 'hidden',
-    direction: 'rtl',
     ...shadow.medium,
   },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'stretch',
   },
   stage: {
@@ -90,7 +88,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: color.brand.navy,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

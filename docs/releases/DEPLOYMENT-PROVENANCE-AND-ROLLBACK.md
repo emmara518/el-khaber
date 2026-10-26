@@ -107,12 +107,18 @@ Never include tokens, connection strings, or secret values.
 
 ### API
 
-1. Redeploy the previous known-good image/deployment.
-2. Verify `/health` and `/ready`.
-3. Confirm the migration gate did not re-run destructive changes.
-4. The `20261020091000_drop_legacy_uuid_defaults` migration is a default drop,
-   not a data rewrite; do not restore the defaults. Roll forward or restore
-   only with incident-commander approval.
+1. **Check the rollback floor before redeploying:**
+   `pnpm --filter @khabir/api release:check-rollback-target <ref>`.
+   The floor is `c903e06`; any earlier image fails after
+   `20261020091000_drop_legacy_uuid_defaults` because it inserts
+   `rate_limit_buckets` without `id`/`updated_at` (PostgreSQL `23502` on all
+   auth rate-limited routes). The script exits non-zero for such targets.
+2. Redeploy the previous known-good image/deployment at or above the floor.
+3. Verify `/health` and `/ready`.
+4. Confirm the migration gate did not re-run destructive changes.
+5. Do not restore the dropped defaults ad hoc. If an earlier image must be
+   restored, treat it as a schema-compatibility incident and require
+   incident-commander approval plus a tested compensating change.
 
 ### Database
 

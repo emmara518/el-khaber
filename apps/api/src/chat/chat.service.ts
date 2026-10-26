@@ -21,6 +21,7 @@
 import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { isUniqueConstraintError } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
 import type { ConversationDto, ConversationSummaryDto, MessageDto } from './types';
@@ -139,24 +140,44 @@ export class ChatService {
             where: { id: request.technicianId },
             select: { userId: true },
           });
-    const created = await this.prisma.$transaction(async (tx) => {
-      const conversation = await tx.conversation.create({
-        data: { serviceRequestId },
-      });
-      const participants: Array<{ conversationId: string; userId: string; roleSnapshot: string }> =
-        [{ conversationId: conversation.id, userId: request.customerId, roleSnapshot: 'customer' }];
-      if (technicianProfile !== null) {
-        participants.push({
-          conversationId: conversation.id,
-          userId: technicianProfile.userId,
-          roleSnapshot: 'technician',
+    let created: { id: string };
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const conversation = await tx.conversation.create({
+          data: { serviceRequestId },
         });
+        const participants: Array<{
+          conversationId: string;
+          userId: string;
+          roleSnapshot: string;
+        }> = [
+          { conversationId: conversation.id, userId: request.customerId, roleSnapshot: 'customer' },
+        ];
+        if (technicianProfile !== null) {
+          participants.push({
+            conversationId: conversation.id,
+            userId: technicianProfile.userId,
+            roleSnapshot: 'technician',
+          });
+        }
+        for (const participant of participants) {
+          await tx.conversationParticipant.create({ data: participant });
+        }
+        return conversation;
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
       }
-      for (const participant of participants) {
-        await tx.conversationParticipant.create({ data: participant });
+      const existingRow = await this.prisma.conversation.findFirst({
+        where: { serviceRequestId },
+        select: { id: true },
+      });
+      if (existingRow === null) {
+        throw error;
       }
-      return conversation;
-    });
+      return this.conversationDto(existingRow.id, request.status);
+    }
     return this.conversationDto(created.id, request.status);
   }
 
@@ -193,22 +214,37 @@ export class ChatService {
       return this.conversationDto(existing.id, null);
     }
 
-    const created = await this.prisma.$transaction(async (tx) => {
-      const conversation = await tx.conversation.create({
-        data: { productId, initiatorUserId: user.id },
+    let created: { id: string };
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const conversation = await tx.conversation.create({
+          data: { productId, initiatorUserId: user.id },
+        });
+        await tx.conversationParticipant.create({
+          data: { conversationId: conversation.id, userId: user.id, roleSnapshot: user.role },
+        });
+        await tx.conversationParticipant.create({
+          data: {
+            conversationId: conversation.id,
+            userId: merchant.userId,
+            roleSnapshot: 'merchant',
+          },
+        });
+        return conversation;
       });
-      await tx.conversationParticipant.create({
-        data: { conversationId: conversation.id, userId: user.id, roleSnapshot: user.role },
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+      const existingRow = await this.prisma.conversation.findFirst({
+        where: { productId, initiatorUserId: user.id },
+        select: { id: true },
       });
-      await tx.conversationParticipant.create({
-        data: {
-          conversationId: conversation.id,
-          userId: merchant.userId,
-          roleSnapshot: 'merchant',
-        },
-      });
-      return conversation;
-    });
+      if (existingRow === null) {
+        throw error;
+      }
+      return this.conversationDto(existingRow.id, null);
+    }
     return this.conversationDto(created.id, null);
   }
 

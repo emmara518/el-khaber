@@ -3,11 +3,11 @@ import 'reflect-metadata';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { type NestExpressApplication } from '@nestjs/platform-express';
-import cookieParser from 'cookie-parser';
 import { config as loadDotenv } from 'dotenv';
 
 import { AppModule } from './app.module';
-import { ApiExceptionFilter } from './common/api-exception.filter';
+import { configureApp } from './bootstrap/configure-app';
+import { NestStructuredLogger } from './common/structured-logger';
 import { getConfig } from './config/app.config';
 
 // Load environment variables from .env (development) before reading config.
@@ -56,52 +56,13 @@ async function bootstrap(): Promise<void> {
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  app.useLogger(new NestStructuredLogger());
 
   // Graceful shutdown: stop accepting connections and run lifecycle hooks
   // (Prisma disconnects in `onModuleDestroy`) before the process exits.
   app.enableShutdownHooks(['SIGTERM', 'SIGINT']);
 
-  app.setGlobalPrefix(config.globalPrefix);
-  app.use(cookieParser());
-
-  // AUD-007 (S-2): trust exactly config.trustProxyHops reverse-proxy hops
-  // so req.ip resolves to the real client address instead of the proxy
-  // edge IP. Numeric semantics (trust = i < hops): entries further left in
-  // X-Forwarded-For stay UNTRUSTED — a client cannot spoof the resolved
-  // address by padding the header, provided the last trusted proxy appends
-  // its own observation (Render does: X-Forwarded-For ends with the
-  // connecting client IP). Failure to set this makes every client share
-  // the proxy IP and breaks the (identifier, ip) login-lockout keying.
-  app.set('trust proxy', config.trustProxyHops);
-
-  // CORS. Origins are explicitly configured via CORS_ORIGINS. No wildcards.
-  // Credentials are allowed so httpOnly refresh cookies can be used by the
-  // Admin and Landing surfaces in later tasks. The mobile app uses Bearer
-  // tokens and does not need credentials.
-  if (config.corsOrigins.length > 0) {
-    app.enableCors({
-      origin: (origin, callback) => {
-        if (origin === undefined) {
-          callback(null, true);
-          return;
-        }
-        if (config.corsOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error(`CORS: origin '${origin}' not allowed`), false);
-        }
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    });
-  }
-
-  // NestJS-decorated DTOs would use a global ValidationPipe, but the
-  // API validates request payloads with zod via ZodValidationPipe per
-  // route. The global pipe is intentionally omitted so the
-  // `class-validator` package is not required.
-
-  app.useGlobalFilters(new ApiExceptionFilter());
+  configureApp(app);
 
   // Startup diagnostics (Task 11D). Non-secret configuration only.
   logger.log(

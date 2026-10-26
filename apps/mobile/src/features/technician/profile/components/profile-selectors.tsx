@@ -8,6 +8,7 @@
 import { color, radius, spacing, typography } from '@khabir/ui-tokens';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { formatArNumber } from '@/lib/api-format';
 import { Chip } from '@/ui/chip';
 
 export function LabeledInput({
@@ -67,7 +68,7 @@ export function MultiSelectChips<T extends string>({
     <View style={styles.field}>
       <Text
         accessibilityRole="header"
-        accessibilityLabel={`${label}. المحدد: ${selected.length}`}
+        accessibilityLabel={`${label}. المحدد: ${formatArNumber(selected.length)}`}
         style={styles.label}
       >
         {label}
@@ -111,7 +112,7 @@ export function CatalogChips({
 }) {
   return (
     <View style={styles.field}>
-      <Text accessibilityRole="header" accessibilityLabel={`${label}. المحدد: ${selected.length}`} style={styles.label}>
+      <Text accessibilityRole="header" accessibilityLabel={`${label}. المحدد: ${formatArNumber(selected.length)}`} style={styles.label}>
         {label}
       </Text>
       {groups.map((group) => (
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     borderColor: color.error.DEFAULT,
   },
   error: {
-    color: color.error.DEFAULT,
+    color: color.error.ink,
     fontSize: typography.size.caption,
     textAlign: 'right',
     writingDirection: 'rtl',

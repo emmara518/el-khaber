@@ -65,6 +65,13 @@ export function assertIsolatedTestDatabaseUrl(raw: string, source: string): stri
     );
   }
 
+  const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+  if (database !== 'khabir_test') {
+    throw new Error(
+      `${source} must target the dedicated khabir_test database, got '${database}'.`,
+    );
+  }
+
   return value;
 }
 

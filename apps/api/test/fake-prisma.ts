@@ -20,6 +20,7 @@ interface UserRow {
   status: Status;
   phoneVerified: boolean;
   emailVerified: boolean;
+  emailChangePending?: boolean;
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +66,16 @@ interface AdminRefreshRow {
 interface PasswordResetRow {
   id: string;
   userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+  createdAt: Date;
+}
+
+interface EmailVerificationRow {
+  id: string;
+  userId: string;
+  newEmail: string;
   tokenHash: string;
   expiresAt: Date;
   usedAt: Date | null;
@@ -307,6 +318,8 @@ interface PaymentSubmissionRow {
   id: string;
   userId: string;
   planId: string;
+  amount?: number;
+  currency?: string;
   subscriptionId: string | null;
   method: PaymentMethodValue;
   transferReference: string;
@@ -454,6 +467,7 @@ class FakePrismaClient {
   users: UserRow[] = [];
   refreshTokens: RefreshRow[] = [];
   passwordResetTokens: PasswordResetRow[] = [];
+  emailVerificationTokens: EmailVerificationRow[] = [];
   adminUsers: AdminRow[] = [];
   adminRefreshTokens: AdminRefreshRow[] = [];
   rateLimitBuckets: RateLimitBucketRow[] = [];
@@ -529,6 +543,12 @@ class FakePrismaClient {
         this.rateLimitBuckets.push(newBucket);
         return Promise.resolve([{ count: countVal }] as unknown as T[]);
       }
+    }
+    if (sql.includes('_prisma_migrations')) {
+      return Promise.resolve([{ pending: 0 }] as unknown as T[]);
+    }
+    if (sql.includes('FROM "users"')) {
+      return Promise.resolve([{ count: 1 }] as unknown as T[]);
     }
     return Promise.resolve([{ '?column?': 1 }] as unknown as T[]);
   }
@@ -815,6 +835,56 @@ class FakePrismaClient {
     },
   };
 
+  emailVerificationToken = {
+    findUnique: async (args: {
+      where: { tokenHash: string };
+      include?: { user: boolean };
+    }): Promise<(EmailVerificationRow & { user?: UserRow }) | null> => {
+      const row = this.emailVerificationTokens.find((x) => x.tokenHash === args.where.tokenHash);
+      if (!row) return null;
+      if (args.include?.user) {
+        const user = this.users.find((x) => x.id === row.userId);
+        if (!user) return null;
+        return { ...row, user };
+      }
+      return row;
+    },
+    create: async (args: {
+      data: Omit<EmailVerificationRow, 'id' | 'createdAt' | 'usedAt'> & { usedAt?: Date | null };
+    }): Promise<EmailVerificationRow> => {
+      const row: EmailVerificationRow = {
+        id: randomUUID(),
+        userId: args.data.userId,
+        newEmail: args.data.newEmail,
+        tokenHash: args.data.tokenHash,
+        expiresAt: args.data.expiresAt,
+        usedAt: args.data.usedAt ?? null,
+        createdAt: new Date(),
+      };
+      this.emailVerificationTokens.push(row);
+      return row;
+    },
+    updateMany: async (args: {
+      where: { id?: string; userId?: string; usedAt: null | Date; expiresAt?: { gt: Date } };
+      data: Partial<EmailVerificationRow>;
+    }): Promise<{ count: number }> => {
+      let count = 0;
+      this.emailVerificationTokens = this.emailVerificationTokens.map((row) => {
+        const matchesId = args.where.id === undefined || row.id === args.where.id;
+        const matchesUser = args.where.userId === undefined || row.userId === args.where.userId;
+        const matchesUsed = args.where.usedAt === null ? row.usedAt === null : row.usedAt !== null;
+        const matchesExpiry =
+          args.where.expiresAt === undefined ||
+          row.expiresAt.getTime() > args.where.expiresAt.gt.getTime();
+        if (matchesId && matchesUser && matchesUsed && matchesExpiry) {
+          count += 1;
+          return { ...row, ...args.data };
+        }
+        return row;
+      });
+      return { count };
+    },
+  };
   adminUser = {
     findUnique: async (args: {
       where: { id?: string; email?: string };
@@ -1120,6 +1190,11 @@ class FakePrismaClient {
           ts.technicianId ===
             (args as { where: { technicianId?: string | undefined } }).where.technicianId,
       ),
+    count: async (args: { where: { technicianId?: string } }): Promise<number> =>
+      this.technicianServices.filter(
+        (ts) =>
+          args.where.technicianId === undefined || ts.technicianId === args.where.technicianId,
+      ).length,
     create: async (args: {
       data: {
         technicianId: string;
@@ -2129,7 +2204,13 @@ class FakePrismaClient {
       return { id: row.id };
     },
     updateMany: async (args: {
-      where: { id?: string; userId?: string; status?: string; currentPeriodEnd?: { lte?: Date } };
+      where: {
+        id?: string;
+        userId?: string;
+        status?: string;
+        renewalEnabled?: boolean;
+        currentPeriodEnd?: { lte?: Date };
+      };
       data: Record<string, unknown>;
     }): Promise<{ count: number }> => {
       let count = 0;
@@ -2138,6 +2219,8 @@ class FakePrismaClient {
           (args.where.id === undefined || s.id === args.where.id) &&
           (args.where.userId === undefined || s.userId === args.where.userId) &&
           (args.where.status === undefined || s.status === args.where.status) &&
+          (args.where.renewalEnabled === undefined ||
+            s.renewalEnabled === args.where.renewalEnabled) &&
           (args.where.currentPeriodEnd?.lte === undefined ||
             s.currentPeriodEnd <= args.where.currentPeriodEnd.lte)
         ) {
@@ -2316,12 +2399,15 @@ class FakePrismaClient {
       select?: Record<string, unknown>;
     }): Promise<Record<string, unknown>> => {
       const now = new Date();
+      const plan = this.subscriptionPlans.find((p) => p.id === args.data.planId);
       const row: PaymentSubmissionRow = {
         id: randomUUID(),
         subscriptionId: null,
         reviewedByAdminId: null,
         reviewedAt: null,
         ...args.data,
+        amount: args.data.amount ?? plan?.price ?? 0,
+        currency: args.data.currency ?? plan?.currency ?? 'EGP',
         // Real Prisma round-trips nullable columns as null (never undefined).
         proofStorageKey: args.data.proofStorageKey ?? null,
         createdAt: now,

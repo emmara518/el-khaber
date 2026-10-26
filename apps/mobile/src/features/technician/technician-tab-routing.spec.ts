@@ -17,17 +17,19 @@ describe('technician active tab resolution', () => {
     expect(tabIdForPathname('/onboarding')).toBeNull();
     expect(tabIdForPathname('/reviews')).toBeNull();
     expect(tabIdForPathname('/settings')).toBeNull();
+    expect(tabIdForPathname('/subscription')).toBeNull();
     expect(tabIdForPathname('/active-service')).toBeNull();
   });
 });
 
 describe('technician isolated full-screen flows (no global tab bar)', () => {
-  it('hides the tab bar for onboarding, request detail, active service, reviews and settings', () => {
+  it('hides the tab bar for onboarding, request detail, active service, reviews, settings and subscription', () => {
     expect(isTechnicianFlowRoute('/onboarding')).toBe(true);
     expect(isTechnicianFlowRoute('/orders/req-123')).toBe(true);
     expect(isTechnicianFlowRoute('/active-service')).toBe(true);
     expect(isTechnicianFlowRoute('/reviews')).toBe(true);
     expect(isTechnicianFlowRoute('/settings')).toBe(true);
+    expect(isTechnicianFlowRoute('/subscription')).toBe(true);
   });
 
   it('keeps the tab bar on role root/tab surfaces', () => {

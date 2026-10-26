@@ -236,7 +236,6 @@ const styles = StyleSheet.create({
   },
   loginRow: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

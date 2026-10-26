@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { subscribeNextAction } from './subscription-types';
+import { canSelectPlan, isPlanCurrent, subscribeNextAction } from './subscription-types';
 
 import type { CurrentSubscription, SubscriptionPlan } from './subscription-types';
 
@@ -58,5 +58,23 @@ describe('subscription plan next-action mapping', () => {
   it('marks plans available even without a current subscription', () => {
     const action = subscribeNextAction(plan(), null);
     expect(action.kind).toBe('available');
+  });
+
+  it('treats a duplicate plan row with the same offering identity as current', () => {
+    const duplicate = plan({
+      id: 'plan-pro-legacy',
+      nameAr: 'باقة المحترف',
+      price: 199,
+    });
+    const active = current();
+
+    expect(isPlanCurrent(duplicate, active)).toBe(true);
+    expect(canSelectPlan(duplicate, active)).toBe(false);
+    expect(subscribeNextAction(duplicate, active).kind).toBe('current');
+  });
+
+  it('keeps the current plan non-selectable even when the row id matches', () => {
+    const active = current();
+    expect(canSelectPlan(plan({ id: 'plan-pro' }), active)).toBe(false);
   });
 });

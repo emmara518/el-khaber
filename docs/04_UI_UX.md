@@ -46,18 +46,26 @@ color.brand.navy       = #0B1F3A
 color.brand.navyDeep   = #06172D
 color.brand.gold       = #E9A824
 color.brand.goldSoft   = #F7E7BD
+color.brand.goldInk    = #7A5A00   (text-only on light surfaces)
 color.surface.base     = #FFFFFF
 color.surface.subtle   = #F7F8FA
 color.text.primary     = #10213A
-color.text.secondary   = #697586
+color.text.secondary   = #5A6675
 color.border.default   = #E4E8EE
 color.success          = #2E9B5F
 color.successSoft      = #EAF7EF
+color.success.ink      = #1F6B41   (text-only on light/soft surfaces)
 color.error            = #D94A4A
 color.errorSoft        = #FDECEC
+color.error.ink        = #B3261E   (text-only on light/soft surfaces)
 color.warning          = #C88311
+color.warning.ink      = #8A5A08   (text-only on light/soft surfaces)
 color.overlay.scrim    = rgba(0,0,0,0.55)
 ```
+
+The `*.ink` variants are text-only tokens that preserve the existing soft
+backgrounds while meeting WCAG 2.2 AA on light surfaces. They never replace the
+base semantic colors for borders, icons, or filled surfaces.
 
 If the existing project already contains a documented theme, it should be reconciled with these tokens instead of creating a second competing theme. Any change requires CTO/UI approval.
 

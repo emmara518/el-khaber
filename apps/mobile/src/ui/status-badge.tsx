@@ -46,14 +46,14 @@ const TONE: Record<
   OrderStatus | CustomerRequestStatus | MerchantProductStatus,
   { background: string; foreground: string }
 > = {
-  pending: { background: color.brand.goldSoft, foreground: color.warning.DEFAULT },
+  pending: { background: color.brand.goldSoft, foreground: color.warning.ink },
   accepted: { background: color.brand.navy, foreground: color.surface.base },
   on_the_way: { background: color.brand.gold, foreground: color.brand.navy },
-  in_progress: { background: color.success.soft, foreground: color.success.DEFAULT },
+  in_progress: { background: color.success.soft, foreground: color.success.ink },
   scheduled: { background: color.brand.goldSoft, foreground: color.brand.navy },
   completed: { background: color.surface.subtle, foreground: color.text.secondary },
-  cancelled: { background: color.error.soft, foreground: color.error.DEFAULT },
-  active: { background: color.success.soft, foreground: color.success.DEFAULT },
+  cancelled: { background: color.error.soft, foreground: color.error.ink },
+  active: { background: color.success.soft, foreground: color.success.ink },
   suspended: { background: color.surface.subtle, foreground: color.text.secondary },
 };
 

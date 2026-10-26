@@ -57,7 +57,6 @@ export function SectionHeading({
 const styles = StyleSheet.create({
   heading: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'flex-end',
     justifyContent: 'space-between',
     gap: spacing[3],
@@ -68,12 +67,11 @@ const styles = StyleSheet.create({
   body: { ...type.body, color: color.text.secondary, textAlign: 'right', writingDirection: 'rtl' },
   action: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[1],
     paddingVertical: spacing[1],
     paddingHorizontal: spacing[2],
-    minHeight: 32,
+    minHeight: 44,
   },
   pressed: { opacity: 0.6 },
   actionText: { ...type.label, color: color.brand.navy, writingDirection: 'rtl' },

@@ -17,11 +17,11 @@ describe('resolveNotificationTarget', () => {
     expect(resolveNotificationTarget('merchant', payload)).toBeNull();
   });
 
-  it('routes subscription families per role (technician falls back to profile)', () => {
+  it('routes subscription families per role', () => {
     const byId = { type: 'subscription', dataJson: { subscriptionId: 'sub-1' } };
     expect(resolveNotificationTarget('customer', byId)).toBe('/(customer)/subscription');
     expect(resolveNotificationTarget('merchant', byId)).toBe('/(merchant)/subscription');
-    expect(resolveNotificationTarget('technician', byId)).toBe('/(technician)/profile');
+    expect(resolveNotificationTarget('technician', byId)).toBe('/(technician)/subscription');
 
     const byTypeOnly = { type: 'subscription', dataJson: null };
     expect(resolveNotificationTarget('customer', byTypeOnly)).toBe('/(customer)/subscription');

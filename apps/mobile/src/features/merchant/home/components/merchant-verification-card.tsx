@@ -65,7 +65,6 @@ export function MerchantVerificationCard({
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },
@@ -94,7 +93,6 @@ const styles = StyleSheet.create({
   },
   action: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[1],
     minHeight: 44,

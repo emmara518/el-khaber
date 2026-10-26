@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError, toUserMessage } from '../../../lib/api-error';
 import {
   pickProfilePhotoFromLibrary,
   profilePhotoSizeErrorAr,
@@ -79,7 +80,7 @@ export function useMerchantProfileViewModel(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err : new Error(String(err)));
+        setLoadError(toUserError(err, 'تعذّر تحميل البيانات. حاول مرة أخرى.'));
         setLoadStatus('error');
       });
     return () => {
@@ -98,7 +99,7 @@ export function useMerchantProfileViewModel(
           setProfile(updated);
           setSaveStatus('saved');
         } catch (err) {
-          setSaveError(err instanceof Error ? err.message : 'فشل حفظ بيانات المتجر');
+          setSaveError(toUserMessage(err, 'فشل حفظ بيانات المتجر'));
           setSaveStatus('error');
         }
       })();
@@ -174,7 +175,7 @@ export function useMerchantProfileViewModel(
         setPendingPhoto(null);
         setPhotoStatus('uploaded');
       } catch (err) {
-        setPhotoError(err instanceof Error ? err.message : 'فشل رفع الشعار. حاول مجددًا.');
+        setPhotoError(toUserMessage(err, 'فشل رفع الشعار. حاول مجددًا.'));
         setPhotoStatus('error');
       }
     })();
@@ -197,7 +198,7 @@ export function useMerchantProfileViewModel(
         setProfile(updated);
         setPhotoStatus('deleted');
       } catch (err) {
-        setPhotoError(err instanceof Error ? err.message : 'فشل حذف الشعار. حاول مجددًا.');
+        setPhotoError(toUserMessage(err, 'فشل حذف الشعار. حاول مجددًا.'));
         setPhotoStatus('error');
       }
     })();

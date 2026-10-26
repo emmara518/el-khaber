@@ -10,6 +10,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiTechnicianDataSource } from './api-technician-data-source';
 
 import type { Technician, TechnicianListQuery } from './technician-types';
@@ -49,7 +51,7 @@ export function useTechniciansViewModel(filters?: TechnicianListQuery): Technici
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل الفنيين. حاول مرة أخرى.'),
         });
       });
     return () => {

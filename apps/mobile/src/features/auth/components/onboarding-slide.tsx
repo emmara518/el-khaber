@@ -126,7 +126,6 @@ const styles = StyleSheet.create({
   },
   navigation: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'flex-end',
   },
@@ -134,7 +133,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     gap: spacing[6],
-    direction: 'rtl',
   },
   art: {
     width: '100%',
@@ -150,7 +148,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'stretch',
     paddingHorizontal: spacing[6],
-    direction: 'rtl',
   },
   accent: {
     width: 36,
@@ -184,7 +181,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: color.brand.gold,
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing[2],

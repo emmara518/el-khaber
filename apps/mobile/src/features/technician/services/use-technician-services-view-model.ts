@@ -8,10 +8,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import {
-  ApiTechnicianServicesDataSource,
-  TechnicianServiceError,
-} from './api-technician-services-data-source';
+import { toUserError, toUserMessage } from '../../../lib/api-error';
+
+import { ApiTechnicianServicesDataSource } from './api-technician-services-data-source';
 
 import type {
   TechnicianAttachedService,
@@ -62,7 +61,7 @@ export function useTechnicianServicesViewModel(
       setCatalog(nextCatalog);
       setLoadStatus('loaded');
     } catch (err) {
-      setLoadError(err instanceof Error ? err : new Error(String(err)));
+      setLoadError(toUserError(err, 'تعذّر تحميل الخدمات. حاول مرة أخرى.'));
       setLoadStatus('error');
     }
   }, [source]);
@@ -86,7 +85,7 @@ export function useTechnicianServicesViewModel(
           setActionStatus('success');
         } catch (err) {
           setActionError(
-            err instanceof TechnicianServiceError ? err.message : 'تعذر تحديث خدماتك. حاول مرة أخرى.',
+            toUserMessage(err, 'تعذر تحديث خدماتك. حاول مرة أخرى.'),
           );
           setActionStatus('error');
         } finally {

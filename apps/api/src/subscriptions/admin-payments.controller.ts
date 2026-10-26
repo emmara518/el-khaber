@@ -167,6 +167,22 @@ export class AdminPaymentsController {
 export class AdminGrantsController {
   constructor(private readonly subscriptions: SubscriptionsService) {}
 
+  /** Grant picker: active plans as labels, never raw ids in the UI. */
+  @Get('plans')
+  @AdminRoles('super_admin')
+  @ApiEnvelopeOk('AdminPlanOptionDto', 200, 'Active subscription plans for manual grants.')
+  async listPlans(): Promise<ApiSuccess<Payload[]>> {
+    return { data: (await this.subscriptions.adminListPlans()) as Payload[] };
+  }
+
+  /** Grant picker: active entitlements as labels, never raw ids in the UI. */
+  @Get('entitlements')
+  @AdminRoles('super_admin')
+  @ApiEnvelopeOk('AdminEntitlementOptionDto', 200, 'Active entitlements for manual grants.')
+  async listEntitlements(): Promise<ApiSuccess<Payload[]>> {
+    return { data: (await this.subscriptions.adminListEntitlements()) as Payload[] };
+  }
+
   /** MANUAL SUBSCRIPTION GRANT (CTO contract §1.7): no payment record. */
   @Post('subscriptions/grant')
   @HttpCode(201)

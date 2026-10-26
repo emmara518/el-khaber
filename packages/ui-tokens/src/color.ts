@@ -9,6 +9,8 @@ export const color = {
     navyDeep: '#06172D',
     gold: '#E9A824',
     goldSoft: '#F7E7BD',
+    /** Text-only gold for light surfaces (WCAG AA). */
+    goldInk: '#7A5A00',
   },
   surface: {
     base: '#FFFFFF',
@@ -16,7 +18,7 @@ export const color = {
   },
   text: {
     primary: '#10213A',
-    secondary: '#697586',
+    secondary: '#5A6675',
   },
   border: {
     default: '#E4E8EE',
@@ -24,13 +26,19 @@ export const color = {
   success: {
     DEFAULT: '#2E9B5F',
     soft: '#EAF7EF',
+    /** Text-only success on light/soft surfaces (WCAG AA). */
+    ink: '#1F6B41',
   },
   error: {
     DEFAULT: '#D94A4A',
     soft: '#FDECEC',
+    /** Text-only error on light/soft surfaces (WCAG AA). */
+    ink: '#B3261E',
   },
   warning: {
     DEFAULT: '#C88311',
+    /** Text-only warning on light/soft surfaces (WCAG AA). */
+    ink: '#8A5A08',
   },
   overlay: {
     scrim: 'rgba(0, 0, 0, 0.55)',

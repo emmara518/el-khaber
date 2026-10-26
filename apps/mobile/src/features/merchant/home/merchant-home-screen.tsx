@@ -124,7 +124,7 @@ export default function MerchantHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: color.surface.subtle, direction: 'rtl' },
+  root: { flex: 1, backgroundColor: color.surface.subtle,  },
   content: {
     paddingHorizontal: spacing[5],
     paddingTop: spacing[4],
@@ -133,21 +133,18 @@ const styles = StyleSheet.create({
   },
   metrics: {
     flexDirection: 'row',
-    direction: 'rtl',
     flexWrap: 'wrap',
     gap: spacing[3],
   },
   section: {
     paddingTop: spacing[6],
     gap: spacing[4],
-    direction: 'rtl',
   },
   emptyCard: { alignItems: 'center', gap: spacing[2] },
   emptyTitle: { ...type.h3, color: color.text.primary, textAlign: 'center', writingDirection: 'rtl' },
   emptyBody: { ...type.body, color: color.text.secondary, textAlign: 'center', writingDirection: 'rtl' },
   storeCard: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },

@@ -67,7 +67,7 @@ describe('technician result card content', () => {
     });
     expect(content.rating).toEqual({ value: 4.8, count: 12 });
     expect(content.verified).toBe(true);
-    expect(content.accessibilityLabel).toContain('التقييم 4.8 من ٥، عدد التقييمات 12');
+    expect(content.accessibilityLabel).toContain('التقييم ٤٫٨ من ٥، عدد التقييمات ١٢');
     expect(content.accessibilityLabel).toContain('موثّق من الخبير');
   });
 

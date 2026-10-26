@@ -5,6 +5,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { toUserError } from '../../../lib/api-error';
+
 import { ApiTechnicianReviewsDataSource } from './api-technician-reviews-data-source';
 
 import type { TechnicianReviewsDataSource, TechnicianReviewsSummary } from './technician-reviews-types';
@@ -43,7 +45,7 @@ export function useTechnicianReviewsViewModel(
         setState({
           status: 'error',
           data: null,
-          error: err instanceof Error ? err : new Error(String(err)),
+          error: toUserError(err, 'تعذّر تحميل التقييمات. حاول مرة أخرى.'),
         });
       });
     return () => {

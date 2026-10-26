@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { StoreProduct } from '../store-types';
 
+import { formatArPrice } from '@/lib/api-format';
 import { Card, Icon, ProductImage, type } from '@/ui';
 /** One publicly readable product in the store list. Real data only. */
 export function StoreProductCard({
@@ -12,7 +13,7 @@ export function StoreProductCard({
   product: StoreProduct;
   onPress: () => void;
 }) {
-  const priceAr = product.price !== null ? `${product.price} جنيه` : 'السعر غير محدد';
+  const priceAr = product.price !== null ? formatArPrice(product.price) : 'السعر غير محدد';
   return (
     <Pressable
       accessibilityRole="button"
@@ -56,7 +57,6 @@ const styles = StyleSheet.create({
   card: { gap: spacing[2] },
   row: {
     flexDirection: 'row',
-    direction: 'rtl',
     alignItems: 'center',
     gap: spacing[3],
   },

@@ -19,7 +19,7 @@ const TABS: ReadonlyArray<ShellTab> = [
   { id: 'home', labelAr: 'الرئيسية', icon: 'home' },
   { id: 'products', labelAr: 'المنتجات', icon: 'package' },
   { id: 'messages', labelAr: 'الرسائل', icon: 'message-circle' },
-  { id: 'profile', labelAr: 'الملف الشخصي', icon: 'user' },
+  { id: 'profile', labelAr: 'حسابي', icon: 'user' },
 ];
 
 export default function MerchantTabsLayout() {
