@@ -1,5 +1,9 @@
 name: ci
 
+# Least privilege: CI only reads the repository and uploads run artifacts.
+permissions:
+  contents: read
+
 on:
   push:
     # Release candidates must be CI-verified on push; a green run on a
