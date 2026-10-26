@@ -36,10 +36,62 @@ function arg(name) {
 const apiBase = arg('api');
 const webBase = arg('web');
 const expectedSha = arg('expected-sha').toLowerCase();
+const allowLocal = args.includes('--allow-local');
 
 if (apiBase === '' || webBase === '') {
-  console.error('Usage: node scripts/release/uat-smoke.mjs --api <base> --web <url> [--expected-sha <sha>]');
+  console.error(
+    'Usage: node scripts/release/uat-smoke.mjs --api <base> --web <url> --expected-sha <sha> [--allow-local]',
+  );
   process.exit(2);
+}
+if (!/^[0-9a-f]{7,40}$/.test(expectedSha)) {
+  console.error('--expected-sha is required and must be a 7-40 character hex commit SHA.');
+  process.exit(2);
+}
+
+const LOOPBACK = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
+function isPrivateHost(host) {
+  const h = host.replace(/^\[|\]$/g, '').toLowerCase();
+  if (LOOPBACK.has(host.toLowerCase()) || LOOPBACK.has(h)) return true;
+  if (h.endsWith('.local') || h.endsWith('.internal')) return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) {
+    return true;
+  }
+  const m = /^172\.(\d{1,3})\./.exec(h);
+  return m !== null && Number(m[1]) >= 16 && Number(m[1]) <= 31;
+}
+
+function assertDeploymentTarget(name, raw) {
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    console.error(`${name} is not a valid URL.`);
+    process.exit(2);
+  }
+  if (!['https:', 'http:'].includes(url.protocol)) {
+    console.error(`${name} must use https (or http only for --allow-local rehearsal).`);
+    process.exit(2);
+  }
+  const privateHost = isPrivateHost(url.hostname);
+  if (privateHost && !allowLocal) {
+    console.error(
+      `${name} targets a loopback/private host (${url.hostname}). ` +
+        'A local build is not deployment evidence; pass --allow-local only for rehearsal.',
+    );
+    process.exit(2);
+  }
+  if (!privateHost && url.protocol !== 'https:') {
+    console.error(`${name} must use https for a deployed target.`);
+    process.exit(2);
+  }
+}
+
+assertDeploymentTarget('--api', apiBase);
+assertDeploymentTarget('--web', webBase);
+
+if (allowLocal) {
+  console.log('LOCAL REHEARSAL (--allow-local): results are not deployment evidence.\n');
 }
 
 const results = [];
@@ -95,15 +147,17 @@ async function main() {
     if (version.response.status === 200 && commit !== 'unknown') {
       record('api.version', 'pass', `commit=${commit}`);
     } else {
-      record('api.version', 'warn', 'commit not exposed (HTTP ' + version.response.status + ')');
+      record(
+        'api.version',
+        'fail',
+        `build identity unavailable (HTTP ${version.response.status}); cannot verify the running SHA`,
+      );
     }
   } catch (error) {
     record('api.version', 'fail', error instanceof Error ? error.message : 'request failed');
   }
 
-  if (expectedSha === '') {
-    record('api.commit-match', 'warn', 'no --expected-sha supplied; deployment provenance UNVERIFIED');
-  } else if (commit === 'unknown') {
+  if (commit === 'unknown') {
     record('api.commit-match', 'fail', 'running commit is unknown; cannot verify release SHA');
   } else if (expectedSha.startsWith(commit) || commit.startsWith(expectedSha.slice(0, commit.length))) {
     record('api.commit-match', 'pass', `${commit} matches expected ${expectedSha.slice(0, 12)}`);
@@ -158,9 +212,10 @@ async function main() {
     JSON.stringify(
       {
         checkedAt: new Date().toISOString(),
+        mode: allowLocal ? 'local-rehearsal' : 'deployment',
         apiBase,
         webBase,
-        expectedSha: expectedSha || null,
+        expectedSha,
         runningCommit: commit,
         passed: results.filter((item) => item.status === 'pass').length,
         warnings: results.filter((item) => item.status === 'warn').length,

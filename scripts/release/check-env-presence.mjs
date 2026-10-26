@@ -6,15 +6,20 @@
  * so it is safe to run in CI logs and release evidence.
  *
  *   node scripts/release/check-env-presence.mjs --scope api --file apps/api/.env
+ *   node scripts/release/check-env-presence.mjs --scope api --require-feature proof
  *   node scripts/release/check-env-presence.mjs --scope web          # process.env
  *
  * Scope:
- *   api   - runtime secrets, database URLs, auth secrets, storage, email gate
+ *   api   - startup/deploy variables plus feature-gated storage/email
  *   web   - EXPO_PUBLIC_API_URL baked into the exported web app
  *   admin - NEXT_PUBLIC_API_URL baked into the admin build
  *
+ * Feature gates (proof|email|avatar) are WARN by default. Pass
+ * `--require-feature proof` when the release claims the payment-proof flow,
+ * which makes that feature blocking. Core startup variables always block.
+ *
  * Exit code 1 when a blocking variable is missing or fails validation.
- * Feature-gated variables are reported as warnings, never as passes.
+ * Values are never printed.
  */
 
 import { readFileSync } from 'node:fs';
@@ -36,6 +41,20 @@ const file = arg('file', '');
 if (!['api', 'web', 'admin'].includes(scope)) {
   console.error(`Invalid --scope '${scope}' (api|web|admin)`);
   process.exit(2);
+}
+
+const FEATURES = new Set(['proof', 'email', 'avatar']);
+const requiredFeatures = new Set(
+  arg('require-feature', '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => value !== ''),
+);
+for (const feature of requiredFeatures) {
+  if (!FEATURES.has(feature)) {
+    console.error(`Invalid --require-feature '${feature}' (proof|email|avatar)`);
+    process.exit(2);
+  }
 }
 
 function parseDotenv(path) {
@@ -86,13 +105,19 @@ function requireNames(group, names) {
   }
 }
 
-function warnMissing(group, names, reason) {
-  const missing = names.filter((name) => !has(name));
-  if (missing.length > 0) {
-    warnings.push(`${group}: not configured (${missing.join(', ')}) - ${reason}`);
-  } else {
-    checks.push(`${group}: present (${names.length})`);
-  }
+/**
+ * Feature-only configuration: BLOCK only when the caller explicitly includes
+ * the feature in --require-feature (e.g. payments are in the UAT scope).
+ * Otherwise it is reported as a WARN so a deploy is not silently blocked by a
+ * feature the release does not claim to include.
+ */
+function featureProblem(feature, message) {
+  if (requiredFeatures.has(feature)) failures.push(`${message} [required feature: ${feature}]`);
+  else warnings.push(`${message} [feature: ${feature}]`);
+}
+
+function featureOk(feature, message) {
+  checks.push(`${message} [feature: ${feature}]`);
 }
 
 function validate(group, fn) {
@@ -101,12 +126,18 @@ function validate(group, fn) {
   else checks.push(`${group}: valid`);
 }
 
-function isHttpsUrl(name) {
+function isHttpsUrl(name, options = {}) {
   try {
     const url = new URL(env[name]);
     if (url.protocol !== 'https:') return `must use https`;
     if (/^(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])$/i.test(url.hostname)) {
       return 'must not target localhost in a deployed build';
+    }
+    if (options.requireApiPrefix === true) {
+      const path = url.pathname.replace(/\/+$/, '');
+      if (!path.endsWith('/api/v1')) {
+        return 'must include the /api/v1 prefix (the mobile client does not append it)';
+      }
     }
     return null;
   } catch {
@@ -154,46 +185,73 @@ if (scope === 'api') {
     if (origins.some((origin) => !/^https:\/\//i.test(origin))) {
       return 'CORS_ORIGINS must use https in production';
     }
-    const provider = (env.PROOF_STORAGE_PROVIDER ?? '').toLowerCase();
-    if (provider === 'local') return 'PROOF_STORAGE_PROVIDER=local is refused in production';
-    if (provider !== 's3') return 'PROOF_STORAGE_PROVIDER must be s3 in production';
     return null;
   });
 
-  if ((env.PROOF_STORAGE_PROVIDER ?? '').toLowerCase() === 's3') {
-    requireNames('api-proof-storage', [
+  const proofProvider = (env.PROOF_STORAGE_PROVIDER ?? '').toLowerCase();
+  if (proofProvider === 's3') {
+    const missing = [
       'PROOF_S3_BUCKET',
       'PROOF_S3_ACCESS_KEY_ID',
       'PROOF_S3_SECRET_ACCESS_KEY',
-    ]);
+    ].filter((name) => !has(name));
+    if (missing.length > 0) {
+      featureProblem(
+        'proof',
+        `api-proof-storage: missing ${missing.join(', ')} - payment proof uploads fail closed`,
+      );
+    } else {
+      featureOk('proof', 'api-proof-storage: s3 credentials present');
+    }
+  } else if (env.NODE_ENV === 'production') {
+    featureProblem(
+      'proof',
+      `api-proof-storage: PROOF_STORAGE_PROVIDER must be s3 in production (got '${proofProvider || 'unset'}')`,
+    );
   } else {
-    requireNames('api-proof-storage', ['PROOF_STORAGE_PROVIDER']);
+    featureProblem(
+      'proof',
+      'api-proof-storage: local adapter is not valid for a deployed UAT target',
+    );
   }
 
-  if ((env.AVATAR_STORAGE_PROVIDER ?? '').toLowerCase() === 's3') {
-    requireNames('api-avatar-storage', [
+  const avatarProvider = (env.AVATAR_STORAGE_PROVIDER ?? '').toLowerCase();
+  if (avatarProvider === 's3') {
+    const missing = [
       'AVATAR_S3_BUCKET',
       'AVATAR_S3_ACCESS_KEY_ID',
       'AVATAR_S3_SECRET_ACCESS_KEY',
       'AVATAR_PUBLIC_BASE_URL',
-    ]);
+    ].filter((name) => !has(name));
+    if (missing.length > 0) {
+      featureProblem(
+        'avatar',
+        `api-avatar-storage: missing ${missing.join(', ')} - avatar uploads fail closed`,
+      );
+    } else {
+      featureOk('avatar', 'api-avatar-storage: s3 credentials present');
+    }
   } else {
-    warnings.push(
-      'api-avatar-storage: not S3 - avatar uploads stay unavailable in production (feature gate)',
+    featureProblem(
+      'avatar',
+      'api-avatar-storage: not S3 - avatar uploads remain unavailable on the deployed target',
     );
   }
 
-  warnMissing(
-    'api-password-reset-email',
-    ['PASSWORD_RESET_DELIVERY_URL'],
-    'blocks live reset delivery only (#27); API still returns uniform 202',
-  );
+  if (has('PASSWORD_RESET_DELIVERY_URL')) {
+    featureOk('email', 'api-password-reset-email: delivery webhook present');
+  } else {
+    featureProblem(
+      'email',
+      'api-password-reset-email: missing PASSWORD_RESET_DELIVERY_URL - no reset email is delivered (#27)',
+    );
+  }
 }
 
 if (scope === 'web') {
   requireNames('web-build', ['EXPO_PUBLIC_API_URL']);
   if (has('EXPO_PUBLIC_API_URL')) {
-    validate('web-build-url', () => isHttpsUrl('EXPO_PUBLIC_API_URL'));
+    validate('web-build-url', () => isHttpsUrl('EXPO_PUBLIC_API_URL', { requireApiPrefix: true }));
   }
 }
 
@@ -205,7 +263,8 @@ if (scope === 'admin') {
 }
 
 const source = file === '' ? 'process environment' : file;
-console.log(`env-presence: scope=${scope} source=${source}`);
+const features = [...requiredFeatures].join(',') || 'none';
+console.log(`env-presence: scope=${scope} source=${source} required-features=${features}`);
 for (const line of checks) console.log(`  PASS  ${line}`);
 for (const line of warnings) console.log(`  WARN  ${line}`);
 for (const line of failures) console.log(`  FAIL  ${line}`);
@@ -214,4 +273,8 @@ if (failures.length > 0) {
   console.error(`env-presence: ${failures.length} blocking problem(s); no values were printed.`);
   process.exit(1);
 }
-console.log('env-presence: all blocking variables present and valid.');
+console.log(
+  warnings.length > 0
+    ? 'env-presence: core deployment variables present; feature warnings remain (see above).'
+    : 'env-presence: all blocking variables present and valid.',
+);
