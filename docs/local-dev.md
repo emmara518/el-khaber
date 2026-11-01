@@ -19,14 +19,14 @@ is intentionally separate from staging and production configuration.
 
 | Tool | Version | Notes |
 | --- | --- | --- |
-| Node.js | 22.11.0 | Pinned in `.nvmrc`. Use `nvm` / `fnm` / nvm-windows or a portable install. |
-| pnpm | 10.4.0 | The Node-22.11.0-compatible release line. Set via `corepack`. |
+| Node.js | 22.23.4 | Pinned in `.nvmrc`. Use `nvm` / `fnm` / nvm-windows or a portable install. |
+| pnpm | 10.4.0 | The Node-22.23.4-compatible release line. Set via `corepack`. |
 | Supabase project | n/a | One project per environment (development, staging, production). |
 | Supabase CLI (optional) | latest | Helpful for SQL scripts and migrations; not required. |
 | Git | 2.28+ | For `git init -b main`. |
 
-> **If your environment does not have Node 22.11.0:** install it
-> before running anything. The CTO-approved version is 22.11.0. Do
+> **If your environment does not have Node 22.23.4:** install it
+> before running anything. The CTO-approved version is 22.23.4. Do
 > not silently validate against a different version.
 
 ---
@@ -34,23 +34,23 @@ is intentionally separate from staging and production configuration.
 ## 2. Enable the pinned Node + pnpm
 
 ```powershell
-# Install Node 22.11.0 (skip if already present). A portable install at
-#   C:\Users\<you>\AppData\Local\node-v22\node-v22.11.0-win-x64
+# Install Node 22.23.4 (skip if already present). A portable install at
+#   C:\Users\<you>\AppData\Local\node-v22\node-v22.23.4-win-x64
 # is recommended. Add it to the user PATH.
 #
 # Enable corepack so pnpm is managed per-repository.
 corepack enable
 corepack prepare pnpm@10.4.0 --activate
 
-# Every shell session that runs repo commands must put Node 22.11.0 first
+# Every shell session that runs repo commands must put Node 22.23.4 first
 # on PATH. The repo expects the developer to have done this already.
-$env:Path = "C:\Users\$env:USERNAME\AppData\Local\node-v22\node-v22.11.0-win-x64;$env:Path"
-node --version    # MUST print: v22.11.0
+$env:Path = "C:\Users\$env:USERNAME\AppData\Local\node-v22\node-v22.23.4-win-x64;$env:Path"
+node --version    # MUST print: v22.23.4
 pnpm --version   # MUST print: 10.4.0
 ```
 
 > On macOS/Linux, the equivalent is
-> `export PATH=/path/to/node-22.11.0/bin:$PATH`.
+> `export PATH=/path/to/node-22.23.4/bin:$PATH`.
 
 ---
 

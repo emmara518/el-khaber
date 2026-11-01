@@ -142,4 +142,12 @@ export class ApiOrderDataSource implements OrderDataSource {
       throw err;
     }
   }
+
+  async cancelOrder(input: { role: 'customer'; requestId: string }): Promise<void> {
+    void input.role;
+    await getApi().request(
+      'POST',
+      `/service-requests/${encodeURIComponent(input.requestId)}/cancel`,
+    );
+  }
 }

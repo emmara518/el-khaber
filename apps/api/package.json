@@ -15,6 +15,8 @@
     "test:watch": "vitest",
     "provision:test-db": "node scripts/provision-test-db.mjs",
     "db:check-runtime-role": "node scripts/check-runtime-db-role.mjs",
+    "db:backfill-completed-services": "node scripts/backfill-completed-services.mjs",
+    "db:migration:preflight": "node scripts/check-migration-preflight.mjs",
     "release:check-rollback-target": "node scripts/check-rollback-target.mjs",
     "test:http-e2e": "node scripts/run-http-e2e.mjs",
     "prisma:generate": "prisma generate",

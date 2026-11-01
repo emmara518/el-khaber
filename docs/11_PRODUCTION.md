@@ -39,7 +39,7 @@ Rules:
 
 - **Build:** `pnpm --filter @khabir/api build` (Nest → `apps/api/dist`).
 - **Start:** `node apps/api/dist/main.js` (see `apps/api/Dockerfile`).
-- **Node:** `>=20.11.0` (`.nvmrc`).
+- **Node:** `>=22.23.4` (`.nvmrc`).
 - **Required env:** `DATABASE_URL`, `DIRECT_URL`, `JWT_ACCESS_SECRET`,
   `ADMIN_JWT_ACCESS_SECRET` (must differ), `CORS_ORIGINS`,
   `NODE_ENV=production`. Full list: `apps/api/.env.example`.

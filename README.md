@@ -75,7 +75,7 @@ UI primitives are **platform-specific** and live in each app's `src/components/`
 
 ## Prerequisites
 
-- Node.js `>= 20.11.0` (see `.nvmrc`)
+- Node.js `>= 22.23.4` (see `.nvmrc`)
 - pnpm `>= 11` (enable via `corepack enable`)
 - PostgreSQL `>= 15` with PostGIS (for `apps/api` runtime; not required for this bootstrap task)
 

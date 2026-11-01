@@ -5,8 +5,36 @@
 import { describe, expect, it } from 'vitest';
 
 import { MockTechnicianHomeDataSource } from './mock-technician-home-data-source';
-import { availabilityLabelAr, verificationCopy } from './technician-home-types';
+import {
+  availabilityLabelAr,
+  needsTechnicianOnboarding,
+  technicianHomeViewState,
+  verificationCopy,
+} from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
+
+describe('technician home states and onboarding entry', () => {
+  it('never masks an error with the loading state when data is null', () => {
+    expect(technicianHomeViewState('error', null)).toBe('error');
+    expect(technicianHomeViewState('loading', null)).toBe('loading');
+    expect(technicianHomeViewState('loaded', null)).toBe('error');
+  });
+
+  it('only routes incomplete, non-verified technicians into onboarding', () => {
+    expect(
+      needsTechnicianOnboarding({ verification: 'pending', specialtyAr: '', areasAr: [] }),
+    ).toBe(true);
+    expect(
+      needsTechnicianOnboarding({ verification: 'action_required', specialtyAr: '', areasAr: ['Cairo'] }),
+    ).toBe(true);
+    expect(
+      needsTechnicianOnboarding({ verification: 'pending', specialtyAr: 'AC repair', areasAr: ['Cairo'] }),
+    ).toBe(false);
+    expect(
+      needsTechnicianOnboarding({ verification: 'verified', specialtyAr: '', areasAr: [] }),
+    ).toBe(false);
+  });
+});
 
 describe('technician home fixture (deterministic)', () => {
   it('returns the same persona on every call without mutation leaks', async () => {

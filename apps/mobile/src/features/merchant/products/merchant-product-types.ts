@@ -104,6 +104,56 @@ export function draftFromProduct(product: MerchantProduct): MerchantProductDraft
   };
 }
 
+/**
+ * Normalize Arabic-Indic (٠-٩), Extended Arabic-Indic (۰-۹), Arabic
+ * decimal separator (٫), Arabic thousands separator (٬), and whitespace.
+ * This is a pure input-normalization step; it never changes the displayed
+ * text, only the numeric value stored in the draft.
+ */
+export function normalizeNumericInput(text: string): string {
+  return text
+    .replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (digit) => {
+      const code = digit.charCodeAt(0);
+      return code <= 0x0669 ? String(code - 0x0660) : String(code - 0x06f0);
+    })
+    .replace(/[\u066c\u066b\s]/g, (separator) => (separator === '\u066b' ? '.' : ''))
+    .replace(/٫/g, '.');
+}
+
+/**
+ * Parse a price/decimal input. Accepts ASCII and Arabic-Indic digits and
+ * either `.`, `,` or `٫` as the decimal separator. Returns null for an
+ * empty or non-numeric value; the form keeps the raw text so typing a
+ * trailing separator does not corrupt the value.
+ */
+export function parsePriceInput(text: string): number | null {
+  let normalized = normalizeNumericInput(text);
+  if (normalized === '') return null;
+
+  if (normalized.includes(',') && !normalized.includes('.')) {
+    const parts = normalized.split(',');
+    // 1,000 is a thousands-grouped integer; 125,5 is a decimal.
+    normalized =
+      parts.length === 2 && parts[1]?.length === 3 && parts[0]?.length > 0
+        ? parts.join('')
+        : normalized.replace(',', '.');
+  } else {
+    normalized = normalized.replace(/,/g, '');
+  }
+
+  if (!/^\d*(?:\.\d*)?$/.test(normalized) || normalized === '.') return null;
+  const value = Number(normalized);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** Parse a non-negative integer input (stock). */
+export function parseStockInput(text: string): number | null {
+  const normalized = normalizeNumericInput(text).replace(/,/g, '');
+  if (!/^\d+$/.test(normalized)) return null;
+  const value = Number(normalized);
+  return Number.isSafeInteger(value) ? value : null;
+}
+
 export function validateProductDraft(
   draft: MerchantProductDraft,
 ): Partial<Record<'nameAr' | 'descriptionAr' | 'price' | 'stockQuantity' | 'imageUrl', string>> {

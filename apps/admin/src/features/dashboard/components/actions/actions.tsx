@@ -7,6 +7,7 @@ import { roleCan, statusLabel } from '../../helpers';
 import { AssignControl } from './assign-control';
 import { PaymentDecisionActions } from './payment-decision-actions';
 import { ReviewActions } from './review-actions';
+import { UserStatusActions } from './user-status-actions';
 import { VerificationActions } from './verification-actions';
 
 import type { OnAction, Row, Tab } from '../../types';
@@ -32,10 +33,12 @@ export function Actions({
   const canVerify = roleCan(role, ACTIONS_ROLES.verification);
   const canDecidePayment = roleCan(role, ACTIONS_ROLES.paymentDecision);
   if (tab === 'users') {
+    const canChangeStatus = roleCan(role, ACTIONS_ROLES.userStatus);
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2] }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: spacing[2], flexWrap: 'wrap' }}>
         <StatusBadge label={statusLabel(row.status)} />
         <GhostBtn onClick={() => onUserDetail(String(row.id))}>تفاصيل</GhostBtn>
+        {canChangeStatus ? <UserStatusActions row={row} onAction={onAction} /> : null}
       </div>
     );
   }

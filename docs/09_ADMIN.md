@@ -398,8 +398,14 @@ Deviations from the recommended table (explicit, adjustable by CTO):
   to decide it.
 - Notifications additionally allow ops/support as operational messaging
   (documented interpretation).
-- “Suspend user” has no endpoint (no identity mutation surface exists);
-  recorded as a remaining gap, not implemented here.
+- Account suspension/reactivation (`POST /admin/users/:id/status
+  {status: active|suspended, reason?}`): super_admin/operations_admin.
+  `reason` (4-500 chars) is required to suspend and is stored in the audit
+  trail (`admin.user.status`). Suspension increments `tokenVersion`, so the
+  existing access token is rejected on the next request immediately.
+  Suspended technicians cannot advance service requests; suspended
+  merchants' active products disappear from the public store and product
+  mutations return `403`.
 
 ---
 

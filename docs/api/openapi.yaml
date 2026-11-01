@@ -3357,6 +3357,51 @@ paths:
         - bearer: []
       tags:
         - admin
+  /api/v1/admin/users/{id}/status:
+    post:
+      operationId: AdminController_setUserStatus
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AdminUserDto'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+                required:
+                  - data
+                type: object
+          description: Account status changed (audited).
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed (reason required to suspend).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Admin authority required.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: User not found.
+      security:
+        - bearer: []
+      tags:
+        - admin
   /api/v1/appliance-categories:
     get:
       operationId: ApplianceCategoriesController_list
@@ -7094,3 +7139,10 @@ paths:
           description: Technician not found or not publicly visible.
       tags:
         - reviews
+  /api/v1/version:
+    get:
+      operationId: HealthController_version
+      parameters: []
+      responses:
+        '200':
+          description: ''

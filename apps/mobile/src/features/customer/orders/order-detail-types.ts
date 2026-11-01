@@ -51,6 +51,8 @@ export interface OrderDetail {
 
 export interface OrderDataSource {
   getOrderDetail(input: { role: 'customer'; requestId: string }): Promise<OrderDetail | null>;
+  /** Owner-only cancellation; only pending/accepted are accepted by the API. */
+  cancelOrder(input: { role: 'customer'; requestId: string }): Promise<void>;
 }
 
 const LIFECYCLE: ReadonlyArray<{

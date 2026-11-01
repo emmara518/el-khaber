@@ -34,6 +34,111 @@ async function main(): Promise<void> {
     });
   }
 
+  const categoryRows = await prisma.applianceCategory.findMany({
+    where: { slug: { in: categories.map((c) => c.slug) } },
+    select: { id: true, slug: true },
+  });
+  const categoryBySlug = new Map(categoryRows.map((row) => [row.slug, row.id]));
+
+  // Canonical service/fault reference catalog. Onboarding and request
+  // creation require at least one service per category; these are
+  // reference rows only (no users, pricing, or commercial data).
+  const serviceSeeds = [
+    { category: 'washing_machine', slug: 'washing_repair', nameAr: 'صيانة غسالات', descriptionAr: 'إصلاح وصيانة الغسالات المنزلية', sortOrder: 1 },
+    { category: 'washing_machine', slug: 'washing_install', nameAr: 'تركيب غسالات', descriptionAr: 'تركيب وتوصيل الغسالات المنزلية', sortOrder: 2 },
+    { category: 'refrigerator', slug: 'fridge_repair', nameAr: 'صيانة ثلاجات', descriptionAr: 'إصلاح وصيانة الثلاجات المنزلية', sortOrder: 1 },
+    { category: 'air_conditioner', slug: 'ac_repair', nameAr: 'صيانة تكييفات', descriptionAr: 'إصلاح وصيانة أجهزة التكييف', sortOrder: 1 },
+  ] as const;
+
+  for (const seed of serviceSeeds) {
+    const applianceCategoryId = categoryBySlug.get(seed.category);
+    if (applianceCategoryId === undefined) continue;
+    await prisma.service.upsert({
+      where: {
+        applianceCategoryId_slug: { applianceCategoryId, slug: seed.slug },
+      },
+      update: {
+        nameAr: seed.nameAr,
+        descriptionAr: seed.descriptionAr,
+        isActive: true,
+        sortOrder: seed.sortOrder,
+      },
+      create: {
+        applianceCategoryId,
+        slug: seed.slug,
+        nameAr: seed.nameAr,
+        descriptionAr: seed.descriptionAr,
+        isActive: true,
+        sortOrder: seed.sortOrder,
+      },
+    });
+  }
+
+  const faultSeeds = [
+    { category: 'washing_machine', slug: 'no_spin', nameAr: 'الغسالة لا تدور', summaryAr: 'الغسالة لا تدور أثناء دورة العصر', guidanceAr: 'تحقق من إغلاق الباب وتوازن الحمل قبل طلب الفني.', sortOrder: 1 },
+    { category: 'washing_machine', slug: 'leak', nameAr: 'تسريب مياه', summaryAr: 'تسريب مياه من أسفل الغسالة', guidanceAr: 'أغلق مصدر المياه وأوقف التشغيل فورًا.', sortOrder: 2 },
+    { category: 'washing_machine', slug: 'loud_noise', nameAr: 'صوت مرتفع', summaryAr: 'صوت مرتفع أثناء دورة الغسيل', guidanceAr: 'تحقق من استواء الغسالة وعدم وجود أجسام غريبة.', sortOrder: 3 },
+    { category: 'refrigerator', slug: 'not_cooling', nameAr: 'لا يبرد', summaryAr: 'الثلاجة لا تبرد بشكل كافٍ', guidanceAr: 'تحقق من إغلاق الباب ودرجة الحرارة المضبوطة.', sortOrder: 1 },
+    { category: 'air_conditioner', slug: 'not_cooling', nameAr: 'لا يبرد', summaryAr: 'التكييف لا يبرد بشكل كافٍ', guidanceAr: 'تحقق من الفلتر ووضع التشغيل قبل طلب الفني.', sortOrder: 1 },
+  ] as const;
+
+  const faultRows = [] as Array<{ id: string; category: string; slug: string }>;
+  for (const seed of faultSeeds) {
+    const applianceCategoryId = categoryBySlug.get(seed.category);
+    if (applianceCategoryId === undefined) continue;
+    const row = await prisma.fault.upsert({
+      where: {
+        applianceCategoryId_slug: { applianceCategoryId, slug: seed.slug },
+      },
+      update: {
+        nameAr: seed.nameAr,
+        summaryAr: seed.summaryAr,
+        guidanceAr: seed.guidanceAr,
+        publishStatus: 'published',
+        sortOrder: seed.sortOrder,
+      },
+      create: {
+        applianceCategoryId,
+        slug: seed.slug,
+        nameAr: seed.nameAr,
+        summaryAr: seed.summaryAr,
+        guidanceAr: seed.guidanceAr,
+        publishStatus: 'published',
+        sortOrder: seed.sortOrder,
+      },
+      select: { id: true },
+    });
+    faultRows.push({ id: row.id, category: seed.category, slug: seed.slug });
+  }
+
+  const serviceRows = await prisma.service.findMany({
+    where: { slug: { in: serviceSeeds.map((s) => s.slug) } },
+    select: { id: true, applianceCategoryId: true, slug: true },
+  });
+  const serviceByCategorySlug = new Map(
+    serviceRows.map((row) => [`${row.applianceCategoryId}:${row.slug}`, row.id]),
+  );
+  const faultLinks = [
+    { category: 'washing_machine', fault: 'no_spin', service: 'washing_repair' },
+    { category: 'washing_machine', fault: 'leak', service: 'washing_repair' },
+    { category: 'refrigerator', fault: 'not_cooling', service: 'fridge_repair' },
+    { category: 'air_conditioner', fault: 'not_cooling', service: 'ac_repair' },
+  ] as const;
+  for (const link of faultLinks) {
+    const applianceCategoryId = categoryBySlug.get(link.category);
+    if (applianceCategoryId === undefined) continue;
+    const serviceId = serviceByCategorySlug.get(`${applianceCategoryId}:${link.service}`);
+    const fault = faultRows.find(
+      (row) => row.category === link.category && row.slug === link.fault,
+    );
+    if (serviceId === undefined || fault === undefined) continue;
+    await prisma.faultServiceLink.upsert({
+      where: { faultId_serviceId: { faultId: fault.id, serviceId } },
+      update: {},
+      create: { faultId: fault.id, serviceId },
+    });
+  }
+
   // Entitlements — documented key set (docs/08_SUBSCRIPTIONS.md §5).
   const entitlements: Array<{ code: string; nameAr: string; featureGroup: string }> = [
     { code: 'priority_support', nameAr: 'دعم ذو أولوية', featureGroup: 'support' },
@@ -102,15 +207,24 @@ async function main(): Promise<void> {
     }
   }
 
-  const [categoriesCount, entitlementsCount, reviewTagsCount, plansCount] = await Promise.all([
+  const [
+    categoriesCount,
+    servicesCount,
+    faultsCount,
+    entitlementsCount,
+    reviewTagsCount,
+    plansCount,
+  ] = await Promise.all([
     prisma.applianceCategory.count(),
+    prisma.service.count(),
+    prisma.fault.count(),
     prisma.entitlement.count(),
     prisma.reviewTag.count(),
     prisma.subscriptionPlan.count(),
   ]);
 
   console.log(
-    `[seed] reference data ready — categories=${String(categoriesCount)} entitlements=${String(entitlementsCount)} review_tags=${String(reviewTagsCount)} plans=${String(plansCount)} (plans inactive — pricing TBD). No user data is created.`,
+    `[seed] reference data ready — categories=${String(categoriesCount)} services=${String(servicesCount)} faults=${String(faultsCount)} entitlements=${String(entitlementsCount)} review_tags=${String(reviewTagsCount)} plans=${String(plansCount)} (plans inactive — pricing TBD). No user data is created.`,
   );
 }
 

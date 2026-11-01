@@ -184,6 +184,7 @@ export class ApiTechnicianRequestsDataSource implements TechnicianRequestsDataSo
           throw new RequestActionError('INVALID', 'هذا الطلب مغلق ولا يقبل إجراءات جديدة.');
         }
       }
+      this.detailCache.set(requestId, Promise.resolve(dto));
       return await mapTechnicianRequestFromDetail(dto);
     } catch (err: unknown) {
       throw this.toActionError(err);

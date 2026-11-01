@@ -33,11 +33,11 @@ export function configureApp(
           callback(null, true);
           return;
         }
-        if (config.corsOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error(`CORS: origin '${origin}' not allowed`), false);
-        }
+      if (config.corsOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

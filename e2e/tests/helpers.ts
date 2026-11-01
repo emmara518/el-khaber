@@ -31,6 +31,24 @@ export async function isApiUp(): Promise<boolean> {
   }
 }
 
+/**
+ * Fail-closed API preflight.
+ *
+ * A missing API is a BLOCKED acceptance run, never a passing test. Throwing
+ * here makes the runner report a failure with the target that was probed;
+ * returning early would mark the test as passed without executing any
+ * assertion (the original false-green defect).
+ */
+export async function requireApiUp(): Promise<void> {
+  if (await isApiUp()) {
+    return;
+  }
+  throw new Error(
+    `API preflight failed: ${API_BASE} did not return 200 for /appliance-categories. ` +
+      'The acceptance run is BLOCKED, not passed.',
+  );
+}
+
 export function authHeader(token: string): Record<string, string> {
   return { Authorization: `Bearer ${token}` };
 }

@@ -49,6 +49,13 @@ const setVerificationBody = z.object({
 });
 type SetVerificationBody = z.infer<typeof setVerificationBody>;
 
+const setUserStatusBody = z.object({
+  status: z.enum(['active', 'suspended']),
+  // Suspension requires a reason (enforced in the service) and is audited.
+  reason: z.string().trim().min(4).max(500).optional(),
+});
+type SetUserStatusBody = z.infer<typeof setUserStatusBody>;
+
 const setRequestStatusBody = z.object({
   status: z.enum(['pending', 'accepted', 'on_the_way', 'in_progress', 'completed', 'cancelled']),
 });
@@ -113,6 +120,22 @@ export class AdminController {
   @ApiEnvelopeError(404, 'User not found.')
   async getUser(@Param('id') id: string): Promise<ApiSuccess<Payload>> {
     return { data: await this.users.getUser(id) };
+  }
+
+  @Post('users/:id/status')
+  @HttpCode(200)
+  @AdminRoles('super_admin', 'operations_admin')
+  @ApiEnvelopeOk('AdminUserDto', 200, 'Account status changed (audited).')
+  @ApiEnvelopeError(400, 'Validation failed (reason required to suspend).')
+  @ApiEnvelopeError(404, 'User not found.')
+  async setUserStatus(
+    @CurrentUser() admin: RequestUser,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(setUserStatusBody)) body: SetUserStatusBody,
+  ): Promise<ApiSuccess<Payload>> {
+    return {
+      data: await this.users.setUserStatus(admin.id, id, body.status, body.reason),
+    };
   }
 
   // --- Verification state machine (docs/09 §6) ------------------------------

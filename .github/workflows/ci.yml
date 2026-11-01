@@ -469,3 +469,41 @@ jobs:
           name: p0-http-e2e-negative-control-log
           path: p0-http-e2e-negative.log
           if-no-files-found: warn
+
+  api-docker-build:
+    name: api docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build API image from this commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE_ID="$(docker build --file apps/api/Dockerfile --tag khabir-api:ci . -q)"
+          {
+            echo "commit=${GITHUB_SHA}"
+            echo "ref=${GITHUB_REF}"
+            echo "image_id=${IMAGE_ID}"
+            docker image inspect "$IMAGE_ID" --format 'image_size_bytes={{.Size}}'
+            docker image inspect "$IMAGE_ID" --format 'created={{.Created}}'
+          } | tee api-image-identity.txt
+
+      - name: Verify image identity was recorded
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s api-image-identity.txt
+          grep -q "^commit=${GITHUB_SHA}$" api-image-identity.txt
+          grep -q "^image_id=sha256:" api-image-identity.txt
+          cat api-image-identity.txt
+
+      - name: Upload API image identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-image-identity
+          path: api-image-identity.txt
+          if-no-files-found: error

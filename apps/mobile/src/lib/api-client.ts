@@ -16,6 +16,7 @@
 
 import { clearStoredSession, loadStoredSession, storeSession } from './secure-store';
 import { clearAccessToken, getAccessToken, setAccessToken } from './token-store';
+import { refreshWebSession } from './web-session-client';
 
 import type { ApiError, ApiResponse, ApiSuccess } from '@khabir/shared-types';
 
@@ -272,6 +273,21 @@ export class ApiClient {
       return this.refreshing;
     }
     this.refreshing = (async (): Promise<RefreshResult> => {
+      if (typeof document !== 'undefined' && document !== null) {
+        const result = await refreshWebSession();
+        return {
+          outcome: result.outcome,
+          data:
+            result.data === undefined
+              ? undefined
+              : {
+                  accessToken: result.data.accessToken,
+                  refreshToken: '',
+                  expiresIn: result.data.expiresIn,
+                  user: result.data.user,
+                },
+        };
+      }
       const stored = await loadStoredSession();
       if (stored === null) {
         clearAccessToken();

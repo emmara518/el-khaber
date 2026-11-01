@@ -61,13 +61,14 @@ export const TAB_ROLES: Record<Tab, ReadonlyArray<string>> = {
  * only hides controls a role can never use.
  */
 export const ACTIONS_ROLES: Record<
-  'verification' | 'paymentDecision' | 'proofPreview' | 'reviewRemoval',
+  'verification' | 'paymentDecision' | 'proofPreview' | 'reviewRemoval' | 'userStatus',
   ReadonlyArray<string>
 > = {
   verification: ['super_admin', 'operations_admin'],
   paymentDecision: ['super_admin'],
   proofPreview: ['super_admin', 'operations_admin'],
   reviewRemoval: ['super_admin', 'content_admin'],
+  userStatus: ['super_admin', 'operations_admin'],
 };
 
 export const TAB_CONTEXT: Record<Tab, string> = {

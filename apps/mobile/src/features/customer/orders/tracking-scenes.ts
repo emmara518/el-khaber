@@ -17,3 +17,8 @@ export function canChatWithOrder(status: CustomerRequestStatus, technicianId: st
 export function canRateOrder(status: CustomerRequestStatus, technicianId: string | null): boolean {
   return technicianId !== null && status === 'completed';
 }
+
+/** The backend accepts cancellation only while the request is pending/accepted. */
+export function canCancelOrder(status: CustomerRequestStatus): boolean {
+  return status === 'pending' || status === 'accepted';
+}

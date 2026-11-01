@@ -1,12 +1,9 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { apiFetch, authHeader, extractToken, isApiUp, registerPayload, uniquePhone } from './helpers';
+import { apiFetch, authHeader, extractToken, requireApiUp, registerPayload, uniquePhone } from './helpers';
 
 test('customer journey: register → login → me → catalog → service-request → notifications', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
 
   const phone = uniquePhone();
   const password = 'Test1234Pass';
@@ -32,7 +29,9 @@ test('customer journey: register → login → me → catalog → service-reques
   expect(categories.status).toBe(200);
 
   const firstCategory = (categories.body as { data: Array<{ id: string }> }).data[0];
-  if (!firstCategory) return;
+  if (!firstCategory) {
+    throw new Error('No appliance categories returned; request creation cannot be exercised.');
+  }
 
   const faults = await apiFetch(`/faults?appliance_category_id=${firstCategory.id}`);
   expect(faults.status).toBe(200);
@@ -48,7 +47,9 @@ test('customer journey: register → login → me → catalog → service-reques
   const techs = await apiFetch('/technicians');
   expect(techs.status).toBe(200);
   const firstTech = (techs.body as { data: Array<{ id: string }> }).data[0];
-  if (!firstTech) return;
+  if (!firstTech) {
+    throw new Error('No technicians returned; request creation cannot be exercised.');
+  }
 
   const create = await apiFetch('/service-requests', {
     method: 'POST',
@@ -73,19 +74,13 @@ test('customer journey: register → login → me → catalog → service-reques
 });
 
 test('customer 401: access protected endpoint without token', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
   const res = await apiFetch('/me');
   expect(res.status).toBe(401);
 });
 
 test('customer 401: technician-only endpoint rejected (guard returns 401, not 403)', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
   const phone = uniquePhone();
   const password = 'Test1234Pass';
   await apiFetch('/auth/register', {

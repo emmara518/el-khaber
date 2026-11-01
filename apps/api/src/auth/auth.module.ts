@@ -9,6 +9,7 @@ import { getConfig } from '../config/app.config';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { WebAuthController } from './web-auth.controller';
 import { HttpPasswordResetDelivery } from './http-password-reset-delivery';
 import { LoginAttemptGuard } from './login-attempt.guard';
 import {
@@ -36,7 +37,7 @@ import { SharedStoreLoginAttemptGuard } from '../common/rate-limit/shared-store-
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, WebAuthController],
   providers: [
     AuthService,
     PasswordResetService,

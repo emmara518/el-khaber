@@ -86,6 +86,33 @@ describe('technician requests list enrichment (P0-1)', () => {
   });
 });
 
+function detailDto(status: string): Record<string, unknown> {
+  return { ...summaryDto(), status, technicianId: '33333333-3333-3333-3333-333333333333' };
+}
+
+describe('technician forward transitions', () => {
+  it('resolves each advance from the latest mutation result', async () => {
+    const id = '11111111-1111-1111-1111-111111111111';
+    const source = new ApiTechnicianRequestsDataSource();
+    requestMock
+      .mockResolvedValueOnce({ data: detailDto('accepted') })
+      .mockResolvedValueOnce({ data: detailDto('on_the_way') })
+      .mockResolvedValueOnce({ data: detailDto('in_progress') })
+      .mockResolvedValueOnce({ data: detailDto('completed') });
+
+    await source.advanceStatus({ role: 'technician', requestId: id });
+    await source.advanceStatus({ role: 'technician', requestId: id });
+    await source.advanceStatus({ role: 'technician', requestId: id });
+
+    expect(requestMock.mock.calls.map(([method, path]) => `${method} ${path}`)).toEqual([
+      `GET /service-requests/${id}`,
+      `POST /service-requests/${id}/start`,
+      `POST /service-requests/${id}/start`,
+      `POST /service-requests/${id}/complete`,
+    ]);
+  });
+});
+
 describe('locationArFromSummary', () => {
   it('joins present parts and skips blanks/whitespace', () => {
     expect(locationArFromSummary({ label: 'المنزل', city: 'القاهرة', addressText: 'شارع النيل' })).toBe(

@@ -16,7 +16,7 @@ import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 
-import { ConflictException } from '../common/errors';
+import { ConflictException, ForbiddenException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
 import type { MerchantProductDto } from './types';
@@ -71,6 +71,20 @@ export class MerchantProductsService {
     return profile?.id ?? null;
   }
 
+  /**
+   * Suspension is enforced on every product mutation. Read-only merchant
+   * views remain available so the merchant can see the state of the account.
+   */
+  private async assertNotSuspended(merchantId: string): Promise<void> {
+    const profile = await this.prisma.merchantProfile.findFirst({
+      where: { id: merchantId },
+      select: { verificationStatus: true },
+    });
+    if (profile?.verificationStatus === 'suspended') {
+      throw new ForbiddenException('Merchant account is suspended');
+    }
+  }
+
   async list(
     merchantId: string,
     query: { page: number; limit: number },
@@ -117,6 +131,7 @@ export class MerchantProductsService {
   }
 
   async create(merchantId: string, input: MerchantProductCreateInput): Promise<MerchantProductDto> {
+    await this.assertNotSuspended(merchantId);
     // An EXPLICIT slug is user intent: a clash is a conflict. A DERIVED
     // slug (from nameAr) is uniquified automatically.
     if (input.slug !== undefined) {
@@ -150,6 +165,7 @@ export class MerchantProductsService {
     id: string,
     input: MerchantProductUpdateInput,
   ): Promise<MerchantProductDto> {
+    await this.assertNotSuspended(merchantId);
     if (input.slug !== undefined) {
       const clash = await this.prisma.product.findFirst({
         where: { merchantId, slug: input.slug },
@@ -188,6 +204,7 @@ export class MerchantProductsService {
   }
 
   async remove(merchantId: string, id: string): Promise<void> {
+    await this.assertNotSuspended(merchantId);
     // Preserve buyer/merchant conversation history. A product with any chat
     // must be suspended instead of hard-deleted; the FK cascade would
     // otherwise erase messages.

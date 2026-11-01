@@ -313,6 +313,7 @@ export class AdminOperationsService {
           id: true,
           status: true,
           customerId: true,
+          technicianId: true,
           acceptedAt: true,
           startedAt: true,
         },
@@ -339,6 +340,18 @@ export class AdminOperationsService {
         },
         select: { id: true, status: true, customerId: true },
       });
+      if (before.technicianId !== null && before.status !== status) {
+        const enteredCompleted = before.status !== 'completed' && status === 'completed';
+        const leftCompleted = before.status === 'completed' && status !== 'completed';
+        if (enteredCompleted || leftCompleted) {
+          const delta = enteredCompleted ? 1 : -1;
+          await tx.$executeRaw`
+            UPDATE "technician_profiles"
+            SET "completed_services_count" = GREATEST("completed_services_count" + ${delta}, 0)
+            WHERE "id" = ${before.technicianId}::uuid
+          `;
+        }
+      }
       await tx.serviceRequestStatusHistory.create({
         data: {
           serviceRequestId: id,

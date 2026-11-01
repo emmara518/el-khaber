@@ -4,7 +4,7 @@ NestJS backend for الخبير. Authoritative source for identity, roles, permi
 
 ## Prerequisites
 
-- Node.js 22.11.0 (see `docs/local-dev.md` §2)
+- Node.js 22.23.4 (see `docs/local-dev.md` §2)
 - pnpm 10.4.0
 - PostgreSQL 15+ with PostGIS installed **natively** on the developer machine
   (Docker is not used for the local database in this phase, per the Task #002

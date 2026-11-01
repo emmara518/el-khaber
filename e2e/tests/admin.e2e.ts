@@ -1,19 +1,18 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { apiFetch, authHeader, extractToken, isApiUp, uniqueEmail } from './helpers';
+import { apiFetch, authHeader, extractToken, requireApiUp, uniqueEmail } from './helpers';
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 test('admin journey: login → metrics → users → technicians → audit-logs', async () => {
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
-    console.warn('SKIP: ADMIN_EMAIL / ADMIN_PASSWORD not set');
-    return;
+    throw new Error(
+      'ADMIN_EMAIL / ADMIN_PASSWORD are required for the admin journey. ' +
+        'The acceptance run is BLOCKED, not passed.',
+    );
   }
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
 
   const login = await apiFetch('/admin/auth/login', {
     method: 'POST',
@@ -37,19 +36,13 @@ test('admin journey: login → metrics → users → technicians → audit-logs'
 });
 
 test('admin 401: access admin endpoint without token', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
   const res = await apiFetch('/admin/metrics');
   expect(res.status).toBe(401);
 });
 
 test('admin 401: non-admin user token rejected (guard returns 401)', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
   const phone = `+9665${Date.now().toString().slice(-8)}`;
   const password = 'Test1234Pass';
   await apiFetch('/auth/register', {

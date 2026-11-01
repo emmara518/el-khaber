@@ -11,7 +11,11 @@ import { color, radius, shadow, spacing } from '@khabir/ui-tokens';
 import { useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { verificationCopy } from './technician-home-types';
+import {
+  needsTechnicianOnboarding,
+  technicianHomeViewState,
+  verificationCopy,
+} from './technician-home-types';
 import { useTechnicianHomeViewModel } from './use-technician-home-view-model';
 
 import { useNotificationsViewModel } from '@/features/notifications/use-notifications-view-model';
@@ -55,19 +59,21 @@ export default function TechnicianHomeScreen() {
   const { status, data, error, retry, availabilitySaving, availabilityError, setAvailability } = useTechnicianHomeViewModel();
   const notifications = useNotificationsViewModel('technician');
 
-  if (status === 'loading' || data === null) {
+  const viewState = technicianHomeViewState(status, data);
+
+  if (viewState === 'loading') {
     return (
       <View style={styles.root}>
         <AppHeader onPressNotifications={() => router.push('/(technician)/notifications')} />
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <PageTitle eyebrow="مساحة العمل" title={t('tech.home.today')} />
+          <PageTitle eyebrow="U.O3OO-Oc OU,O1U.U," title={t('tech.home.today')} />
           <ListLoading label={t('state.loading')} brandAsset="toolbox" />
         </ScrollView>
       </View>
     );
   }
 
-  if (status === 'error') {
+  if (viewState === 'error') {
     return (
       <View style={styles.root}>
         <AppHeader onPressNotifications={() => router.push('/(technician)/notifications')} />
@@ -84,8 +90,13 @@ export default function TechnicianHomeScreen() {
     );
   }
 
+  if (data === null) {
+    return null;
+  }
+
   const verification = verificationCopy(data.profile.verification);
   const active = data.active;
+  const onboardingNeeded = needsTechnicianOnboarding(data.profile);
 
   return (
     <View style={styles.root}>
@@ -276,10 +287,19 @@ export default function TechnicianHomeScreen() {
         {/* Verification summary */}
         <View style={styles.section}>
           <SectionHeading title={verification.titleAr} body={data.profile.verificationNoteAr} />
+          {onboardingNeeded ? (
+            <ActionButton
+              icon="edit-3"
+              label={t('tech.profile.updateData')}
+              onPress={() =>
+                router.push({ pathname: '/(technician)/onboarding', params: { resume: '1' } })
+              }
+            />
+          ) : null}
           <ActionButton
             variant="secondary"
             icon="user"
-            label="إدارة الملف"
+            label="O�O_OO�Oc OU,U.U,U?"
             onPress={() => router.push('/(technician)/profile')}
           />
         </View>

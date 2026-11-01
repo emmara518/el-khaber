@@ -51,7 +51,13 @@ export class StoreProductsService {
     limit: number;
   }): Promise<{ items: PublicProductDto[]; meta: ReturnType<typeof buildPageMeta> }> {
     const { page, limit } = query;
-    const where: Prisma.ProductWhereInput = { status: 'active' };
+    const where: Prisma.ProductWhereInput = {
+      status: 'active',
+      merchant: {
+        verificationStatus: { not: 'suspended' },
+        user: { status: 'active' },
+      },
+    };
     const [total, rows] = await Promise.all([
       this.prisma.product.count({ where }),
       this.prisma.product.findMany({
@@ -67,7 +73,14 @@ export class StoreProductsService {
 
   async detail(id: string): Promise<PublicProductDto> {
     const row = await this.prisma.product.findFirst({
-      where: { id, status: 'active' },
+      where: {
+        id,
+        status: 'active',
+        merchant: {
+          verificationStatus: { not: 'suspended' },
+          user: { status: 'active' },
+        },
+      },
       select: PUBLIC_PRODUCT_SELECT,
     });
     if (row === null) {

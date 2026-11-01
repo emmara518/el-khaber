@@ -15,6 +15,8 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollVie
 import { sharedMerchantProductsSource } from './api-merchant-products-data-source';
 import {
   EMPTY_PRODUCT_DRAFT,
+  parsePriceInput,
+  parseStockInput,
   validateProductDraft,
   type MerchantProductDataSource,
   type MerchantProductDraft,
@@ -43,6 +45,16 @@ export default function MerchantProductFormScreen({
   const vm = useMerchantProductFormViewModel(mode, productId, source ?? sharedMerchantProductsSource);
   const [draft, setDraft] = useState<MerchantProductDraft>(initial ?? EMPTY_PRODUCT_DRAFT);
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+  const [priceText, setPriceText] = useState(
+    initial?.price !== null && initial?.price !== undefined ? String(initial.price) : '',
+  );
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [stockText, setStockText] = useState(
+    initial?.stockQuantity !== null && initial?.stockQuantity !== undefined
+      ? String(initial.stockQuantity)
+      : '',
+  );
+  const [stockError, setStockError] = useState<string | null>(null);
   const submitting = vm.status === 'submitting';
   const savedProduct = vm.saved;
 
@@ -51,8 +63,44 @@ export default function MerchantProductFormScreen({
     setErrors({});
   }
 
+  function patchPrice(text: string) {
+    setPriceText(text);
+    if (text.trim().length === 0) {
+      setPriceError(null);
+      patch({ price: null });
+      return;
+    }
+    const value = parsePriceInput(text);
+    if (value === null) {
+      setPriceError('أدخل سعراً صحيحاً');
+      return;
+    }
+    setPriceError(null);
+    patch({ price: value });
+  }
+
+  function patchStock(text: string) {
+    setStockText(text);
+    if (text.trim().length === 0) {
+      setStockError(null);
+      patch({ stockQuantity: null });
+      return;
+    }
+    const value = parseStockInput(text);
+    if (value === null) {
+      setStockError('أدخل كمية صحيحة');
+      return;
+    }
+    setStockError(null);
+    patch({ stockQuantity: value });
+  }
+
   function handleSubmit() {
-    const validation = validateProductDraft(draft);
+    const validation = {
+      ...validateProductDraft(draft),
+      ...(priceError !== null ? { price: priceError } : {}),
+      ...(stockError !== null ? { stockQuantity: stockError } : {}),
+    };
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
     vm.save(draft);
@@ -140,13 +188,10 @@ export default function MerchantProductFormScreen({
           <FormField
             label={t('merchant.productForm.price')}
             placeholder={t('merchant.productForm.pricePlaceholder')}
-            value={draft.price === null ? '' : String(draft.price)}
-            onChangeText={(text) => {
-              const n = Number(text.replace(/[^0-9]/g, ''));
-              patch({ price: text.trim().length === 0 ? null : n });
-            }}
-            keyboardType="numeric"
-            error={errors.price}
+            value={priceText}
+            onChangeText={patchPrice}
+            keyboardType="decimal-pad"
+            error={errors.price ?? priceError ?? undefined}
             hint={t('merchant.productForm.priceOptional')}
             editable={!submitting}
           />
@@ -154,13 +199,10 @@ export default function MerchantProductFormScreen({
           <FormField
             label={t('merchant.productForm.stock')}
             placeholder={t('merchant.productForm.stockPlaceholder')}
-            value={draft.stockQuantity === null ? '' : String(draft.stockQuantity)}
-            onChangeText={(text) => {
-              const n = Number(text.replace(/[^0-9]/g, ''));
-              patch({ stockQuantity: text.trim().length === 0 ? null : n });
-            }}
-            keyboardType="numeric"
-            error={errors.stockQuantity}
+            value={stockText}
+            onChangeText={patchStock}
+            keyboardType="number-pad"
+            error={errors.stockQuantity ?? stockError ?? undefined}
             hint={t('merchant.productForm.stockOptional')}
             editable={!submitting}
           />

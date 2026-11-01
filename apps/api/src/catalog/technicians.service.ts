@@ -104,6 +104,8 @@ export class TechniciansService {
 
     const where: Prisma.TechnicianProfileWhereInput = {
       verificationStatus: 'verified',
+      // Account-level suspension is separate from profile verification.
+      user: { status: 'active' },
       ...(q !== undefined
         ? {
             OR: [
@@ -145,7 +147,11 @@ export class TechniciansService {
 
   async detail(id: string): Promise<TechnicianPublicDto> {
     const row = await this.prisma.technicianProfile.findFirst({
-      where: { id, verificationStatus: 'verified' },
+      where: {
+        id,
+        verificationStatus: 'verified',
+        user: { status: 'active' },
+      },
       include: SERVICES_INCLUDE,
     });
     if (row === null) {

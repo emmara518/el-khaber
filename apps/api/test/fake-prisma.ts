@@ -553,6 +553,53 @@ class FakePrismaClient {
     return Promise.resolve([{ '?column?': 1 }] as unknown as T[]);
   }
 
+  $queryRawUnsafe<T = unknown>(sql: string, ..._values: unknown[]): Promise<T[]> {
+    if (sql.includes('pg_class') && sql.includes("'public.users'")) {
+      return Promise.resolve([
+        {
+          currentUser: 'khabir_test',
+          usersOwner: 'khabir_test',
+          usersRls: true,
+          usersForceRls: false,
+          bypassRls: false,
+          isSuperuser: true,
+          canSelect: true,
+        },
+      ] as unknown as T[]);
+    }
+    if (sql.includes('_prisma_migrations')) {
+      return Promise.resolve([{ pending: 0 }] as unknown as T[]);
+    }
+    if (sql.includes('FROM "users"')) {
+      return Promise.resolve([{ count: 1 }] as unknown as T[]);
+    }
+    return Promise.resolve([{ '?column?': 1 }] as unknown as T[]);
+  }
+
+  $executeRaw(strings: TemplateStringsArray, ...values: unknown[]): Promise<number> {
+    const sql = strings.reduce((acc, str, i) => acc + str + (values[i] ?? ''), '');
+    if (sql.includes('UPDATE "technician_profiles"') && sql.includes('completed_services_count')) {
+      if (sql.includes('GREATEST')) {
+        const delta = Number(values[0]);
+        const id = String(values[1]);
+        const row = this.technicianProfiles.find((profile) => profile.id === id);
+        if (row !== undefined) {
+          row.completedServicesCount = Math.max(0, row.completedServicesCount + delta);
+          return Promise.resolve(1);
+        }
+        return Promise.resolve(0);
+      }
+      const id = String(values[0]);
+      const row = this.technicianProfiles.find((profile) => profile.id === id);
+      if (row !== undefined) {
+        row.completedServicesCount += 1;
+        return Promise.resolve(1);
+      }
+      return Promise.resolve(0);
+    }
+    return Promise.resolve(0);
+  }
+
   /**
    * Mirrors the real `PrismaService.isConnected()` so the readiness
    * probe does not throw on the fake.

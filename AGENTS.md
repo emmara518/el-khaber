@@ -2,7 +2,7 @@
 
 ## 1. Project Facts
 
-- pnpm monorepo with Node >= 20.11
+- pnpm monorepo with Node >= 22.23.4
 - apps/admin
 - apps/api
 - apps/landing

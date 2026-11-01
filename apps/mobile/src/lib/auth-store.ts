@@ -1,39 +1,56 @@
-/**
+﻿/**
  * Auth store. Role-aware session state for the mobile app.
- *
- * State machine (Task #002 §17):
- *   anonymous -> authenticated (login/register/refresh) -> anonymous (logout)
- *
- * The store does not perform any visual side effects. Screens subscribe
- * via selectors and render accordingly.
- *
- * Source: docs/05_TECH_ARCHITECTURE.md §5–§7, Task #002 §17.
+ * On web the refresh token lives only inside an HttpOnly cookie; native
+ * still uses the existing SecureStore-based durable session.
  */
 
 import { create } from 'zustand';
+import {
+  getApi,
+  setSessionLostHandler,
+} from './api-client';
+import {
+  clearStoredSession,
+  loadStoredSession,
+  storeSession,
+} from './secure-store';
+import {
+  clearAccessToken,
+  setAccessToken,
+} from './token-store';
+import {
+  refreshWebSession,
+  webLogin,
+  webLogout,
+  webRegister,
+} from './web-session-client';
 
-
-import { getApi, setSessionLostHandler } from './api-client';
-import { clearStoredSession, loadStoredSession, storeSession } from './secure-store';
-import { clearAccessToken, setAccessToken } from './token-store';
-
-import type { AuthSessionDto, AuthUserDto, Role } from '@khabir/shared-types';
+import type {
+  AuthSessionDto,
+  AuthUserDto,
+  Role,
+} from '@khabir/shared-types';
 
 export interface AuthState {
   status: 'unknown' | 'anonymous' | 'authenticated';
-  /** Transport state for the bootstrap attempt (retryable when offline). */
   connection: 'online' | 'offline';
   user: AuthUserDto | null;
   expiresAt: number | null;
   error: string | null;
   bootstrap: () => Promise<void>;
   login: (input: { phone?: string; email?: string; password: string }) => Promise<void>;
-  register: (input: { role: Role; phone?: string; email?: string; password: string }) => Promise<void>;
+  register: (input: {
+    role: Role;
+    phone?: string;
+    email?: string;
+    password: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
-  /** Central, local-only session invalidation (WP-1A). Idempotent. */
   handleSessionLost: () => Promise<void>;
   clearError: () => void;
 }
+
+const isWeb = typeof document !== 'undefined' && document !== null && 'cookie' in document;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'unknown',
@@ -43,14 +60,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   async bootstrap(): Promise<void> {
+    if (isWeb) {
+      const result = await refreshWebSession();
+      if (result.outcome === 'ok' && result.data !== undefined) {
+        set({
+          status: 'authenticated',
+          connection: 'online',
+          user: result.data.user as AuthUserDto,
+          expiresAt: Date.now() + result.data.expiresIn * 1000,
+          error: null,
+        });
+        return;
+      }
+      if (result.outcome === 'auth') {
+        set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
+        return;
+      }
+      clearAccessToken();
+      set({
+        status: 'unknown',
+        connection: 'offline',
+        user: null,
+        expiresAt: null,
+        error: 'Ã˜ÂªÃ˜Â¹Ã˜Â°Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â§Ã˜ÂªÃ˜ÂµÃ˜Â§Ã™â€ž Ã˜Â¨Ã˜Â§Ã™â€žÃ˜Â®Ã˜Â§Ã˜Â¯Ã™â€¦. Ã˜ÂªÃ˜Â­Ã™â€šÃ™â€š Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â¨Ã™Æ’Ã˜Â© Ã™Ë†Ã˜Â­Ã˜Â§Ã™Ë†Ã™â€ž Ã˜ÂªÃ˜Â§Ã™â€ Ã™Å .',
+      });
+      return;
+    }
+
     const stored = await loadStoredSession();
     if (stored === null) {
       set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null });
       return;
     }
 
-    // Route through the client's single-flight refresh so bootstrap and any
-    // concurrent startup requests share exactly one refresh call.
     const result = await getApi().refreshSession();
     if (result.outcome === 'ok' && result.data !== undefined) {
       const data = result.data;
@@ -81,13 +123,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       connection: 'offline',
       user: null,
       expiresAt: null,
-      error: 'تعذر الاتصال بالخادم. تحقق من الشبكة وحاول تاني.',
+      error: 'Ã˜ÂªÃ˜Â¹Ã˜Â°Ã˜Â± Ã˜Â§Ã™â€žÃ˜Â§Ã˜ÂªÃ˜ÂµÃ˜Â§Ã™â€ž Ã˜Â¨Ã˜Â§Ã™â€žÃ˜Â®Ã˜Â§Ã˜Â¯Ã™â€¦. Ã˜ÂªÃ˜Â­Ã™â€šÃ™â€š Ã™â€¦Ã™â€  Ã˜Â§Ã™â€žÃ˜Â´Ã˜Â¨Ã™Æ’Ã˜Â© Ã™Ë†Ã˜Â­Ã˜Â§Ã™Ë†Ã™â€ž Ã˜ÂªÃ˜Â§Ã™â€ Ã™Å .',
     });
   },
 
   async login(input): Promise<void> {
     set({ error: null });
     try {
+      if (isWeb) {
+        const data = await webLogin(input);
+        setAccessToken(data.accessToken);
+        set({
+          status: 'authenticated',
+          connection: 'online',
+          user: data.user as AuthUserDto,
+          expiresAt: Date.now() + data.expiresIn * 1000,
+        });
+        return;
+      }
+
       const res = await getApi().unauthenticatedRequest<{ data: AuthSessionDto }>(
         'POST',
         '/auth/login',
@@ -112,6 +166,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async register(input): Promise<void> {
     set({ error: null });
     try {
+      if (isWeb) {
+        const data = await webRegister(input);
+        setAccessToken(data.accessToken);
+        set({
+          status: 'authenticated',
+          connection: 'online',
+          user: data.user as AuthUserDto,
+          expiresAt: Date.now() + data.expiresIn * 1000,
+        });
+        return;
+      }
+
       const res = await getApi().unauthenticatedRequest<{ data: AuthSessionDto }>(
         'POST',
         '/auth/register',
@@ -134,6 +200,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   async logout(): Promise<void> {
+    if (isWeb) {
+      try {
+        await webLogout();
+        clearStoredSession();
+        clearAccessToken();
+        set({
+          status: 'anonymous',
+          connection: 'online',
+          user: null,
+          expiresAt: null,
+          error: null,
+        });
+        return;
+      } catch {
+        // Logout must always clear local state even if the server call fails.
+      }
+    }
+
     const stored = await loadStoredSession();
     if (stored !== null) {
       try {
@@ -149,15 +233,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
   },
 
-  clearError(): void {
-    set({ error: null });
-  },
-
   async handleSessionLost(): Promise<void> {
-    // Invoked by the API client when a refresh definitively fails. It is
-    // LOCAL-ONLY (the refresh already failed; no server round-trip is
-    // attempted) and idempotent: parallel 401s must not re-run or loop.
-    // The root AuthGate sees `anonymous` and redirects to /login.
+    if (isWeb) {
+      try {
+        await webLogout();
+        clearAccessToken();
+      } catch {
+        // The HTTP logout may fail; local state is still reset below.
+      }
+      clearStoredSession();
+      set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
+      return;
+    }
+
     if (get().status === 'anonymous' && get().user === null) {
       return;
     }
@@ -165,10 +253,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     clearAccessToken();
     set({ status: 'anonymous', connection: 'online', user: null, expiresAt: null, error: null });
   },
+
+  clearError(): void {
+    set({ error: null });
+  },
 }));
 
-// Central session-loss wiring (WP-1A). One registration covers all three
-// roles: the store invalidates the session and the root guard reroutes.
 setSessionLostHandler(() => {
   void useAuthStore.getState().handleSessionLost();
 });
+

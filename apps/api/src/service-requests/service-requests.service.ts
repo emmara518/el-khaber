@@ -19,7 +19,11 @@ import { buildPageMeta } from '@khabir/shared-types';
 import { Injectable } from '@nestjs/common';
 
 
-import { InvalidStateTransitionException, NotFoundException } from '../common/errors';
+import {
+  ForbiddenException,
+  InvalidStateTransitionException,
+  NotFoundException,
+} from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 import { requestStatusNotification } from '../notifications/notification-events';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -409,6 +413,19 @@ export class ServiceRequestsService {
         if (updated.count === 0) {
           return 'no-match' as const;
         }
+        if (rule.to === 'completed') {
+          const completed = await tx.serviceRequest.findUnique({
+            where: { id },
+            select: { technicianId: true },
+          });
+          if (completed?.technicianId !== null && completed?.technicianId !== undefined) {
+            await tx.$executeRaw`
+              UPDATE "technician_profiles"
+              SET "completed_services_count" = "completed_services_count" + 1
+              WHERE "id" = ${completed.technicianId}::uuid
+            `;
+          }
+        }
         await tx.serviceRequestStatusHistory.create({
           data: {
             serviceRequestId: id,
@@ -462,11 +479,20 @@ export class ServiceRequestsService {
     action: TransitionAction,
     id: string,
   ): Promise<ServiceRequestDto> {
-    const profileId = await this.resolveTechnicianProfileId(user.id);
-    if (profileId === null) {
+    const profile = await this.prisma.technicianProfile.findFirst({
+      where: { userId: user.id },
+      select: { id: true, verificationStatus: true },
+    });
+    if (profile === null) {
       throw new NotFoundException('Service request not found');
     }
-    return this.transition(user, action, id, { id, technicianId: profileId });
+    // Verification is re-checked on every technician action so an admin
+    // suspension takes effect immediately, including on work already
+    // accepted by the technician.
+    if (profile.verificationStatus !== 'verified') {
+      throw new ForbiddenException('Technician verification is not active');
+    }
+    return this.transition(user, action, id, { id, technicianId: profile.id });
   }
 
   async reject(user: RequestUserRef, id: string): Promise<ServiceRequestDto> {

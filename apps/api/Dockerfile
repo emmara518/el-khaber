@@ -7,7 +7,7 @@
 # Runtime secrets (DATABASE_URL, JWT secrets, ...) are provided by the
 # platform at deploy time and are NEVER baked into the image.
 
-FROM node:20-bookworm AS build
+FROM node:22.23.4-bookworm AS build
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 RUN corepack enable
@@ -32,7 +32,7 @@ RUN pnpm --filter @khabir/shared-types build \
  && pnpm --filter @khabir/api exec prisma generate \
  && pnpm --filter @khabir/api build
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:22.23.4-bookworm-slim AS runtime
 ENV NODE_ENV=production
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH

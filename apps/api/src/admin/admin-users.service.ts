@@ -10,6 +10,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { buildPageMeta } from '@khabir/shared-types';
 
+import { ConflictException, ValidationException } from '../common/errors';
 import { PrismaService } from '../database/prisma.service';
 
 import type { Prisma, UserRole } from '@prisma/client';
@@ -140,5 +141,76 @@ export class AdminUsersService {
         serviceRequests: serviceRequestsCount,
       },
     };
+  }
+
+  /**
+   * Account suspension/reactivation. The JWT guard already re-reads the
+   * user status and tokenVersion on every request; incrementing
+   * tokenVersion here makes the suspension effective immediately instead
+   * of waiting for the access token to expire.
+   */
+  async setUserStatus(
+    adminId: string,
+    userId: string,
+    status: 'active' | 'suspended',
+    reason?: string,
+  ): Promise<Record<string, unknown>> {
+    const trimmedReason = reason?.trim() ?? '';
+    if (status === 'suspended' && trimmedReason.length === 0) {
+      throw new ValidationException('A reason is required to suspend an account', {
+        reason: 'Provide the suspension reason',
+      });
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.user.findFirst({
+        where: { id: userId },
+        select: { id: true, status: true },
+      });
+      if (before === null) {
+        return 'not-found' as const;
+      }
+      if (before.status === 'deleted') {
+        throw new ConflictException('Deleted accounts cannot be reactivated');
+      }
+      if (before.status === status) {
+        const current = await tx.user.findFirst({
+          where: { id: userId },
+          select: USER_LIST_SELECT,
+        });
+        if (current === null) {
+          return 'not-found' as const;
+        }
+        return current;
+      }
+
+      const updated = await tx.user.update({
+        where: { id: userId },
+        data: {
+          status,
+          ...(status === 'suspended' ? { tokenVersion: { increment: 1 } } : {}),
+        },
+        select: USER_LIST_SELECT,
+      });
+      await tx.auditLog.create({
+        data: {
+          actorAdminId: adminId,
+          entityType: 'user',
+          entityId: userId,
+          action: 'admin.user.status',
+          beforeJson: { status: before.status } as never,
+          afterJson: {
+            status,
+            ...(trimmedReason.length > 0 ? { reason: trimmedReason } : {}),
+          } as never,
+        },
+      });
+      return updated;
+    });
+
+    if (result === 'not-found') {
+      throw new NotFoundException('User not found');
+    }
+    return result;
   }
 }

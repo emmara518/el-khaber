@@ -4,6 +4,8 @@ import { Public } from '../common/decorators';
 import { StructuredLogger } from '../common/structured-logger';
 import { PrismaService } from '../database/prisma.service';
 
+import { assessRuntimeRole, RUNTIME_ROLE_SQL, type RuntimeRoleState } from './readiness';
+
 interface LivenessResponse {
   status: 'ok';
   service: string;
@@ -68,7 +70,7 @@ export class HealthService {
 
   async readiness(): Promise<ReadinessResponse> {
     try {
-      const [pendingRows, userRows] = await Promise.all([
+      const [pendingRows, userRows, roleRows] = await Promise.all([
         this.prisma.$queryRaw<Array<{ pending: number }>>`
           SELECT count(*)::int AS pending
           FROM "_prisma_migrations"
@@ -77,14 +79,20 @@ export class HealthService {
         this.prisma.$queryRaw<Array<{ count: number }>>`
           SELECT count(*)::int AS count FROM "users"
         `,
+        this.prisma.$queryRawUnsafe<RuntimeRoleState[]>(RUNTIME_ROLE_SQL),
       ]);
       const pending = Number(pendingRows[0]?.pending ?? 0);
       if (pending !== 0) {
         throw new Error(`database has ${String(pending)} unfinished migration(s)`);
       }
       // The users query proves the runtime role can read a critical migrated
-      // table, not merely open a TCP connection.
+      // table, not merely open a TCP connection. The role assessment prevents
+      // a zero-row RLS trap from being reported as ready.
       void userRows;
+      const roleProblem = assessRuntimeRole(roleRows[0]);
+      if (roleProblem !== null) {
+        throw new Error(roleProblem);
+      }
       return {
         status: 'ready',
         checks: { database: 'ok', migrations: 'ok', schema: 'ok' },

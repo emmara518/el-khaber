@@ -74,6 +74,34 @@ export interface TechnicianHomeViewModel {
   readonly role: 'technician';
 }
 
+/**
+ * Resolve the screen state without letting a null data payload mask an
+ * error. The original screen checked `data === null` before the error
+ * branch, so an API failure rendered the loading state forever.
+ */
+export function technicianHomeViewState(
+  status: 'loading' | 'loaded' | 'error',
+  data: TechnicianHomeViewModel | null,
+): 'loading' | 'error' | 'loaded' {
+  if (status === 'error') return 'error';
+  if (status === 'loading') return 'loading';
+  return data === null ? 'error' : 'loaded';
+}
+
+/**
+ * A technician still needs the onboarding journey when verification is not
+ * complete and the profile lacks either a specialty service or a service
+ * area. Verified technicians are never pushed back into onboarding here.
+ */
+export function needsTechnicianOnboarding(
+  profile: Pick<TechnicianHomeProfile, 'verification' | 'specialtyAr' | 'areasAr'>,
+): boolean {
+  return (
+    profile.verification !== 'verified' &&
+    (profile.specialtyAr.trim().length === 0 || profile.areasAr.length === 0)
+  );
+}
+
 export interface TechnicianHomeDataSource {
   getHome(input: { role: 'technician' }): Promise<TechnicianHomeViewModel>;
   /** WP-4: technician-controlled availability (available | unavailable only). */

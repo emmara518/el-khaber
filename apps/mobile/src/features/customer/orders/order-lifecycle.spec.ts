@@ -25,6 +25,7 @@ import {
   buildTimeline,
   nextStepTitle,
 } from './order-detail-types';
+import { canCancelOrder } from './tracking-scenes';
 import { useOrderViewModel } from './use-order-view-model';
 
 describe('request confirmation model', () => {
@@ -52,6 +53,34 @@ describe('request confirmation model', () => {
 
   it('exposes the order view-model hook', () => {
     expect(typeof useOrderViewModel).toBe('function');
+  });
+});
+
+describe('customer cancellation', () => {
+  it('offers cancellation only for pending/accepted requests', () => {
+    expect(canCancelOrder('pending')).toBe(true);
+    expect(canCancelOrder('accepted')).toBe(true);
+    expect(canCancelOrder('on_the_way')).toBe(false);
+    expect(canCancelOrder('in_progress')).toBe(false);
+    expect(canCancelOrder('completed')).toBe(false);
+    expect(canCancelOrder('cancelled')).toBe(false);
+  });
+
+  it('cancels a pending request and persists the cancelled state', async () => {
+    const source = new MockOrderDataSource();
+    await source.cancelOrder({ role: 'customer', requestId: 'order-003' });
+    const detail = await source.getOrderDetail({ role: 'customer', requestId: 'order-003' });
+    expect(detail?.status).toBe('cancelled');
+    await expect(
+      source.cancelOrder({ role: 'customer', requestId: 'order-003' }),
+    ).rejects.toThrow();
+  });
+
+  it('rejects cancellation after work has started', async () => {
+    const source = new MockOrderDataSource();
+    await expect(
+      source.cancelOrder({ role: 'customer', requestId: 'order-001' }),
+    ).rejects.toThrow();
   });
 });
 

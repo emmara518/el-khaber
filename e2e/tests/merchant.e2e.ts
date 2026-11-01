@@ -1,12 +1,9 @@
 import { test } from '@e2e-dev/web';
 import { expect } from 'e2e';
-import { apiFetch, authHeader, extractToken, isApiUp, registerPayload, uniquePhone } from './helpers';
+import { apiFetch, authHeader, extractToken, requireApiUp, registerPayload, uniquePhone } from './helpers';
 
 test('merchant journey: register → login → profile → products', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
 
   const phone = uniquePhone();
   const password = 'Merchant1234Pass';
@@ -34,19 +31,13 @@ test('merchant journey: register → login → profile → products', async () =
 });
 
 test('merchant 401: access protected endpoint without token', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
   const res = await apiFetch('/merchant/profile');
   expect(res.status).toBe(401);
 });
 
 test('merchant 401: technician-only endpoint rejected (guard returns 401)', async () => {
-  if (!(await isApiUp())) {
-    console.warn('SKIP: API is not reachable');
-    return;
-  }
+  await requireApiUp();
   const phone = uniquePhone();
   const password = 'Tech1234Pass';
   await apiFetch('/auth/register', {

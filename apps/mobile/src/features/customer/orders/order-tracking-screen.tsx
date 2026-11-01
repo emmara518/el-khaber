@@ -9,7 +9,7 @@ import { RatingForm } from '../rating/rating-form';
 import { nextStepTitle, type OrderDataSource, type OrderDetail } from './order-detail-types';
 import { orderReferenceLabel } from './order-reference';
 import { OrderTimeline } from './order-timeline';
-import { canChatWithOrder, canRateOrder, TRACKING_SCENES } from './tracking-scenes';
+import { canCancelOrder, canChatWithOrder, canRateOrder, TRACKING_SCENES } from './tracking-scenes';
 import { useOrderViewModel } from './use-order-view-model';
 
 import type { ChatDataSource } from '../chat/chat-types';
@@ -29,7 +29,8 @@ export default function OrderTrackingScreen({ requestId, orderSource, chatSource
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const { status, data, error, retry } = useOrderViewModel(requestId, orderSource);
+  const { status, data, error, retry, cancelStatus, cancelError, cancel } =
+    useOrderViewModel(requestId, orderSource);
   useRefreshOnFocus(retry);
   const [chatOpen, setChatOpen] = useState(false);
   return (
@@ -39,13 +40,13 @@ export default function OrderTrackingScreen({ requestId, orderSource, chatSource
       {status === 'error' ? <ListError title={t('tracking.error.title')} message={error?.message ?? ''} retryLabel={t('state.retry')} onRetry={retry} /> : null}
       {status === 'missing' ? <ListEmpty icon="clipboard" iconLabel="طلب غير موجود" title={t('tracking.missing.title')} body={t('tracking.missing.body')} actionLabel={t('tracking.missing.action')} onAction={() => router.replace('/(customer)/requests')} /> : null}
       {status === 'loaded' && data !== null ? (
-        <TrackingBody detail={data} chatOpen={chatOpen} onOpenChat={() => setChatOpen(true)} onCloseChat={() => setChatOpen(false)} chatSource={chatSource} ratingSource={ratingSource} onRefresh={retry} onBackToRequests={() => router.replace('/(customer)/requests')} />
+        <TrackingBody detail={data} chatOpen={chatOpen} onOpenChat={() => setChatOpen(true)} onCloseChat={() => setChatOpen(false)} chatSource={chatSource} ratingSource={ratingSource} onRefresh={retry} onBackToRequests={() => router.replace('/(customer)/requests')} cancelStatus={cancelStatus} cancelError={cancelError} onCancel={cancel} />
       ) : null}
     </ScrollView>
   );
 }
 
-function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, ratingSource, onRefresh, onBackToRequests }: {
+function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, ratingSource, onRefresh, onBackToRequests, cancelStatus, cancelError, onCancel }: {
   detail: OrderDetail;
   chatOpen: boolean;
   onOpenChat: () => void;
@@ -54,11 +55,16 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
   ratingSource?: RatingDataSource;
   onRefresh: () => void;
   onBackToRequests: () => void;
+  cancelStatus: 'idle' | 'submitting' | 'success' | 'error';
+  cancelError: string | null;
+  onCancel: () => void;
 }) {
   const { t } = useI18n();
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const scene = TRACKING_SCENES[detail.status];
   const chattable = canChatWithOrder(detail.status, detail.technicianId);
   const rateable = canRateOrder(detail.status, detail.technicianId);
+  const cancelable = canCancelOrder(detail.status);
   const nextStep = nextStepTitle(detail.status);
   return (
     <>
@@ -157,6 +163,40 @@ function TrackingBody({ detail, chatOpen, onOpenChat, onCloseChat, chatSource, r
           <SceneAction variant="secondary" icon="arrow-right" label={t('tracking.backToRequests')} onPress={onBackToRequests} />
         )}
 
+        {cancelable ? (
+          <SceneSection title={t('tracking.cancel.title')} body={t('tracking.cancel.body')}>
+            {confirmCancel ? (
+              <>
+                <SceneAction
+                  label={t('tracking.cancel.confirm')}
+                  icon="x"
+                  loading={cancelStatus === 'submitting'}
+                  onPress={onCancel}
+                />
+                <SceneAction
+                  variant="secondary"
+                  label={t('tracking.cancel.keep')}
+                  icon={null}
+                  disabled={cancelStatus === 'submitting'}
+                  onPress={() => setConfirmCancel(false)}
+                />
+              </>
+            ) : (
+              <SceneAction
+                variant="secondary"
+                label={t('tracking.cancel.action')}
+                icon="x"
+                onPress={() => setConfirmCancel(true)}
+              />
+            )}
+            {cancelStatus === 'error' ? (
+              <Text accessibilityRole="alert" style={styles.cancelError}>
+                {cancelError ?? t('tracking.cancel.error')}
+              </Text>
+            ) : null}
+          </SceneSection>
+        ) : null}
+
         <SceneAction variant="secondary" icon="clock" label={t('tracking.refresh')} onPress={onRefresh} />
       </View>
       {chattable ? <ChatDialog visible={chatOpen} onClose={onCloseChat} conversationId={`req-chat-${detail.requestId}`} technicianNameAr={detail.technicianNameAr} serviceTitle={detail.taskAr} source={chatSource} /> : null}
@@ -182,5 +222,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: color.border.default,
+  },
+  cancelError: {
+    ...type.caption,
+    color: color.error.ink,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    marginTop: spacing[2],
   },
 });

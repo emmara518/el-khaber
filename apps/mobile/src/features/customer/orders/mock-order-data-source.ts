@@ -13,6 +13,7 @@ import {
   type OrderDataSource,
   type OrderDetail,
 } from './order-detail-types';
+import { canCancelOrder } from './tracking-scenes';
 
 import type { CustomerRequestStatus } from '../requests/customer-requests-types';
 
@@ -118,10 +119,14 @@ const ROWS: ReadonlyArray<FixtureRow> = [
 ];
 
 export class MockOrderDataSource implements OrderDataSource {
+  private readonly cancelledIds = new Set<string>();
+
   async getOrderDetail(input: { role: 'customer'; requestId: string }): Promise<OrderDetail | null> {
     void input.role;
     const row = ROWS.find((r) => r.requestId === input.requestId) ?? null;
     if (row === null) return null;
+    const cancelled = this.cancelledIds.has(row.requestId);
+    const status: CustomerRequestStatus = cancelled ? 'cancelled' : row.status;
     const detail: OrderDetail = {
       requestId: row.requestId,
       technicianId: row.technicianId,
@@ -129,14 +134,25 @@ export class MockOrderDataSource implements OrderDataSource {
       technicianInitialsAr: row.technicianInitialsAr,
       applianceAr: row.applianceAr,
       taskAr: row.taskAr,
-      status: row.status,
-      statusLabelAr: row.statusLabelAr,
+      status,
+      statusLabelAr: cancelled ? 'ملغي' : row.statusLabelAr,
       locationAr: row.locationAr,
       appointmentAr: row.appointmentAr,
-      timeline: buildTimeline(row.status, row.timestamps),
+      timeline: buildTimeline(status, row.timestamps),
       photos: [],
       photosUnavailable: false,
     };
     return JSON.parse(JSON.stringify(detail)) as OrderDetail;
+  }
+
+  async cancelOrder(input: { role: 'customer'; requestId: string }): Promise<void> {
+    void input.role;
+    const row = ROWS.find((r) => r.requestId === input.requestId) ?? null;
+    if (row === null) throw new Error('Request not found');
+    const current = this.cancelledIds.has(row.requestId) ? 'cancelled' : row.status;
+    if (!canCancelOrder(current)) {
+      throw new Error('This request cannot be cancelled');
+    }
+    this.cancelledIds.add(row.requestId);
   }
 }

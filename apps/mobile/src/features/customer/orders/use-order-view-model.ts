@@ -4,19 +4,23 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { toUserError } from '../../../lib/api-error';
+import { toUserError, toUserMessage } from '../../../lib/api-error';
 
 import { ApiOrderDataSource } from './api-order-data-source';
 
 import type { OrderDataSource, OrderDetail } from './order-detail-types';
 
 export type OrderDetailStatus = 'loading' | 'loaded' | 'missing' | 'error';
+export type OrderCancelStatus = 'idle' | 'submitting' | 'success' | 'error';
 
 export interface OrderDetailState {
   status: OrderDetailStatus;
   data: OrderDetail | null;
   error: Error | null;
   retry: () => void;
+  cancelStatus: OrderCancelStatus;
+  cancelError: string | null;
+  cancel: () => void;
 }
 
 export function useOrderViewModel(
@@ -24,11 +28,15 @@ export function useOrderViewModel(
   source: OrderDataSource = new ApiOrderDataSource(),
 ): OrderDetailState {
   const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<Omit<OrderDetailState, 'retry'>>({
+  const [state, setState] = useState<
+    Omit<OrderDetailState, 'retry' | 'cancelStatus' | 'cancelError' | 'cancel'>
+  >({
     status: 'loading',
     data: null,
     error: null,
   });
+  const [cancelStatus, setCancelStatus] = useState<OrderCancelStatus>('idle');
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +56,7 @@ export function useOrderViewModel(
         setState({
           status: 'error',
           data: null,
-          error: toUserError(err, 'تعذّر تحميل تفاصيل الطلب. حاول مرة أخرى.'),
+          error: toUserError(err, 'ØªØ¹Ø°Ù‘Ø± ØªØ­Ù…ÙŠÙ„ ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ø·Ù„Ø¨. Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰.'),
         });
       });
     return () => {
@@ -59,5 +67,21 @@ export function useOrderViewModel(
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { ...state, retry };
+  const cancel = useCallback(() => {
+    if (cancelStatus === 'submitting' || cancelStatus === 'success') return;
+    setCancelStatus('submitting');
+    setCancelError(null);
+    void source
+      .cancelOrder({ role: 'customer', requestId })
+      .then(() => {
+        setCancelStatus('success');
+        setAttempt((n) => n + 1);
+      })
+      .catch((err: unknown) => {
+        setCancelError(toUserMessage(err, 'تعذر إلغاء الطلب. حاول مرة أخرى'));
+        setCancelStatus('error');
+      });
+  }, [cancelStatus, requestId, source]);
+
+  return { ...state, retry, cancelStatus, cancelError, cancel };
 }

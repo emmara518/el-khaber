@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   draftFromProduct,
+  parsePriceInput,
+  parseStockInput,
   validateProductDraft,
   EMPTY_PRODUCT_DRAFT,
   ProductMutationError,
@@ -28,6 +30,29 @@ function validDraft() {
     imageUrl: '',
   };
 }
+
+describe('numeric input parsing (Arabic + decimal separators)', () => {
+  it('preserves decimals instead of collapsing 125.5 to 1255', () => {
+    expect(parsePriceInput('125.5')).toBe(125.5);
+    expect(parsePriceInput('125,5')).toBe(125.5);
+    expect(parsePriceInput('125٫5')).toBe(125.5);
+    expect(parsePriceInput('1,000.50')).toBe(1000.5);
+  });
+
+  it('accepts Arabic-Indic and Extended Arabic-Indic digits', () => {
+    expect(parsePriceInput('١٢٥٫٥')).toBe(125.5);
+    expect(parsePriceInput('۱۲۵.۵')).toBe(125.5);
+    expect(parseStockInput('١٢')).toBe(12);
+    expect(parseStockInput('۱۲')).toBe(12);
+  });
+
+  it('rejects empty/malformed values without inventing a number', () => {
+    expect(parsePriceInput('')).toBeNull();
+    expect(parsePriceInput('abc')).toBeNull();
+    expect(parsePriceInput('12.3.4')).toBeNull();
+    expect(parseStockInput('12.5')).toBeNull();
+  });
+});
 
 describe('product draft validation', () => {
   it('requires name and description — price/image optional', () => {

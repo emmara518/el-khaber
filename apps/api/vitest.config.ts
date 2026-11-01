@@ -27,6 +27,9 @@ export default defineConfig({
   test: {
     globals: false,
     environment: 'node',
+    // Mirror CI's reference seed so the suite does not depend on the order
+    // in which another database-touching suite left the shared test DB.
+    globalSetup: './test/global-setup.ts',
     include: ['test/**/*.spec.ts', 'src/**/*.spec.ts'],
     // The real-HTTP E2E suite (Task 10N) requires the isolated khabir_test
     // database (Docker) and has its own config + fail-closed guard. It is

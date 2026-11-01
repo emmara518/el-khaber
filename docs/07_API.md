@@ -228,7 +228,10 @@ Implementation notes (Task 10E):
   and is advisory by contract — the system does not generate diagnoses.
 - Technician discovery: only `verified` technicians are publicly listed or
   detailed (missing ≡ unverified ≡ suspended → identical `404`). A listed
-  technician must offer at least one active service. `availability` accepts
+  technician must offer at least one active service. Technician lifecycle
+  actions (`accept`, `reject`, `start`, `complete`) re-check verification on
+  every request; a non-verified technician receives `403 FORBIDDEN` and the
+  request state is unchanged. `availability` accepts
   the database enum values (`available`, `busy`, `unavailable`). `sort`
   accepts only `rating` (a ranking signal documented in 06 §10); the list
   orders by rating (nulls last, stable id tiebreak). Pricing and private
@@ -775,6 +778,8 @@ Implementation notes (Task 10G):
   `400 VALIDATION_ERROR` (transitions active↔suspended are unconstrained
   by this contract). `DELETE` (documented above) permanently removes the
   product. `price` stays nullable — no currency/discount/tax semantics.
+  A merchant whose verification status is `suspended` cannot create, update,
+  or delete products (`403 FORBIDDEN`).
 - Product list supports §19 pagination only — search/category/status
   filters are not documented for this route and were not invented.
 - No checkout/orders/payments/settlement/inventory behavior exists beyond
@@ -812,7 +817,8 @@ Public. Paginated list of ACTIVE products, newest first.
 Public. Active product detail. A missing product and a suspended product
 return the identical `404 NOT_FOUND`.
 
-Visibility semantics: only products with `status = active` are exposed
+Visibility semantics: only products with `status = active` whose merchant is
+not `suspended` are exposed
 (reusing the existing `active | suspended` lifecycle — no approval/moderation
 system). A merchant-created product is therefore publicly readable while
 active.
@@ -864,8 +870,15 @@ Implementation notes (WP-Admin-01…04):
   `reason` (4–500 chars) is REQUIRED for `rejected`/`suspended`,
   audited, and notified to the user. No KYC document store exists —
   the reviewable record is the profile itself.
+- Account status (`POST /admin/users/:id/status {status: active|suspended,
+  reason?}`): `super_admin`/`operations_admin`. A reason (4-500 chars) is
+  required to suspend and is stored in `admin.user.status`. Suspension bumps
+  `tokenVersion`, so the existing access token is rejected on the next
+  request. Suspended technicians cannot advance requests; suspended
+  merchants' products are hidden from the public store and product mutations
+  return `403`.
 - Technician assignment (`POST /admin/service-requests/:id/assign
-{technician_id}`): pending requests only, verified technicians
+  {technician_id}`): pending requests only, verified technicians
   only, atomic, audited, both parties notified. This is an EXCEPTION path:
   the normal flow is the technician accepting the customer's request in
   the app; the UI labels it as an exceptional intervention.
