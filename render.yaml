@@ -22,7 +22,11 @@ services:
     plan: free                        # upgrade requires explicit owner approval
     region: frankfurt                 # keep in the EU database region
     repo: https://github.com/emmara518/el-khaber
-    branch: release/v2.1.0-uat         # reviewed release branch; main only after PR #17 is merged and re-verified
+    # RC2 UAT candidate branch. The integration work (Lanes A/B/C + C-04 +
+    # integrity pass) lives ONLY here; release/v2.1.0-uat still points at the
+    # old 739f9eb and MUST NOT be deployed. Keep autoDeploy=false so a future
+    # Blueprint application can never ship an older branch.
+    branch: release/rc2-integration-20261031
     autoDeploy: false                 # deploys require an explicit manual action
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .

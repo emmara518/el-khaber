@@ -81,7 +81,7 @@ function step(name, status, extra = '') {
   stdout.write(`${label} ${status}${extra ? `  ${extra}` : ''}\n`);
 }
 
-async function api(method, path, body, token, headers = {}) {
+ async function api(method, path, body, token, headers = {}, init = {}) {
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: {
@@ -90,12 +90,113 @@ async function api(method, path, body, token, headers = {}) {
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
+    ...(init ?? {}),
   });
   let json = {};
   if ((res.headers.get('content-type') ?? '').includes('json')) {
     json = await res.json().catch(() => ({}));
   }
-  return { status: res.status, json };
+  return { status: res.status, json, res };
+}
+
+/**
+ * Cookie-jar session used by the WEB-session checks (mission Task 3).
+ *
+ * Implements a minimal, correct cookie jar over Node's fetch so the script
+ * can drive the SAME HttpOnly/CSRF double-submit contract a browser uses:
+ *  - capture Set-Cookie pairs from every response (including HttpOnly
+ *    attributes, which node fetch exposes through the standard getSetCookie
+ *    iterator but pages cannot read),
+ *  - replay the jar on every subsequent web-session request,
+ *  - gain ONLY public visibility of the CSRF cookie value for the
+ *    double-submit header (verified to be the non-HttpOnly khabir_csrf).
+ * The jar is scoped to the API_URL origin; it is NEVER shared with the
+ * bearer-token flows above.
+ */
+class WebCookieSession {
+  #jar = new Map();
+  #base = API_URL;
+  /**
+   * WEB_ORIGIN is the browser-facing origin of the DEPLOYED web bundle.
+   * The web-session endpoints verify the exact `Origin` allow-list (CSRF
+   * boundary), so the smoke suite - like a real browser - sends the
+   * origin that matches the deployed frontend:
+   *   - default: the web host passed via --web,
+   *   - override: --web-origin <origin> for split-host / proxy topologies.
+   */
+  #webOrigin = flag('web-origin') ?? WEB_URL;
+
+  #store(res) {
+    const setCookies =
+      typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [];
+    for (const raw of setCookies) {
+      const [pair] = raw.split(';');
+      const idx = pair.indexOf('=');
+      if (idx === -1) continue;
+      const name = pair.slice(0, idx).trim();
+      const value = pair.slice(idx + 1).trim();
+      if (!name) continue;
+      // Removal rule: an attribute is a deletion ONLY if the cookie is
+      // genuinely expired (Expires in the past or Max-Age <= 0). Express
+      // always emits a FUTURE Expires alongside Max-Age for persistent
+      // cookies, so a blind attribute match would drop live HttpOnly
+      // session cookies and the whole rotation proof would false-fail.
+      const attrs = raw.split(';').slice(1).join(';');
+      const expires = /(?:^|[; ])[Ee]xpires=([^;]*)/.exec(attrs)?.[1];
+      const expiredAt = expires !== undefined ? Date.parse(expires) : Number.NaN;
+      const maxAge = /(?:^|[; ])M[Aa][Xx]-[Aa][Gg][Ee]=\s*(-?\d+)/.exec(attrs)?.[1];
+      const maxAgeSeconds = maxAge !== undefined ? Number(maxAge) : Number.NaN;
+      const isExpired =
+        (Number.isFinite(expiredAt) && expiredAt <= Date.now()) ||
+        (Number.isFinite(maxAgeSeconds) && maxAgeSeconds <= 0);
+      if (isExpired) {
+        this.#jar.delete(name);
+        continue;
+      }
+      this.#jar.set(name, value);
+    }
+  }
+
+  get(name) {
+    return this.#jar.get(name) ?? null;
+  }
+
+  /**
+   * Test hook: injects a captured pre-rotation cookie value. Used ONLY to
+   * simulate token-reuse attacks in the smoke suite, never to bypass auth.
+   */
+  mirror(name, value) {
+    this.#jar.set(name, value);
+  }
+
+  has(name) {
+    return this.#jar.has(name);
+  }
+
+  async request(method, path, body) {
+    const cookieHeader = [...this.#jar.entries()]
+      .map(([name, value]) => `${name}=${value}`)
+      .join('; ');
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      Origin: this.#webOrigin,
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      ...(this.#jar.has('khabir_csrf') ? { 'X-Khabir-Csrf': this.#jar.get('khabir_csrf') } : {}),
+    };
+    const res = await fetch(`${this.#base}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: 'include',
+    });
+    this.#store(res);
+    let json = {};
+    if ((res.headers.get('content-type') ?? '').includes('json')) {
+      json = await res.json().catch(() => ({}));
+    }
+    return { status: res.status, res, json };
+  }
 }
 
 async function stepApi(name, fn, expectStatus) {
@@ -130,6 +231,7 @@ const identities = {
   customer: unique('customer'),
   technician: unique('technician'),
   merchant: unique('merchant'),
+  webCustomer: unique('web-customer'),
 };
 
 stdout.write(`\nUAT smoke run — prefix=${PREFIX}\nweb=${WEB_URL}\napi=${API_URL}\n\n`);
@@ -162,15 +264,6 @@ for (const role of ['customer', 'technician', 'merchant']) {
   const me = await stepApi(`session /me ${role}`, () => api('GET', '/me', undefined, sessions[role].accessToken), [200]);
   step(`${role} /me role is ${role}`, me.json?.data?.role === role ? 'PASS' : 'FAIL', `role=${me.json?.data?.role ?? 'none'}`);
 }
-
-// ─── 3. Session persistence (refresh rotation) ───────────────────────────────
-await stepApi('session rotation for customer', async () => {
-  if (sessions.customer.refreshToken === undefined) {
-    // Access token from register is enough for the head request; rotation is
-    // verified through the login-issued tokens when the caller captures them.
-  }
-  return api('GET', '/me', undefined, sessions.customer.accessToken);
-}, [200]);
 
 // ─── 4. Authorization boundaries (synthetic IDs, no shared-DB reads) ─────────
 const fakeId = '00000000-0000-4000-8000-000000000000';
@@ -239,6 +332,72 @@ const verification = prof.json?.data?.verificationStatus ?? prof.json?.data?.ver
 step('technician profile pending (not self-verified)', verification === 'pending' ? 'PASS' : 'CHECK', `status=${JSON.stringify(verification)}`);
 
 // ─── 8. Summary ──────────────────────────────────────────────────────────────
+
+
+// ─── 7b. WEB-session lifecycle (HttpOnly cookie + CSRF) ─────────────────────
+// Distinct from the bearer-token checks above: this drives the REAL
+// /auth/web/session/* contract a browser uses (C-04). It is a FAIL-closed
+// cookie-jar proof, not a `/me` screenshot. It uses a DEDICATED customer
+// identity because logout revokes every refresh family for the user, and
+// revoking would otherwise invalidate the bearer tokens of the shared
+// customer used above (logout is family-global by security design).
+{
+  const web = new WebCookieSession();
+  const email = identities.webCustomer;
+  const password = PASSWORD;
+
+  const webReg = await stepApi('web-session identity register', () =>
+    api('POST', '/auth/register', { role: 'customer', email, password }, undefined), [201]);
+  const webRegOk = webReg.status === 201;
+  step('web-session identity registered', webRegOk ? 'PASS' : 'FAIL', `status=${webReg.status}`);
+
+  const webLogin = await stepApi('web-session login (HttpOnly cookie set)', () =>
+    web.request('POST', '/auth/web/session/login', { email, password }), [200, 201]);
+  step(
+    'web-session login issues HttpOnly session + CSRF cookies',
+    webLogin.status === 201 && web.has('khabir_session') && web.has('khabir_csrf') ? 'PASS' : 'FAIL',
+    `session=${web.has('khabir_session')} csrf=${web.has('khabir_csrf')}`,
+  );
+
+  const ref1 = await stepApi('web-session refresh (rotate #1) → 200 + new family', () =>
+    web.request('POST', '/auth/web/session/refresh'), [200]);
+  step(
+    'web-session refresh #1 rotated BOTH cookies (session+csrf present)',
+    ref1.status === 200 && web.has('khabir_session') && web.has('khabir_csrf') ? 'PASS' : 'FAIL',
+    `session=${web.has('khabir_session')} csrf=${web.has('khabir_csrf')}`,
+  );
+
+  // Reuse rejection: a SECOND independent session drives its own lifecycle,
+  // then replays a refresh with the exact PRE-rotation cookie pair (session
+  // + CSRF). The server rotates the refresh family during the FIRST
+  // refresh, so the stale pair must be rejected (401 AUTH_INVALID) — the
+  // browser contract that protects replayed HttpOnly sessions.
+  const replay = new WebCookieSession();
+  await replay.request('POST', '/auth/web/session/login', { email, password });
+  const replaySession = replay.get('khabir_session');
+  const replayCsrf = replay.get('khabir_csrf');
+  const rotated = await replay.request('POST', '/auth/web/session/refresh');
+  step('web-session rotation produced a new family', rotated.status === 200 && replay.get('khabir_session') !== replaySession ? 'PASS' : 'FAIL');
+  const staleJar = new WebCookieSession();
+  staleJar.mirror('khabir_session', replaySession);
+  if (replayCsrf !== null) staleJar.mirror('khabir_csrf', replayCsrf);
+  const staleReplay = await staleJar.request('POST', '/auth/web/session/refresh');
+  step('web-session refresh reuse → rejected (replay attack)', staleReplay.status === 401 ? 'PASS' : 'FAIL', `HTTP ${staleReplay.status}`);
+
+  const me = await stepApi('web-session /me (access from rotated cookie)', () =>
+    web.request('POST', '/auth/web/session/refresh'), [200]);
+  step('web-session refresh #2 also 200 (family continuity)', me.status === 200 ? 'PASS' : 'FAIL');
+
+  await stepApi('web-session logout (204 + family revocation)', () =>
+    web.request('POST', '/auth/web/session/logout'), [204]);
+  step('logout clears session+csrf cookies', !web.has('khabir_session') && !web.has('khabir_csrf') ? 'PASS' : 'FAIL');
+  const afterLogout = await stepApi('web-session refresh after logout → rejected', () =>
+    web.request('POST', '/auth/web/session/refresh'), [401, 403]);
+  step('post-logout session not reusable', afterLogout.status === 401 || afterLogout.status === 403 ? 'PASS' : 'FAIL', `HTTP ${afterLogout.status}`);
+}
+
+// ─── 4.
+
 stdout.write(`\nRESULT: ${fail === 0 ? 'PASS' : 'FAIL'} — ${pass} passed, ${fail} failed.\n`);
 if (failures.length > 0) {
   stdout.write('\nFailures:\n');
