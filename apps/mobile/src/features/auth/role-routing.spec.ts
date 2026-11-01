@@ -55,11 +55,16 @@ describe('segment grouping', () => {
 });
 
 describe('route guard', () => {
-  it('keeps bootstrapping sessions on Splash', () => {
+  it('holds navigation while a session is bootstrapping (deep links survive)', () => {
     // Public route (Splash itself): no navigation while unknown.
     expect(resolveRouteForSession({ status: 'unknown', role: null }, 'public')).toBeNull();
-    // Stale deep route during bootstrap: back to Splash.
-    expect(resolveRouteForSession({ status: 'unknown', role: null }, 'customer')).toBe('/');
+    // Role deep route during bootstrap: STAY so a browser refresh on a
+    // role-specific route keeps its position; the guard re-evaluates in
+    // place once the session resolves (anonymous → /login, wrong role →
+    // role home).
+    expect(resolveRouteForSession({ status: 'unknown', role: null }, 'customer')).toBeNull();
+    expect(resolveRouteForSession({ status: 'unknown', role: null }, 'technician')).toBeNull();
+    expect(resolveRouteForSession({ status: 'unknown', role: null }, 'merchant')).toBeNull();
   });
 
   it('keeps anonymous users on public routes, pushes them out of shells', () => {

@@ -19,7 +19,6 @@ import {
   setAccessToken,
 } from './token-store';
 import {
-  refreshWebSession,
   webLogin,
   webLogout,
   webRegister,
@@ -61,7 +60,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async bootstrap(): Promise<void> {
     if (isWeb) {
-      const result = await refreshWebSession();
+      // Route through the client's single-flight refresh so the bootstrap
+      // and every concurrent 401 share exactly ONE rotation. Two parallel
+      // rotations race: the server correctly rejects the second use of
+      // the presented token (401) and the restored session would be lost.
+      const result = await getApi().refreshSession();
       if (result.outcome === 'ok' && result.data !== undefined) {
         set({
           status: 'authenticated',
@@ -235,6 +238,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   async handleSessionLost(): Promise<void> {
     if (isWeb) {
+      // Idempotent (WP-1A): when the session is already dropped, a burst of
+      // concurrent 401s must not re-fire logout requests.
+      if (get().status === 'anonymous' && get().user === null) {
+        return;
+      }
       try {
         await webLogout();
         clearAccessToken();

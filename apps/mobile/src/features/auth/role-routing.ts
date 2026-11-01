@@ -68,7 +68,11 @@ export function resolveRouteForSession(
   currentGroup: RouteGroup,
 ): string | null {
   if (session.status === 'unknown') {
-    return currentGroup === 'public' ? null : '/';
+    // Bootstrap in flight: never navigate away. Staying preserves any
+    // role-specific deep link (e.g. browser refresh on /orders) — once
+    // the session resolves, the guard re-evaluates in place: anonymous
+    // users fall to /login and wrong-role users fall to the role home.
+    return null;
   }
   if (session.status === 'anonymous') {
     return currentGroup === 'public' ? null : '/login';
