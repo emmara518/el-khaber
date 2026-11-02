@@ -95,6 +95,22 @@ services:
       - key: PROOF_URL_TTL_SECONDS
         value: "300"
 
+      # --- avatar storage (local is refused at boot in production; unset would crash main.js) ---
+      - key: AVATAR_STORAGE_PROVIDER
+        value: s3
+      - key: AVATAR_S3_BUCKET
+        sync: false
+      - key: AVATAR_S3_REGION
+        value: auto
+      - key: AVATAR_S3_ENDPOINT
+        sync: false
+      - key: AVATAR_S3_ACCESS_KEY_ID
+        sync: false
+      - key: AVATAR_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: AVATAR_PUBLIC_BASE_URL
+        sync: false
+
       # --- password-reset delivery (email webhook) ---
       - key: PASSWORD_RESET_DELIVERY_URL
         sync: false

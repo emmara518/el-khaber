@@ -21,6 +21,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 const failures = [];
+const executed = [];
 
 async function tableExists(table) {
   const rows = await prisma.$queryRawUnsafe(
@@ -42,6 +43,7 @@ async function columnExists(table, column) {
 async function check(name, sql, detail) {
   const rows = await prisma.$queryRawUnsafe(sql);
   const violations = Number(rows[0]?.count ?? 0);
+  executed.push({ name, violations });
   if (violations > 0) {
     failures.push({ check: name, violations, detail });
   }
@@ -55,6 +57,8 @@ try {
           event: 'migration-preflight',
           status: 'pass',
           freshDatabase: true,
+          executed: 0,
+          executedChecks: [],
           checks: [],
         },
         null,
@@ -85,6 +89,28 @@ try {
           'payment_submissions_amount_negative',
           `SELECT count(*)::int AS count FROM payment_submissions WHERE amount < 0`,
           'The non-negative amount constraint would reject existing rows.',
+        );
+      }
+      if (
+        (await tableExists('subscription_plans')) &&
+        (await columnExists('subscription_plans', 'price')) &&
+        (await columnExists('subscription_plans', 'currency'))
+      ) {
+        await check(
+          'payment_submissions_backfill_plan_missing',
+          `SELECT count(*)::int AS count
+           FROM payment_submissions ps
+           LEFT JOIN subscription_plans sp ON sp.id = ps.plan_id
+           WHERE sp.id IS NULL`,
+          'The amount/currency snapshot backfill would leave the row unsnapshotted (plan row missing) and SET NOT NULL would reject it.',
+        );
+        await check(
+          'payment_submissions_backfill_null_plan_price_or_currency',
+          `SELECT count(*)::int AS count
+           FROM payment_submissions ps
+           JOIN subscription_plans sp ON sp.id = ps.plan_id
+           WHERE sp.price IS NULL OR sp.currency IS NULL`,
+          'The amount/currency snapshot backfill would copy NULL and SET NOT NULL would reject the row.',
         );
       }
     }
@@ -221,11 +247,17 @@ try {
       );
     }
 
-    const databaseRows = await prisma.$queryRawUnsafe('SELECT current_database() AS name');
+    const databaseRows = await prisma.$queryRawUnsafe(
+      `SELECT current_database() AS name, current_user AS role, current_setting('server_version') AS version`,
+    );
     const report = {
       event: 'migration-preflight',
       status: failures.length === 0 ? 'pass' : 'fail',
       database: databaseRows[0]?.name ?? 'unknown',
+      serverRole: databaseRows[0]?.role ?? 'unknown',
+      serverVersion: databaseRows[0]?.version ?? 'unknown',
+      executed: executed.length,
+      executedChecks: executed,
       checks: failures,
     };
     console.log(JSON.stringify(report, null, 2));
