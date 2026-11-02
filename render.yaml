@@ -10,10 +10,11 @@
 # Secrets are never stored here (`sync: false`). Apply this blueprint only
 # after the owner approves the paid plan, the database, and the secrets.
 #
-# Migration policy: on the Free plan Render has no preDeployCommand (paid
-# feature). The container CMD runs apps/api/scripts/migrate-deploy.mjs
-# (fail-closed) before the API starts. On a paid plan, move the gate to:
-#   preDeployCommand: node apps/api/scripts/migrate-deploy.mjs
+# Migration policy (owner decision 2026-11-02): migrations are NEVER run by
+# container startup. Apply them explicitly from a trusted machine with:
+#   node apps/api/scripts/migrate-deploy.mjs   (uses DIRECT_URL, fail-closed)
+# /api/v1/ready returns 503 while _prisma_migrations has unfinished rows, so
+# a deploy without migrations never serves traffic. autoDeploy stays false.
 
 services:
   - type: web
@@ -26,7 +27,7 @@ services:
     # integrity pass) lives ONLY here; release/v2.1.0-uat still points at the
     # old 739f9eb and MUST NOT be deployed. Keep autoDeploy=false so a future
     # Blueprint application can never ship an older branch.
-    branch: release/rc2-integration-20261031
+    branch: release/rc4-go-live-20261102
     autoDeploy: false                 # deploys require an explicit manual action
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .

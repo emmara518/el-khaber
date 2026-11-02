@@ -59,10 +59,9 @@ EXPOSE 3000
 # dependency state to the orchestrator.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "const p=process.env.PORT||3000;const g=process.env.API_GLOBAL_PREFIX||'api/v1';fetch(`http://127.0.0.1:${p}/${g}/health`).then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-# AUD-003 migration gate: apply pending migrations BEFORE serving traffic.
-# migrate-deploy.mjs exits non-zero on any failure, so the container exits
-# and Render refuses the deploy (previous version stays live). Runs on the
-# direct (non-pooled) connection via the schema's directUrl. Alternative
-# production path (preDeployCommand) requires a paid plan — documented in
-# docs/14_PRODUCTION_DEPLOY_RUNBOOK.md.
-CMD ["sh", "-c", "node apps/api/scripts/migrate-deploy.mjs && node apps/api/dist/main.js"]
+# Migrations are NOT part of container startup (owner decision): every boot
+# must be side-effect-free. Apply migrations explicitly before a deploy:
+#   node apps/api/scripts/migrate-deploy.mjs   (trusted machine, DIRECT_URL)
+# The container only serves traffic; /api/v1/ready stays 503 while the
+# migration ledger has unfinished rows.
+CMD ["node", "apps/api/dist/main.js"]
